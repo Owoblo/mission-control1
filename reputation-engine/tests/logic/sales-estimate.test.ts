@@ -102,7 +102,7 @@ test('premium scope follows inventory evidence and never invents TV mounting', (
   })
   const standardTv = estimateLeadQuote(base, { quoteType: 'standard' })
   assert.ok(standardTv.lineItems.some(item => item.description === 'Moving Boxes — As Many As Needed'))
-  assert.ok(standardTv.lineItems.some(item => item.description === 'Professional Packing & Unpacking'))
+  assert.ok(!standardTv.lineItems.some(item => /Professional Packing|Professional Unpacking/.test(item.description)))
   assert.ok(standardTv.lineItems.some(item => item.description === 'Inventory-Specific Disassembly & Reassembly'))
   assert.ok(standardTv.lineItems.some(item => item.description === 'TV Protection'))
   assert.ok(!standardTv.lineItems.some(item => item.description === 'Wall-Mounted TV Dismount & Remount'))
@@ -114,12 +114,12 @@ test('premium scope follows inventory evidence and never invents TV mounting', (
   assert.ok(mountedTv.lineItems.some(item => item.description === 'Wall-Mounted TV Dismount & Remount'))
 })
 
-test('explicit self-packing removes the premium packing inclusion', () => {
+test('packing preference alone does not silently add packing to the quote', () => {
   const estimate = estimateLeadQuote(makeLead({
     surveyCompletedAt: '2026-08-13T18:00:00.000Z',
-    jobFactors: { packingPreference: 'self' },
+    jobFactors: { packingPreference: 'full_service' },
   }), { quoteType: 'standard' })
-  assert.ok(!estimate.lineItems.some(item => item.description === 'Professional Packing & Unpacking'))
+  assert.ok(!estimate.lineItems.some(item => /Professional Packing|Professional Unpacking/.test(item.description)))
 })
 
 test('estimateLeadQuote prices storage, storage delivery, and secondary stop legs distinctly', () => {

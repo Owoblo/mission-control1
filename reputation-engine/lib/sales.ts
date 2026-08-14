@@ -571,7 +571,6 @@ const AUTO_ESTIMATE_LINE_ITEM_DESCRIPTIONS = new Set([
   'Priority booking surcharge',
   '20 Complimentary Moving Boxes',
   'Moving Boxes — As Many As Needed',
-  'Professional Packing & Unpacking',
   'Inventory-Specific Disassembly & Reassembly',
   'TV Protection',
   'Wall-Mounted TV Dismount & Remount',
@@ -1526,7 +1525,6 @@ function estimateSingleLeadQuote(
   const tvCount = includedInventory.reduce((sum, item) => /\b(tv|television|flat.?screen)\b/i.test(`${item.name || item.item || ''}`) ? sum + Math.max(1, Number(item.qty || 1)) : sum, 0)
   const mountedTvCount = includedInventory.reduce((sum, item) => /\b(wall.?mounted|mounted tv|hanging tv|tv.*(?:wall|mount))\b/i.test(`${item.name || item.item || ''} ${item.notes || ''}`) ? sum + Math.max(1, Number(item.qty || 1)) : sum, 0)
   const premiumDefault = !isPacking && !isLaborOnly && Boolean(isLongDistance || totalServiceAmount >= 3000 || lead.supabaseListing || lead.listingScanSnapshot || lead.surveyCompletedAt)
-  const packingOptedOut = activeFactors?.packingPreference === 'self' || activeFactors?.packingStatus === 'packed'
   const plannedBoxCount = Math.min(80, Math.max(20,
     Number(activeFactors?.estimatedBoxes || 0),
     Number(packingMaterialsEstimate?.recommendedDeliveryBoxes || 0),
@@ -1539,13 +1537,6 @@ function estimateSingleLeadQuote(
       details: `Standard moving boxes supplied to match the confirmed inventory · current planning allowance: ${plannedBoxCount} boxes · delivery included`,
       amount: 0,
     })
-    if (!packingOptedOut) {
-      lineItems.push({
-        description: 'Professional Packing & Unpacking',
-        details: 'Packing before the move and room-by-room unpacking after delivery · removable if the customer prefers to self-pack',
-        amount: 0,
-      })
-    }
   }
   if (disassemblyItemNames.length > 0 && !isLaborOnly && !isPacking) {
     lineItems.push({ description: 'Inventory-Specific Disassembly & Reassembly', details: disassemblyItemNames.join(' · '), amount: 0 })

@@ -92,11 +92,13 @@ export function buildContributionPricingPlan(input: {
   const tvBoxBasis = tvBoxPlan.length > 0
     ? Object.entries(tvBoxesByTier).map(([tier, qty]) => `${qty}× ${tier}`).join(' · ')
     : `${protectedTvCount} size pending`
-  const packingIncluded = lines.some(item => /professional packing & unpacking/i.test(item.description))
-  const packingManHours = packingIncluded ? money(Math.max(20, suppliedKitCount) * 0.375) : 0
-  const embeddedPackingHours = Number(input.pricing?.adjustmentBreakdown?.find(item => item.category === 'packing')?.hours || 0)
-  const embeddedPackingCost = embeddedPackingHours * Math.max(1, Number(input.pricing?.crewSize || 1)) * 25
-  const packingAndUnpackingLabor = packingIncluded ? money(Math.max(0, packingManHours * 25 - embeddedPackingCost)) : 0
+  const packingIncluded = lines.some(item => /professional packing service/i.test(item.description))
+  const packingDay = input.pricing?.intelligenceFlags?.packingDayEstimate
+  const packingManHours = packingIncluded && packingDay ? money(packingDay.crewSize * packingDay.hours) : 0
+  const packingLaborCost = money(packingManHours * 25)
+  const unpackingIncluded = lines.some(item => /professional unpacking service/i.test(item.description))
+  const unpackingManHours = unpackingIncluded ? money(Math.max(20, suppliedKitCount) * 0.125) : 0
+  const unpackingLaborCost = money(unpackingManHours * 25)
   const mountedTvLine = lines.find(item => /wall-mounted tv dismount/i.test(item.description))
   const mountedTvCount = Number(mountedTvLine?.details?.match(/^(\d+)/)?.[1] || 0)
   const hotelNights = isLongDistance && Number(input.pricing?.totalHours || 0) > 12
@@ -113,7 +115,8 @@ export function buildContributionPricingPlan(input: {
     { key: 'box_kit', label: `Moving boxes (${suppliedKitCount} supplied)`, amount: money(suppliedKitCount * 1.5) },
     { key: 'box_delivery', label: 'Box delivery labour, vehicle & re-delivery allowance', amount: suppliedKitCount ? (isLongDistance ? 85 : 65) : 0 },
     { key: 'tv_boxes', label: `TV protection boxes (${tvBoxBasis})`, amount: tvBoxCost },
-    { key: 'packing_labor', label: `Full-service packing & unpacking fulfillment (~${packingManHours} labour-hours)`, amount: packingAndUnpackingLabor },
+    { key: 'packing_labor', label: `Professional packing fulfillment (${packingManHours} labour-hours)`, amount: packingLaborCost },
+    { key: 'unpacking_labor', label: `Professional unpacking fulfillment (~${unpackingManHours} labour-hours)`, amount: unpackingLaborCost },
     { key: 'tv_mounting', label: 'TV dismount/remount labour & hardware allowance', amount: money(mountedTvCount * 70) },
     { key: 'furniture_protection', label: 'Furniture wrap, padding and floor protection', amount: quoteType === 'labor_only' || quoteType === 'packing_only' ? 0 : money(Math.max(1, Number(input.pricing?.truckCount || 1)) * 35) },
     { key: 'storage', label: 'Storage fulfillment allowance', amount: hasStorage ? money((factors.storageMonthlyAllowance || 150) * Math.max(1, factors.storageEstimatedMonths || 1)) : 0 },

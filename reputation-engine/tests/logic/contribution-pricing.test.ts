@@ -59,3 +59,26 @@ test('TV protection uses inventory sizes instead of a flat per-TV guess', () => 
   assert.equal(plan.costs.find(item => item.key === 'tv_boxes')?.amount, 67)
   assert.match(plan.costs.find(item => item.key === 'tv_boxes')?.label || '', /1× Large.*1× XL/)
 })
+
+test('packing and unpacking are independent selected services with independent costs', () => {
+  const pricing = {
+    routeCategory: 'local', crewSize: 3, truckCount: 1, adjustmentBreakdown: [],
+    intelligenceFlags: { packingDayEstimate: { crewSize: 2, hours: 5, amountBeforeHst: 900 } },
+    internalCostEstimate: { laborCost: 900, truckOpsCost: 300 },
+  } as never
+  const packing = buildContributionPricingPlan({
+    currentPrice: 5000, pricing,
+    lineItems: [{ description: 'Professional Packing Service (Day Before Move)', amount: 900 }],
+  })
+  const unpacking = buildContributionPricingPlan({
+    currentPrice: 5000, pricing,
+    lineItems: [
+      { description: 'Moving Boxes — As Many As Needed', details: 'current planning allowance: 40 boxes', amount: 0 },
+      { description: 'Professional Unpacking Service', amount: 250 },
+    ],
+  })
+  assert.equal(packing.costs.find(item => item.key === 'packing_labor')?.amount, 250)
+  assert.equal(packing.costs.find(item => item.key === 'unpacking_labor'), undefined)
+  assert.equal(unpacking.costs.find(item => item.key === 'packing_labor'), undefined)
+  assert.equal(unpacking.costs.find(item => item.key === 'unpacking_labor')?.amount, 125)
+})

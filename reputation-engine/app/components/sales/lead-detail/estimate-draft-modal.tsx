@@ -1567,10 +1567,12 @@ export function EstimateDraftModal({
   const packingMaterialsEstimate = flags?.packingMaterialsEstimate || null
   const packingLaborLineDescription = 'Professional Packing Service (Day Before Move)'
   const packingMaterialsLineDescription = 'Packing Materials Allowance'
+  const unpackingLineDescription = 'Professional Unpacking Service'
   const cleaningLineDescription = 'Move-In / Move-Out Cleaning'
   const containerHandlingLineDescription = 'Storage Container Loading / Unloading'
   const packingLaborAdded = quoteLineItems.some(item => item.description === packingLaborLineDescription)
   const packingMaterialsAdded = quoteLineItems.some(item => item.description === packingMaterialsLineDescription)
+  const unpackingAdded = quoteLineItems.some(item => item.description === unpackingLineDescription)
   const cleaningAdded = quoteLineItems.some(item => item.description === cleaningLineDescription)
   const containerHandlingAdded = quoteLineItems.some(item => item.description === containerHandlingLineDescription)
   const needsTwoTrucks = flags?.twoTruckRequired ?? false
@@ -1618,6 +1620,22 @@ export function EstimateDraftModal({
       description: packingMaterialsLineDescription,
       details: buildPackingMaterialsLineItemDetails(packingMaterialsEstimate),
       amount: packingMaterialsEstimate.subtotal,
+    })
+  }
+
+  function toggleUnpackingService() {
+    if (unpackingAdded) {
+      onSetLineItems(quoteLineItems.filter(item => item.description !== unpackingLineDescription))
+      return
+    }
+    const plannedBoxes = Math.max(20, packingMaterialsEstimate?.plannedBoxes || jobFactors.estimatedBoxes || Math.ceil(effectiveInventoryMetrics.totalCubicFeet / 35))
+    const labourHours = Math.round(plannedBoxes * 0.125 * 4) / 4
+    const internalCost = labourHours * 25
+    const bundledPrice = Math.ceil((internalCost / (1 - 0.03 - 0.38)) / 50) * 50
+    appendQuoteLineItem({
+      description: unpackingLineDescription,
+      details: `Room-by-room unpacking and empty-box consolidation · ~${labourHours} labour-hours based on ${plannedBoxes} planned boxes`,
+      amount: bundledPrice,
     })
   }
 
@@ -3146,6 +3164,20 @@ export function EstimateDraftModal({
                   }`}
                 >
                   {packingLaborAdded || packingMaterialsAdded ? '✓' : '+'} Packing
+                </button>
+
+                {/* Unpacking — selected only after customer interest */}
+                <button
+                  type="button"
+                  onClick={toggleUnpackingService}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    unpackingAdded
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                      : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]'
+                  }`}
+                  title="Add only after the customer asks for unpacking help"
+                >
+                  {unpackingAdded ? '✓' : '+'} Unpacking
                 </button>
 
                 {/* Junk Removal */}
