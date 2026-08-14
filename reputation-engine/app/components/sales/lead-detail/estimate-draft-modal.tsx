@@ -1955,7 +1955,9 @@ export function EstimateDraftModal({
     lineItems: quoteLineItems,
     factors: jobFactors,
     binding: quote?.billingModel === 'binding',
-  }), [jobFactors, pricingBreakdown, quote?.billingModel, quoteLineItems, quoteModalTotals.subtotal])
+    quoteType,
+    moveDate: selectedMoveDate,
+  }), [jobFactors, pricingBreakdown, quote?.billingModel, quoteLineItems, quoteModalTotals.subtotal, quoteType, selectedMoveDate])
   const consultativeMovePlan = useMemo(() => buildConsultativeMovePlan({
     factors: jobFactors,
     lineItems: quoteLineItems,
@@ -5398,11 +5400,11 @@ export function EstimateDraftModal({
                 <div className="space-y-1.5">
                   {contributionPlan.costs.filter(cost => cost.key !== 'contingency').map(cost => <div key={cost.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{cost.label}</span><span className="font-semibold">{formatMoney(cost.amount)}</span></div>)}
                   <details className="rounded border border-[var(--app-line)] bg-slate-50">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-2 py-2"><span className="font-semibold text-[var(--app-ink)]">Execution contingency &amp; reserves <span className="ml-1 text-[10px] text-[var(--app-muted)]">▾</span></span><span className="font-semibold">{formatMoney(contributionPlan.executionContingencyTotal)}</span></summary>
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-2 py-2"><span className="font-semibold text-[var(--app-ink)]">Live-job contingency &amp; payment cost <span className="ml-1 text-[10px] text-[var(--app-muted)]">▾</span></span><span className="font-semibold">{formatMoney(contributionPlan.executionContingencyTotal)}</span></summary>
                     <div className="space-y-1.5 border-t border-[var(--app-line)] px-2 py-2">
-                      <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Operational contingency (8%)</span><span>{formatMoney(contributionPlan.costs.find(cost => cost.key === 'contingency')?.amount || 0)}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Operational contingency ({Math.round(contributionPlan.operationalContingencyRate * 100)}%)</span><span>{formatMoney(contributionPlan.costs.find(cost => cost.key === 'contingency')?.amount || 0)}</span></div>
                       {contributionPlan.reserves.map(reserve => <div key={reserve.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{reserve.label} ({Math.round(reserve.rate * 100)}%)</span><span>{formatMoney(reserve.amount)}</span></div>)}
-                      <div className="pt-1 text-[9px] leading-4 text-[var(--app-muted)]">Reserve amounts are calculated from the recommended bundled price.</div>
+                      <div className="pt-1 text-[9px] leading-4 text-[var(--app-muted)]">Only costs attributable to this live job appear here. Marketing, commission, claims overhead and coordination are absorbed by the margin target—not deducted twice.</div>
                     </div>
                   </details>
                 </div>
