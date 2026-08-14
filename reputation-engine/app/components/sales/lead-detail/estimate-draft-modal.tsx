@@ -20,7 +20,7 @@ import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
-import { buildContributionPricingPlan } from '@/lib/contribution-pricing'
+import { buildContributionPricingPlan, buildProtectionRecommendation } from '@/lib/contribution-pricing'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import { qualifyMoveAddress } from '@/lib/route-address'
 import {
@@ -1562,6 +1562,27 @@ export function EstimateDraftModal({
   const hazardousPolicyLabels = useMemo(() => uniquePolicyLabels(inventoryPolicySummary.hazardous), [inventoryPolicySummary.hazardous])
   const manualReviewPolicyLabels = useMemo(() => uniquePolicyLabels(inventoryPolicySummary.manualReview), [inventoryPolicySummary.manualReview])
   const specialtyPolicyLabels = useMemo(() => uniquePolicyLabels(inventoryPolicySummary.specialtyFee), [inventoryPolicySummary.specialtyFee])
+  const specialtyServiceRecommendations = useMemo(() => {
+    const internalAllowanceByRule: Record<string, number> = {
+      safe: 225,
+      piano: 350,
+      pool_table: 650,
+      hot_tub: 1000,
+    }
+    const seen = new Set<string>()
+    return inventoryPolicySummary.specialtyFee.flatMap(finding => {
+      if (seen.has(finding.ruleId)) return []
+      seen.add(finding.ruleId)
+      const internalAllowance = internalAllowanceByRule[finding.ruleId] || 300
+      return [{
+        key: finding.ruleId,
+        label: finding.label,
+        itemLabel: finding.itemLabel,
+        internalAllowance,
+        sellingAllocation: Math.ceil((internalAllowance * 1.2) / 25) * 25,
+      }]
+    })
+  }, [inventoryPolicySummary.specialtyFee])
   const defaultExcludePolicyLabels = useMemo(() => uniquePolicyLabels(inventoryPolicySummary.defaultExclude), [inventoryPolicySummary.defaultExclude])
   const flags = pricingBreakdown?.intelligenceFlags
   const packingMaterialsEstimate = flags?.packingMaterialsEstimate || null
@@ -1605,6 +1626,16 @@ export function EstimateDraftModal({
     onSetLineItems([...quoteLineItems, item])
   }
 
+  function addSpecialtyService(item: typeof specialtyServiceRecommendations[number]) {
+    const description = `${item.label} — Specialty Handling`
+    if (quoteLineItems.some(line => line.description === description)) return
+    appendQuoteLineItem({
+      description,
+      details: `${item.itemLabel} · planning allowance includes specialty crew/equipment · confirm photo, weight and access before binding`,
+      amount: item.sellingAllocation,
+    })
+  }
+
   function addPackingLaborLineItem() {
     if (!flags?.packingDayEstimate || packingLaborAdded) return
     appendQuoteLineItem({
@@ -1640,9 +1671,16 @@ export function EstimateDraftModal({
   }
 
   const junkLineDescription = 'Junk Removal Service'
-  const valuationLineDescription = 'Declared Value Protection'
+  const valuationLineDescription = 'Move Protection Plus'
+  const isProtectionLine = (description: string) => /^(?:Move Protection Plus|Declared Value Protection)$/i.test(description)
   const junkAdded = quoteLineItems.some(li => li.description === junkLineDescription)
-  const valuationAdded = quoteLineItems.some(li => li.description === valuationLineDescription)
+  const valuationAdded = quoteLineItems.some(li => isProtectionLine(li.description))
+  const protectionRecommendation = useMemo(() => buildProtectionRecommendation({
+    currentPrice: quoteModalTotals.subtotal,
+    pricing: pricingBreakdown,
+    factors: jobFactors,
+    inventory: effectiveInventoryMetrics.inventory,
+  }), [effectiveInventoryMetrics.inventory, jobFactors, pricingBreakdown, quoteModalTotals.subtotal])
   const tvDismountLineDescription = 'TV Dismount & Remount Service'
   const tvDismountAdded = quoteLineItems.some(li => li.description === tvDismountLineDescription)
   // All TVs in inventory (for boxes) — wall-mounted subset for dismount service
@@ -1761,13 +1799,15 @@ export function EstimateDraftModal({
 
   function toggleValuation() {
     if (valuationAdded) {
-      const idx = quoteLineItems.findIndex(li => li.description === valuationLineDescription)
+      const idx = quoteLineItems.findIndex(li => isProtectionLine(li.description))
       if (idx >= 0) onRemoveLineItem(idx)
     } else {
+      const recommendedAmount = protectionRecommendation.price
+      setValuationAmount(String(recommendedAmount))
       onSetLineItems([...quoteLineItems, {
         description: valuationLineDescription,
-        details: 'Up to $50,000 declared value coverage · full replacement liability · optional add-on',
-        amount: Number(valuationAmount) || 149,
+        details: `Optional enhanced move protection · terms and declared-value limits apply${protectionRecommendation.reasons.length ? ` · recommended for ${protectionRecommendation.reasons.join(', ')}` : ''}`,
+        amount: recommendedAmount,
       }])
     }
   }
@@ -1780,7 +1820,7 @@ export function EstimateDraftModal({
 
   function syncValuationAmount(val: string) {
     setValuationAmount(val)
-    const idx = quoteLineItems.findIndex(li => li.description === valuationLineDescription)
+    const idx = quoteLineItems.findIndex(li => isProtectionLine(li.description))
     if (idx >= 0) onUpdateLineItem(idx, 'amount', val)
   }
 
@@ -2185,6 +2225,7 @@ export function EstimateDraftModal({
       { category: 'logistics', label: 'Packing status', ready: Boolean(jobFactors.packingStatus), detail: 'Packing status is not confirmed.' },
       { category: 'logistics', label: 'Boxes asked', ready: boxesAsked, detail: 'Boxes were not confirmed.' },
       { category: 'commercial', label: 'Crew / truck recommendation', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount), critical: true, detail: 'Crew or truck recommendation is missing.' },
+      { category: 'commercial', label: 'Specialty fulfillment priced', ready: contributionPlan.pricingGaps.length === 0, critical: contributionPlan.pricingGaps.length > 0, detail: contributionPlan.pricingGaps.length ? `Add confirmed specialty pricing for: ${contributionPlan.pricingGaps.map(item => item.label).join(', ')}.` : 'Specialty fulfillment is priced.' },
       {
         category: 'commercial',
         label: 'Final price confidence',
@@ -2201,7 +2242,7 @@ export function EstimateDraftModal({
       { category: 'commercial', label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, hiddenAreaEvidence, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
+  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, contributionPlan.pricingGaps, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, hiddenAreaEvidence, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -2402,11 +2443,10 @@ export function EstimateDraftModal({
     const calculatedContext = pricingBreakdown
       ? `Calculated baseline before override: ${formatMoney(baseQuoteSubtotal)} pre-tax; operational estimate: ${pricingBreakdown.crewSize} movers, ${pricingBreakdown.truckCount} truck${pricingBreakdown.truckCount === 1 ? '' : 's'}, about ${pricingBreakdown.totalHours}h at ${formatMoney(pricingBreakdown.crewRatePerHour)}/hr`
       : `Calculated baseline before override: ${formatMoney(baseQuoteSubtotal)} pre-tax`
-    const separateServices = quoteLineItems.filter(item => [
+    const separateServices = quoteLineItems.filter(item => isProtectionLine(item.description) || [
       packingLaborLineDescription,
       packingMaterialsLineDescription,
       junkLineDescription,
-      valuationLineDescription,
       cleaningLineDescription,
       containerHandlingLineDescription,
     ].includes(item.description))
@@ -3203,7 +3243,7 @@ export function EstimateDraftModal({
                       : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[#071421] hover:text-[#071421]'
                   }`}
                 >
-                  {valuationAdded ? '✓' : '+'} Valuation
+                  {valuationAdded ? '✓' : '+'} Protection · {formatMoney(protectionRecommendation.price)}
                 </button>
 
                 <button
@@ -3427,8 +3467,8 @@ export function EstimateDraftModal({
               {valuationAdded && (
                 <div className="flex items-center gap-3 rounded-[6px] border border-emerald-200 bg-emerald-50 px-3 py-2.5">
                   <div className="flex-1 text-[11px] text-emerald-800">
-                    <div className="font-semibold">Declared Value Protection</div>
-                    <div className="text-emerald-700">Up to $50k coverage · full replacement liability on all items</div>
+                    <div className="font-semibold">Move Protection Plus</div>
+                    <div className="text-emerald-700">Optional enhanced protection · recommendation adjusts to the move context · terms and declared-value limits apply</div>
                   </div>
                   <div className="flex items-center gap-1 text-[11px] text-emerald-800 font-semibold">
                     <span>$</span>
@@ -4952,6 +4992,23 @@ export function EstimateDraftModal({
                   <div className="mt-0.5 text-xs">
                     Confirm photo, weight, route, and fee before finalizing: {specialtyPolicyLabels.join(', ')}.
                   </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {specialtyServiceRecommendations.map(item => {
+                      const description = `${item.label} — Specialty Handling`
+                      const added = quoteLineItems.some(line => line.description === description)
+                      return <button
+                        key={item.key}
+                        type="button"
+                        disabled={added}
+                        onClick={() => addSpecialtyService(item)}
+                        title={`Internal planning allowance ${formatMoney(item.internalAllowance)} · 20% specialty markup`}
+                        className="rounded-[6px] border border-sky-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-sky-900 disabled:opacity-50"
+                      >
+                        {added ? '✓ Added' : '+ Add allowance'} · {item.label} {formatMoney(item.sellingAllocation)}
+                      </button>
+                    })}
+                  </div>
+                  <div className="mt-2 text-[10px] text-sky-700">These are planning allowances, not ordinary move labour. Replace with the confirmed subcontractor/equipment price before a binding quote.</div>
                 </div>
               )}
 
@@ -5285,13 +5342,12 @@ export function EstimateDraftModal({
                       packingLaborLineDescription,
                       packingMaterialsLineDescription,
                       junkLineDescription,
-                      valuationLineDescription,
                       cleaningLineDescription,
                       containerHandlingLineDescription,
                     ])
                     const movingItems = quoteLineItems
                       .map((item, index) => ({ item, index }))
-                      .filter(({ item }) => !serviceDescriptions.has(item.description))
+                      .filter(({ item }) => !serviceDescriptions.has(item.description) && !isProtectionLine(item.description))
                     if (movingItems.length === 0) return null
                     return (
                       <div>
@@ -5367,7 +5423,7 @@ export function EstimateDraftModal({
                   {valuationAdded && (() => {
                     const valuationItems = quoteLineItems
                       .map((item, index) => ({ item, index }))
-                      .filter(({ item }) => item.description === valuationLineDescription)
+                      .filter(({ item }) => isProtectionLine(item.description))
                     return (
                       <div>
                         <div className="mb-2 flex items-center gap-2">
@@ -5424,14 +5480,34 @@ export function EstimateDraftModal({
               <div className="crm-label">Contribution Pricing</div>
               <div className="mt-2 text-xs text-[var(--app-muted)]">Calculating the confirmed route before updating fulfillment costs and price…</div>
             </div>}
-            {!routeBusy && contributionPlan.isMajorMove && <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open>
+            {!routeBusy && contributionPlan.fixedFulfillmentCost > 0 && <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open>
               <summary className="cursor-pointer list-none px-3 py-3">
                 <div className="crm-label">Contribution Pricing</div>
                 <div className="mt-1 text-xs text-[var(--app-muted)]">Build the one customer price backwards from complete fulfillment economics.</div>
               </summary>
               <div className="border-t border-[var(--app-line)] px-3 py-3 text-xs">
-                <div className="space-y-1.5">
-                  {contributionPlan.costs.filter(cost => cost.key !== 'contingency').map(cost => <div key={cost.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{cost.label}</span><span className="font-semibold">{formatMoney(cost.amount)}</span></div>)}
+                <div className="space-y-3">
+                  {([
+                    { key: 'core_move', label: '1 · Core move fulfillment' },
+                    { key: 'evidence_required', label: '2 · Required by inventory / route' },
+                    { key: 'customer_selected', label: '3 · Customer-selected services' },
+                  ] as const).map(group => {
+                    const groupCosts = contributionPlan.costs.filter(cost => cost.key !== 'contingency' && cost.classification === group.key)
+                    if (groupCosts.length === 0) return null
+                    return <div key={group.key}>
+                      <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">{group.label}</div>
+                      <div className="space-y-1.5">
+                        {groupCosts.map(cost => <div key={cost.key} className="flex items-start justify-between gap-3">
+                          <span className="text-[var(--app-muted)]">{cost.label}{cost.sellingAllocation ? <span className="block text-[9px]">selling allocation {formatMoney(cost.sellingAllocation)} · add-on contribution {formatMoney(cost.sellingAllocation - cost.amount)}</span> : null}</span>
+                          <span className="font-semibold">{formatMoney(cost.amount)}</span>
+                        </div>)}
+                      </div>
+                    </div>
+                  })}
+                  {contributionPlan.pricingGaps.length > 0 ? <div className="rounded border border-rose-200 bg-rose-50 p-2 text-rose-800">
+                    <div className="font-semibold">Specialty pricing required</div>
+                    {contributionPlan.pricingGaps.map(gap => <div key={gap.key} className="mt-1"><strong>{gap.label}:</strong> {gap.reason}</div>)}
+                  </div> : null}
                   <details className="rounded border border-[var(--app-line)] bg-slate-50">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-2 py-2"><span className="font-semibold text-[var(--app-ink)]">Live-job contingency &amp; payment cost <span className="ml-1 text-[10px] text-[var(--app-muted)]">▾</span></span><span className="font-semibold">{formatMoney(contributionPlan.executionContingencyTotal)}</span></summary>
                     <div className="space-y-1.5 border-t border-[var(--app-line)] px-2 py-2">
