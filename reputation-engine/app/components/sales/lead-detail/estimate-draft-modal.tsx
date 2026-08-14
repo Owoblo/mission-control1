@@ -2734,7 +2734,7 @@ export function EstimateDraftModal({
                       {routeError || 'Enter both addresses to confirm drive time, branch-to-yard distance, and travel billing.'}
                     </div>
                   )}
-                  {(routeError || route?.missingRequirements?.length) && (
+                  {Boolean(routeError || route?.missingRequirements?.length) && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button type="button" onClick={openRouteFixArea} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Edit address
@@ -5369,7 +5369,11 @@ export function EstimateDraftModal({
           {/* Sidebar */}
           <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0 space-y-6">
 
-            {contributionPlan.isMajorMove && <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open>
+            {routeBusy && <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-4">
+              <div className="crm-label">Contribution Pricing</div>
+              <div className="mt-2 text-xs text-[var(--app-muted)]">Calculating the confirmed route before updating fulfillment costs and price…</div>
+            </div>}
+            {!routeBusy && contributionPlan.isMajorMove && <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open>
               <summary className="cursor-pointer list-none px-3 py-3">
                 <div className="crm-label">Contribution Pricing</div>
                 <div className="mt-1 text-xs text-[var(--app-muted)]">Build the one customer price backwards from complete fulfillment economics.</div>
