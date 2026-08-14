@@ -1957,7 +1957,8 @@ export function EstimateDraftModal({
     binding: quote?.billingModel === 'binding',
     quoteType,
     moveDate: selectedMoveDate,
-  }), [jobFactors, pricingBreakdown, quote?.billingModel, quoteLineItems, quoteModalTotals.subtotal, quoteType, selectedMoveDate])
+    inventory: effectiveInventoryMetrics.inventory,
+  }), [effectiveInventoryMetrics.inventory, jobFactors, pricingBreakdown, quote?.billingModel, quoteLineItems, quoteModalTotals.subtotal, quoteType, selectedMoveDate])
   const consultativeMovePlan = useMemo(() => buildConsultativeMovePlan({
     factors: jobFactors,
     lineItems: quoteLineItems,
