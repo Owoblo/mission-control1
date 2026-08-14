@@ -101,6 +101,7 @@ import { sanitizeInventoryRooms } from '@/lib/inventory-sanitizer'
 import { buildInventoryVerificationChoiceKeyMap } from '@/lib/inventory-verification'
 import { detectSpamLead } from '@/lib/spam-detector'
 import { displayEmailSubject } from '@/lib/email-display'
+import { isPhotoSurveyLinkExpired } from '@/lib/survey-links'
 import { deriveJobReadiness, deriveOperatingExceptions, deriveOperatingStage, OPERATING_STAGE_META } from '@/lib/job-spine'
 import { ConfirmDialog } from '@/app/components/sales/confirm-dialog'
 import type { UserRole } from '@/lib/auth'
@@ -251,8 +252,10 @@ export default function SalesLeadDetailPage() {
   const [creatingQuote, setCreatingQuote] = useState(false)
   const [surveyBusy, setSurveyBusy] = useState(false)
   const existingSurveyToken = (lead as unknown as Record<string, unknown>)?.surveyToken as string | undefined
+  const existingSurveyExpiry = (lead as unknown as Record<string, unknown>)?.surveyTokenExpiresAt as string | undefined
+  const existingSurveyIsExpired = isPhotoSurveyLinkExpired(existingSurveyExpiry)
   const [surveyUrl, setSurveyUrl] = useState<string | null>(
-    existingSurveyToken && existingSurveyToken !== 'set'
+    existingSurveyToken && existingSurveyToken !== 'set' && !existingSurveyIsExpired
       ? (typeof window !== 'undefined' ? `${window.location.origin}/survey/${existingSurveyToken}` : null)
       : null
   )
@@ -997,12 +1000,14 @@ export default function SalesLeadDetailPage() {
     }
   }, [activePhotoIndex, listingPhotos.length])
 
-  // Restore survey URL from stored token when lead loads (persists across page reloads)
+  // Restore only a live survey URL. Expired links must never be copied or resent.
   useEffect(() => {
-    if (!surveyUrl && existingSurveyToken && existingSurveyToken !== 'set') {
+    if (existingSurveyIsExpired) {
+      setSurveyUrl(null)
+    } else if (!surveyUrl && existingSurveyToken && existingSurveyToken !== 'set') {
       setSurveyUrl(`${window.location.origin}/survey/${existingSurveyToken}`)
     }
-  }, [existingSurveyToken])
+  }, [existingSurveyIsExpired, existingSurveyToken, surveyUrl])
 
   const timeline = useMemo(() => {
     const systemEvents = [
@@ -2027,11 +2032,11 @@ export default function SalesLeadDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skipSms: true }),
       })
-      const data = await res.json() as { surveyUrl?: string; defaultSmsTemplate?: string | null; token?: string; error?: string }
+      const data = await res.json() as { surveyUrl?: string; defaultSmsTemplate?: string | null; token?: string; expiresAt?: string; error?: string }
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate survey link')
       const newSurveyUrl = data.surveyUrl || null
       setSurveyUrl(newSurveyUrl)
-      setLead(prev => prev ? { ...prev, surveyToken: 'set', surveyRequestedAt: new Date().toISOString() } as typeof prev : prev)
+      setLead(prev => prev ? { ...prev, surveyToken: data.token, surveyTokenExpiresAt: data.expiresAt, surveyRequestedAt: new Date().toISOString() } as typeof prev : prev)
 
       if (lead.phone && newSurveyUrl) {
         // Show the dialog so rep can review/edit the SMS before sending
@@ -2057,11 +2062,11 @@ export default function SalesLeadDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skipSms: true }),
       })
-      const data = await res.json() as { surveyUrl?: string; token?: string; error?: string }
+      const data = await res.json() as { surveyUrl?: string; token?: string; expiresAt?: string; error?: string }
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate link')
       const url = data.surveyUrl || null
       setSurveyUrl(url)
-      setLead(prev => prev ? { ...prev, surveyToken: 'set', surveyRequestedAt: new Date().toISOString() } as typeof prev : prev)
+      setLead(prev => prev ? { ...prev, surveyToken: data.token, surveyTokenExpiresAt: data.expiresAt, surveyRequestedAt: new Date().toISOString() } as typeof prev : prev)
       // Auto-copy to clipboard
       if (url) void navigator.clipboard.writeText(url).catch(() => {})
     } catch (err) {

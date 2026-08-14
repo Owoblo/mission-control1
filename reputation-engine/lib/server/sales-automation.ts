@@ -28,6 +28,7 @@ import {
 } from '@/lib/sales-automation-inventory-sms'
 import { buildAutomationQuoteSmsSummary } from '@/lib/sales-quote-sms'
 import { compactCustomerLink } from '@/lib/customer-links'
+import { photoSurveyLinkExpiresAt } from '@/lib/survey-links'
 import {
   getAutomationMissingFields,
   automatedEstimateSendingIsPaused,
@@ -2794,7 +2795,7 @@ async function ensureAutomationPhotoSurvey(lead: CRMLead) {
   const token = lead.surveyToken && existingExpiry > Date.now() ? lead.surveyToken : randomToken('surv')
   const expiresAt = token === lead.surveyToken
     ? lead.surveyTokenExpiresAt!
-    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    : photoSurveyLinkExpiresAt()
   const now = new Date().toISOString()
   const savedLead = await saveSalesLead({
     ...lead,
