@@ -5,6 +5,15 @@ function listingPhotoUrls(lead: CRMLead) {
   return (lead.supabaseListing?.carouselphotos || []).map(photo => typeof photo === 'string' ? photo : photo.url).filter(Boolean)
 }
 
+export function sanitizeCrewScopeDetails(value?: string) {
+  if (!value?.trim()) return ''
+  return value
+    .split(/\s*[·|]\s*|(?<=\.)\s+/)
+    .filter(part => !/\b(margin|markup|commission|profit|internal cost|direct cost|approval|approved)\b/i.test(part))
+    .join(' · ')
+    .trim()
+}
+
 export function buildLiveCrewBriefing(lead: CRMLead, quote: CRMQuote | null, authorizedBrief = '') {
   const intelligence = assessMoveIntelligence({
     inventory: lead.inventory || [],
@@ -72,7 +81,7 @@ export function buildLiveCrewBriefing(lead: CRMLead, quote: CRMQuote | null, aut
     inventory,
     photos,
     specialInstructions,
-    scopeLines: (quote?.lineItems || []).map(line => ({ description: line.description, details: line.details || '' })),
+    scopeLines: (quote?.lineItems || []).map(line => ({ description: line.description, details: sanitizeCrewScopeDetails(line.details) })),
     changes,
     intelligence: {
       level: intelligence.level,
