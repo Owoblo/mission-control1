@@ -9,6 +9,7 @@ import type {
   JobFactors,
   MoveIntelligenceAssessment,
   MoveIntelligenceQuestion,
+  QuoteLeg,
 } from './types'
 
 const HIGH_IMPACT = /\b(safe|piano|treadmill|elliptical|armoire|wardrobe|sectional|sleeper|sofa bed|pool table|hot tub|gun safe)\b/i
@@ -213,6 +214,7 @@ export function assessMoveIntelligence(input: {
   jobFactors?: JobFactors
   originAddress?: string
   destinationAddress?: string
+  legs?: QuoteLeg[]
 }): MoveIntelligenceAssessment {
   const factors = input.jobFactors || {}
   const included = input.inventory.filter(item => item.included !== false)
@@ -220,6 +222,9 @@ export function assessMoveIntelligence(input: {
   const significant = paths.filter(path => path.handling.level === 'high' || path.handling.level === 'specialty' || path.complexity === 'high' || path.complexity === 'specialty')
   const pathRelevant = paths.filter(path => path.handling.level !== 'standard' || path.complexity !== 'standard')
   const questions: MoveIntelligenceQuestion[] = []
+  const legs = (input.legs || []).filter(leg =>
+    Boolean(leg.originAddress || leg.originCity || leg.destAddress || leg.destCity || leg.label || leg.notes || leg.scheduledDate)
+  )
 
   for (const path of pathRelevant) {
     if (path.originFloor.status !== 'verified') {
@@ -267,6 +272,59 @@ export function assessMoveIntelligence(input: {
     addQuestion(questions, { id: 'truck-position', impact: 'high', question: 'Where can the truck legally park, and approximately how far is that point from the entrance?', reason: 'Truck position and carry distance directly affect labor time.' })
   }
 
+  const routeRisks: string[] = []
+  const routeReadinessReasons: string[] = []
+  if (legs.length > 0) {
+    legs.forEach((leg, index) => {
+      const label = leg.label?.trim() || `Leg ${index + 1}`
+      const hasOrigin = Boolean(leg.originAddress?.trim() || leg.originCity?.trim())
+      const hasDestination = Boolean(leg.destAddress?.trim() || leg.destCity?.trim())
+      if (!hasOrigin) {
+        addQuestion(questions, {
+          id: `leg-origin:${leg.id || index}`,
+          impact: 'critical',
+          question: `What is the confirmed pickup address for ${label}?`,
+          reason: 'Every operational leg needs a routable pickup before a fixed price can be issued.',
+        })
+        routeReadinessReasons.push(`${label} is missing a pickup address.`)
+      }
+      if (!hasDestination) {
+        addQuestion(questions, {
+          id: `leg-destination:${leg.id || index}`,
+          impact: 'critical',
+          question: `What is the confirmed delivery address for ${label}?`,
+          reason: 'Every operational leg needs a routable destination before a fixed price can be issued.',
+        })
+        routeReadinessReasons.push(`${label} is missing a delivery address.`)
+      }
+
+      if (leg.type === 'storage' || leg.type === 'storage_delivery') {
+        routeRisks.push(`${label} adds a separate storage handling cycle and facility-access dependency`)
+        if (!/access\s+(verified|confirmed)|loading\s+(verified|confirmed)|facility\s+(verified|confirmed)/i.test(leg.notes || '')) {
+          addQuestion(questions, {
+            id: `storage-access:${leg.id || index}`,
+            impact: 'high',
+            question: `For ${label}, confirm the storage unit floor, elevator/loading access, carry distance, facility hours, and whether the truck can reach the loading point.`,
+            reason: 'Storage access can add waiting, long carries, elevator handling, or a second shuttle.',
+          })
+        }
+      }
+    })
+
+    if (legs.length > 1) {
+      routeRisks.push(`${legs.length} operational legs create repeated loading, access, scheduling, and custody handoffs`)
+      const scopedLegs = legs.filter(leg => Number.isFinite(leg.inventorySharePct))
+      if (scopedLegs.length !== legs.length && !factors.moveIntelligenceApprovedAt) {
+        addQuestion(questions, {
+          id: 'multi-leg-inventory-scope',
+          impact: 'high',
+          question: 'Confirm which inventory travels on each leg and which items are handled more than once.',
+          reason: 'A whole-job inventory total cannot safely represent item paths across multiple pickups, deliveries, or storage handoffs.',
+        })
+      }
+    }
+  }
+
   const itemConfidence = included.length === 0 ? 0 : included.reduce((sum, item) => {
     if (item.status === 'confirmed' || item.source === 'manual' || item.source === 'customer_verification') return sum + 1
     return sum + clamp(item.confidence ?? 0.45, 0, 1)
@@ -274,7 +332,10 @@ export function assessMoveIntelligence(input: {
   const accessKnown = [factors.originFloors, factors.originHasElevator, factors.originParkingOk, factors.destFloors, factors.destHasElevator, factors.destParkingOk]
   const knownAccessRatio = accessKnown.filter(value => value !== undefined).length / accessKnown.length
   const pathKnown = pathRelevant.length === 0 ? 1 : pathRelevant.reduce((sum, path) => sum + (path.originFloor.status === 'verified' ? 0.5 : 0) + (path.destinationFloor.status === 'verified' ? 0.5 : 0), 0) / pathRelevant.length
-  const uncertaintyPct = Math.round(clamp(100 - (itemConfidence * 45 + knownAccessRatio * 25 + pathKnown * 30)))
+  const legRouteKnownRatio = legs.length === 0 ? 1 : legs.reduce((sum, leg) =>
+    sum + (leg.originAddress?.trim() || leg.originCity?.trim() ? 0.5 : 0) + (leg.destAddress?.trim() || leg.destCity?.trim() ? 0.5 : 0)
+  , 0) / legs.length
+  const uncertaintyPct = Math.round(clamp(100 - (itemConfidence * 40 + knownAccessRatio * 20 + pathKnown * 25 + legRouteKnownRatio * 15)))
   const handlingComplexityScore = paths.length ? Math.round(paths.reduce((sum, path) => sum + path.handling.score * path.quantity, 0) / paths.reduce((sum, path) => sum + path.quantity, 0)) : 0
   const accessComplexityScore = clamp(
     (Number(factors.originFloors || 1) - 1) * 10 +
@@ -282,7 +343,9 @@ export function assessMoveIntelligence(input: {
     (factors.originParkingOk === false ? 20 : 0) +
     (factors.destParkingOk === false ? 20 : 0) +
     (factors.originHasElevator && !factors.originElevatorReserved ? 20 : 0) +
-    (factors.destHasElevator && !factors.destElevatorReserved ? 20 : 0)
+    (factors.destHasElevator && !factors.destElevatorReserved ? 20 : 0) +
+    Math.min(24, Math.max(0, legs.length - 1) * 8) +
+    Math.min(24, legs.filter(leg => leg.type === 'storage' || leg.type === 'storage_delivery').length * 12)
   )
   const score = Math.round(clamp(handlingComplexityScore * 0.48 + accessComplexityScore * 0.32 + uncertaintyPct * 0.2))
   const level: MoveIntelligenceAssessment['level'] = score >= 76 ? 'critical' : score >= 56 ? 'high' : score >= 31 ? 'medium' : 'low'
@@ -290,7 +353,8 @@ export function assessMoveIntelligence(input: {
   const highQuestions = questions.filter(question => question.impact === 'high')
   const readinessReasons: string[] = []
   if (included.length === 0) readinessReasons.push('No confirmed inventory is available.')
-  if (!input.originAddress || !input.destinationAddress) readinessReasons.push('Both route addresses are required.')
+  if (legs.length === 0 && (!input.originAddress || !input.destinationAddress)) readinessReasons.push('Both route addresses are required.')
+  readinessReasons.push(...routeReadinessReasons)
   if (itemConfidence < 0.8) readinessReasons.push('Inventory confidence is below 80%.')
   if (knownAccessRatio < 0.67) readinessReasons.push('Origin or destination access is incomplete.')
   if (criticalQuestions.length) readinessReasons.push(`${criticalQuestions.length} critical operational question(s) remain unresolved.`)
@@ -301,7 +365,7 @@ export function assessMoveIntelligence(input: {
       : readinessReasons.length > 0 || uncertaintyPct > 20
         ? 'provisional'
         : 'ready'
-  const risks = Array.from(new Set(paths.flatMap(path => path.risks)))
+  const risks = Array.from(new Set([...paths.flatMap(path => path.risks), ...routeRisks]))
 
   return {
     version: 1,
@@ -326,6 +390,7 @@ export function evaluateQuoteIntelligenceSafety(lead: CRMLead, quote: CRMQuote) 
     jobFactors: lead.jobFactors,
     originAddress: quote.originAddress || lead.originAddress,
     destinationAddress: quote.destAddress || lead.destAddress,
+    legs: quote.legs,
   })
   const binding = quote.billingModel === 'binding'
   return {

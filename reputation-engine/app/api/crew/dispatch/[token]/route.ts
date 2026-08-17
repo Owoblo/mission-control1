@@ -4,6 +4,7 @@ import { listSalesLeads, listSalesQuotes, saveSalesLead } from '@/lib/server/sal
 import { getTruckPlanLabel, TRUCK_VENDOR_LABELS } from '@/lib/operations'
 import type { CRMLead, CRMQuote, CrewPayoutEntry } from '@/lib/types'
 import { listSubcontractorOffers } from '@/lib/server/subcontractors'
+import { buildLiveCrewBriefing } from '@/lib/crew-briefing-view'
 
 function findCrewAssignment(leads: CRMLead[], token: string) {
   for (const lead of leads) {
@@ -50,6 +51,7 @@ function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayo
       crewBriefing: awardedBrief || '',
       partnerWorkspaceEnabled: !!entry.subcontractorId,
     },
+    briefing: buildLiveCrewBriefing(lead, quote, awardedBrief || ''),
   }
 }
 
@@ -64,7 +66,7 @@ export async function GET(_: Request, props: { params: Promise<{ token: string }
 
   const quote = quotes.find(item => item.id === match.lead.quoteId || item.leadId === match.lead.id) || null
   const awardedBrief = offers.find(item => item.id === match.entry.subcontractorOfferId)?.awardedCrewBriefing
-  return NextResponse.json({ job: publicJobPayload(match.lead, quote, match.entry, awardedBrief) })
+  return NextResponse.json({ job: publicJobPayload(match.lead, quote, match.entry, awardedBrief) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
 }
 
 export async function POST(request: Request, props: { params: Promise<{ token: string }> }) {

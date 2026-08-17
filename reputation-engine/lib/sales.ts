@@ -1850,7 +1850,7 @@ function buildMultiLegEstimate(
   factors: JobFactors | undefined
 ): EstimateQuoteResult {
   const legs = (overrides?.legs || []).filter(leg =>
-    !!(leg.originAddress || leg.originCity || leg.destAddress || leg.destCity || leg.label || leg.type)
+    !!(leg.originAddress || leg.originCity || leg.destAddress || leg.destCity || leg.label || leg.notes || leg.scheduledDate)
   )
   const baseEstimate = estimateSingleLeadQuote(lead, { ...overrides, legs: undefined }, factors)
   const overallMetrics = deriveInventoryMetrics(lead.inventory || [])
@@ -2370,6 +2370,13 @@ function buildMultiLegEstimate(
     operationalDistanceKm: roundCurrency(totalOperationalDistanceKm),
     penalties: collectedPenalties,
     adjustmentBreakdown,
+    moveIntelligence: assessMoveIntelligence({
+      inventory: lead.inventory || [],
+      jobFactors: baseFactors,
+      originAddress: lead.originAddress,
+      destinationAddress: lead.destAddress,
+      legs,
+    }),
     internalCostEstimate: {
       laborCost,
       truckDailyCost,
@@ -2413,7 +2420,7 @@ export function estimateLeadQuote(
   factors?: JobFactors
 ): EstimateQuoteResult {
   const legs = (overrides?.legs || []).filter(leg =>
-    !!(leg.originAddress || leg.originCity || leg.destAddress || leg.destCity || leg.label || leg.type)
+    !!(leg.originAddress || leg.originCity || leg.destAddress || leg.destCity || leg.label || leg.notes || leg.scheduledDate)
   )
   if (legs.length === 0) {
     return estimateSingleLeadQuote(lead, overrides, factors)

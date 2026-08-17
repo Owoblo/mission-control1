@@ -19,6 +19,19 @@ type DispatchJob = {
   }
   crew: { workerName: string; role: string; expectedHours: number | null; status: string }
   job: { crewSize: number | null; truckCount: number | null; estimatedHours: number | null; crewNote: string; equipmentReady: boolean; briefingReady: boolean; crewBriefing: string; partnerWorkspaceEnabled: boolean }
+  briefing: {
+    generatedAt: string
+    sourceUpdatedAt: string
+    quoteStatus: string
+    authorizedBrief: string
+    routeLegs: Array<{ id: string; label: string; type: string; origin: string; destination: string; scheduledDate: string; notes: string }>
+    inventory: Array<{ id: string; label: string; quantity: number; room: string; destinationRoom: string; included: boolean; exclusionReason: string; notes: string; handling: string; handlingFlags: string[]; assemblyRequired: boolean; pathRisks: string[] }>
+    photos: Array<{ id: string; url: string; label: string; source: string }>
+    specialInstructions: string[]
+    scopeLines: Array<{ description: string; details: string }>
+    changes: Array<{ id: string; reason: string; note: string; status: string; changedAt: string }>
+    intelligence: { level: string; uncertaintyPct: number; risks: string[]; unresolved: string[] }
+  }
 }
 
 type PartnerWorkspace = { messages: Array<{ id: string; direction: string; body: string; senderName?: string; urgent: boolean; createdAt: string }>; reports: Array<{ id: string; reportType: string; severity: string; status: string; summary: string; createdAt: string }>; operationsPhone: string }
@@ -43,6 +56,7 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
   const [reportDetails, setReportDetails] = useState('')
   const [reportSeverity, setReportSeverity] = useState<'routine' | 'urgent' | 'critical'>('urgent')
   const [reportMedia, setReportMedia] = useState<Array<{ url: string; contentType?: string }>>([])
+  const [photo, setPhoto] = useState<{ url: string; label: string } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -123,14 +137,19 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Route</div>
-          <div className="mt-3 space-y-3 text-sm text-[#071421]">
-            <div><span className="font-semibold">From:</span> {job.origin}</div>
-            <div><span className="font-semibold">To:</span> {job.destination}</div>
-          </div>
+          <div className="flex items-center justify-between gap-3"><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Complete route</div><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase text-slate-500">Live briefing</span></div>
+          <div className="mt-4 space-y-3">{job.briefing.routeLegs.map((leg, index) => <div key={leg.id} className="rounded-xl border border-slate-200 p-4"><div className="text-xs font-bold uppercase tracking-wide text-[#C99700]">Leg {index + 1} · {leg.type.replaceAll('_', ' ')}</div><div className="mt-1 font-bold text-[#071421]">{leg.label}</div><div className="mt-2 text-sm text-slate-600">{leg.origin} <span className="px-1 text-slate-300">→</span> {leg.destination}</div>{leg.scheduledDate && <div className="mt-1 text-xs text-slate-500">{leg.scheduledDate}</div>}{leg.notes && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">{leg.notes}</p>}</div>)}</div>
         </section>
 
+        {(job.briefing.specialInstructions.length > 0 || job.briefing.intelligence.risks.length > 0 || job.briefing.intelligence.unresolved.length > 0) && <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 shadow-sm"><div className="text-xs font-bold uppercase tracking-[0.16em] text-amber-800">Read before arrival</div><div className="mt-3 space-y-2 text-sm text-amber-950">{job.briefing.specialInstructions.map(item => <p key={item}>• {item}</p>)}{job.briefing.intelligence.risks.map(item => <p key={item}>• {item}</p>)}</div>{job.briefing.intelligence.unresolved.length > 0 && <div className="mt-4 rounded-xl border border-rose-200 bg-white p-3"><div className="text-xs font-bold uppercase text-rose-700">Verify with Operations</div>{job.briefing.intelligence.unresolved.map(item => <p key={item} className="mt-1 text-sm text-rose-800">• {item}</p>)}</div>}</section>}
+
         {job.job.crewBriefing && <section className="rounded-xl border border-[#C99700]/40 bg-white p-5 shadow-sm"><div className="text-xs font-bold uppercase tracking-[0.16em] text-[#C99700]">Authorized crew briefing</div><pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-6 text-slate-700">{job.job.crewBriefing}</pre></section>}
+
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Inventory scope</div><div className="text-xs text-slate-500">{job.briefing.inventory.filter(item => item.included).reduce((sum, item) => sum + item.quantity, 0)} pieces</div></div><div className="mt-4 space-y-2">{job.briefing.inventory.filter(item => item.included).map(item => <div key={item.id} className="rounded-xl border border-slate-200 p-3"><div className="flex items-start justify-between gap-3"><div><div className="font-semibold text-[#071421]">{item.quantity > 1 ? `${item.quantity}× ` : ''}{item.label}</div><div className="text-xs text-slate-500">{item.room}{item.destinationRoom ? ` → ${item.destinationRoom}` : ''}</div></div><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${item.handling === 'specialty' || item.handling === 'high' ? 'bg-rose-100 text-rose-700' : item.handling === 'elevated' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>{item.handling}</span></div>{item.assemblyRequired && <div className="mt-2 text-xs font-semibold text-blue-700">Tools / disassembly review required</div>}{item.notes && <p className="mt-2 text-xs text-slate-600">{item.notes}</p>}{item.pathRisks.map(risk => <p key={risk} className="mt-1 text-xs text-rose-700">⚠ {risk}</p>)}</div>)}</div>{job.briefing.inventory.some(item => !item.included) && <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4"><div className="text-xs font-bold uppercase text-rose-700">Do not move</div>{job.briefing.inventory.filter(item => !item.included).map(item => <p key={item.id} className="mt-2 text-sm text-rose-900">✕ {item.quantity > 1 ? `${item.quantity}× ` : ''}{item.label}{item.exclusionReason ? ` — ${item.exclusionReason}` : ''}</p>)}</div>}</section>
+
+        {job.briefing.photos.length > 0 && <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Property & inventory photos</div><p className="mt-1 text-xs text-slate-500">Tap to inspect before arrival. Use the written scope as authority if a reference photo shows excluded property.</p><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{job.briefing.photos.map(item => <button key={item.id} onClick={() => setPhoto(item)} className="overflow-hidden rounded-xl border bg-slate-50 text-left"><img src={item.url} alt={item.label} loading="lazy" className="aspect-square w-full object-cover"/><div className="truncate p-2 text-xs font-semibold text-slate-700">{item.label}</div></button>)}</div></section>}
+
+        {(job.briefing.scopeLines.length > 0 || job.briefing.changes.length > 0) && <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Accepted scope & changes</div><div className="mt-3 space-y-2">{job.briefing.scopeLines.map((line, index) => <div key={`${line.description}-${index}`} className="rounded-xl bg-slate-50 p-3"><div className="text-sm font-semibold text-[#071421]">{line.description}</div>{line.details && <p className="mt-1 text-xs text-slate-600">{line.details}</p>}</div>)}</div>{job.briefing.changes.length > 0 && <div className="mt-4 border-t pt-4">{job.briefing.changes.map(change => <div key={change.id} className="mt-2 text-sm"><span className={`mr-2 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${change.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>{change.status.replaceAll('_', ' ')}</span>{change.reason}{change.note ? ` — ${change.note}` : ''}</div>)}</div>}</section>}
 
         {job.job.partnerWorkspaceEnabled && <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Operations communication</div><p className="mt-1 text-sm text-slate-600">Routine updates stay in this job record. For critical safety issues, call Operations immediately.</p>{workspace?.operationsPhone && <a href={`tel:${workspace.operationsPhone}`} className="mt-3 inline-flex rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">Call Operations · {workspace.operationsPhone}</a>}</div>
           <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl bg-slate-50 p-3">{workspace?.messages.length ? workspace.messages.map(item => <div key={item.id} className={`rounded-xl p-3 text-sm ${item.direction === 'partner_to_operations' ? 'ml-6 bg-[#071421] text-white' : 'mr-6 border bg-white text-slate-700'}`}><div className="text-[10px] font-bold uppercase opacity-60">{item.senderName || item.direction.replaceAll('_', ' ')} · {new Date(item.createdAt).toLocaleString()}</div><p className="mt-1 whitespace-pre-wrap">{item.body}</p></div>) : <p className="text-sm text-slate-400">No job messages yet.</p>}</div>
@@ -182,7 +201,9 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
             I cannot make it
           </button>
         </div>
+        <p className="pb-4 text-center text-[10px] text-slate-400">Live job record · refreshed {new Date(job.briefing.generatedAt).toLocaleString()}{job.briefing.sourceUpdatedAt ? ` · scope updated ${new Date(job.briefing.sourceUpdatedAt).toLocaleString()}` : ''}</p>
       </div>
+      {photo && <button onClick={() => setPhoto(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" aria-label="Close photo"><div className="max-h-full max-w-4xl"><img src={photo.url} alt={photo.label} className="max-h-[85vh] max-w-full rounded-xl object-contain"/><div className="mt-3 text-center text-sm font-semibold text-white">{photo.label} · tap anywhere to close</div></div></button>}
     </main>
   )
 }

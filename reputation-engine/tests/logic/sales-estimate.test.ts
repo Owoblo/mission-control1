@@ -232,6 +232,21 @@ test('estimateLeadQuote prices storage, storage delivery, and secondary stop leg
   assert.match(estimate.lineItems[2].description, /\[Leg 3\] Boyfriend Drop/)
   assert.match(estimate.lineItems[2].details || '', /same load, extra stop on route/i)
   assert.match(estimate.lineItems[2].details || '', /30% of the overall shipment/i)
+  assert.ok(estimate.pricingBreakdown.moveIntelligence?.risks.some(risk => risk.includes('3 operational legs')))
+  assert.ok(estimate.pricingBreakdown.moveIntelligence?.questions.some(question => question.id === 'storage-access:leg_storage'))
+})
+
+test('estimateLeadQuote ignores an empty multi-leg placeholder row', () => {
+  const lead = makeLead()
+  const direct = estimateLeadQuote(lead, { quoteType: 'standard' })
+  const withPlaceholder = estimateLeadQuote(lead, {
+    quoteType: 'standard',
+    legs: [{ id: 'blank', label: '', type: 'move' }],
+  })
+
+  assert.equal(withPlaceholder.total, direct.total)
+  assert.equal(withPlaceholder.estimatedHours, direct.estimatedHours)
+  assert.equal(withPlaceholder.lineItems.some(line => /^\[Leg /.test(line.description)), false)
 })
 
 test('estimateLeadQuote keeps standard moving jobs at a two-mover minimum', () => {
