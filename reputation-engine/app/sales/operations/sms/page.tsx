@@ -186,6 +186,12 @@ export default function OpsSmsPage() {
     setNewChatPhone('')
   }
 
+  function openOpsDialer(phone: string) {
+    window.dispatchEvent(new CustomEvent('crm:open-dialer', {
+      detail: { phone, branchNumber: OPS_NUMBER },
+    }))
+  }
+
   const threads = groupIntoThreads(messages)
   const activeThread = threads.find(t => t.contactPhone === selected)
 
@@ -259,10 +265,17 @@ export default function OpsSmsPage() {
             <div className="border-b border-slate-200 bg-white px-4 py-3 md:px-5">
               <div className="flex items-center gap-2">
                 <button onClick={() => setSelected(null)} className="flex h-11 w-11 items-center justify-center rounded-xl text-2xl text-[#111827] md:hidden">‹</button>
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="font-semibold text-[#111827]">{formatPhone(selected)}</div>
                   <div className="text-xs text-slate-500">Operations line · {formatPhone(OPS_NUMBER)}</div>
                 </div>
+                <button
+                  onClick={() => openOpsDialer(selected)}
+                  className="min-h-11 shrink-0 rounded-full bg-[#0f6a53] px-4 text-sm font-semibold text-white transition hover:bg-[#0c5745]"
+                  aria-label={`Call ${formatPhone(selected)} from the Operations line`}
+                >
+                  Call
+                </button>
               </div>
             </div>
 

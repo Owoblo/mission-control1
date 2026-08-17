@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { logDialerCall, matchLeadByPhone } from '@/lib/sales-api'
 import {
@@ -268,6 +269,8 @@ function PhoneIcon({ className }: { className?: string }) {
 
 export function FloatingDialer() {
   const currentUser = useCurrentUser()
+  const pathname = usePathname()
+  const forcedWorkspaceNumber = pathname.startsWith('/sales/operations/sms') ? '+12267746581' : ''
   const compatibility =
     typeof window !== 'undefined'
       ? detectBrowserCompatibility(navigator.userAgent)
@@ -501,7 +504,7 @@ export function FloatingDialer() {
     const nextLeadId = input?.leadId ?? activeLeadIdRef.current
     // Only carry forward preferredFromNumber when explicitly passed or when there's an active lead
     // — don't let a previous call's number bleed into a fresh unrelated dial
-    const preferredFromNumber = input?.preferredFromNumber || (nextLeadId ? callerProfileRef.current?.fromNumber || currentBusinessNumberRef.current : '') || ''
+    const preferredFromNumber = forcedWorkspaceNumber || input?.preferredFromNumber || (nextLeadId ? callerProfileRef.current?.fromNumber || currentBusinessNumberRef.current : '') || ''
     const digits = nextPhone.replace(/\D/g, '')
 
     if (!nextLeadId && digits.length < 10) {

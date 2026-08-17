@@ -10,6 +10,13 @@ type SaturnPhoneMetadata = {
 }
 
 export const SATURN_BRANCH_PHONE_DIRECTORY = {
+  // 226-774-6581 — dedicated subcontractor / field operations SMS and voice line
+  '+12267746581': {
+    branchLabel: 'Operations',
+    salesBranch: 'windsor',
+    trackingLabel: 'Operations',
+    trackingSource: 'operations',
+  },
   // ── Windsor ────────────────────────────────────────────────────────────────
   // 226-773-2993 — Windsor front number, used on GMB Windsor
   '+12267732993': {
