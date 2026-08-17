@@ -4920,6 +4920,11 @@ export default function SalesLeadDetailPage() {
                     <div className="rounded-[8px] border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
                       ✓ Deposit Received — {lead.depositMethod || 'On file'}
                     </div>
+                    {/(debit|prepaid)/i.test(lead.depositMethod || '') && (
+                      <div className="rounded-[8px] border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                        ⚠ Internal payment review — booking accepted; verify the final-balance collection plan before move day.
+                      </div>
+                    )}
                     {quote && (
                       <div className="space-y-2">
                         <div className="rounded-[8px] border border-emerald-200 bg-white p-3 text-xs">

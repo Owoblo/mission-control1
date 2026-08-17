@@ -18,7 +18,7 @@ function cleanEmail(value?: string | null) {
 }
 
 function paymentMethodLabel(quote: CRMQuote, fallback?: string) {
-  if (quote.depositPaidMethod === 'stripe') return 'Credit Card'
+  if (quote.depositPaidMethod === 'stripe') return fallback || 'Card'
   if (quote.depositPaidMethod === 'etransfer') return 'Interac E-Transfer'
   if (quote.depositPaidMethod === 'cash') return 'Cash'
   if (quote.depositPaidMethod === 'cheque') return 'Cheque'

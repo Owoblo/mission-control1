@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server'
 import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
-import { ensureStripeCustomerForLead, stripeGet, stripePost } from '@/lib/server/stripe-payments'
+import { ensureStripeCustomerForLead, formatStripeCardPaymentLabel, normalizeStripeCardFunding, requiresCardFundingReview, stripeGet, stripePost } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
@@ -17,6 +17,7 @@ import { getReceiptBrand } from '@/lib/receipt-brand'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
 import type { PaymentRecord } from '@/lib/types'
+import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
 
 export async function POST(request: Request) {
   const session = await getSessionUser()
@@ -69,10 +70,12 @@ export async function POST(request: Request) {
 
     // Get card details (brand + last4)
     const pm = await stripeGet<{
-      card?: { brand?: string; last4?: string }
+      card?: { brand?: string; last4?: string; funding?: string }
     }>(`payment_methods/${paymentMethodId}`, stripeKey)
     const cardBrand = pm.card?.brand || 'card'
     const cardLast4 = pm.card?.last4 || '????'
+    const cardFunding = normalizeStripeCardFunding(pm.card?.funding)
+    const paymentMethodLabel = formatStripeCardPaymentLabel(cardBrand, cardFunding)
 
     const { customerId: resolvedCustomerId } = await ensureStripeCustomerForLead(
       stripeKey,
@@ -114,7 +117,10 @@ export async function POST(request: Request) {
             lead,
             amount: quote.deposit,
             kind: 'deposit',
-            method: 'credit_card',
+            method: cardFunding === 'debit' ? 'debit' : 'credit_card',
+            methodLabel: paymentMethodLabel,
+            cardBrand,
+            cardFunding,
             paidAt: now,
             reference: pi.id,
             cardLast4,
@@ -155,7 +161,7 @@ export async function POST(request: Request) {
       ...lead,
       paymentStatus: depositCharged ? 'deposit_received' : lead.paymentStatus,
       depositAmount: depositCharged ? depositAmount : lead.depositAmount,
-      depositMethod: depositCharged ? 'Credit Card' : lead.depositMethod,
+      depositMethod: depositCharged ? paymentMethodLabel : lead.depositMethod,
       depositDate: depositCharged ? new Date().toISOString().slice(0, 10) : lead.depositDate,
     })
 
@@ -227,6 +233,12 @@ export async function POST(request: Request) {
         ...updatedQuote,
         paymentRecords: (updatedQuote.paymentRecords || []).map(item => item.id === depositPaymentRecord?.id ? deliveredPayment : item),
       })
+      if (requiresCardFundingReview(cardFunding)) {
+        void sendRepAlertEmail(
+          `⚠️ Payment review — ${lead.name} used ${paymentMethodLabel}`,
+          `<div style="font-family:sans-serif;color:#071421;max-width:520px"><h2 style="font-size:18px">Payment review requested</h2><p><strong>${lead.name}</strong> paid the deposit successfully using <strong>${paymentMethodLabel}${cardLast4 !== '????' ? ` ending ${cardLast4}` : ''}</strong>.</p><p>The booking remains accepted. Please verify the final-balance collection plan before move day.</p><p><a href="https://go.quote2move.com/sales/leads/${leadId}">Open the lead in CRM →</a></p></div>`
+        ).catch(() => {})
+      }
     }
 
     return NextResponse.json({
@@ -235,6 +247,7 @@ export async function POST(request: Request) {
       depositAmount,
       cardBrand,
       cardLast4,
+      cardFunding,
       paymentMethodId,
       customerId: resolvedCustomerId,
       stripeAccountKey: stripeAccount.key,
