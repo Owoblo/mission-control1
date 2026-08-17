@@ -1,6 +1,7 @@
 import { detectSalesBranchFromLocation, formatDate } from '@/lib/sales'
 import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesBranch } from '@/lib/types'
+import { assessMoveIntelligence } from '@/lib/move-intelligence'
 
 type CrewDispatchUser = {
   id: string
@@ -94,6 +95,10 @@ function fallbackCrewBrief(lead: CRMLead, quote: CRMQuote | null, followUps: Fol
   }
   const excluded = allExcludedInventory(lead)
   if (excluded.length > 0) sections.push(`\nDO NOT MOVE: ${excluded.join(', ')}`)
+  const intelligence = assessMoveIntelligence({ inventory: lead.inventory || [], jobFactors: lead.jobFactors, originAddress: lead.originAddress, destinationAddress: lead.destAddress })
+  sections.push(`\nMOVE INTELLIGENCE: ${intelligence.level.toUpperCase()} complexity | ${intelligence.uncertaintyPct}% uncertainty | ${intelligence.highComplexityItemCount} high-complexity item(s)`)
+  if (intelligence.risks.length > 0) sections.push(`PATH / HANDLING RISKS:\n${intelligence.risks.slice(0, 8).map(risk => `- ${risk}`).join('\n')}`)
+  if (intelligence.questions.length > 0) sections.push(`UNRESOLVED — VERIFY BEFORE WORK:\n${intelligence.questions.slice(0, 8).map(question => `- ${question.question}`).join('\n')}`)
   const repNotes = extractFollowUpNotes(followUps)
   if (repNotes.length > 0) sections.push(`\nREP NOTES:\n${repNotes.join('\n')}`)
   return sections.join('\n')

@@ -434,6 +434,7 @@ function buildInventoryItemFromDetection(
 
   const nextItem: InventoryItem = {
     room: effectiveRoom.replace(/_\d+$/, '').replace(/_/g, ' '),
+    roomId: effectiveRoom,
     sourcePhotoRoom: effectiveRoom,
     name: itemName,
     item: itemName,

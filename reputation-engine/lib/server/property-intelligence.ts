@@ -356,6 +356,13 @@ export async function analyzePropertyAccess(address: string): Promise<PropertyAc
 /** Convert PropertyAccess into JobFactors fields for auto-population */
 export function propertyAccessToJobFactors(access: PropertyAccess, side: 'origin' | 'dest') {
   const prefix = side === 'origin' ? 'origin' : 'dest'
+  const carryDistanceFeet = access.carryDistanceEstimate === 'short'
+    ? 35
+    : access.carryDistanceEstimate === 'medium'
+      ? 100
+      : access.carryDistanceEstimate === 'long'
+        ? 200
+        : undefined
   return {
     [`${prefix}Floors`]: access.unitFloor ?? access.estimatedFloors,
     [`${prefix}HasElevator`]: access.hasElevator ?? undefined,
@@ -364,5 +371,7 @@ export function propertyAccessToJobFactors(access: PropertyAccess, side: 'origin
       access.parkingType === 'unknown'
         ? undefined
         : access.parkingType === 'driveway' || access.parkingType === 'underground',
+    [`${prefix}CarryDistanceFeet`]: carryDistanceFeet,
+    [`${prefix}AccessStatus`]: access.confidence === 'high' ? 'inferred' : 'unknown',
   }
 }

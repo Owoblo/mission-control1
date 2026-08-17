@@ -22,6 +22,7 @@ import { applyMovePolicyToInventory } from './move-policy'
 import { normalizeCrewPayouts } from './operations'
 import { buildPackingMaterialsEstimate } from './packing-materials'
 import { applyRealtorContactToOpportunityLead } from './realtor-opportunity'
+import { assessMoveIntelligence } from './move-intelligence'
 
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim()
@@ -1153,6 +1154,23 @@ function estimateSingleLeadQuote(
     ? computeJobPenalties(activeFactors)
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
   let extraHours = penaltyHoursFromFactors
+  const moveIntelligence = assessMoveIntelligence({
+    inventory: lead.inventory || [],
+    jobFactors: activeFactors,
+    originAddress: lead.originAddress,
+    destinationAddress: lead.destAddress,
+  })
+  if (moveIntelligence.pricedExtraHours > 0) {
+    penalties.push({
+      label: `Verified item-path handling — ${moveIntelligence.highComplexityItemCount} high-complexity item(s)`,
+      hours: moveIntelligence.pricedExtraHours,
+      category: 'specialty',
+      details: moveIntelligence.paths
+        .filter(path => path.pricedExtraMinutes > 0)
+        .map(path => `${path.itemLabel}: +${path.pricedExtraMinutes} min verified stair handling`),
+    })
+    extraHours += moveIntelligence.pricedExtraHours
+  }
 
   if (lead.moveType === 'commercial' && activeFactors) {
     const commercialAdjustments: JobPenalty[] = []
@@ -1542,6 +1560,7 @@ function estimateSingleLeadQuote(
     totalCubicFeet,
     disassemblyItems: disassemblyItemNames,
     specialtyItemFlags,
+    moveIntelligence,
     penalties,
     adjustmentBreakdown,
     internalCostEstimate: {
