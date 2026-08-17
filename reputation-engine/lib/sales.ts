@@ -666,7 +666,7 @@ export function getCrewRate(
 
 export function getDefaultDepositRate(moveType?: CRMLead['moveType'] | CRMQuote['moveType']) {
   if (moveType === 'commercial') return 0
-  return moveType === 'long-distance' ? 0.4 : 0.2
+  return moveType === 'long-distance' ? 0.5 : 0.3
 }
 
 export function getDefaultPaymentTerms(moveType?: CRMLead['moveType'] | CRMQuote['moveType']): CRMQuote['paymentTerms'] {
@@ -2421,7 +2421,7 @@ export function estimateLeadQuote(
   return buildMultiLegEstimate(lead, { ...overrides, legs }, factors)
 }
 
-export function computeQuoteTotals(lineItems: QuoteLineItem[], depositRate = 0.4, discountAmount = 0) {
+export function computeQuoteTotals(lineItems: QuoteLineItem[], depositRate = 0.3, discountAmount = 0) {
   const normalizedItems = lineItems.map(item => ({
     description: item.description || 'Custom line item',
     details: item.details || '',

@@ -116,7 +116,7 @@ export default function SalesQuoteDetailPage() {
   const [sendChannel, setSendChannel] = useState<'email' | 'sms'>('email')
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([])
   const [validDays, setValidDays] = useState(30)
-  const [depositRate, setDepositRate] = useState(40)
+  const [depositRate, setDepositRate] = useState(30)
   const [paymentTerms, setPaymentTerms] = useState<CRMQuote['paymentTerms']>('deposit_required')
   const [discountAmount, setDiscountAmount] = useState(0)
   const [discountLabel, setDiscountLabel] = useState('Courtesy discount')
