@@ -1004,6 +1004,7 @@ function QuoteAcceptPageInner() {
     jobFactors: quote.jobFactors,
     originAddress: quote.originAddress,
     destinationAddress: quote.destAddress,
+    legs: quote.legs,
   })
   const isBindingEstimate = quote.billingModel === 'binding'
   const serviceLabel = quoteServiceLabel(quote)

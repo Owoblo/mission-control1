@@ -175,3 +175,66 @@ test('binding send safety blocks unresolved specialty scope but hourly remains s
   const approvedLead = { ...lead, jobFactors: { ...lead.jobFactors, moveIntelligenceApprovedAt: '2026-01-02T12:00:00.000Z' } }
   assert.equal(evaluateQuoteIntelligenceSafety(approvedLead, { ...quote, billingModel: 'binding' }).allowed, true)
 })
+
+test('multi-leg binding quote cannot hide a missing intermediate destination', () => {
+  const lead = {
+    id: 'lead-multi', name: 'Multi Leg', stage: 'pricing', createdAt: '2026-01-01', originAddress: '1 Origin St', destAddress: '9 Final St',
+    inventory: [item({ originFloor: 1, destinationFloor: 1 })],
+    jobFactors: { originFloors: 1, originHasElevator: false, originParkingOk: true, destFloors: 1, destHasElevator: false, destParkingOk: true },
+  } as CRMLead
+  const quote = {
+    id: 'quote-multi', number: 'Q-MULTI', clientId: 'client-1', leadId: lead.id, status: 'draft', billingModel: 'binding', lineItems: [], subtotal: 100, hst: 13, total: 113, deposit: 20, balance: 93, createdAt: '2026-01-01',
+    legs: [
+      { id: 'pickup', label: 'Home to storage', type: 'storage', originAddress: '1 Origin St', destAddress: '22 Storage Rd', inventorySharePct: 100, notes: 'Facility access confirmed' },
+      { id: 'delivery', label: 'Storage to final home', type: 'storage_delivery', originAddress: '22 Storage Rd', inventorySharePct: 100, notes: 'Facility access confirmed' },
+    ],
+  } as CRMQuote
+  const safety = evaluateQuoteIntelligenceSafety(lead, quote)
+  assert.equal(safety.allowed, false)
+  assert.ok(safety.assessment.questions.some(question => question.id === 'leg-destination:delivery'))
+})
+
+test('complete two-leg storage move accounts for repeated handling and can be approved', () => {
+  const assessment = assessMoveIntelligence({
+    inventory: [item({ originFloor: 1, destinationFloor: 1 })],
+    jobFactors: {
+      originFloors: 1, originHasElevator: false, originParkingOk: true,
+      destFloors: 1, destHasElevator: false, destParkingOk: true,
+      originAccessStatus: 'verified', destAccessStatus: 'verified',
+      moveIntelligenceApprovedAt: '2026-08-17T12:00:00.000Z',
+    },
+    legs: [
+      { id: 'in', label: 'Storage in', type: 'storage', originAddress: '1 Home St', destAddress: '22 Storage Rd', inventorySharePct: 100, notes: 'Facility access verified' },
+      { id: 'out', label: 'Storage out', type: 'storage_delivery', originAddress: '22 Storage Rd', destAddress: '9 Final St', inventorySharePct: 100, notes: 'Facility access verified' },
+    ],
+  })
+  assert.equal(assessment.fixedPriceReadiness, 'ready')
+  assert.ok(assessment.accessComplexityScore >= 32)
+  assert.ok(assessment.risks.some(risk => risk.includes('separate storage handling cycle')))
+})
+
+test('arbitrary multi-leg scope requires inventory allocation before fixed pricing', () => {
+  const assessment = assessMoveIntelligence({
+    inventory: [item({ originFloor: 1, destinationFloor: 1 })],
+    jobFactors: { originFloors: 1, originHasElevator: false, originParkingOk: true, destFloors: 1, destHasElevator: false, destParkingOk: true },
+    legs: [
+      { id: 'a', label: 'Pickup A', type: 'move', originAddress: '1 A St', destAddress: '3 Hub St' },
+      { id: 'b', label: 'Pickup B', type: 'delivery', originAddress: '2 B St', destAddress: '3 Hub St' },
+      { id: 'c', label: 'Final delivery', type: 'delivery', originAddress: '3 Hub St', destAddress: '4 Final St' },
+    ],
+  })
+  assert.ok(assessment.questions.some(question => question.id === 'multi-leg-inventory-scope'))
+  assert.notEqual(assessment.fixedPriceReadiness, 'ready')
+  assert.ok(assessment.risks.some(risk => risk.includes('3 operational legs')))
+})
+
+test('type-only placeholder leg is ignored', () => {
+  const assessment = assessMoveIntelligence({
+    inventory: [item({ originFloor: 1, destinationFloor: 1 })],
+    jobFactors: { originFloors: 1, originHasElevator: false, originParkingOk: true, destFloors: 1, destHasElevator: false, destParkingOk: true },
+    originAddress: '1 Origin St',
+    destinationAddress: '2 Destination St',
+    legs: [{ id: 'blank', label: '', type: 'move' }],
+  })
+  assert.equal(assessment.questions.some(question => question.id.startsWith('leg-')), false)
+})

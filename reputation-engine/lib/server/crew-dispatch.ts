@@ -95,7 +95,10 @@ function fallbackCrewBrief(lead: CRMLead, quote: CRMQuote | null, followUps: Fol
   }
   const excluded = allExcludedInventory(lead)
   if (excluded.length > 0) sections.push(`\nDO NOT MOVE: ${excluded.join(', ')}`)
-  const intelligence = assessMoveIntelligence({ inventory: lead.inventory || [], jobFactors: lead.jobFactors, originAddress: lead.originAddress, destinationAddress: lead.destAddress })
+  const intelligence = assessMoveIntelligence({ inventory: lead.inventory || [], jobFactors: lead.jobFactors, originAddress: quote?.originAddress || lead.originAddress, destinationAddress: quote?.destAddress || lead.destAddress, legs: quote?.legs })
+  if (quote?.legs?.length) {
+    sections.push(`\nROUTE LEGS:\n${quote.legs.map((leg, index) => `- ${index + 1}. ${leg.label || `Leg ${index + 1}`}: ${leg.originAddress || leg.originCity || 'Pickup TBD'} → ${leg.destAddress || leg.destCity || 'Delivery TBD'}${leg.type ? ` (${leg.type})` : ''}`).join('\n')}`)
+  }
   sections.push(`\nMOVE INTELLIGENCE: ${intelligence.level.toUpperCase()} complexity | ${intelligence.uncertaintyPct}% uncertainty | ${intelligence.highComplexityItemCount} high-complexity item(s)`)
   if (intelligence.risks.length > 0) sections.push(`PATH / HANDLING RISKS:\n${intelligence.risks.slice(0, 8).map(risk => `- ${risk}`).join('\n')}`)
   if (intelligence.questions.length > 0) sections.push(`UNRESOLVED — VERIFY BEFORE WORK:\n${intelligence.questions.slice(0, 8).map(question => `- ${question.question}`).join('\n')}`)
