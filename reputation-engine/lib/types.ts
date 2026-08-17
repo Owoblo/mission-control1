@@ -396,6 +396,83 @@ export interface InventoryItem {
   source?: 'mls' | 'survey_ai' | 'rep_upload' | 'customer_verification' | 'manual'
   icon?: string
   owner?: 'person_a' | 'person_b'
+  roomId?: string
+  originFloor?: number
+  destinationRoom?: string
+  destinationFloor?: number
+  originFloorConfidence?: number
+  destinationFloorConfidence?: number
+  handlingProfile?: ItemHandlingProfile
+}
+
+export type IntelligenceEvidenceStatus = 'verified' | 'inferred' | 'unknown' | 'conflicted'
+
+export interface IntelligenceEvidence<T> {
+  value?: T
+  status: IntelligenceEvidenceStatus
+  confidence: number
+  source: string
+  reason?: string
+  observedAt?: string
+}
+
+export type HandlingComplexityLevel = 'standard' | 'elevated' | 'high' | 'specialty'
+
+export interface ItemHandlingProfile {
+  level: HandlingComplexityLevel
+  score: number
+  weightClass: 'light' | 'medium' | 'heavy' | 'very_heavy' | 'unknown'
+  bulkClass: 'compact' | 'standard' | 'bulky' | 'oversized' | 'unknown'
+  rigidity: 'flexible' | 'mixed' | 'rigid' | 'unknown'
+  fragility: 'normal' | 'fragile' | 'very_fragile' | 'unknown'
+  gripDifficulty: 'normal' | 'awkward' | 'very_awkward' | 'unknown'
+  disassemblyLikelihood: number
+  sleeperProbability: number
+  requiredMovers: number
+  specialEquipment: string[]
+  flags: string[]
+  evidence: IntelligenceEvidence<string>[]
+}
+
+export interface ItemPathAssessment {
+  itemKey: string
+  itemLabel: string
+  quantity: number
+  originRoom: IntelligenceEvidence<string>
+  originFloor: IntelligenceEvidence<number>
+  destinationRoom: IntelligenceEvidence<string>
+  destinationFloor: IntelligenceEvidence<number>
+  originStairFlights: IntelligenceEvidence<number>
+  destinationStairFlights: IntelligenceEvidence<number>
+  handling: ItemHandlingProfile
+  pathScore: number
+  complexity: HandlingComplexityLevel
+  pricedExtraMinutes: number
+  risks: string[]
+}
+
+export interface MoveIntelligenceQuestion {
+  id: string
+  question: string
+  impact: 'low' | 'medium' | 'high' | 'critical'
+  reason: string
+  itemKey?: string
+}
+
+export interface MoveIntelligenceAssessment {
+  version: 1
+  score: number
+  level: 'low' | 'medium' | 'high' | 'critical'
+  handlingComplexityScore: number
+  accessComplexityScore: number
+  uncertaintyPct: number
+  pricedExtraHours: number
+  highComplexityItemCount: number
+  paths: ItemPathAssessment[]
+  risks: string[]
+  questions: MoveIntelligenceQuestion[]
+  fixedPriceReadiness: 'ready' | 'provisional' | 'manual_review'
+  readinessReasons: string[]
 }
 
 export interface InventoryVerificationItemChoice {
@@ -589,6 +666,7 @@ export interface PricingBreakdown {
   }
   disassemblyItems: string[]     // item names detected as needing disassembly/reassembly
   specialtyItemFlags: string[]   // piano, safe, etc. that are included in the move
+  moveIntelligence?: MoveIntelligenceAssessment
   intelligenceFlags: {
     twoTruckRequired: boolean    // volume >= 1,400 cu ft (full 26ft truck)
     twoTripZone: boolean         // local move, 900–1,399 cu ft — second trip possible
@@ -657,12 +735,22 @@ export interface JobFactors {
   originHasElevator?: boolean
   originElevatorReserved?: boolean
   originParkingOk?: boolean
+  originCarryDistanceFeet?: number
+  originExteriorSteps?: number
+  originNarrowDoorwayRisk?: boolean
+  originTightTurnRisk?: boolean
+  originAccessStatus?: IntelligenceEvidenceStatus
 
   // Destination access
   destFloors?: number
   destHasElevator?: boolean
   destElevatorReserved?: boolean
   destParkingOk?: boolean
+  destCarryDistanceFeet?: number
+  destExteriorSteps?: number
+  destNarrowDoorwayRisk?: boolean
+  destTightTurnRisk?: boolean
+  destAccessStatus?: IntelligenceEvidenceStatus
 
   // Hidden inventory (not visible in MLS photos)
   garageCubicFeet?: number
@@ -691,6 +779,8 @@ export interface JobFactors {
 
   // Free notes from rep
   specialtyNotes?: string
+  moveIntelligenceApprovedAt?: string
+  moveIntelligenceApprovalReason?: string
 
   // Conjoint / combined move (two origins → one destination)
   conjointMove?: boolean
