@@ -393,7 +393,7 @@ function groupInventoryByRoom(items: InventoryItem[]): Map<string, InventoryItem
 }
 
 function depositPct(quote: PublicQuote): number {
-  if (!quote.total) return 20
+  if (!quote.total) return 30
   return Math.round((quote.deposit / quote.total) * 100)
 }
 

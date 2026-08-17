@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { computeJobPenalties, estimateLeadQuote, reconcileEstimatedQuoteLineItems } from '../../lib/sales'
+import { computeJobPenalties, estimateLeadQuote, getDefaultDepositRate, reconcileEstimatedQuoteLineItems } from '../../lib/sales'
 import type { CRMLead, JobFactors, QuoteLeg } from '../../lib/types'
 
 function makeLead(overrides: Partial<CRMLead> = {}): CRMLead {
@@ -30,6 +30,14 @@ function makeLead(overrides: Partial<CRMLead> = {}): CRMLead {
     ...overrides,
   }
 }
+
+test('deposit policy uses 30% locally, 50% long-distance, and invoices commercial work', () => {
+  assert.equal(getDefaultDepositRate('residential'), 0.3)
+  assert.equal(getDefaultDepositRate('labor-only'), 0.3)
+  assert.equal(getDefaultDepositRate('packing'), 0.3)
+  assert.equal(getDefaultDepositRate('long-distance'), 0.5)
+  assert.equal(getDefaultDepositRate('commercial'), 0)
+})
 
 test('quote line-item reconciliation is stable when the estimate is unchanged', () => {
   const current = [

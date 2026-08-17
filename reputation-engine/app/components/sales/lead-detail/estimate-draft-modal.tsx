@@ -6727,7 +6727,7 @@ export function EstimateDraftModal({
                   <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.total)}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-[var(--app-muted)]">Deposit (20%)</div>
+                  <div className="text-xs text-[var(--app-muted)]">Deposit ({quoteModalTotals.total > 0 ? Math.round((quoteModalTotals.deposit / quoteModalTotals.total) * 100) : 30}%)</div>
                   <div className="mt-1 text-lg font-medium text-[var(--app-ink)]">{formatMoney(quoteModalTotals.deposit)}</div>
                 </div>
               </div>

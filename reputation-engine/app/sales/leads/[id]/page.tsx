@@ -1421,7 +1421,7 @@ export default function SalesLeadDetailPage() {
     stagePersistPending,
   ])
   const quoteModalTotals = useMemo(() => {
-    const depositRate = quote && quote.total > 0 ? quote.deposit / quote.total : 0.2
+    const depositRate = quote && quote.total > 0 ? quote.deposit / quote.total : 0.3
     return computeQuoteTotals(quoteLineItems, depositRate, quoteDiscountAmount)
   }, [quote, quoteDiscountAmount, quoteLineItems])
   const groupedInventory = useMemo(() => {
@@ -2371,7 +2371,7 @@ export default function SalesLeadDetailPage() {
       const nextInternalNotes = overrides?.internalNotes ?? quoteInternalNotes
       const effectivePaymentTerms = quote.paymentTerms || getDefaultPaymentTerms(moveType)
       const depositRate = effectivePaymentTerms === 'deposit_required'
-        ? (quote.total > 0 ? quote.deposit / quote.total : 0.2)
+        ? (quote.total > 0 ? quote.deposit / quote.total : 0.3)
         : 0
       const quoteIsLockedForPricing = isCustomerFacingQuote(quote)
       const preserveCustomerFacingPricing =
