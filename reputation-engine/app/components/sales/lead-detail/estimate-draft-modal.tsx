@@ -2265,6 +2265,15 @@ export function EstimateDraftModal({
             ? `Price is provisional because ${conjointVolumePendingLabel} has inventory items with unknown cubic feet.`
           : 'Price has not been generated yet.',
       },
+      {
+        category: 'logistics',
+        label: 'Item-path intelligence',
+        ready: pricingBreakdown?.moveIntelligence?.fixedPriceReadiness === 'ready',
+        critical: pricingBreakdown?.moveIntelligence?.fixedPriceReadiness === 'manual_review',
+        detail: pricingBreakdown?.moveIntelligence
+          ? `${pricingBreakdown.moveIntelligence.fixedPriceReadiness.replace('_', ' ')} · ${pricingBreakdown.moveIntelligence.uncertaintyPct}% uncertainty · ${pricingBreakdown.moveIntelligence.questions.slice(0, 2).map(question => question.question).join(' ') || 'No unresolved high-impact questions.'}`
+          : 'Item handling and origin/destination paths have not been assessed.',
+      },
       { category: 'commercial', label: 'Margin reviewed', ready: Boolean(liveMarginSummary && liveMarginSummary.liveMargin >= 50), critical: Boolean(liveMarginSummary && liveMarginSummary.actualRevenue > 0 && liveMarginSummary.liveMargin < 40), detail: liveMarginSummary ? `Current margin is ${liveMarginSummary.liveMargin.toFixed(1)}%; manager review may be required.` : 'Margin has not been calculated.' },
       { category: 'commercial', label: 'Deposit amount', ready: quoteModalTotals.deposit > 0, critical: true, detail: 'Deposit amount is missing.' },
       { category: 'commercial', label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
@@ -5369,6 +5378,23 @@ export function EstimateDraftModal({
                     onChange={e => setFactor('specialtyNotes', e.target.value || undefined)}
                     className="crm-input w-full resize-none text-xs"
                   />
+                  {(pricingBreakdown?.moveIntelligence?.fixedPriceReadiness === 'manual_review' || jobFactors.moveIntelligenceApprovedAt) && (
+                    <div className="rounded-[6px] border border-amber-200 bg-amber-50 p-3">
+                      <label className="flex cursor-pointer items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(jobFactors.moveIntelligenceApprovedAt)}
+                          onChange={event => setFactors({
+                            ...jobFactors,
+                            moveIntelligenceApprovedAt: event.target.checked ? new Date().toISOString() : undefined,
+                            moveIntelligenceApprovalReason: event.target.checked ? (jobFactors.specialtyNotes || 'Operational handling and path review completed.') : undefined,
+                          })}
+                          className="mt-0.5 h-3.5 w-3.5 rounded"
+                        />
+                        <span className="text-[10px] leading-4 text-amber-800">Operations reviewed the specialty handling plan and approves fixed-price treatment. Unresolved access questions still need answers.</span>
+                      </label>
+                    </div>
+                  )}
                 </div>
                   )
                 })()}

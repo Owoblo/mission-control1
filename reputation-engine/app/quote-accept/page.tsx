@@ -9,6 +9,7 @@ import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchL
 import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePaymentTerms } from '@/lib/types'
 import { MAJOR_MOVE_THRESHOLD } from '@/lib/contribution-pricing'
 import { recommendTruckLoadPlan } from '@/lib/truck-planning'
+import { assessMoveIntelligence } from '@/lib/move-intelligence'
 
 type PublicQuote = {
   id: string
@@ -998,7 +999,13 @@ function QuoteAcceptPageInner() {
   const trucks = quote.truckCount || 1
   const rawHours = Number(quote.estimatedHours || 0)
   const hours = rawHours > 0 ? `${rawHours}–${Math.ceil(rawHours * 1.25)}` : null
-  const isBindingEstimate = hasInventory && inventory.length >= 5
+  const moveIntelligence = assessMoveIntelligence({
+    inventory,
+    jobFactors: quote.jobFactors,
+    originAddress: quote.originAddress,
+    destinationAddress: quote.destAddress,
+  })
+  const isBindingEstimate = quote.billingModel === 'binding'
   const serviceLabel = quoteServiceLabel(quote)
   const marketLabel = quoteMarketLabel(quote)
   const brand = quoteBrand(quote)
@@ -1310,6 +1317,18 @@ function QuoteAcceptPageInner() {
             </div>
           </div>
         </div>
+
+        {isBindingEstimate && moveIntelligence.fixedPriceReadiness !== 'ready' && (
+          <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-[#071421]">
+            <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Scope confirmation required</div>
+            <p className="mt-2 text-sm leading-6 text-[#071421]/70">
+              This fixed price applies to the inventory and access shown in this estimate. A moving coordinator must confirm the remaining high-impact access or handling details before dispatch.
+            </p>
+            {moveIntelligence.questions.slice(0, 3).map(question => (
+              <div key={question.id} className="mt-2 text-xs font-semibold text-[#071421]/70">• {question.question}</div>
+            ))}
+          </div>
+        )}
 
         {hasInventory && (
           <InventoryIntelligence inventory={inventory} roomGroups={roomGroups} listingSummary={listingSummary} />
