@@ -1,5 +1,7 @@
 import type { CRMLead } from '@/lib/types'
 
+export type StripeCardFunding = 'credit' | 'debit' | 'prepaid' | 'unknown'
+
 type StripeErrorPayload = {
   error?: {
     message?: string
@@ -73,10 +75,10 @@ export async function ensureStripeCustomerForLead(
 export async function fetchStripeCardSummary(stripeKey: string, paymentMethodId?: string | null) {
   const trimmed = (paymentMethodId || '').trim()
   if (!trimmed) {
-    return { cardBrand: '', cardLast4: '' }
+    return { cardBrand: '', cardLast4: '', cardFunding: 'unknown' as StripeCardFunding }
   }
 
-  const paymentMethod = await stripeGet<{ card?: { brand?: string; last4?: string } }>(
+  const paymentMethod = await stripeGet<{ card?: { brand?: string; last4?: string; funding?: string } }>(
     `payment_methods/${trimmed}`,
     stripeKey
   )
@@ -84,7 +86,23 @@ export async function fetchStripeCardSummary(stripeKey: string, paymentMethodId?
   return {
     cardBrand: paymentMethod.card?.brand || '',
     cardLast4: paymentMethod.card?.last4 || '',
+    cardFunding: normalizeStripeCardFunding(paymentMethod.card?.funding),
   }
+}
+
+export function normalizeStripeCardFunding(value?: string | null): StripeCardFunding {
+  return value === 'credit' || value === 'debit' || value === 'prepaid' ? value : 'unknown'
+}
+
+export function formatStripeCardPaymentLabel(cardBrand?: string | null, funding?: StripeCardFunding | null) {
+  const brand = (cardBrand || '').trim().toLowerCase()
+  const brandLabel = brand === 'amex' ? 'American Express' : brand === 'mastercard' ? 'Mastercard' : brand === 'visa' ? 'Visa' : brand ? `${brand.charAt(0).toUpperCase()}${brand.slice(1)}` : 'Card'
+  const fundingLabel = funding === 'debit' ? 'Debit' : funding === 'prepaid' ? 'Prepaid' : funding === 'credit' ? 'Credit' : 'Card'
+  return `${brandLabel} ${fundingLabel}`.replace(/^Card Card$/, 'Card')
+}
+
+export function requiresCardFundingReview(funding?: StripeCardFunding | null) {
+  return funding === 'debit' || funding === 'prepaid'
 }
 
 export function formatStoredCardLabel(cardBrand?: string | null, cardLast4?: string | null) {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
-import { fetchStripeCardSummary, stripePost } from '@/lib/server/stripe-payments'
+import { fetchStripeCardSummary, formatStripeCardPaymentLabel, requiresCardFundingReview, stripePost } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
@@ -75,7 +75,9 @@ export async function POST(request: Request) {
       error?: { message?: string }
     }>('payment_intents', stripeKey, piParams)
 
-    const { cardBrand, cardLast4 } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
+    const { cardBrand, cardLast4, cardFunding } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
+    const paymentMethodLabel = formatStripeCardPaymentLabel(cardBrand, cardFunding)
+    const fundingReviewRequired = requiresCardFundingReview(cardFunding)
 
     if (pi.status !== 'succeeded' || !pi.id) {
       await recordLeadPaymentAudit({
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString()
-    const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: 'deposit', method: 'credit_card', paidAt: now, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
+    const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: 'deposit', method: cardFunding === 'debit' ? 'debit' : 'credit_card', methodLabel: paymentMethodLabel, cardBrand, cardFunding, paidAt: now, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
     let updatedQuote = await saveSalesQuote({
       ...quote,
       depositPaidAt: now,
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
       ...lead,
       paymentStatus: chargeAmount >= quote.total ? 'paid_in_full' : 'deposit_received',
       depositAmount: chargeAmount,
-      depositMethod: 'Credit Card',
+      depositMethod: paymentMethodLabel,
       depositDate: now.slice(0, 10),
     })
 
@@ -178,9 +180,9 @@ export async function POST(request: Request) {
       paymentRecords: (updatedQuote.paymentRecords || []).map(item => item.id === paymentRecord.id ? deliveredPayment : item),
     })
 
-    const cardLabel = cardBrand && cardLast4 ? `${cardBrand} ••••${cardLast4}` : 'card on file'
+    const cardLabel = `${paymentMethodLabel}${cardLast4 ? ` ••••${cardLast4}` : ''}`
     void sendRepAlertEmail(
-      `💳 Deposit charged — ${lead.name} — $${chargeAmount.toFixed(2)} CAD`,
+      `${fundingReviewRequired ? '⚠️ Payment review' : '💳 Deposit charged'} — ${lead.name} — $${chargeAmount.toFixed(2)} CAD`,
       `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
         <div style="background:#071421;color:#fff;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
           Deposit charged — ${lead.name}
@@ -188,6 +190,7 @@ export async function POST(request: Request) {
         <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;font-size:14px;color:#071421">
           <p style="margin:0 0 12px"><strong>Amount charged:</strong> $${chargeAmount.toFixed(2)} CAD</p>
           <p style="margin:0 0 12px"><strong>Card:</strong> ${cardLabel}</p>
+          ${fundingReviewRequired ? '<p style="margin:0 0 12px;padding:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px"><strong>Internal review:</strong> Booking remains accepted. Verify the final-balance collection plan before move day.</p>' : ''}
           <p style="margin:0 0 12px"><strong>Quote:</strong> ${quote.number}</p>
           <p style="margin:0 0 12px"><strong>Remaining balance:</strong> $${(quote.total - chargeAmount).toFixed(2)} CAD</p>
           <p style="margin:0 0 12px"><strong>Charged by:</strong> ${session?.name || 'CRM'}</p>
@@ -202,6 +205,7 @@ export async function POST(request: Request) {
       paymentIntentId: pi.id,
       cardBrand,
       cardLast4,
+      cardFunding,
       lead: updatedLead,
       quote: updatedQuote,
     })

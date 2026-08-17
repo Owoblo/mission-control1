@@ -1368,6 +1368,8 @@ export interface PaymentRecord {
   note?: string
   reference?: string
   cardLast4?: string
+  cardBrand?: string
+  cardFunding?: 'credit' | 'debit' | 'prepaid' | 'unknown'
   recordedBy?: string
   recordedByUserId?: string
   emailSentAt?: string

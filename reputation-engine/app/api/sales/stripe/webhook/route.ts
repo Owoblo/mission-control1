@@ -13,6 +13,7 @@ import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCr
 import { deriveOpsChecklist, getQuotedTruckCount } from '@/lib/operations'
 import { assertQuoteStripeAccount, requireStripeWebhookAccount, resolveStripeAccountKeyForLead, webhookMetadataMatchesAccount, type StripeAccountKey } from '@/lib/server/stripe-accounts'
 import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
+import { fetchStripeCardSummary, formatStripeCardPaymentLabel, requiresCardFundingReview } from '@/lib/server/stripe-payments'
 
 function buildBookingConfirmationEmail(name: string, brand: ReceiptBrand, moveDate?: string, originCity?: string, destCity?: string) {
   const first = (name || 'there').split(' ')[0]
@@ -94,11 +95,14 @@ export async function POST(request: Request) {
         if (!Number.isFinite(actualDepositPaid) || actualDepositPaid <= 0) {
           throw new Error('Stripe webhook did not include a positive captured amount')
         }
+        const card = await fetchStripeCardSummary(stripeKey, paymentMethodId)
+        const paymentMethodLabel = formatStripeCardPaymentLabel(card.cardBrand, card.cardFunding)
+        const fundingReviewRequired = requiresCardFundingReview(card.cardFunding)
 
         // Update the quote with deposit payment info
         const receiptAlreadyRecorded = quote?.depositStripeSessionId === session.id && !!quote.depositPaidAt
         const paymentRecord = quote && !receiptAlreadyRecorded
-          ? buildPaymentRecord({ quote, amount: actualDepositPaid, kind: 'deposit', method: 'credit_card', paidAt: now, reference: typeof session.payment_intent === 'string' ? session.payment_intent : session.id, recordedBy: 'Stripe Checkout' })
+          ? buildPaymentRecord({ quote, amount: actualDepositPaid, kind: 'deposit', method: card.cardFunding === 'debit' ? 'debit' : 'credit_card', methodLabel: paymentMethodLabel, cardBrand: card.cardBrand, cardFunding: card.cardFunding, cardLast4: card.cardLast4, paidAt: now, reference: typeof session.payment_intent === 'string' ? session.payment_intent : session.id, recordedBy: 'Stripe Checkout' })
           : null
         if (quote) {
           await saveSalesQuote({
@@ -110,6 +114,8 @@ export async function POST(request: Request) {
             depositStripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
             depositStripeCustomerId: customerId,
             depositStripePaymentMethodId: paymentMethodId,
+            depositStripeCardBrand: card.cardBrand || quote.depositStripeCardBrand,
+            depositStripeCardLast4: card.cardLast4 || quote.depositStripeCardLast4,
             stripeAccountKey: stripeAccount.key,
             paymentRecords: paymentRecord ? [...(quote.paymentRecords || []), paymentRecord] : quote.paymentRecords,
           })
@@ -133,7 +139,7 @@ export async function POST(request: Request) {
               bookedAt: alreadyBooked ? lead.bookedAt : now,
               paymentStatus: 'deposit_received',
               depositAmount: depositAmt,
-              depositMethod: 'Credit Card',
+              depositMethod: paymentMethodLabel,
               depositDate: now.slice(0, 10),
               followUpDate: alreadyBooked ? lead.followUpDate : undefined,
               followUpNote: alreadyBooked ? lead.followUpNote : undefined,
@@ -183,6 +189,16 @@ export async function POST(request: Request) {
                   <p style="margin-top:16px"><a href="${crmUrl}" style="background:#071421;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM →</a></p>
                 </div>`
               ).catch(() => {})
+              if (fundingReviewRequired) {
+                await saveFollowUpLog({
+                  id: uid('fu'), leadId: targetLeadId, type: 'note', date: now, createdAt: now,
+                  notes: `Internal payment review: deposit was paid with ${paymentMethodLabel}${card.cardLast4 ? ` ending ${card.cardLast4}` : ''}. Booking remains accepted; verify the final-balance collection plan before move day.`,
+                }).catch(() => {})
+                void sendRepAlertEmail(
+                  `⚠️ Payment review — ${customerName} used ${paymentMethodLabel}`,
+                  `<div style="font-family:sans-serif;color:#071421;max-width:520px"><h2 style="font-size:18px">Payment review requested</h2><p><strong>${customerName}</strong> paid the deposit successfully using <strong>${paymentMethodLabel}${card.cardLast4 ? ` ending ${card.cardLast4}` : ''}</strong>.</p><p>The booking remains accepted. Please verify the final-balance collection plan before move day.</p><p><a href="${crmUrl}">Open the lead in CRM →</a></p></div>`
+                ).catch(() => {})
+              }
             }
 
             if (!receiptAlreadyRecorded && lead.email && quote) {
@@ -199,7 +215,8 @@ export async function POST(request: Request) {
                   Math.round(((quote.total || 0) - actualDepositPaid) * 100) / 100
                 ),
                 totalAmount: quote.total,
-                paymentMethod: 'Credit Card',
+                paymentMethod: paymentMethodLabel,
+                cardLast4: card.cardLast4 || undefined,
                 receiptNumber: paymentRecord?.receiptNumber,
                 receiptUrl: paymentRecord ? `${getAppBaseUrl('https://go.quote2move.com')}/receipt?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(paymentRecord.publicToken)}` : undefined,
                 paidAt: paymentRecord?.paidAt,
