@@ -1300,6 +1300,18 @@ export interface CRMQuote {
   balancePaidAt?: string
   balancePaidAmount?: number
   balancePaidMethod?: 'stripe' | 'etransfer' | 'cash' | 'cheque' | 'other'
+  balanceAuthorizationStatus?: 'required' | 'authorized' | 'capture_due' | 'captured' | 'canceled' | 'expired' | 'failed'
+  balanceAuthorizationAmount?: number
+  balanceAuthorizationPaymentIntentId?: string
+  balanceAuthorizationAuthorizedAt?: string
+  balanceAuthorizationCaptureBefore?: string
+  balanceAuthorizationCapturedAt?: string
+  balanceAuthorizationCanceledAt?: string
+  balanceAuthorizationFailure?: string
+  balanceAuthorizationCardBrand?: string
+  balanceAuthorizationCardLast4?: string
+  balanceAuthorizationConsentAt?: string
+  balanceAuthorizationConsentVersion?: string
   paymentRecords?: PaymentRecord[]
   // Overridable fields
   moveDescription?: string  // shown on the quote document

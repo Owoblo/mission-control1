@@ -227,7 +227,7 @@ function formatQuoteActor(actorName?: string | null) {
   return trimmed || 'System'
 }
 
-type PaymentAuditAction = 'card_saved' | 'deposit_charged' | 'deposit_charge_attempt' | 'balance_charged' | 'invoice_sent'
+type PaymentAuditAction = 'card_saved' | 'deposit_charged' | 'deposit_charge_attempt' | 'balance_charged' | 'invoice_sent' | 'balance_authorization_authorize' | 'balance_authorization_increment' | 'balance_authorization_capture' | 'balance_authorization_cancel'
 
 export async function recordLeadPaymentAudit(input: {
   leadId: string
