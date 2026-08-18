@@ -964,7 +964,10 @@ function SalesInboxPageInner() {
     if (!needsRefresh) return
 
     const interval = window.setInterval(() => {
-      void refresh()
+      // Recording/transcript readiness is background work. Keep the selected
+      // call visible while polling instead of replacing the inbox with the
+      // full-page initial-loading state every five seconds.
+      void refresh(true)
     }, 5000)
 
     return () => window.clearInterval(interval)
