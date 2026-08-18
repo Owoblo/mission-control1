@@ -13,6 +13,18 @@ async function contextForToken(token: string) {
   return null
 }
 
+export async function GET(_: Request, context: { params: Promise<{ token: string }> }) {
+  const { token } = await context.params
+  const match = await contextForToken(token)
+  if (!match) return NextResponse.json({ error: 'Partner job access not found.' }, { status: 404 })
+  const { url, headers } = requireSupabaseEnv()
+  const response = await fetch(`${url}/rest/v1/move_scope_versions?lead_id=eq.${encodeURIComponent(match.lead.id)}&status=eq.accepted&select=id,scope_code,version,snapshot,snapshot_hash&limit=1`, { headers, cache: 'no-store' })
+  if (!response.ok) return NextResponse.json({ error: 'Could not load the accepted scope.' }, { status: 500 })
+  const [scope] = await response.json() as Array<Record<string, unknown>>
+  if (!scope) return NextResponse.json({ error: 'No accepted scope exists for this move.' }, { status: 409 })
+  return NextResponse.json({ scope })
+}
+
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params
   const match = await contextForToken(token)

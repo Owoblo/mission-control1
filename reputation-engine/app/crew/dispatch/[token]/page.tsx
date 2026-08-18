@@ -35,6 +35,7 @@ type DispatchJob = {
 }
 
 type PartnerWorkspace = { messages: Array<{ id: string; direction: string; body: string; senderName?: string; urgent: boolean; createdAt: string }>; reports: Array<{ id: string; reportType: string; severity: string; status: string; summary: string; createdAt: string }>; operationsPhone: string }
+type AcceptedScope = { id: string; scope_code: string; version: number; snapshot_hash: string }
 
 const ROLE_LABELS: Record<string, string> = {
   crew_lead: 'Crew Lead',
@@ -57,6 +58,12 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
   const [reportSeverity, setReportSeverity] = useState<'routine' | 'urgent' | 'critical'>('urgent')
   const [reportMedia, setReportMedia] = useState<Array<{ url: string; contentType?: string }>>([])
   const [photo, setPhoto] = useState<{ url: string; label: string } | null>(null)
+  const [acceptedScope, setAcceptedScope] = useState<AcceptedScope | null>(null)
+  const [expectedBoxes, setExpectedBoxes] = useState(0)
+  const [observedBoxes, setObservedBoxes] = useState(0)
+  const [walkthroughMatches, setWalkthroughMatches] = useState(true)
+  const [walkthroughNote, setWalkthroughNote] = useState('')
+  const [walkthroughDone, setWalkthroughDone] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -70,8 +77,34 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
   useEffect(() => { void load() }, [params.token])
 
   async function loadWorkspace() {
-    const response = await fetch(`/api/contractor/jobs/${params.token}/workspace`, { cache: 'no-store' })
+    const [response, scopeResponse] = await Promise.all([
+      fetch(`/api/contractor/jobs/${params.token}/workspace`, { cache: 'no-store' }),
+      fetch(`/api/contractor/jobs/${params.token}/walkthrough`, { cache: 'no-store' }),
+    ])
     if (response.ok) setWorkspace(await response.json())
+    if (scopeResponse.ok) setAcceptedScope((await scopeResponse.json()).scope)
+  }
+
+  async function submitWalkthrough() {
+    if (!acceptedScope) return setMessage('The accepted scope is not available. Call Operations.')
+    if (!reportMedia.length) return setMessage('Upload at least one arrival photo or video before completing the walkthrough.')
+    setBusy(true); setMessage('Saving arrival verification…')
+    const response = await fetch(`/api/contractor/jobs/${params.token}/walkthrough`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scopeVersionId: acceptedScope.id,
+        inventory: { materiallyMatches: walkthroughMatches, expectedBoxes, observedBoxes, addedItems: [], removedItems: [], garageVerified: null, basementVerified: null, storageVerified: null },
+        access: { stairsMatch: walkthroughMatches, elevatorMatch: walkthroughMatches, parkingMatch: walkthroughMatches, carryDistanceMatch: walkthroughMatches, restrictions: walkthroughNote ? [walkthroughNote] : [] },
+        handling: { undisclosedHeavyItems: [], unplannedDisassembly: [], missingEquipment: [] },
+        capacity: { truckPlanAppropriate: walkthroughMatches, visualAssessment: walkthroughMatches ? 'within_expected' : 'over_expected', note: walkthroughNote },
+        evidence: reportMedia.map(item => ({ url: item.url, kind: item.contentType?.startsWith('video/') ? 'video' : 'image', label: 'Arrival walkthrough' })),
+        note: walkthroughNote,
+      }),
+    })
+    const body = await response.json()
+    setMessage(response.ok ? (body.workMayStart ? 'Walkthrough matches the accepted scope. Work may begin.' : 'Discrepancy recorded. Do not begin changed work until Operations resolves it.') : body.error || 'Could not save walkthrough.')
+    if (response.ok) setWalkthroughDone(true)
+    setBusy(false)
   }
 
   useEffect(() => { if (job?.job.partnerWorkspaceEnabled) void loadWorkspace() }, [job?.job.partnerWorkspaceEnabled])
@@ -152,6 +185,7 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
         {(job.briefing.scopeLines.length > 0 || job.briefing.changes.length > 0) && <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Accepted scope & changes</div><div className="mt-3 space-y-2">{job.briefing.scopeLines.map((line, index) => <div key={`${line.description}-${index}`} className="rounded-xl bg-slate-50 p-3"><div className="text-sm font-semibold text-[#071421]">{line.description}</div>{line.details && <p className="mt-1 text-xs text-slate-600">{line.details}</p>}</div>)}</div>{job.briefing.changes.length > 0 && <div className="mt-4 border-t pt-4">{job.briefing.changes.map(change => <div key={change.id} className="mt-2 text-sm"><span className={`mr-2 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${change.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>{change.status.replaceAll('_', ' ')}</span>{change.reason}{change.note ? ` — ${change.note}` : ''}</div>)}</div>}</section>}
 
         {job.job.partnerWorkspaceEnabled && <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><div><div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Operations communication</div><p className="mt-1 text-sm text-slate-600">Routine updates stay in this job record. For critical safety issues, call Operations immediately.</p>{workspace?.operationsPhone && <a href={`tel:${workspace.operationsPhone}`} className="mt-3 inline-flex rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">Call Operations · {workspace.operationsPhone}</a>}</div>
+          <div className="rounded-xl border-2 border-[#C99700]/50 bg-amber-50 p-4"><div className="text-xs font-bold uppercase tracking-[0.16em] text-amber-900">Required arrival walkthrough</div>{acceptedScope ? <p className="mt-1 text-xs text-amber-800">Verify against {acceptedScope.scope_code} · immutable version {acceptedScope.version}</p> : <p className="mt-1 text-xs font-semibold text-rose-700">Accepted scope unavailable—call Operations before work starts.</p>}<div className="mt-3 grid grid-cols-2 gap-3"><label className="text-xs font-semibold text-slate-700">Expected boxes<input type="number" min="0" value={expectedBoxes} onChange={event => setExpectedBoxes(Number(event.target.value))} className="mt-1 w-full rounded-lg border p-2"/></label><label className="text-xs font-semibold text-slate-700">Observed boxes<input type="number" min="0" value={observedBoxes} onChange={event => setObservedBoxes(Number(event.target.value))} className="mt-1 w-full rounded-lg border p-2"/></label></div><label className="mt-3 flex items-center gap-2 text-sm font-semibold text-slate-800"><input type="checkbox" checked={walkthroughMatches} onChange={event => setWalkthroughMatches(event.target.checked)}/> Inventory, access, handling, and truck plan materially match</label><textarea value={walkthroughNote} onChange={event => setWalkthroughNote(event.target.value)} placeholder="Record every discrepancy or access restriction" className="mt-3 min-h-20 w-full rounded-lg border p-2 text-sm"/><button disabled={busy || walkthroughDone || !acceptedScope} onClick={() => void submitWalkthrough()} className="mt-3 w-full rounded-xl bg-[#071421] px-4 py-3 text-sm font-bold text-white disabled:opacity-40">{walkthroughDone ? 'Walkthrough recorded' : 'Complete verified walkthrough'}</button><p className="mt-2 text-xs text-amber-900">At least one arrival photo/video is mandatory. If the checkbox is cleared, work remains blocked pending Operations resolution.</p></div>
           <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl bg-slate-50 p-3">{workspace?.messages.length ? workspace.messages.map(item => <div key={item.id} className={`rounded-xl p-3 text-sm ${item.direction === 'partner_to_operations' ? 'ml-6 bg-[#071421] text-white' : 'mr-6 border bg-white text-slate-700'}`}><div className="text-[10px] font-bold uppercase opacity-60">{item.senderName || item.direction.replaceAll('_', ' ')} · {new Date(item.createdAt).toLocaleString()}</div><p className="mt-1 whitespace-pre-wrap">{item.body}</p></div>) : <p className="text-sm text-slate-400">No job messages yet.</p>}</div>
           <div className="flex gap-2"><input value={partnerMessage} onChange={event => setPartnerMessage(event.target.value)} placeholder="Send an update to Operations" className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"/><button disabled={busy || !partnerMessage.trim()} onClick={() => sendPartnerAction({ action: 'message', body: partnerMessage })} className="rounded-xl bg-[#071421] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Send</button></div>
           <div className="border-t border-slate-200 pt-4"><h3 className="font-bold text-rose-700">Report an issue or scope change</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><select value={reportType} onChange={event => setReportType(event.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="additional_inventory">Additional inventory</option><option value="access_problem">Access problem</option><option value="parking_problem">Parking problem</option><option value="customer_disagreement">Customer disagreement</option><option value="damage_discovered">Pre-existing damage</option><option value="damage_occurred">Damage occurred</option><option value="truck_issue">Truck issue</option><option value="crew_issue">Crew issue</option><option value="delay">Delay</option><option value="additional_labor">Additional labour</option><option value="additional_truck">Additional truck</option><option value="safety_concern">Safety concern</option><option value="payment_issue">Payment issue</option><option value="other">Other</option></select><select value={reportSeverity} onChange={event => setReportSeverity(event.target.value as typeof reportSeverity)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="routine">Routine</option><option value="urgent">Urgent</option><option value="critical">Critical — call Operations</option></select></div><input value={reportSummary} onChange={event => setReportSummary(event.target.value)} placeholder="Short factual summary" className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"/><textarea value={reportDetails} onChange={event => setReportDetails(event.target.value)} placeholder="Who, what, where, when, observed condition, action taken, and what decision you need from Operations" className="mt-3 min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm"/><button disabled={busy || !reportSummary.trim()} onClick={() => sendPartnerAction({ action: 'report', reportType, severity: reportSeverity, summary: reportSummary, details: reportDetails })} className="mt-3 w-full rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-40">Submit field report</button><p className="mt-2 text-xs text-slate-500">Do not negotiate price or perform added work until Operations authorizes it.</p></div>

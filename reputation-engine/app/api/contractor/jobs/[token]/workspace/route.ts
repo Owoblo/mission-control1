@@ -36,7 +36,8 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     return NextResponse.json({ message }, { status: 201 })
   }
   if (body.action === 'checkpoint') {
-    const allowed = new Set(['preparing','en_route','arrived','walkthrough_complete','work_started','loading_complete','destination_arrival','unloading_complete','final_walkthrough','completed','paused','resumed','trip_started','trip_completed','day_ended','day_started'])
+    // walkthrough_complete is only emitted by the structured walkthrough route.
+    const allowed = new Set(['preparing','en_route','arrived','work_started','loading_complete','destination_arrival','unloading_complete','final_walkthrough','completed','paused','resumed','trip_started','trip_completed','day_ended','day_started'])
     if (!body.eventType || !allowed.has(body.eventType)) return NextResponse.json({ error: 'Valid checkpoint required.' }, { status: 400 })
     const event = await createJobEvent({ leadId: match.lead.id, subcontractorId: match.entry.subcontractorId, eventType: body.eventType, tripNumber: body.tripNumber, serviceDay: body.serviceDay, actorName: match.entry.workerName, note: body.details, facts: body.facts })
     await createPartnerJobMessage({ ...base, direction: 'system', channel: 'system', body: `CHECKPOINT · ${body.eventType.replaceAll('_',' ')}`, media: [], senderName: match.entry.workerName, urgent: false })
