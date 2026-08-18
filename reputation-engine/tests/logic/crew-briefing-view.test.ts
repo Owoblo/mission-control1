@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildLiveCrewBriefing } from '../../lib/crew-briefing-view'
+import { buildLiveCrewBriefing, sanitizeCrewScopeDetails } from '../../lib/crew-briefing-view'
 import type { CRMLead, CRMQuote } from '../../lib/types'
 
 test('live crew briefing carries multi-leg scope, excludes, images, handling, and approved changes', () => {
@@ -28,4 +28,10 @@ test('live crew briefing carries multi-leg scope, excludes, images, handling, an
   assert.equal(briefing.photos[0].label, 'Basement')
   assert.equal(briefing.changes[0].status, 'approved')
   assert.ok(briefing.intelligence.risks.some(risk => risk.includes('storage handling cycle')))
+})
+
+test('crew scope never exposes margin, approval, or internal economics', () => {
+  const safe = sanitizeCrewScopeDetails('Relationship pricing · Approved. Projected margin: 25.3%. Approval not required: healthy margin. · Includes wrapping and setup')
+  assert.equal(safe, 'Relationship pricing · Includes wrapping and setup')
+  assert.doesNotMatch(safe, /margin|approval/i)
 })
