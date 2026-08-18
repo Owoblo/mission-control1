@@ -342,6 +342,7 @@ type Props = {
   legs?: QuoteLeg[]
   onLegsChange?: (legs: QuoteLeg[]) => void
   onUhaulPriceChange?: (pricePerTruck: number) => void
+  onOperationalPlanChange?: (plan: { crewSize: number; estimatedHours: number; truckCount: number; estimatedWeightLbs?: number }) => void
   onBranchChange?: (value: NonNullable<CRMLead['branch']>) => void
   onJobFactorsChange: (factors: JobFactors) => void
   onAddInventoryItems: (items: InventoryItem[]) => void
@@ -445,6 +446,7 @@ export function EstimateDraftModal({
   legs: legsProp,
   onLegsChange,
   onUhaulPriceChange,
+  onOperationalPlanChange,
   onBranchChange,
   onJobFactorsChange,
   onAddInventoryItems,
@@ -1474,6 +1476,27 @@ export function EstimateDraftModal({
       legs: legsEnabled ? legs : undefined,
     }, jobFactors).pricingBreakdown
   }, [open, lead, inventory, jobFactors, quoteType, distanceKm, route, routeContext, legs, legsEnabled])
+  const operationalInventoryWeightLbs = deriveInventoryMetrics(inventory).totalWeightLbs
+
+  useEffect(() => {
+    if (!open || !pricingBreakdown) return
+    onOperationalPlanChange?.({
+      crewSize: pricingBreakdown.crewSize,
+      estimatedHours: pricingBreakdown.totalHours,
+      truckCount: pricingBreakdown.truckCount,
+      estimatedWeightLbs: operationalInventoryWeightLbs || undefined,
+    })
+  }, [onOperationalPlanChange, open, operationalInventoryWeightLbs, pricingBreakdown])
+
+  function selectTruckStrategy(strategy: TripStrategy) {
+    const truckCountOverride = strategy === 'two_trucks' ? 2 : strategy === 'three_trucks' ? 3 : 1
+    setUhaulSelectedStrategy(strategy)
+    onJobFactorsChange({
+      ...jobFactors,
+      truckCountOverride,
+      preferredOperatingPlan: strategy === 'two_trucks' ? 'two_trucks_parallel' : 'one_truck_shuttle',
+    })
+  }
 
   const quoteIsCustomerFacing = isCustomerFacingQuote(quote)
   const quoteHasUnsavedPricingRevision = Boolean(
@@ -3930,7 +3953,7 @@ export function EstimateDraftModal({
                 ) : null}
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="crm-kpi">
-                    <div className="crm-label">Items</div>
+                    <div className="crm-label">Pieces</div>
                     <div className="crm-value">{effectiveInventoryMetrics.totalItems}</div>
                   </div>
                   <div className="crm-kpi">
@@ -4292,7 +4315,7 @@ export function EstimateDraftModal({
                             <div className="text-sm font-medium text-[var(--app-ink)]">{room}</div>
                             {isDropTarget && <span className="text-[10px] font-semibold text-blue-600">Drop here</span>}
                           </div>
-                          <div className="text-xs text-[var(--app-muted)]">{items.length} items · {roomCuFt} cu ft</div>
+                          <div className="text-xs text-[var(--app-muted)]">{items.length} inventory lines · {roomCuFt} cu ft</div>
                         </summary>
                         <div className="border-t border-[var(--app-line)] px-3 py-2 space-y-1">
                           {items.map(el => {
@@ -6212,7 +6235,7 @@ export function EstimateDraftModal({
                                 <button
                                   key={label}
                                   type="button"
-                                  onClick={() => setUhaulSelectedStrategy(strategy)}
+                                  onClick={() => selectTruckStrategy(strategy)}
                                   className={`rounded-[6px] border px-2.5 py-2 text-left transition ${
                                     isActive
                                       ? 'border-[#071421] bg-[#071421]/5 ring-1 ring-[#071421]/20'
