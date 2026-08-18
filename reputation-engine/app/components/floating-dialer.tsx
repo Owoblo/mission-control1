@@ -499,9 +499,10 @@ export function FloatingDialer() {
   }) {
     const nextPhone = input?.phone || phone.trim()
     const nextLeadId = input?.leadId ?? activeLeadIdRef.current
-    // Only carry forward preferredFromNumber when explicitly passed or when there's an active lead
-    // — don't let a previous call's number bleed into a fresh unrelated dial
-    const preferredFromNumber = input?.preferredFromNumber || (nextLeadId ? callerProfileRef.current?.fromNumber || currentBusinessNumberRef.current : '') || ''
+    // A previous dial's caller ID is never evidence for a new callback. Only an
+    // explicit number supplied by the selected inbox/call context may override
+    // the server's lead, recent-call, inbound-line, and branch resolution.
+    const preferredFromNumber = input?.preferredFromNumber || ''
     const digits = nextPhone.replace(/\D/g, '')
 
     if (!nextLeadId && digits.length < 10) {
@@ -1874,6 +1875,11 @@ export function FloatingDialer() {
         callerProfileRef.current = incomingProfile
         currentBusinessNumberRef.current = incomingProfile.fromNumber
       }
+      void resolveCallerProfileNow({
+        phone: customEvent.detail?.phone,
+        leadId: nextLeadId,
+        preferredFromNumber: incomingProfile?.fromNumber || null,
+      })
       setOpen(true)
     }
 
