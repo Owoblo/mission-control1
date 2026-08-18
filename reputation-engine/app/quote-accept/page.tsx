@@ -994,6 +994,7 @@ function QuoteAcceptPageInner() {
   const bundledMove = quote.billingModel === 'binding' || quote.subtotal >= MAJOR_MOVE_THRESHOLD
   const invoiceStyleTerms = isInvoiceStylePaymentTerms(quote.paymentTerms)
   const hasInventory = inventory.length > 0
+  const totalInventoryPieces = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
   const roomGroups = groupInventoryByRoom(inventory)
   const crewSize = quote.crewSize || 3
   const trucks = quote.truckCount || 1
@@ -1288,7 +1289,7 @@ function QuoteAcceptPageInner() {
             { label: 'Route', value: `${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}` },
             { label: 'Crew', value: `${crewSize} Movers` },
             { label: trucks === 1 ? 'Truck' : 'Trucks', value: `${trucks} Truck${trucks > 1 ? 's' : ''}` },
-            { label: 'Home inventory', value: hasInventory ? `${inventory.length} Items` : 'In review' },
+            { label: 'Home inventory', value: hasInventory ? `${totalInventoryPieces} Pieces` : 'In review' },
             { label: 'Est. Hours', value: hours ? `${hours}h` : 'TBD' },
           ].map(stat => (
             <div key={stat.label} className="px-5 py-6 text-center">

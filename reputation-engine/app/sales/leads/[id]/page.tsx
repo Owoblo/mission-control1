@@ -6261,6 +6261,9 @@ export default function SalesLeadDetailPage() {
           setQuoteModalDirty(true)
         }}
         onUhaulPriceChange={price => { pricingMetaRef.current.longDistanceTruckCost = price }}
+        onOperationalPlanChange={plan => {
+          pricingMetaRef.current = { ...pricingMetaRef.current, ...plan }
+        }}
         listingPhotos={listingPhotos}
         mediaAssets={lead.mediaAssets || []}
         customerPhotos={(lead.mediaAssets || [])
