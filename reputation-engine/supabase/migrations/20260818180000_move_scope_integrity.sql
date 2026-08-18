@@ -55,6 +55,7 @@ create index if not exists move_scope_ack_scope_idx on public.move_scope_acknowl
 
 alter table public.subcontractor_offers add column if not exists scope_version_id uuid references public.move_scope_versions(id);
 alter table public.subcontractor_offer_recipients add column if not exists acknowledged_scope_version_id uuid references public.move_scope_versions(id);
+alter table public.partner_change_orders add column if not exists scope_version_id uuid references public.move_scope_versions(id);
 
 create table if not exists public.move_scope_walkthroughs (
   id uuid primary key default gen_random_uuid(),
@@ -105,7 +106,7 @@ begin
     update public.move_scope_versions set status = 'superseded' where lead_id = v_lead_id and status = 'accepted';
     insert into public.move_scope_versions(scope_code,lead_id,quote_id,version,change_reason,snapshot,snapshot_hash,status,issued_at,accepted_at,accepted_by_name,acceptance_method,acceptance_ip,created_by)
     values ('SSM-' || upper(right(regexp_replace(v_lead_id,'[^a-zA-Z0-9]','','g'),8)) || '-V' || v_version,
-      v_lead_id,new.id,v_version,'Captured at quote acceptance',v_snapshot,encode(digest(v_snapshot::text,'sha256'),'hex'),'accepted',now(),now(),coalesce(v_lead->>'name','Customer'),'quote_acceptance',new.data->>'termsAcceptedIp','database_acceptance_gate')
+      v_lead_id,new.id,v_version,'Captured at quote acceptance',v_snapshot,encode(extensions.digest(v_snapshot::text,'sha256'),'hex'),'accepted',now(),now(),coalesce(v_lead->>'name','Customer'),'quote_acceptance',new.data->>'termsAcceptedIp','database_acceptance_gate')
     returning id into v_scope_id;
   end if;
   insert into public.move_scope_acknowledgements(scope_version_id,party_type,party_id,party_name,decision,method,ip_address,user_agent,metadata)
@@ -115,6 +116,39 @@ end $$;
 drop trigger if exists crm_quotes_capture_accepted_scope on public.crm_quotes;
 create trigger crm_quotes_capture_accepted_scope after update of data on public.crm_quotes
 for each row execute function public.capture_accepted_move_scope();
+
+-- Existing booked moves predate the acceptance trigger. Preserve their complete
+-- lead/quote documents as V1 before any offer or field-work gate is enabled.
+with booked as (
+  select distinct on (q.data->>'leadId') q.id quote_id, q.data quote_data,
+    q.data->>'leadId' lead_id, l.data lead_data
+  from public.crm_quotes q
+  join public.crm_leads l on l.id = q.data->>'leadId' and l.deleted = false
+  where coalesce(q.deleted,false) = false and q.data->>'status' in ('accepted','invoiced','paid')
+  order by q.data->>'leadId', q.updated_at desc
+), missing as (
+  select b.*, jsonb_build_object(
+    'schemaVersion',1,'leadId',b.lead_id,'quoteId',b.quote_id,'generatedAt',now(),
+    'captureKind','legacy_booking_backfill','capturedLead',b.lead_data,'capturedQuote',b.quote_data
+  ) snapshot
+  from booked b where not exists (
+    select 1 from public.move_scope_versions s where s.lead_id=b.lead_id and s.status='accepted'
+  )
+), inserted as (
+  insert into public.move_scope_versions(scope_code,lead_id,quote_id,version,change_reason,snapshot,snapshot_hash,status,issued_at,accepted_at,accepted_by_name,acceptance_method,created_by)
+  select 'SSM-'||upper(substr(md5(lead_id),1,12))||'-V1',lead_id,quote_id,1,
+    'Legacy booked move backfill',snapshot,encode(extensions.digest(snapshot::text,'sha256'),'hex'),
+    'accepted',now(),coalesce((quote_data->>'acceptedAt')::timestamptz,now()),
+    coalesce(lead_data->>'name','Customer'),'legacy_booking_backfill','scope_integrity_migration'
+  from missing returning id,lead_id
+)
+insert into public.move_scope_acknowledgements(scope_version_id,party_type,party_id,party_name,decision,method,metadata)
+select i.id,'customer',i.lead_id,coalesce(l.data->>'name','Customer'),'acknowledged','legacy_booking_backfill',
+  jsonb_build_object('backfilled',true) from inserted i join public.crm_leads l on l.id=i.lead_id;
+
+update public.subcontractor_offers o set scope_version_id=s.id
+from public.move_scope_versions s
+where o.scope_version_id is null and s.lead_id=o.lead_id and s.status='accepted';
 
 create or replace function public.bind_offer_to_active_scope() returns trigger language plpgsql as $$
 begin
@@ -143,6 +177,38 @@ end $$;
 drop trigger if exists subcontractor_recipients_capture_scope_ack on public.subcontractor_offer_recipients;
 create trigger subcontractor_recipients_capture_scope_ack before update of status on public.subcontractor_offer_recipients
 for each row execute function public.capture_partner_scope_acknowledgement();
+
+-- An approved customer change is itself a new immutable accepted scope. The
+-- original remains superseded and every downstream consumer can identify the
+-- exact revision that authorizes the changed work.
+create or replace function public.version_approved_change_order() returns trigger language plpgsql security definer set search_path=public as $$
+declare v_old public.move_scope_versions%rowtype; v_new_id uuid; v_version integer; v_snapshot jsonb;
+begin
+  if new.status <> 'approved' or old.status = 'approved' then return new; end if;
+  select * into v_old from public.move_scope_versions where lead_id=new.lead_id and status='accepted' for update;
+  if v_old.id is null then raise exception 'Cannot approve a change without an accepted move scope'; end if;
+  select coalesce(max(version),0)+1 into v_version from public.move_scope_versions where lead_id=new.lead_id;
+  v_snapshot := v_old.snapshot || jsonb_build_object(
+    'generatedAt',now(),'predecessorScopeId',v_old.id,
+    'authorizedChange',jsonb_build_object('changeOrderId',new.id,'changeCode',new.change_code,'type',new.change_type,
+      'description',new.description,'evidence',new.evidence,'customerDelta',new.customer_delta,
+      'partnerDelta',new.partner_delta,'estimatedExtraHours',new.estimated_extra_hours,
+      'approvedAt',new.customer_decided_at,'approvedBy',new.customer_name)
+  );
+  update public.move_scope_versions set status='superseded' where id=v_old.id;
+  insert into public.move_scope_versions(scope_code,lead_id,quote_id,version,predecessor_id,change_reason,snapshot,snapshot_hash,status,issued_at,accepted_at,accepted_by_name,acceptance_method,acceptance_ip,created_by)
+  values('SSM-'||upper(substr(md5(new.lead_id),1,12))||'-V'||v_version,new.lead_id,v_old.quote_id,v_version,v_old.id,
+    'Approved change order '||coalesce(new.change_code,new.id::text),v_snapshot,encode(extensions.digest(v_snapshot::text,'sha256'),'hex'),
+    'accepted',now(),coalesce(new.customer_decided_at,now()),coalesce(new.customer_name,'Customer'),'change_order_authorization',new.customer_decision_ip,'change_control') returning id into v_new_id;
+  new.scope_version_id := v_new_id;
+  insert into public.move_scope_acknowledgements(scope_version_id,party_type,party_id,party_name,decision,method,ip_address,metadata)
+  values(v_new_id,'customer',new.lead_id,coalesce(new.customer_name,'Customer'),'accepted','change_order_authorization',new.customer_decision_ip,jsonb_build_object('changeOrderId',new.id));
+  update public.subcontractor_offers set scope_version_id=v_new_id where lead_id=new.lead_id and status in ('open','offered','accepted');
+  return new;
+end $$;
+drop trigger if exists partner_change_order_versions_scope on public.partner_change_orders;
+create trigger partner_change_order_versions_scope before update of status on public.partner_change_orders
+for each row execute function public.version_approved_change_order();
 
 create or replace function public.enforce_scope_before_partner_work() returns trigger language plpgsql as $$
 begin
