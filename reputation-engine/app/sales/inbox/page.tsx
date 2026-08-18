@@ -210,9 +210,9 @@ function isUnreadEmail(email: CRMEmail) {
   return new Date(email.sentAt).getTime() > new Date(email.readAt).getTime()
 }
 
-function openDialer(phone?: string, name?: string, leadId?: string) {
+function openDialer(phone?: string, name?: string, leadId?: string, branchNumber?: string) {
   if (!phone || typeof window === 'undefined') return
-  window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone, name, leadId } }))
+  window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone, name, leadId, branchNumber } }))
 }
 
 function isPlaceholderLeadName(value?: string) {
@@ -1899,7 +1899,7 @@ function SalesInboxPageInner() {
                             </button>
                           </>
                         )}
-                        {selected.phone ? <button onClick={() => openDialer(selected.phone, displayLeadName(selected), selected.linkedLeadId || selected.matchedLeadId)} className="crm-button">Call</button> : null}
+                        {selected.phone ? <button onClick={() => openDialer(selected.phone, displayLeadName(selected), selected.linkedLeadId || selected.matchedLeadId, getSaturnBranchNumberFromRawData(selectedRaw) || undefined)} className="crm-button">Call</button> : null}
                         <button onClick={() => void claimSelected()} disabled={busy || selectedStatus === 'closed'} className="crm-button-dark">
                           {selected.linkedLeadId ? 'Open Lead' : selected.matchedLeadId ? (busy ? 'Linking...' : 'Open Existing Lead') : busy ? 'Creating...' : 'Move to Pipeline'}
                         </button>
@@ -1942,7 +1942,7 @@ function SalesInboxPageInner() {
                           moveReadiness={aiSummary?.moveReadiness}
                           processingMessage={!recordingUnavailable && !transcript && !aiSummary?.summary && (recordingUrl || recordingSid) ? 'Transcript and summary are still processing.' : undefined}
                           actions={selected.phone ? (
-                              <button onClick={() => openDialer(selected.phone, displayLeadName(selected), selected.linkedLeadId || selected.matchedLeadId)} className="crm-button min-h-11 shrink-0 text-sm lg:min-h-9 lg:text-xs">
+                              <button onClick={() => openDialer(selected.phone, displayLeadName(selected), selected.linkedLeadId || selected.matchedLeadId, getSaturnBranchNumberFromRawData(selectedRaw) || undefined)} className="crm-button min-h-11 shrink-0 text-sm lg:min-h-9 lg:text-xs">
                               Call back
                             </button>
                           ) : null}
