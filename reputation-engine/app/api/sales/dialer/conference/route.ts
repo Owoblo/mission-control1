@@ -168,19 +168,21 @@ async function handleStartConference(body: StartConferenceBody) {
   const conferenceName = makeConferenceName(legs.rootCallSid)
   const callerId = pickSaturnBranchPhoneNumber(body.callerId)
 
-  // Move the rep first so the customer never loses the live call while the original
-  // <Dial> bridge is being replaced. Then move the customer into the same room.
+  // The external customer is the child of the browser rep's <Dial> on outbound
+  // calls. Redirecting the rep first tears down that child leg, leaving no live
+  // customer call for the second update. Move the customer into the conference
+  // first; the child remains alive there while the rep follows immediately.
+  await updateCall(accountSid, authToken, legs.customerCallSid, {
+    Twiml: conferenceTwiml({
+      conferenceName,
+      participantLabel: `customer_${legs.customerCallSid}`,
+    }),
+  })
   await updateCall(accountSid, authToken, legs.repCallSid, {
     Twiml: conferenceTwiml({
       conferenceName,
       participantLabel: `rep_${legs.repCallSid}`,
       callSidForRecording: legs.customerCallSid,
-    }),
-  })
-  await updateCall(accountSid, authToken, legs.customerCallSid, {
-    Twiml: conferenceTwiml({
-      conferenceName,
-      participantLabel: `customer_${legs.customerCallSid}`,
     }),
   })
 
