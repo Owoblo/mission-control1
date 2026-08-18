@@ -135,6 +135,9 @@ export function SalesHeader() {
   const [query, setQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [leadsLoaded, setLeadsLoaded] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchLoadError, setSearchLoadError] = useState(false)
+  const [searchReloadToken, setSearchReloadToken] = useState(0)
   const [newLeadOpen, setNewLeadOpen] = useState(false)
   const [quickScanOpen, setQuickScanOpen] = useState(false)
   const [allLeads, setAllLeads] = useState<CRMLead[]>([])
@@ -216,17 +219,24 @@ export function SalesHeader() {
     if (leadsLoaded) return
     if (!canUseSalesActions) return
     let cancelled = false
+    setSearchLoading(true)
+    setSearchLoadError(false)
     fetchSalesLeadSearchIndex()
       .then(leads => {
         if (cancelled) return
         setAllLeads(leads as CRMLead[])
         setLeadsLoaded(true)
+        setSearchLoading(false)
       })
-      .catch(() => null)
+      .catch(() => {
+        if (cancelled) return
+        setSearchLoading(false)
+        setSearchLoadError(true)
+      })
     return () => {
       cancelled = true
     }
-  }, [canUseSalesActions, leadsLoaded, query, searchFocused])
+  }, [canUseSalesActions, leadsLoaded, query, searchFocused, searchReloadToken])
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -656,7 +666,13 @@ export function SalesHeader() {
                 />
                 {showDropdown && (
                   <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white shadow-lg">
-                    {searchResults.length === 0 ? (
+                    {searchLoading ? (
+                      <div className="px-4 py-3 text-sm text-[var(--app-muted)]">Searching leads…</div>
+                    ) : searchLoadError ? (
+                      <button type="button" onClick={() => setSearchReloadToken(value => value + 1)} className="w-full px-4 py-3 text-left text-sm font-semibold text-amber-800 hover:bg-amber-50">
+                        Search temporarily unavailable — click to retry
+                      </button>
+                    ) : searchResults.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-[var(--app-muted)]">No leads found for &ldquo;{query}&rdquo;</div>
                     ) : (
                       searchResults.map(lead => (
