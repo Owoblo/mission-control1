@@ -4,6 +4,7 @@ import { deriveJobReadiness } from '@/lib/job-spine'
 import { getSessionUser } from '@/lib/server/session'
 import { getSalesLead, getSalesQuote, saveSalesLead } from '@/lib/server/sales-repository'
 import type { CRMLead, MoveExecutionPhase } from '@/lib/types'
+import { deriveBalanceAuthorizationState } from '@/lib/balance-authorization'
 
 function canUpdateJob(lead: CRMLead, session: Awaited<ReturnType<typeof getSessionUser>>) {
   if (!session) return false
@@ -29,8 +30,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     if (phaseMeta.phase === 'crew_depart_yard') {
       const quote = lead.quoteId ? await getSalesQuote(lead.quoteId).catch(() => null) : null
       const readiness = deriveJobReadiness(lead, quote)
+      const financial = quote ? deriveBalanceAuthorizationState(quote, lead) : null
       const canOverride = session?.role === 'owner' || session?.role === 'manager' || session?.role === 'operations_lead'
       const overrideReason = body.readinessOverrideReason?.trim()
+      if (financial && !financial.dispatchCleared && !(canOverride && overrideReason)) {
+        return NextResponse.json({ error: 'The outstanding balance has not been authorized on the customer card.', code: 'BALANCE_AUTHORIZATION_REQUIRED', financial, requiredAction: canOverride ? 'Authorize the balance or record a management override reason.' : 'Ask Operations to authorize the balance before departure.' }, { status: 409 })
+      }
       if (readiness.status !== 'fully_ready' && !(canOverride && overrideReason)) {
         return NextResponse.json({
           error: 'This job is not fully ready to dispatch.',

@@ -65,25 +65,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Balance amount is zero — nothing to charge.' }, { status: 400 })
     }
 
-    const piParams = new URLSearchParams()
-    piParams.set('amount', String(Math.round(chargeAmount * 100)))
-    piParams.set('currency', 'cad')
-    piParams.set('payment_method', paymentMethodId)
-    if (customerId) piParams.set('customer', customerId)
-    piParams.set('confirm', 'true')
-    piParams.set('off_session', 'true')
-    piParams.set('description', `Balance – ${quote.number} – ${lead.name}`)
-    if (lead.email) piParams.set('receipt_email', lead.email)
-    piParams.set('metadata[quoteId]', quote.id)
-    piParams.set('metadata[leadId]', lead.id)
-    piParams.set('metadata[type]', 'balance')
-    appendStripeAccountMetadata(piParams, stripeAccount)
-
-    const pi = await stripePost<{
+    let pi: {
       id?: string
       status?: string
       error?: { message?: string }
-    }>('payment_intents', stripeKey, piParams)
+    }
+    const authorizationId = quote.balanceAuthorizationPaymentIntentId
+    const authorizationLive = (quote.balanceAuthorizationStatus === 'authorized' || quote.balanceAuthorizationStatus === 'capture_due') && Number(quote.balanceAuthorizationAmount || 0) >= chargeAmount
+    if (authorizationId && authorizationLive) {
+      pi = await stripePost(`payment_intents/${authorizationId}/capture`, stripeKey, new URLSearchParams({ amount_to_capture: String(Math.round(chargeAmount * 100)) }))
+    } else {
+      const piParams = new URLSearchParams()
+      piParams.set('amount', String(Math.round(chargeAmount * 100)))
+      piParams.set('currency', 'cad'); piParams.set('payment_method', paymentMethodId)
+      if (customerId) piParams.set('customer', customerId)
+      piParams.set('confirm', 'true'); piParams.set('off_session', 'true')
+      piParams.set('description', `Balance – ${quote.number} – ${lead.name}`)
+      if (lead.email) piParams.set('receipt_email', lead.email)
+      piParams.set('metadata[quoteId]', quote.id); piParams.set('metadata[leadId]', lead.id); piParams.set('metadata[type]', 'balance')
+      appendStripeAccountMetadata(piParams, stripeAccount)
+      pi = await stripePost('payment_intents', stripeKey, piParams)
+    }
 
     if (pi.status !== 'succeeded' || !pi.id) {
       return NextResponse.json({ error: pi.error?.message || 'Charge failed' }, { status: 402 })
@@ -100,6 +102,8 @@ export async function POST(request: Request) {
       balancePaidAt: paidAt,
       balancePaidAmount: Math.round((paid.balancePaid + chargeAmount) * 100) / 100,
       balancePaidMethod: 'stripe',
+      balanceAuthorizationStatus: authorizationLive ? 'captured' : quote.balanceAuthorizationStatus,
+      balanceAuthorizationCapturedAt: authorizationLive ? paidAt : quote.balanceAuthorizationCapturedAt,
       stripeAccountKey: stripeAccount.key,
       paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
     })

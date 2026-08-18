@@ -104,6 +104,7 @@ const QUOTE_TERMS_SECTIONS = [
       'Before work starts, the crew may complete a walkthrough and compare the on-site items against the estimate inventory.',
       'If extra items, undisclosed rooms, storage areas, access issues, specialty items, or major scope changes are found, the office must be contacted before the crew proceeds.',
       'If the agreed scope changes materially, Saturn Star will document the change and any flat-rate adjustment in a change order before performing the additional work.',
+      'Before dispatch, Saturn Star may place a temporary authorization hold on the saved card for the estimated outstanding balance. This is not an additional charge. After service, Saturn Star may capture the final approved balance, including accepted change orders, and any unused authorized amount will be released. Bank release timing may vary.',
       'The customer may approve the change order, continue with only the original agreed scope where practical, or decline the additional work. A flat-rate move does not automatically become hourly because a change is reported.',
       'If the inventory and access match the accepted binding estimate, Saturn Star absorbs normal internal estimating variance.',
     ],
