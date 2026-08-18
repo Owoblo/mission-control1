@@ -20,3 +20,23 @@ export function sanitizeCustomerQuoteText(value?: string | null): string | undef
 
   return cleaned || undefined
 }
+
+/**
+ * Returns only an intentional, short quote-option label for the public hero.
+ * General move descriptions can contain provisional findings and must never be
+ * promoted into this prominent customer-facing slot.
+ */
+export function getCustomerQuoteOptionLabel(input: {
+  jobLabel?: string | null
+  moveDescription?: string | null
+}): string | undefined {
+  const explicitDescriptionLabel = input.moveDescription
+    ?.match(/^Quote option:\s*([^\n\r]+)/i)?.[1]
+    ?.trim()
+  const candidate = (input.jobLabel?.trim() || explicitDescriptionLabel || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!candidate || candidate.length > 120) return undefined
+  return candidate
+}

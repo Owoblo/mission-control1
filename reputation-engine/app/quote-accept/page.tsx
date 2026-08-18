@@ -10,6 +10,7 @@ import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePayme
 import { MAJOR_MOVE_THRESHOLD } from '@/lib/contribution-pricing'
 import { recommendTruckLoadPlan } from '@/lib/truck-planning'
 import { assessMoveIntelligence } from '@/lib/move-intelligence'
+import { getCustomerQuoteOptionLabel } from '@/lib/customer-quote-content'
 
 type PublicQuote = {
   id: string
@@ -1011,7 +1012,10 @@ function QuoteAcceptPageInner() {
   const serviceLabel = quoteServiceLabel(quote)
   const marketLabel = quoteMarketLabel(quote)
   const brand = quoteBrand(quote)
-  const quoteOptionLabel = quote.jobLabel || quote.moveDescription?.replace(/^Quote option:\s*/i, '').trim()
+  const quoteOptionLabel = getCustomerQuoteOptionLabel({
+    jobLabel: quote.jobLabel,
+    moveDescription: quote.moveDescription,
+  })
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
   const DEPOSIT = 100
