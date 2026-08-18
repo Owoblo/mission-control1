@@ -326,8 +326,14 @@ async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
 async function selectLeadLifecycleSnapshots() {
   try {
     const { url, headers } = requireSupabase()
+    const query = new URLSearchParams({
+      select: LEAD_LIFECYCLE_SELECT,
+      deleted: 'eq.false',
+      'data->>notes': `in.("${LEAD_ARCHIVED_NOTE}","${LEAD_RESTORED_NOTE}")`,
+      order: 'updated_at.desc',
+    })
     const response = await fetchSupabaseWithRetry(
-      `${url}/rest/v1/crm_followup_logs?select=${encodeURIComponent(LEAD_LIFECYCLE_SELECT)}&deleted=eq.false&order=updated_at.desc`,
+      `${url}/rest/v1/crm_followup_logs?${query.toString()}`,
       { headers, cache: 'no-store' }
     )
 
@@ -390,6 +396,19 @@ async function selectAll<T>(table: TableName): Promise<T[]> {
     return records.map(record => record.data)
   }
   throw new Error(`Failed to read ${table}. Supabase ${response.status}`)
+}
+
+async function selectOverviewSalesLeads(): Promise<CRMLead[]> {
+  const { url, headers } = requireSupabase()
+  const response = await fetchSupabaseWithRetry(`${url}/rest/v1/rpc/crm_sales_overview_leads`, {
+    method: 'POST', headers, body: '{}', cache: 'no-store',
+  })
+  if (response.ok) {
+    const rows = await response.json() as Array<{ data: CRMLead }>
+    return rows.map(row => row.data)
+  }
+  if (response.status === 404 || response.status === 400) return selectAll<CRMLead>('crm_leads')
+  throw new Error(`Failed to read sales overview leads. Supabase ${response.status}`)
 }
 
 async function selectAllRecords<T>(table: TableName): Promise<PersistedRecord<T>[]> {
@@ -976,6 +995,26 @@ export async function saveFollowUpLog(log: FollowUpLog) {
   return normalizeFollowUp(await upsert<FollowUpLog>('crm_followup_logs', normalizeFollowUp(log)))
 }
 
+export async function listRecentFollowUpLogs(limit = 1000) {
+  try {
+    const { url, headers } = requireSupabase()
+    const query = new URLSearchParams({
+      select: 'data', deleted: 'eq.false', order: 'updated_at.desc', limit: String(limit),
+    })
+    const response = await fetchSupabaseWithRetry(
+      `${url}/rest/v1/crm_followup_logs?${query.toString()}`,
+      { headers, cache: 'no-store' }
+    )
+    if (!response.ok) throw new Error('Failed to read recent crm_followup_logs')
+    const records = await response.json() as Array<{ data: FollowUpLog }>
+    return records.map(record => normalizeFollowUp(record.data))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (isMissingRelationError(message)) return []
+    throw error
+  }
+}
+
 export async function listSalesEmails() {
   return selectAll<CRMEmail>('crm_emails')
 }
@@ -991,13 +1030,11 @@ export async function getSalesOverview(): Promise<{
   followUps: FollowUpLog[]
   summary: SalesDashboardSummary
 }> {
-  // The overview needs follow-ups both for its response and to exclude archived
-  // leads. Share one request so a cold page load does not issue two identical,
-  // full-table crm_followup_logs reads and double the chance of a timeout.
-  const followUpsPromise = listFollowUpLogs()
+  const lifecyclePromise = selectLeadLifecycleSnapshots()
+  const followUpsPromise = listRecentFollowUpLogs()
   const leadsPromise = Promise.all([
-    selectAll<CRMLead>('crm_leads'),
-    followUpsPromise,
+    selectOverviewSalesLeads(),
+    lifecyclePromise,
   ]).then(([storedLeads, lifecycle]) => {
     const archivedLeadIds = getArchivedLeadIds(lifecycle)
     return filterDisplayDuplicateSalesLeads(storedLeads
@@ -1012,7 +1049,7 @@ export async function getSalesOverview(): Promise<{
     followUpsPromise,
   ])
 
-  const archivedLeadIds = getArchivedLeadIds(followUps)
+  const archivedLeadIds = getArchivedLeadIds(await lifecyclePromise)
   const activeLeads = leads.filter(lead => !archivedLeadIds.has(lead.id))
   const activeLeadIds = new Set(leads.map(lead => lead.id))
   const activeQuoteIds = new Set(quotes.map(quote => quote.id))

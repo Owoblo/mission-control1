@@ -12,6 +12,21 @@ let overviewCache: {
   expiresAt: number
   payload: Awaited<ReturnType<typeof getSalesOverview>>
 } | null = null
+let overviewRefresh: Promise<Awaited<ReturnType<typeof getSalesOverview>>> | null = null
+
+async function getCachedSalesOverview() {
+  const now = Date.now()
+  if (overviewCache && overviewCache.expiresAt > now) return overviewCache.payload
+  if (!overviewRefresh) {
+    overviewRefresh = getSalesOverview()
+      .then(payload => {
+        overviewCache = { payload, expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS }
+        return payload
+      })
+      .finally(() => { overviewRefresh = null })
+  }
+  return overviewRefresh
+}
 
 export async function GET(request: Request) {
   try {
@@ -25,17 +40,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ leads: leads.filter(lead => leadMatchesSessionBranch(lead, session)) })
     }
 
-    const now = Date.now()
-    const overview = overviewCache && overviewCache.expiresAt > now
-      ? overviewCache.payload
-      : await getSalesOverview()
-
-    if (!overviewCache || overviewCache.payload !== overview) {
-      overviewCache = {
-        expiresAt: now + OVERVIEW_CACHE_TTL_MS,
-        payload: overview,
-      }
-    }
+    const overview = await getCachedSalesOverview()
 
     if (isBranchScopedManager(session)) {
       const leads = overview.leads.filter(lead => leadMatchesSessionBranch(lead, session))

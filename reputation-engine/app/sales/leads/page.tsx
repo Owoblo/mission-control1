@@ -387,7 +387,12 @@ function SalesLeadsIndexContent() {
         </div>
       ) : null}
 
-      {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error ? (
+        <div className="flex items-center justify-between gap-4 rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+          <span>{error.includes('aborted') || error.includes('timeout') ? 'Lead data took too long to load. Your records are safe.' : error}</span>
+          <button type="button" onClick={() => void refresh()} className="shrink-0 rounded-[7px] border border-rose-300 bg-white px-3 py-1.5 font-semibold hover:bg-rose-100">Retry</button>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading leads...</div>
