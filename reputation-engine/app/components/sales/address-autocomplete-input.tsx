@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { selectedAddressCity } from '@/lib/address-city'
 
 type Suggestion = {
   label: string
@@ -86,7 +87,7 @@ export function SalesAddressAutocompleteInput({
     setRaw(suggestion.label)
     setSuggestions([])
     setOpen(false)
-    onSelect(suggestion.label, suggestion.city)
+    onSelect(suggestion.label, selectedAddressCity(suggestion.label, suggestion.city))
   }
 
   return (
@@ -103,7 +104,7 @@ export function SalesAddressAutocompleteInput({
         }}
         onBlur={() => {
           focusedRef.current = false
-          onSelect(raw)
+          onSelect(raw, selectedAddressCity(raw))
         }}
       />
       {fetching && (

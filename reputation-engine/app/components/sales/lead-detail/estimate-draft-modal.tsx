@@ -25,6 +25,7 @@ import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import { removeStorageQuoteScope, type QuoteType } from '@/lib/storage-quote-scope'
 import { qualifyMoveAddress } from '@/lib/route-address'
 import { evaluateQuoteReadiness, HIDDEN_INVENTORY_AREAS } from '@/lib/quote-readiness'
+import { selectedAddressCity } from '@/lib/address-city'
 import type { HiddenInventoryArea, MoveEvidenceState } from '@/lib/types'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
@@ -82,7 +83,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
     }, 350)
   }
   function select(s: { label: string; city?: string; country?: string; countryCode?: 'ca' | 'us'; placeType?: string; placeId?: string }) {
-    setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, s.city, s.placeType, s.placeId)
+    setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, selectedAddressCity(s.label, s.city), s.placeType, s.placeId)
   }
   return (
     <div ref={containerRef} className="relative">
@@ -93,7 +94,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
         }}
         onBlur={() => {
           focusedRef.current = false
-          onSelect(raw)
+          onSelect(raw, selectedAddressCity(raw))
         }}
         className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent)]"
         placeholder={placeholder} autoComplete="off" />
