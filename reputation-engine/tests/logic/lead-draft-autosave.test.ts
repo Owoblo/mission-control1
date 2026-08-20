@@ -49,6 +49,18 @@ test('lead draft autosave ignores inventory changes handled by dedicated invento
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'totalCubicFeet'), false)
 })
 
+test('lead draft repairs a stale destination city from the selected full address', () => {
+  const lead = {
+    ...makeLead([]),
+    destAddress: '1205 Fennell Avenue East, Hamilton, ON, Canada',
+    destCity: 'London',
+  }
+  const draft = createLeadDraftState(lead)
+  assert.equal(draft.destCity, 'Hamilton')
+  const payload = buildLeadDraftPayload(lead, draft)
+  assert.equal(payload.destCity, 'Hamilton')
+})
+
 test('lead draft persists structured partnership attribution and clears it when source changes', () => {
   const lead = makeLead([])
   const draft = {

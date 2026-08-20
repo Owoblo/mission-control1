@@ -8,6 +8,7 @@ import { PartnerReferralSelector } from '@/app/components/sales/partner-referral
 import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 import type { CRMLead } from '@/lib/types'
 import { SALES_BRANCHES } from '@/lib/sales'
+import { selectedAddressCity } from '@/lib/address-city'
 
 type AddressSuggestion = {
   label: string
@@ -172,9 +173,10 @@ function AddressInput({
   function select(s: AddressSuggestion) {
     setRaw(s.label)
     onChange(s.label)
-    // Replace empty or obviously partial city values (for example a previously
-    // persisted "W"). A complete rep-entered city is still preserved.
-    if (s.city && onCityChange && (!currentCity || currentCity.trim().length < 3)) onCityChange(s.city)
+    // The selected full address is authoritative; never keep a city belonging
+    // to the previous address (for example Hamilton address + stale London).
+    const selectedCity = selectedAddressCity(s.label, s.city)
+    if (selectedCity && onCityChange) onCityChange(selectedCity)
     setSuggestions([])
     setOpen(false)
     if (onApartmentDetected) onApartmentDetected(s.placeType === 'apartment')
@@ -192,6 +194,8 @@ function AddressInput({
         onBlur={() => {
           focusedRef.current = false
           onChange(raw)
+          const typedCity = selectedAddressCity(raw)
+          if (typedCity && onCityChange) onCityChange(typedCity)
         }}
         className="crm-input w-full pr-6"
         placeholder={placeholder}

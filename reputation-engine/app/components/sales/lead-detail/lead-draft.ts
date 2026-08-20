@@ -1,4 +1,5 @@
 import { buildLeadSignature } from './helpers'
+import { selectedAddressCity } from '../../../../lib/address-city'
 import { getLeadAssignedRepName } from '../../../../lib/sales'
 import type { PartnerDirectoryEntry } from '../../../../lib/partner-directory'
 import type { CRMLead, InventoryItem, JobFactors } from '../../../../lib/types'
@@ -97,10 +98,10 @@ export function createLeadDraftState(lead: CRMLead): LeadDraftState {
       phone: lead.partnerReferralPhone,
     } : null,
     originAddress: lead.originAddress || '',
-    originCity: lead.originCity || '',
+    originCity: selectedAddressCity(lead.originAddress || '') || lead.originCity || '',
     originAccess: lead.originAccess || '',
     destAddress: lead.destAddress || '',
-    destCity: lead.destCity || '',
+    destCity: selectedAddressCity(lead.destAddress || '') || lead.destCity || '',
     destAccess: lead.destAccess || '',
     parkingNotes: lead.parkingNotes || '',
     moveReason: lead.moveReason || '',
