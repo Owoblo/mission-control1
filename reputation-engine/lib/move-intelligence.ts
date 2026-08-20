@@ -11,6 +11,7 @@ import type {
   MoveIntelligenceQuestion,
   QuoteLeg,
 } from './types'
+import { evaluateQuoteReadiness } from './quote-readiness'
 
 const HIGH_IMPACT = /\b(safe|piano|treadmill|elliptical|armoire|wardrobe|sectional|sleeper|sofa bed|pool table|hot tub|gun safe)\b/i
 const DISASSEMBLY = /\b(bed|bed frame|bunk|crib|table|desk|wardrobe|armoire|sectional|treadmill|trampoline)\b/i
@@ -393,11 +394,13 @@ export function evaluateQuoteIntelligenceSafety(lead: CRMLead, quote: CRMQuote) 
     legs: quote.legs,
   })
   const binding = quote.billingModel === 'binding'
+  const quoteReadiness = evaluateQuoteReadiness(lead, quote)
   return {
     assessment,
-    allowed: !binding || assessment.fixedPriceReadiness === 'ready',
-    reason: !binding || assessment.fixedPriceReadiness === 'ready'
+    quoteReadiness,
+    allowed: !binding || (assessment.fixedPriceReadiness === 'ready' && quoteReadiness.quoteReady),
+    reason: !binding || (assessment.fixedPriceReadiness === 'ready' && quoteReadiness.quoteReady)
       ? undefined
-      : `Binding quote is ${assessment.fixedPriceReadiness}: ${assessment.readinessReasons.join(' ') || assessment.questions.map(question => question.question).join(' ')}`,
+      : `Move is not QUOTE READY: ${[...quoteReadiness.blockers, ...assessment.readinessReasons].join(' ') || assessment.questions.map(question => question.question).join(' ')}`,
   }
 }

@@ -173,7 +173,20 @@ test('binding send safety blocks unresolved specialty scope but hourly remains s
   assert.equal(evaluateQuoteIntelligenceSafety(lead, { ...quote, billingModel: 'binding' }).allowed, false)
   assert.equal(evaluateQuoteIntelligenceSafety(lead, { ...quote, billingModel: 'hourly_actuals' }).allowed, true)
   const approvedLead = { ...lead, jobFactors: { ...lead.jobFactors, moveIntelligenceApprovedAt: '2026-01-02T12:00:00.000Z' } }
-  assert.equal(evaluateQuoteIntelligenceSafety(approvedLead, { ...quote, billingModel: 'binding' }).allowed, true)
+  const quoteReadyLead = {
+    ...approvedLead,
+    inventoryVerification: { completedAt: '2026-01-02T12:00:00.000Z', completedBy: 'customer' },
+    jobFactors: {
+      ...approvedLead.jobFactors,
+      packingStatus: 'packed' as const,
+      hiddenInventoryCoverage: {
+        basement: { state: 'not_applicable' as const, note: 'No basement' }, garage: { state: 'customer_confirmed' as const, note: 'Customer confirmed empty' },
+        outdoor: { state: 'not_applicable' as const, note: 'No outdoor storage' }, storage: { state: 'customer_confirmed' as const, note: 'Two closet bins included' },
+        boxes: { state: 'estimated' as const, note: 'Customer packing estimate', estimatedCountMin: 20, estimatedCountMax: 25 },
+      },
+    },
+  }
+  assert.equal(evaluateQuoteIntelligenceSafety(quoteReadyLead, { ...quote, billingModel: 'binding' }).allowed, true)
 })
 
 test('multi-leg binding quote cannot hide a missing intermediate destination', () => {

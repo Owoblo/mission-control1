@@ -10,6 +10,7 @@ import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePayme
 import { MAJOR_MOVE_THRESHOLD } from '@/lib/contribution-pricing'
 import { recommendTruckLoadPlan } from '@/lib/truck-planning'
 import { assessMoveIntelligence } from '@/lib/move-intelligence'
+import { hiddenInventoryCoverage } from '@/lib/quote-readiness'
 import { getCustomerQuoteOptionLabel } from '@/lib/customer-quote-content'
 
 type PublicQuote = {
@@ -1009,6 +1010,7 @@ function QuoteAcceptPageInner() {
     destinationAddress: quote.destAddress,
     legs: quote.legs,
   })
+  const reviewedHiddenAreas = hiddenInventoryCoverage(jobFactors || undefined)
   const isBindingEstimate = quote.billingModel === 'binding'
   const serviceLabel = quoteServiceLabel(quote)
   const marketLabel = quoteMarketLabel(quote)
@@ -1339,6 +1341,16 @@ function QuoteAcceptPageInner() {
 
         {hasInventory && (
           <InventoryIntelligence inventory={inventory} roomGroups={roomGroups} listingSummary={listingSummary} />
+        )}
+
+        {reviewedHiddenAreas.some(area => area.resolved) && (
+          <section className="mb-6 rounded-2xl border border-[#071421]/15 bg-white p-5">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">What we reviewed</div>
+            <p className="mt-2 text-sm text-[#071421]/60">Your plan explicitly accounts for the areas where moving estimates most often miss inventory.</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {reviewedHiddenAreas.map(area => <div key={area.key} className="rounded-xl bg-[#F7F4ED] px-3 py-2 text-sm text-[#071421]"><span className="font-semibold">{area.label}:</span> {area.value?.state === 'not_applicable' ? 'Not applicable' : area.value?.state === 'customer_confirmed' ? 'Customer confirmed' : area.value?.state === 'observed' ? 'Verified from property evidence' : area.value?.state === 'estimated' ? 'Included as an estimate' : 'Not yet verified'}{area.value?.note ? ` — ${area.value.note}` : ''}</div>)}
+            </div>
+          </section>
         )}
 
         {hasInventory && (
