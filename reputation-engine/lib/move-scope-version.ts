@@ -1,4 +1,5 @@
 import type { CRMLead, CRMQuote, InventoryItem } from './types'
+import { hiddenInventoryCoverage } from './quote-readiness'
 
 export const MOVE_SCOPE_SCHEMA_VERSION = 1 as const
 
@@ -159,6 +160,7 @@ export function buildMoveScopeSnapshot(lead: CRMLead, quote: CRMQuote, generated
     !lead.originAddress ? 'origin_address' : '',
     !lead.destAddress ? 'destination_address' : '',
     !lead.inventoryVerification?.completedAt ? 'customer_inventory_confirmation' : '',
+    ...hiddenInventoryCoverage(lead.jobFactors).filter(area => !area.resolved).map(area => `hidden_inventory:${area.key}`),
     ...inventory.flatMap(item => item.unknowns.map(field => `inventory:${item.key}:${field}`)),
   ].filter(Boolean)
   const evidence: ScopeEvidenceReference[] = (lead.mediaAssets || [])

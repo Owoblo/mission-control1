@@ -13,6 +13,7 @@ import {
   uid,
 } from '@/lib/sales'
 import { getListingPropertyContext, shouldPreferListingSnapshot } from '@/lib/listing'
+import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
 import {
   listingInventoryFallbackAllowed,
   listingInventoryScanDedupeKey,
@@ -1321,6 +1322,10 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
       )
 
   const nowIso = new Date().toISOString()
+  if (draftQuote.billingModel === 'binding') {
+    const safety = evaluateQuoteIntelligenceSafety(lead, draftQuote)
+    if (!safety.allowed) return { sent: false, lead, quoteId: draftQuote.id, blockedReason: safety.reason }
+  }
   let emailSendResult: Awaited<ReturnType<typeof sendSalesMessage>> | null = null
   let smsSent = false
 

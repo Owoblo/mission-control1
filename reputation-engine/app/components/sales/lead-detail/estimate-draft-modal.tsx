@@ -24,6 +24,8 @@ import { buildContributionPricingPlan, buildProtectionRecommendation } from '@/l
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import { removeStorageQuoteScope, type QuoteType } from '@/lib/storage-quote-scope'
 import { qualifyMoveAddress } from '@/lib/route-address'
+import { evaluateQuoteReadiness, HIDDEN_INVENTORY_AREAS } from '@/lib/quote-readiness'
+import type { HiddenInventoryArea, MoveEvidenceState } from '@/lib/types'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
@@ -1518,6 +1520,16 @@ export function EstimateDraftModal({
     onJobFactorsChange(next)
   }
 
+  function setHiddenCoverage(area: HiddenInventoryArea, state: MoveEvidenceState) {
+    const current = jobFactors.hiddenInventoryCoverage?.[area]
+    const entry = { ...current, state, source: state === 'observed' ? 'property evidence' : 'sales consultation', updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' }
+    if (area === 'boxes' && state === 'estimated' && jobFactors.estimatedBoxes) {
+      entry.estimatedCountMin = jobFactors.estimatedBoxes
+      entry.estimatedCountMax = jobFactors.estimatedBoxes
+    }
+    onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area]: entry } })
+  }
+
   function setFactors(next: JobFactors) {
     onJobFactorsChange(next)
   }
@@ -2191,11 +2203,12 @@ export function EstimateDraftModal({
     lead.inventoryVerification?.completedAt ||
     (includedInventory.length > 0 && unresolvedInventoryItems.length === 0 && includedInventory.every(item => item.status === 'confirmed'))
   )
-  const hiddenAreaEvidence = Boolean(
-    customerInventoryConfirmed ||
-    includedInventory.some(item => /garage|basement|storage|shed|attic|outdoor|patio|closet/i.test(item.room || '')) ||
-    (mediaAssets || []).some(asset => /garage|basement|storage|shed|attic|outdoor|patio|closet/i.test(asset.room || ''))
-  )
+  const quoteReadyAssessment = useMemo(() => evaluateQuoteReadiness({ ...lead, inventory: effectiveInventoryMetrics.inventory, jobFactors }, {
+    billingModel: quote?.billingModel,
+    quoteType,
+    originAddress: originFull,
+    destAddress: destFull,
+  }), [destFull, effectiveInventoryMetrics.inventory, jobFactors, lead, originFull, quote?.billingModel, quoteType])
   const originAccessConfirmed = Boolean(
     originAccess ||
     jobFactors.originParkingOk !== undefined ||
@@ -2241,7 +2254,7 @@ export function EstimateDraftModal({
     const items: QuoteReadinessItem[] = [
       { category: 'evidence', label: 'Evidence source on file', ready: evidenceSources.length > 0, critical: true, detail: 'No MLS, photo, video, customer-confirmed, or rep inventory evidence is on file.' },
       { category: 'evidence', label: 'Customer scope confirmation', ready: customerInventoryConfirmed, critical: quoteType !== 'labor_only', detail: 'Ask the customer to verify what is moving, staying, missing, and decision-pending.' },
-      { category: 'evidence', label: 'Garage / hidden areas checked', ready: hiddenAreaEvidence, detail: 'Confirm garage, basement, storage, closets, shed, attic, and outdoor items.' },
+      ...quoteReadyAssessment.hidden.map(area => ({ category: 'evidence' as const, label: area.label, ready: area.resolved, critical: true, detail: `${area.label} must be observed, customer confirmed, defensibly estimated, or explicitly not applicable.` })),
       { category: 'inventory', label: 'Inventory captured', ready: effectiveInventoryMetrics.totalItems > 0, critical: true, detail: 'Inventory is still empty.' },
       { category: 'inventory', label: 'Item decisions resolved', ready: unresolvedInventoryItems.length === 0, critical: unresolvedInventoryItems.length > 0, detail: `${unresolvedInventoryItems.length} included item${unresolvedInventoryItems.length === 1 ? '' : 's'} still need a moving, staying, or decision-pending answer.` },
       { category: 'inventory', label: 'Volume / dimensions complete', ready: unknownVolumeItems.length === 0, critical: unknownVolumeItems.length > 0, detail: `${unknownVolumeItems.length} included item${unknownVolumeItems.length === 1 ? '' : 's'} still have unknown cubic feet.` },
@@ -2302,7 +2315,7 @@ export function EstimateDraftModal({
       { category: 'commercial', label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, contributionPlan.pricingGaps, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, hiddenAreaEvidence, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
+  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, contributionPlan.pricingGaps, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, quoteReadyAssessment.hidden, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -5172,6 +5185,28 @@ export function EstimateDraftModal({
                     {accessAssessment.label}{accessAssessment.extraMinutes > 0 ? ` · +${accessAssessment.extraMinutes} min` : ''}
                   </div>
                   <div className="text-xs leading-relaxed">{accessAssessment.summary}</div>
+                </div>
+
+                <div className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">Hidden Inventory Check</div><p className="mt-1 text-xs text-amber-800">Every area needs its own factual answer. Silence and a general inventory confirmation do not count.</p></div>
+                    <div className={`rounded-full px-3 py-1 text-xs font-bold ${blockingReadiness.length === 0 ? 'bg-emerald-600 text-white' : 'bg-white text-amber-900'}`}>{blockingReadiness.length === 0 ? 'QUOTE READY' : `${quoteReadyAssessment.inventoryConfidence}% inventory confidence`}</div>
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {HIDDEN_INVENTORY_AREAS.map(area => {
+                      const value = jobFactors.hiddenInventoryCoverage?.[area.key]
+                      return <div key={area.key} className="rounded-[8px] border border-amber-200 bg-white p-3">
+                        <div className="text-xs font-bold text-[var(--app-ink)]">{area.label}</div>
+                        <p className="mt-1 text-[10px] leading-4 text-[var(--app-muted)]">{area.prompt}</p>
+                        <select value={value?.state || 'unknown'} onChange={event => setHiddenCoverage(area.key, event.target.value as MoveEvidenceState)} className="crm-input mt-2 w-full py-1.5 text-xs">
+                          <option value="unknown">Unknown — blocks fixed price</option><option value="observed">Observed in MLS/photo/video</option><option value="customer_confirmed">Customer confirmed</option><option value="estimated">Estimated range</option><option value="not_applicable">Not applicable / area does not exist</option>
+                        </select>
+                        <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="What is there, why empty, or estimate basis" className="crm-input mt-2 w-full py-1.5 text-xs"/>
+                        {value?.state === 'estimated' && area.key !== 'boxes' ? <input type="number" min="0" value={value.estimatedCubicFeet ?? ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, estimatedCubicFeet: event.target.value ? Number(event.target.value) : undefined } } })} placeholder="Estimated cubic feet" className="crm-input mt-2 w-full py-1.5 text-xs"/> : null}
+                      </div>
+                    })}
+                  </div>
+                  {blockingReadiness.length > 0 && <div className="rounded-[6px] border border-amber-300 bg-white px-3 py-2 text-xs text-amber-900"><strong>Fixed price remains locked:</strong> {blockingReadiness.slice(0, 4).map(item => item.detail).join(' · ')}{blockingReadiness.length > 4 ? ` · +${blockingReadiness.length - 4} more` : ''}</div>}
                 </div>
 
                 {/* Packing Status */}

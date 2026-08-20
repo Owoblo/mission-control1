@@ -196,6 +196,18 @@ export type InboundLeadStatus = 'needs_action' | 'recent_handoff' | 'closed' | '
 export type InboundLeadFocusFilter = 'needs_action' | 'web_qr' | 'calls' | 'sms' | 'high_intent' | 'answered'
 export type InboundClosedFilter = 'all' | 'junk' | 'lost' | 'not_interested'
 export type InventoryVerificationDecision = 'going' | 'not_going' | 'unsure'
+export type MoveEvidenceState = 'observed' | 'customer_confirmed' | 'estimated' | 'unknown' | 'not_applicable'
+export type HiddenInventoryArea = 'basement' | 'garage' | 'outdoor' | 'storage' | 'boxes'
+export interface HiddenInventoryCoverage {
+  state: MoveEvidenceState
+  note?: string
+  source?: string
+  estimatedCubicFeet?: number
+  estimatedCountMin?: number
+  estimatedCountMax?: number
+  updatedAt?: string
+  updatedBy?: string
+}
 export type LeadInboxChannel = 'sms' | 'email' | 'calls' | 'webforms'
 export type AutomationJobKind =
   | 'intelligence_refresh'
@@ -757,6 +769,7 @@ export interface JobFactors {
   basementCubicFeet?: number
   shedCubicFeet?: number
   estimatedBoxes?: number
+  hiddenInventoryCoverage?: Partial<Record<HiddenInventoryArea, HiddenInventoryCoverage>>
 
   // Packing status
   packingStatus?: 'packed' | 'partial' | 'not-started'
