@@ -1447,6 +1447,7 @@ function QuoteAcceptPageInner() {
                 const typeLabel = leg.type === 'junk' ? 'Junk Removal' : leg.type === 'delivery' ? 'Delivery' : leg.type === 'storage' ? 'House → Storage' : leg.type === 'storage_delivery' ? 'Storage → New Home' : 'Moving'
                 const origin = [leg.originAddress, leg.originCity].filter(Boolean).join(', ') || '—'
                 const dest = [leg.destAddress, leg.destCity].filter(Boolean).join(', ') || '—'
+                const customerLegNote = isBindingEstimate ? '' : leg.notes || ''
                 return (
                   <div key={leg.id} className="flex items-start gap-4 px-5 py-4">
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#071421] text-[10px] font-bold text-white mt-0.5">{idx + 1}</div>
@@ -1463,11 +1464,11 @@ function QuoteAcceptPageInner() {
                         <svg className="h-3 w-3 shrink-0 text-[#C99700]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                         <span className="truncate">{dest}</span>
                       </div>
-                      {(leg.distanceKm || leg.notes) && (
+                      {(leg.distanceKm || customerLegNote) && (
                         <div className="mt-1 text-[10px] text-[#071421]/35">
                           {leg.distanceKm ? `${leg.distanceKm} km${!isBindingEstimate && leg.driveHours ? ` · ${leg.driveHours}h drive` : ''}` : ''}
-                          {leg.distanceKm && leg.notes ? ' · ' : ''}
-                          {leg.notes || ''}
+                          {leg.distanceKm && customerLegNote ? ' · ' : ''}
+                          {customerLegNote}
                         </div>
                       )}
                     </div>
