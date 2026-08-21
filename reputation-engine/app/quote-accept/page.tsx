@@ -6,12 +6,11 @@ import { useSearchParams } from 'next/navigation'
 import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { detectSalesBranchFromLocation, formatDate, formatMoney, getSalesBranchLabel, isInvoiceStylePaymentTerms, paymentTermsLabel } from '@/lib/sales'
-import type { CRMLead, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePaymentTerms } from '@/lib/types'
-import { MAJOR_MOVE_THRESHOLD } from '@/lib/contribution-pricing'
+import type { CRMLead, CustomerQuoteScope, InventoryItem, JobFactors, MoveType, QuoteLeg, QuotePaymentTerms } from '@/lib/types'
 import { recommendTruckLoadPlan } from '@/lib/truck-planning'
 import { assessMoveIntelligence } from '@/lib/move-intelligence'
 import { hiddenInventoryCoverage } from '@/lib/quote-readiness'
-import { getCustomerQuoteOptionLabel } from '@/lib/customer-quote-content'
+import { buildCustomerCarePlan, buildCustomerQuoteScope, getCustomerQuoteOptionLabel } from '@/lib/customer-quote-content'
 
 type PublicQuote = {
   id: string
@@ -38,6 +37,7 @@ type PublicQuote = {
   maximumEstimatedHours?: number
   hourlyRateOverride?: number
   legs?: QuoteLeg[]
+  customerScope?: CustomerQuoteScope
   lineItems: Array<{ description: string; details?: string; amount: number }>
   subtotal: number
   hst: number
@@ -436,7 +436,6 @@ function InventoryIntelligence({
   roomGroups: Map<string, InventoryItem[]>
   listingSummary: PublicListingSummary | null
 }) {
-  const confidence = inventoryConfidence(inventory, listingSummary?.scanConfidence)
   const totalUnits = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
   return (
     <div className="mb-16">
@@ -448,10 +447,9 @@ function InventoryIntelligence({
         </div>
         <div className="rounded-2xl border border-[#071421]/10 bg-white p-5">
           <div className="flex items-end justify-between gap-4">
-            <div><div className="text-3xl font-bold text-[#071421]">{totalUnits}</div><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667085]">Detected items</div></div>
-            {confidence !== null && <div className="text-right"><div className="text-xl font-bold text-[#071421]">{confidence}%</div><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667085]">Confidence</div></div>}
+            <div><div className="text-3xl font-bold text-[#071421]">{totalUnits}</div><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667085]">Included items</div></div>
+            <div className="text-right"><div className="text-sm font-bold text-emerald-700">Scope captured</div><div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667085]">Review below</div></div>
           </div>
-          {confidence !== null && <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#071421]/8"><div className="h-full rounded-full bg-[#C99700]" style={{ width: `${confidence}%` }} /></div>}
         </div>
       </div>
       <div className="grid gap-5 sm:grid-cols-2">
@@ -476,17 +474,54 @@ function InventoryIntelligence({
   )
 }
 
-function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, trucks, hours }: {
+function ScopeOfWork({ scope }: { scope: CustomerQuoteScope }) {
+  const carePlan = buildCustomerCarePlan(scope)
+  if (carePlan.length === 0 && scope.serviceNotes.length === 0) return null
+  const categoryLabel = {
+    protection: 'Protection plan',
+    assembly: 'Assembly service',
+    specialty: 'Specialty handling',
+  } as const
+  return (
+    <div className="mb-16">
+      <SectionLabel>Your care and handling plan</SectionLabel>
+      <div className="mb-7 max-w-3xl">
+        <div className="text-3xl font-bold tracking-tight text-[#071421]">Prepared for the pieces that need extra care.</div>
+        <p className="mt-3 text-sm leading-6 text-[#667085]">These services are connected to the inventory included in your flat-rate scope.</p>
+      </div>
+      {carePlan.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {carePlan.map((plan, index) => (
+            <div key={`${plan.category}-${plan.item}-${index}`} className="rounded-2xl border border-[#071421]/10 bg-white p-5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#C99700]">{categoryLabel[plan.category]}</div>
+              <div className="mt-2 text-base font-bold text-[#071421]">{plan.item}</div>
+              <div className="mt-1 text-xs leading-5 text-[#667085]">{plan.service}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {(scope.serviceNotes.length > 0 || scope.customerHandledAssemblyItems.length > 0) && (
+        <div className="mt-5 rounded-2xl bg-[#071421] p-6 text-white">
+          <div className="text-xs font-bold uppercase tracking-[0.14em] text-white/50">Scope details</div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {scope.serviceNotes.map(note => <div key={note} className="flex gap-2 text-xs leading-5 text-white/75"><span className="text-[#C99700]">✓</span><span>{note}</span></div>)}
+            {scope.customerHandledAssemblyItems.map(item => <div key={item} className="flex gap-2 text-xs leading-5 text-white/75"><span className="text-white/35">○</span><span>{item}: assembly handled by customer</span></div>)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, trucks }: {
   quote: PublicQuote
   inventory: InventoryItem[]
   listingSummary: PublicListingSummary | null
   crewSize: number
   trucks: number
-  hours: string | null
 }) {
   const cubicFeet = inventory.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0)
   const truckPlan = recommendTruckLoadPlan({ totalCubicFeet: cubicFeet, totalWeightLbs: quote.estimatedWeightLbs, truckCount: trucks })
-  const fill = cubicFeet > 0 ? Math.min(100, truckPlan.volumeUtilizationPct) : null
   const itemUnits = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
   const accessReasons = [
     quote.jobFactors?.originHasElevator ? 'origin elevator' : null,
@@ -501,14 +536,13 @@ function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, t
         <div className="rounded-2xl bg-[#071421] p-8 text-white">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">Crew recommendation</div>
           <div className="mt-3 text-4xl font-bold">{crewSize} movers</div>
-          <p className="mt-4 text-sm leading-6 text-white/65">Selected for approximately {itemUnits} inventory items{listingSummary?.livingArea ? ` across ${listingSummary.livingArea} sq ft` : ''}{hours ? ` and a ${hours}-hour planning window` : ''}{accessReasons.length ? `, including ${accessReasons.join(' and ')}` : ''}.</p>
+          <p className="mt-4 text-sm leading-6 text-white/65">Selected for approximately {itemUnits} inventory items{listingSummary?.livingArea ? ` across ${listingSummary.livingArea} sq ft` : ''}{accessReasons.length ? `, including ${accessReasons.join(' and ')}` : ''}.</p>
         </div>
         <div className="rounded-2xl border border-[#071421]/10 bg-white p-8">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#667085]">Truck recommendation</div>
           <div className="mt-3 text-4xl font-bold text-[#071421]">{truckPlan.summary}</div>
-          <p className="mt-4 text-sm leading-6 text-[#667085]">{fill !== null ? `The included inventory uses approximately ${fill}% of the combined usable capacity${quote.estimatedWeightLbs ? ` and weighs about ${Math.round(quote.estimatedWeightLbs).toLocaleString()} lb` : ''}.` : 'Selected from the current room inventory and move scope.'} Final loading order and truck availability are confirmed before moving day.</p>
+          <p className="mt-4 text-sm leading-6 text-[#667085]">Selected to carry the included room-by-room inventory with the protection equipment and loading plan required for this scope. Final loading order and truck availability are confirmed before moving day.</p>
           {trucks === 2 && quote.moveType !== 'long-distance' && <p className="mt-3 text-xs leading-5 text-[#667085]">Local alternative: 1 × 26ft truck over 2 trips. Your moving coordinator compares the added travel time against the two-truck plan before confirming the best option.</p>}
-          {fill !== null && <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#071421]/8"><div className="h-full rounded-full bg-[#C99700]" style={{ width: `${fill}%` }} /></div>}
         </div>
       </div>
     </div>
@@ -994,7 +1028,8 @@ function QuoteAcceptPageInner() {
   const firstName = clientName.split(' ')[0] || 'there'
   const daysOut = daysUntilMove(quote.moveDate)
   const depPct = depositPct(quote)
-  const bundledMove = quote.billingModel === 'binding' || quote.subtotal >= MAJOR_MOVE_THRESHOLD
+  const isBindingEstimate = quote.billingModel !== 'hourly_actuals' && quote.billingModel !== 'hourly_minimum'
+  const bundledMove = isBindingEstimate
   const invoiceStyleTerms = isInvoiceStylePaymentTerms(quote.paymentTerms)
   const hasInventory = inventory.length > 0
   const totalInventoryPieces = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
@@ -1011,7 +1046,21 @@ function QuoteAcceptPageInner() {
     legs: quote.legs,
   })
   const reviewedHiddenAreas = hiddenInventoryCoverage(jobFactors || undefined)
-  const isBindingEstimate = quote.billingModel === 'binding'
+  const legacyAssemblyItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
+    ? inventory
+        .filter(item => /\bbed\b|\btable\b|\bdesk\b|\bdresser\b|\bwardrobe\b|\btreadmill\b/i.test(item.name || item.item || ''))
+        .slice(0, quote.jobFactors?.disassemblyItemCount || 4)
+        .map(item => item.name || item.item || 'Item')
+    : []
+  const customerScope = quote.customerScope || buildCustomerQuoteScope({
+    inventory,
+    jobFactors: quote.jobFactors,
+    assemblyItems: legacyAssemblyItems,
+    specialtyItems: [
+      quote.jobFactors?.hasPiano ? 'Piano' : null,
+      quote.jobFactors?.hasSafe ? 'Safe' : null,
+    ].filter(Boolean) as string[],
+  })
   const serviceLabel = quoteServiceLabel(quote)
   const marketLabel = quoteMarketLabel(quote)
   const brand = quoteBrand(quote)
@@ -1290,14 +1339,13 @@ function QuoteAcceptPageInner() {
         {/* ── Move stats ── */}
         <div className="mb-16">
           <SectionLabel>Your move at a glance</SectionLabel>
-          <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:grid-cols-3 lg:grid-cols-5">
           {[
             { label: 'Move Date', value: quote.moveDate ? formatDate(quote.moveDate) : 'TBD' },
             { label: 'Route', value: `${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}` },
             { label: 'Crew', value: `${crewSize} Movers` },
             { label: trucks === 1 ? 'Truck' : 'Trucks', value: `${trucks} Truck${trucks > 1 ? 's' : ''}` },
             { label: 'Home inventory', value: hasInventory ? `${totalInventoryPieces} Pieces` : 'In review' },
-            { label: 'Est. Hours', value: hours ? `${hours}h` : 'TBD' },
           ].map(stat => (
             <div key={stat.label} className="px-5 py-6 text-center">
               <div className="text-base font-bold text-[#071421]">{stat.value}</div>
@@ -1316,11 +1364,11 @@ function QuoteAcceptPageInner() {
           <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isBindingEstimate ? 'bg-[#071421]' : 'bg-[#C99700]'}`} />
           <div>
             <div className={`text-xs font-bold mb-0.5 ${isBindingEstimate ? 'text-[#071421]' : 'text-[#071421]'}`}>
-              {isBindingEstimate ? 'Inventory-Based Estimate' : 'Hourly Estimate'}
+              {isBindingEstimate ? 'Scope-Based Flat Rate' : 'Hourly Estimate'}
             </div>
             <div className="text-xs leading-5 text-[#071421]/50">
               {isBindingEstimate
-                ? 'Priced from your specific inventory. Final time may vary if items are added on move day.'
+                ? 'Your price is built from the inventory, access details, and services included in this scope.'
                 : 'Based on a typical move of this type. You pay for actual hours at the agreed rate.'
               }
             </div>
@@ -1360,9 +1408,10 @@ function QuoteAcceptPageInner() {
             listingSummary={listingSummary}
             crewSize={crewSize}
             trucks={trucks}
-            hours={hours}
           />
         )}
+
+        {hasInventory && <ScopeOfWork scope={customerScope} />}
 
         {/* ── Multi-leg Move Plan ── */}
         {(quote.legs?.length ?? 0) > 1 && (
@@ -1393,7 +1442,7 @@ function QuoteAcceptPageInner() {
                       </div>
                       {(leg.distanceKm || leg.notes) && (
                         <div className="mt-1 text-[10px] text-[#071421]/35">
-                          {leg.distanceKm ? `${leg.distanceKm} km · ${leg.driveHours}h drive` : ''}
+                          {leg.distanceKm ? `${leg.distanceKm} km${!isBindingEstimate && leg.driveHours ? ` · ${leg.driveHours}h drive` : ''}` : ''}
                           {leg.distanceKm && leg.notes ? ' · ' : ''}
                           {leg.notes || ''}
                         </div>
@@ -1407,20 +1456,18 @@ function QuoteAcceptPageInner() {
         )}
 
         {/* ── Move Day Timeline ── */}
-        {rawHours > 0 && (() => {
-          const disItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
-            ? inventory.filter(i => /\bbed\b|\btable\b|\bdesk\b|\bdresser\b|\bwardrobe\b/i.test(i.name || i.item || '')).slice(0, 4).map(i => i.name || i.item || '')
-            : []
+        {(isBindingEstimate ? hasInventory : rawHours > 0) && (() => {
+          const disItems = customerScope.assemblyItems
           const isTwoDay = rawHours > 13
           const timeline = buildConjointMoveTimeline({
             quote,
             inventory,
             crewSize,
             trucks,
-            estimatedHours: rawHours,
+            estimatedHours: Math.max(rawHours, 1),
           }) || buildMoveTimeline({
             startTime: quote.moveTime || '09:00',
-            crewSize, trucks, estimatedHours: rawHours,
+            crewSize, trucks, estimatedHours: Math.max(rawHours, 1),
             quoteType: quote.quoteType,
             moveType: quote.moveType,
             disassemblyItems: disItems,
@@ -1447,7 +1494,7 @@ function QuoteAcceptPageInner() {
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
                           <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-[#071421]">{phase.time}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#C99700]">{isBindingEstimate ? `Stage ${i + 1}` : phase.time}</span>
                             <span className="text-xs font-semibold text-[#071421]/70">{phase.title}</span>
                           </div>
                           <div className="mt-1 text-sm leading-5 text-[#667085]">{phase.detail}</div>
@@ -1637,8 +1684,8 @@ function QuoteAcceptPageInner() {
                 'Moving blankets and wrap for all items',
                 'Dollies, hand trucks & straps',
                 'On-site crew supervisor',
-                'Portal-to-portal billing — no hidden drive fees',
-                'Fuel included — no surcharge',
+                isBindingEstimate ? 'Room-by-room unloading and placement' : 'Portal-to-portal billing — no hidden drive fees',
+                isBindingEstimate ? 'Final walkthrough at destination' : 'Fuel included — no surcharge',
               ].map((item, i) => (
                 <div key={item} className={`flex items-center gap-2.5 px-4 py-3 ${i % 2 === 0 && i < 7 ? 'sm:border-r border-[#071421]/5' : ''}`}>
                   <div className="h-1.5 w-1.5 rounded-full bg-[#C99700] flex-shrink-0" />
