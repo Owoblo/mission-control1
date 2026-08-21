@@ -513,6 +513,26 @@ function ScopeOfWork({ scope }: { scope: CustomerQuoteScope }) {
   )
 }
 
+function flatRateTimelineDetail(title: string, crewSize: number, trucks: number, assemblyItems: string[]) {
+  const normalized = title.toLowerCase()
+  if (normalized.includes('crew starts') || normalized.includes('crew arrives')) {
+    return `${crewSize} professional movers · ${trucks} truck${trucks === 1 ? '' : 's'} · confirmed route and pickup plan`
+  }
+  if (normalized.includes('pickup loaded') || normalized.includes('loading complete')) {
+    return 'Included inventory protected, secured, and organized for transport'
+  }
+  if (normalized.includes('second pickup') || normalized.includes('next pickup')) {
+    return 'Continue the confirmed multi-stop pickup plan'
+  }
+  if (normalized.includes('destination') || normalized.includes('new home')) {
+    return `Unload and place furniture room by room${assemblyItems.length ? ` · Reassemble: ${assemblyItems.slice(0, 3).join(', ')}` : ''}`
+  }
+  if (normalized.includes('complete')) {
+    return 'Final placement, walkthrough, and scope confirmation'
+  }
+  return 'Completed as part of the confirmed moving plan'
+}
+
 function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, trucks }: {
   quote: PublicQuote
   inventory: InventoryItem[]
@@ -1059,6 +1079,9 @@ function QuoteAcceptPageInner() {
     specialtyItems: [
       quote.jobFactors?.hasPiano ? 'Piano' : null,
       quote.jobFactors?.hasSafe ? 'Safe' : null,
+      ...inventory
+        .filter(item => /\b(?:treadmill|electric fireplace|piano|safe|pool table)\b/i.test(item.name || item.item || '') || item.handlingProfile?.level === 'specialty')
+        .map(item => item.name || item.item || 'Specialty item'),
     ].filter(Boolean) as string[],
   })
   const serviceLabel = quoteServiceLabel(quote)
@@ -1497,7 +1520,7 @@ function QuoteAcceptPageInner() {
                             <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#C99700]">{isBindingEstimate ? `Stage ${i + 1}` : phase.time}</span>
                             <span className="text-xs font-semibold text-[#071421]/70">{phase.title}</span>
                           </div>
-                          <div className="mt-1 text-sm leading-5 text-[#667085]">{phase.detail}</div>
+                          <div className="mt-1 text-sm leading-5 text-[#667085]">{isBindingEstimate ? flatRateTimelineDetail(phase.title, crewSize, trucks, customerScope.assemblyItems) : phase.detail}</div>
                         </div>
                       </div>
                     ))}

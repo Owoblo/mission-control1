@@ -24,6 +24,7 @@ test('flat-rate public quotes sell the scope without exposing estimated hours', 
   const source = fs.readFileSync(path.join(root, 'app/quote-accept/page.tsx'), 'utf8')
   assert.doesNotMatch(source, /label: 'Est\. Hours'/)
   assert.match(source, /isBindingEstimate \? `Stage \$\{i \+ 1\}` : phase\.time/)
+  assert.match(source, /isBindingEstimate \? flatRateTimelineDetail\(phase\.title/)
   assert.match(source, /Scope-Based Flat Rate/)
 })
 
