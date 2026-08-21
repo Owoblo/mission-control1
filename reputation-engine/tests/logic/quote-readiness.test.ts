@@ -45,3 +45,22 @@ test('a fully resolved move becomes quote ready without a manual checkbox', () =
   assert.equal(result.quoteReady, true)
   assert.equal(result.inventoryConfidence, 100)
 })
+
+test('labour-only work needs one service location, not a destination', () => {
+  const factors = completeFactors()
+  delete factors.destFloors
+  delete factors.destHasElevator
+  delete factors.destParkingOk
+  const laborLead = { ...lead(factors), moveType: 'labor-only' as const, quoteType: 'labor_only' as const, destAddress: undefined }
+  const result = evaluateQuoteReadiness(laborLead, { billingModel: 'binding', quoteType: 'labor_only', originAddress: '1 Main St', destAddress: '' })
+  assert.equal(result.quoteReady, true)
+  assert.ok(!result.blockers.some(item => /destination|both move addresses/i.test(item)))
+  assert.equal(result.inventoryConfidence, 100)
+})
+
+test('labour-only work still requires its service location', () => {
+  const laborLead = { ...lead(completeFactors()), moveType: 'labor-only' as const, quoteType: 'labor_only' as const, originAddress: undefined, destAddress: undefined }
+  const result = evaluateQuoteReadiness(laborLead, { billingModel: 'binding', quoteType: 'labor_only', originAddress: '', destAddress: '' })
+  assert.equal(result.quoteReady, false)
+  assert.ok(result.blockers.includes('Work location is required.'))
+})

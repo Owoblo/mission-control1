@@ -1049,6 +1049,7 @@ function QuoteAcceptPageInner() {
   const daysOut = daysUntilMove(quote.moveDate)
   const depPct = depositPct(quote)
   const isBindingEstimate = quote.billingModel !== 'hourly_actuals' && quote.billingModel !== 'hourly_minimum'
+  const isSingleLocationLaborOnly = quoteServiceLabel(quote) === 'Labour-Only Service'
   const bundledMove = isBindingEstimate
   const invoiceStyleTerms = isInvoiceStylePaymentTerms(quote.paymentTerms)
   const hasInventory = inventory.length > 0
@@ -1064,6 +1065,7 @@ function QuoteAcceptPageInner() {
     originAddress: quote.originAddress,
     destinationAddress: quote.destAddress,
     legs: quote.legs,
+    singleLocation: isSingleLocationLaborOnly,
   })
   const reviewedHiddenAreas = hiddenInventoryCoverage(jobFactors || undefined)
   const legacyAssemblyItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
@@ -1329,19 +1331,19 @@ function QuoteAcceptPageInner() {
             )}
             </div>
 
-            {/* Route */}
-            <div className="grid grid-cols-[1fr_44px_1fr] items-center gap-3 rounded-2xl px-5 py-6" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            {/* Route / single service location */}
+            <div className={`${isSingleLocationLaborOnly ? 'grid-cols-1' : 'grid-cols-[1fr_44px_1fr]'} grid items-center gap-3 rounded-2xl px-5 py-6`} style={{ background: 'rgba(255,255,255,0.06)' }}>
               <div>
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/35">Origin</div>
-                <div className="text-lg font-bold leading-tight text-white">{quote.originCity || 'Origin'}</div>
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/35">{isSingleLocationLaborOnly ? 'Work location' : 'Origin'}</div>
+                <div className="text-lg font-bold leading-tight text-white">{quote.originCity || (isSingleLocationLaborOnly ? 'Service address' : 'Origin')}</div>
                 {quote.originAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.originAddress}</div>}
               </div>
-              <div className="flex justify-center">
+              {!isSingleLocationLaborOnly && <div className="flex justify-center">
                 <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
                   <path d="M0 8H18M18 8L11 1M18 8L11 15" stroke="#C99700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </div>
-              <div className="text-right">
+              </div>}
+              {!isSingleLocationLaborOnly && <div className="text-right">
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/35">Destination</div>
                 {(quote.legs?.length ?? 0) > 1 ? (
                   <div className="text-sm font-bold text-white leading-tight">{quote.legs!.length} Stops</div>
@@ -1351,7 +1353,7 @@ function QuoteAcceptPageInner() {
                     {quote.destAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.destAddress}</div>}
                   </>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
         </div>
@@ -1365,7 +1367,7 @@ function QuoteAcceptPageInner() {
           <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:grid-cols-3 lg:grid-cols-5">
           {[
             { label: 'Move Date', value: quote.moveDate ? formatDate(quote.moveDate) : 'TBD' },
-            { label: 'Route', value: `${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}` },
+            { label: isSingleLocationLaborOnly ? 'Work Location' : 'Route', value: isSingleLocationLaborOnly ? (quote.originCity || quote.originAddress || 'Service address') : `${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}` },
             { label: 'Crew', value: `${crewSize} Movers` },
             { label: trucks === 1 ? 'Truck' : 'Trucks', value: `${trucks} Truck${trucks > 1 ? 's' : ''}` },
             { label: 'Home inventory', value: hasInventory ? `${totalInventoryPieces} Pieces` : 'In review' },

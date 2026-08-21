@@ -1167,6 +1167,7 @@ function estimateSingleLeadQuote(
     jobFactors: activeFactors,
     originAddress: lead.originAddress,
     destinationAddress: lead.destAddress,
+    singleLocation: isLaborOnly,
   })
   if (moveIntelligence.pricedExtraHours > 0) {
     penalties.push({
@@ -2376,6 +2377,7 @@ function buildMultiLegEstimate(
       originAddress: lead.originAddress,
       destinationAddress: lead.destAddress,
       legs,
+      singleLocation: overrides?.quoteType === 'labor_only' || lead.quoteType === 'labor_only' || lead.moveType === 'labor-only',
     }),
     internalCostEstimate: {
       laborCost,

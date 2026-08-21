@@ -216,6 +216,7 @@ export function assessMoveIntelligence(input: {
   originAddress?: string
   destinationAddress?: string
   legs?: QuoteLeg[]
+  singleLocation?: boolean
 }): MoveIntelligenceAssessment {
   const factors = input.jobFactors || {}
   const included = input.inventory.filter(item => item.included !== false)
@@ -237,7 +238,7 @@ export function assessMoveIntelligence(input: {
         reason: 'Its floor changes stair labor, required movers, and fit risk.',
       })
     }
-    if (path.destinationFloor.status !== 'verified') {
+    if (!input.singleLocation && path.destinationFloor.status !== 'verified') {
       addQuestion(questions, {
         id: `destination-floor:${path.itemKey}`,
         itemKey: path.itemKey,
@@ -260,16 +261,16 @@ export function assessMoveIntelligence(input: {
   if (factors.originFloors && factors.originFloors > 1 && factors.originAccessStatus !== 'verified') {
     addQuestion(questions, { id: 'origin-stair-geometry', impact: 'high', question: 'Is the origin staircase straight, or does it have a tight turn/landing?', reason: 'Stair geometry determines whether bulky rigid items can exit safely.' })
   }
-  if (factors.destFloors && factors.destFloors > 1 && factors.destAccessStatus !== 'verified') {
+  if (!input.singleLocation && factors.destFloors && factors.destFloors > 1 && factors.destAccessStatus !== 'verified') {
     addQuestion(questions, { id: 'destination-stair-geometry', impact: 'high', question: 'Is the destination staircase straight, or does it have a tight turn/landing?', reason: 'Destination stair geometry affects placement and fit.' })
   }
   if (factors.originHasElevator && !factors.originElevatorReserved) {
     addQuestion(questions, { id: 'origin-elevator', impact: 'critical', question: 'What is the confirmed origin elevator reservation window?', reason: 'An unreserved elevator can create major waiting time or prevent the move.' })
   }
-  if (factors.destHasElevator && !factors.destElevatorReserved) {
+  if (!input.singleLocation && factors.destHasElevator && !factors.destElevatorReserved) {
     addQuestion(questions, { id: 'destination-elevator', impact: 'critical', question: 'What is the confirmed destination elevator reservation window?', reason: 'An unreserved elevator can create major waiting time or prevent unloading.' })
   }
-  if (factors.originParkingOk === false || factors.destParkingOk === false) {
+  if (factors.originParkingOk === false || (!input.singleLocation && factors.destParkingOk === false)) {
     addQuestion(questions, { id: 'truck-position', impact: 'high', question: 'Where can the truck legally park, and approximately how far is that point from the entrance?', reason: 'Truck position and carry distance directly affect labor time.' })
   }
 
@@ -289,7 +290,7 @@ export function assessMoveIntelligence(input: {
         })
         routeReadinessReasons.push(`${label} is missing a pickup address.`)
       }
-      if (!hasDestination) {
+      if (!input.singleLocation && !hasDestination) {
         addQuestion(questions, {
           id: `leg-destination:${leg.id || index}`,
           impact: 'critical',
@@ -330,11 +331,13 @@ export function assessMoveIntelligence(input: {
     if (item.status === 'confirmed' || item.source === 'manual' || item.source === 'customer_verification') return sum + 1
     return sum + clamp(item.confidence ?? 0.45, 0, 1)
   }, 0) / included.length
-  const accessKnown = [factors.originFloors, factors.originHasElevator, factors.originParkingOk, factors.destFloors, factors.destHasElevator, factors.destParkingOk]
+  const accessKnown = input.singleLocation
+    ? [factors.originFloors, factors.originHasElevator, factors.originParkingOk]
+    : [factors.originFloors, factors.originHasElevator, factors.originParkingOk, factors.destFloors, factors.destHasElevator, factors.destParkingOk]
   const knownAccessRatio = accessKnown.filter(value => value !== undefined).length / accessKnown.length
-  const pathKnown = pathRelevant.length === 0 ? 1 : pathRelevant.reduce((sum, path) => sum + (path.originFloor.status === 'verified' ? 0.5 : 0) + (path.destinationFloor.status === 'verified' ? 0.5 : 0), 0) / pathRelevant.length
+  const pathKnown = pathRelevant.length === 0 ? 1 : pathRelevant.reduce((sum, path) => sum + (path.originFloor.status === 'verified' ? (input.singleLocation ? 1 : 0.5) : 0) + (!input.singleLocation && path.destinationFloor.status === 'verified' ? 0.5 : 0), 0) / pathRelevant.length
   const legRouteKnownRatio = legs.length === 0 ? 1 : legs.reduce((sum, leg) =>
-    sum + (leg.originAddress?.trim() || leg.originCity?.trim() ? 0.5 : 0) + (leg.destAddress?.trim() || leg.destCity?.trim() ? 0.5 : 0)
+    sum + (leg.originAddress?.trim() || leg.originCity?.trim() ? (input.singleLocation ? 1 : 0.5) : 0) + (!input.singleLocation && (leg.destAddress?.trim() || leg.destCity?.trim()) ? 0.5 : 0)
   , 0) / legs.length
   const uncertaintyPct = Math.round(clamp(100 - (itemConfidence * 40 + knownAccessRatio * 20 + pathKnown * 25 + legRouteKnownRatio * 15)))
   const handlingComplexityScore = paths.length ? Math.round(paths.reduce((sum, path) => sum + path.handling.score * path.quantity, 0) / paths.reduce((sum, path) => sum + path.quantity, 0)) : 0
@@ -354,7 +357,10 @@ export function assessMoveIntelligence(input: {
   const highQuestions = questions.filter(question => question.impact === 'high')
   const readinessReasons: string[] = []
   if (included.length === 0) readinessReasons.push('No confirmed inventory is available.')
-  if (legs.length === 0 && (!input.originAddress || !input.destinationAddress)) readinessReasons.push('Both route addresses are required.')
+  if (legs.length === 0 && input.singleLocation && !input.originAddress) readinessReasons.push('Work location is required.')
+  if (!input.singleLocation && legs.length === 0 && !input.originAddress && !input.destinationAddress) readinessReasons.push('Both route addresses are required.')
+  else if (!input.singleLocation && legs.length === 0 && !input.originAddress) readinessReasons.push('Origin address is required.')
+  else if (!input.singleLocation && legs.length === 0 && !input.destinationAddress) readinessReasons.push('Destination address is required.')
   readinessReasons.push(...routeReadinessReasons)
   if (itemConfidence < 0.8) readinessReasons.push('Inventory confidence is below 80%.')
   if (knownAccessRatio < 0.67) readinessReasons.push('Origin or destination access is incomplete.')
@@ -392,6 +398,7 @@ export function evaluateQuoteIntelligenceSafety(lead: CRMLead, quote: CRMQuote) 
     originAddress: quote.originAddress || lead.originAddress,
     destinationAddress: quote.destAddress || lead.destAddress,
     legs: quote.legs,
+    singleLocation: quote.quoteType === 'labor_only' || lead.quoteType === 'labor_only' || lead.moveType === 'labor-only',
   })
   const binding = quote.billingModel === 'binding'
   const quoteReadiness = evaluateQuoteReadiness(lead, quote)
