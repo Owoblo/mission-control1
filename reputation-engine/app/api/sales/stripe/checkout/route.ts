@@ -4,18 +4,20 @@ import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { isInvoiceStylePaymentTerms } from '@/lib/sales'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
+import { preserveAcceptedScopeSnapshot } from '@/lib/server/accepted-scope-snapshot'
 
-const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
+const CURRENT_QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
 export async function POST(request: Request) {
   try {
-    const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion } = (await request.json()) as {
+    const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion, scopeConfirmed } = (await request.json()) as {
       quoteId: string
       token?: string
       successUrl?: string
       cancelUrl?: string
       termsAccepted?: boolean
       termsVersion?: string
+      scopeConfirmed?: boolean
     }
 
     if (!quoteId) return NextResponse.json({ error: 'quoteId is required' }, { status: 400 })
@@ -29,6 +31,9 @@ export async function POST(request: Request) {
 
     if (!quote.termsAcceptedAt && termsAccepted !== true) {
       return NextResponse.json({ error: 'Terms must be accepted before paying the deposit.' }, { status: 400 })
+    }
+    if (!quote.termsAcceptedAt && scopeConfirmed !== true) {
+      return NextResponse.json({ error: 'Move scope must be confirmed before paying the deposit.' }, { status: 400 })
     }
 
     // Auto-accept any quote in sent/viewed status when customer initiates checkout
@@ -70,6 +75,16 @@ export async function POST(request: Request) {
     // Find the linked lead for customer info + leadId in metadata
     const lead = quote.leadId ? await getSalesLead(quote.leadId).catch(() => null) : null
     if (!lead) return NextResponse.json({ error: 'Quote lead not found' }, { status: 404 })
+    try {
+      await preserveAcceptedScopeSnapshot(lead, quote, {
+        acceptedAt: quote.termsAcceptedAt || new Date().toISOString(),
+        termsVersion: quote.termsAcceptedVersion || termsVersion || CURRENT_QUOTE_TERMS_VERSION,
+        ipAddress: quote.termsAcceptedIp,
+        userAgent: quote.termsAcceptedUserAgent,
+      })
+    } catch (snapshotError) {
+      console.error('Could not preserve accepted move scope snapshot before checkout', snapshotError)
+    }
     const depositAlreadyPaid = Boolean(
       quote.depositPaidAt || quote.depositStripePaymentIntentId || Number(quote.depositPaidAmount || 0) > 0 ||
       lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full'

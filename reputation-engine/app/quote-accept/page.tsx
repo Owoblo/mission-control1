@@ -58,6 +58,7 @@ type PublicQuote = {
   hourlyRateOverride?: number
   legs?: QuoteLeg[]
   customerScope?: CustomerQuoteScope
+  scopeStatus?: 'confirmed' | 'provisional'
   lineItems: Array<{ description: string; details?: string; amount: number }>
   subtotal: number
   hst: number
@@ -115,7 +116,7 @@ const DEXA_MOVERS_BRAND: QuoteBrand = {
   logo: 'dexa',
 }
 
-const QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
+const QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
 const QUOTE_TERMS_SECTIONS = [
   {
@@ -477,10 +478,12 @@ function InventoryIntelligence({
   inventory,
   roomGroups,
   listingSummary,
+  updateHref,
 }: {
   inventory: InventoryItem[]
   roomGroups: Map<string, InventoryItem[]>
   listingSummary: PublicListingSummary | null
+  updateHref: string
 }) {
   const totalUnits = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
   return (
@@ -514,7 +517,8 @@ function InventoryIntelligence({
       </div>
       <div className="mt-5 rounded-2xl border border-[#C99700]/25 bg-[#fffaf0] p-6">
         <div className="text-sm font-bold text-[#071421]">Anything missing?</div>
-        <p className="mt-1 text-xs leading-5 text-[#667085]">Please flag anything not visible in the listing—especially a piano, safe, treadmill, pool table, hot tub, aquarium, large plants, garage items, basement storage, or packed boxes.</p>
+        <p className="mt-1 text-xs leading-5 text-[#667085]">Your moving plan and price are based on the items above. Tell us before accepting if anything is missing—especially boxes, garage or basement contents, outdoor items, or specialty pieces.</p>
+        <a href={updateHref} className="mt-4 inline-flex rounded-lg bg-[#071421] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#15273a]">Update my inventory</a>
       </div>
     </div>
   )
@@ -937,9 +941,9 @@ function CustomerTermsAgreement({
           className="mt-1 h-5 w-5 accent-[#071421]"
         />
         <span>
-          <span className="block text-sm font-bold text-[#071421]">I have read and agree to the booking terms and conditions.</span>
+          <span className="block text-sm font-bold text-[#071421]">I confirm my move details are accurate and agree to the booking terms.</span>
           <span className="mt-1 block text-xs leading-5 text-[#071421]/55">
-            I understand the binding/non-binding estimate rules, inventory accuracy requirements, payment terms, claim process, restricted items, and liability release requirements.
+            I have reviewed the inventory, basement/garage/outdoor contents, access conditions, and specialty items shown in this plan. I understand the crew will verify the scope before loading and that material changes may require my approval of an updated moving plan and price before additional work begins.
           </span>
         </span>
       </label>
@@ -1019,7 +1023,7 @@ function QuoteAcceptPageInner() {
       const r = await fetch(`/api/public/quotes/${encodeURIComponent(id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, termsAccepted: true, termsVersion: QUOTE_TERMS_VERSION }),
+        body: JSON.stringify({ token, termsAccepted: true, scopeConfirmed: true, termsVersion: QUOTE_TERMS_VERSION }),
       })
       const payload = await r.json()
       if (!r.ok) throw new Error(payload?.error || 'Failed to accept quote')
@@ -1062,7 +1066,7 @@ function QuoteAcceptPageInner() {
       const r = await fetch('/api/sales/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: id, token, termsAccepted: true, termsVersion: QUOTE_TERMS_VERSION }),
+        body: JSON.stringify({ quoteId: id, token, termsAccepted: true, scopeConfirmed: true, termsVersion: QUOTE_TERMS_VERSION }),
       })
       const payload = await r.json() as { url?: string; error?: string }
       if (!r.ok || !payload.url) throw new Error(payload.error || 'Could not create payment session')
@@ -1360,7 +1364,7 @@ function QuoteAcceptPageInner() {
                 ? listingSummary
                   ? 'Built from your home’s listing, detected inventory, and the move details shared with our team.'
                   : 'Built from the photos and move details you shared with our team.'
-                : 'A personal relocation plan prepared for your home and moving day.'}
+                : 'A complete moving plan based on the inventory and move details you provided.'}
             </p>
             {quoteOptionLabel && (
               <div className="mb-8 inline-flex rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/80">
@@ -1443,11 +1447,13 @@ function QuoteAcceptPageInner() {
           <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isBindingEstimate ? 'bg-[#071421]' : 'bg-[#C99700]'}`} />
           <div>
             <div className={`text-xs font-bold mb-0.5 ${isBindingEstimate ? 'text-[#071421]' : 'text-[#071421]'}`}>
-              {isBindingEstimate ? 'Scope-Based Flat Rate' : 'Hourly Estimate'}
+              {isBindingEstimate ? (quote.scopeStatus === 'provisional' ? 'Scope-Based Estimate · Confirmation Pending' : 'Scope-Based Flat Rate') : 'Hourly Estimate'}
             </div>
             <div className="text-xs leading-5 text-[#071421]/50">
               {isBindingEstimate
-                ? 'Your price is built from the inventory, access details, and services included in this scope.'
+                ? quote.scopeStatus === 'provisional'
+                  ? 'This estimate is ready to review. Confirm the highlighted inventory and access details with our team before the scope is finalized.'
+                  : 'Your price is built from the inventory, access details, and services included in this scope.'
                 : 'Based on a typical move of this type. You pay for actual hours at the agreed rate.'
               }
             </div>
@@ -1467,15 +1473,26 @@ function QuoteAcceptPageInner() {
         )}
 
         {hasInventory && (
-          <InventoryIntelligence inventory={inventory} roomGroups={roomGroups} listingSummary={listingSummary} />
+          <InventoryIntelligence
+            inventory={inventory}
+            roomGroups={roomGroups}
+            listingSummary={listingSummary}
+            updateHref={`sms:${brand.phoneHref.replace(/^tel:/, '')}?&body=${encodeURIComponent(`Hi ${brand.shortName}, I need to update the inventory for quote ${quote.number}.`)}`}
+          />
         )}
 
-        {reviewedHiddenAreas.some(area => area.resolved) && (
-          <section className="mb-6 rounded-2xl border border-[#071421]/15 bg-white p-5">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">What we reviewed</div>
-            <p className="mt-2 text-sm text-[#071421]/60">Your plan explicitly accounts for the areas where moving estimates most often miss inventory.</p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {reviewedHiddenAreas.map(area => <div key={area.key} className="rounded-xl bg-[#F7F4ED] px-3 py-2 text-sm text-[#071421]"><span className="font-semibold">{area.label}:</span> {area.value?.state === 'not_applicable' ? 'Not applicable' : area.value?.state === 'customer_confirmed' ? 'Customer confirmed' : area.value?.state === 'observed' ? 'Verified from property evidence' : area.value?.state === 'estimated' ? 'Included as an estimate' : 'Not yet verified'}{area.value?.note ? ` — ${area.value.note}` : ''}</div>)}
+        {hasInventory && (
+          <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Before you continue</div>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">The three inventory blind spots.</h2>
+            <p className="mt-2 text-sm leading-6 text-[#071421]/60">Please make sure these areas are accurately represented above. They can materially change the moving plan and vehicle capacity.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {reviewedHiddenAreas.filter(area => ['basement', 'garage', 'outdoor'].includes(area.key)).map(area => (
+                <div key={area.key} className={`rounded-xl border px-4 py-4 ${area.resolved ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                  <div className="flex items-center justify-between gap-2"><span className="font-bold text-[#071421]">{area.label}</span><span className={area.resolved ? 'text-emerald-700' : 'text-amber-700'}>{area.resolved ? '✓' : '!'}</span></div>
+                  <div className="mt-2 text-xs leading-5 text-[#071421]/60">{area.value?.state === 'not_applicable' ? 'None / not applicable' : area.value?.state === 'customer_confirmed' ? 'Customer confirmed' : area.value?.state === 'observed' ? 'Verified from property evidence' : area.value?.state === 'estimated' ? 'Included as an estimate' : 'Tell us if this area contains anything moving'}{area.value?.note ? ` — ${area.value.note}` : ''}</div>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -1562,6 +1579,12 @@ function QuoteAcceptPageInner() {
                 <div className="text-3xl font-bold tracking-tight text-[#071421]">From arrival to the final room.</div>
                 <div className="mt-2 text-sm text-[#667085]">A considered plan for how your move unfolds.</div>
               </div>
+              {isBindingEstimate && (
+                <div className="mb-8 rounded-xl border border-[#C99700]/25 bg-[#fffaf0] p-5">
+                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#9b7200]">Before anything is loaded</div>
+                  <p className="mt-2 text-sm leading-6 text-[#071421]/70">Your crew will complete a quick walkthrough with you to verify the inventory and move conditions against this plan. If the scope has materially changed, we will explain any required adjustment before additional work begins.</p>
+                </div>
+              )}
               <div>
                 <div className="relative">
                   {/* Vertical line */}
@@ -1672,6 +1695,7 @@ function QuoteAcceptPageInner() {
             </div>
           )}
           <div className="border-t border-[#071421]/8 bg-[#071421]/3 px-5 py-3" style={{ background: 'rgba(26,39,68,0.025)' }}>
+            {!invoiceStyleTerms && <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#071421]/55"><span>Total including HST: <strong className="text-[#071421]">{formatMoney(quote.total)}</strong></span><span>−</span><span>deposit: <strong className="text-[#071421]">{formatMoney(quote.deposit)}</strong></span><span>=</span><span>remaining balance: <strong className="text-[#071421]">{formatMoney(quote.balance)}</strong></span></div>}
             <div className="flex flex-wrap gap-1.5">
               {['Cash', 'e-Transfer', 'Credit Card', 'Debit'].map(m => (
                 <span key={m} className="rounded-full border border-[#071421]/15 px-2.5 py-0.5 text-[10px] font-medium text-[#071421]/50">{m}</span>

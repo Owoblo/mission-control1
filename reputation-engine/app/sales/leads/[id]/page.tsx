@@ -510,6 +510,13 @@ export default function SalesLeadDetailPage() {
     return true
   }, [currentUser, lead])
   const leadReadOnlyReason = useMemo(() => null, [])
+  const coreWorkflowNote = useMemo(() => {
+    const note = lead?.followUpNote?.trim() || ''
+    if (/^Provisional quote sent\. Collect before final confirmation:/i.test(note)) {
+      return 'Provisional quote sent — scope follow-up required before final confirmation.'
+    }
+    return note
+  }, [lead?.followUpNote])
 
   useEffect(() => {
     function syncLeadCommandBarMode() {
@@ -2364,6 +2371,7 @@ export default function SalesLeadDetailPage() {
     conditionalClause?: string
     quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
     customerScope?: CustomerQuoteScope
+    scopeStatus?: 'confirmed' | 'provisional'
   }): Promise<boolean> {
     if (!quote) return false
     if (!ensureLeadEditable()) return false
@@ -2412,6 +2420,7 @@ export default function SalesLeadDetailPage() {
         moveType: effectiveQuoteMoveType,
         quoteType: effectiveQuoteType,
         customerScope: overrides?.customerScope || quote.customerScope,
+        scopeStatus: overrides?.scopeStatus || quote.scopeStatus,
         billingModel: quote.billingModel || 'binding',
         paymentTerms: effectivePaymentTerms,
         lineItems: totals.lineItems,
@@ -2502,12 +2511,13 @@ export default function SalesLeadDetailPage() {
       conditionalClause: options?.conditionalClause,
       quoteType: options?.quoteType,
       customerScope: options?.customerScope,
+      scopeStatus: options?.provisional ? 'provisional' : 'confirmed',
     })
     if (!saved) return
     if (options?.provisional && lead) {
       const followUpDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      const missingSummary = (options.missingItems || []).filter(Boolean).join(' · ') || 'Missing quote details still need confirmation.'
-      const followUpText = `Provisional quote sent. Collect before final confirmation: ${missingSummary}`
+      const missingCount = (options.missingItems || []).filter(Boolean).length
+      const followUpText = `Provisional quote sent — confirm scope blind spots and access before finalizing${missingCount ? ` (${missingCount} items pending)` : ''}.`
       try {
         const followUpResult = await saveSalesFollowUp({
           leadId: lead.id,
@@ -5450,7 +5460,7 @@ export default function SalesLeadDetailPage() {
                 ) : (
                   <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
                     <div className="text-sm font-medium text-[var(--app-ink)]">
-                      {lead.followUpNote || (quote ? 'Follow up on the open estimate.' : 'No active task yet')}
+                      {coreWorkflowNote || (quote ? 'Follow up on the open estimate.' : 'No active task yet')}
                     </div>
                     <div className="mt-2 text-xs leading-5 text-[var(--app-muted)]">
                       {lead.followUpDate ? `Follow up on ${formatDate(lead.followUpDate)}.` : 'Set a follow-up date below.'}

@@ -156,6 +156,7 @@ type QuoteWorkspaceSaveOptions = {
   conditionalClause?: string
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
   customerScope?: CustomerQuoteScope
+  scopeStatus?: 'confirmed' | 'provisional'
 }
 
 type QuoteWorkspaceSendOptions = QuoteWorkspaceSaveOptions & {
@@ -2568,7 +2569,7 @@ export function EstimateDraftModal({
       setSendGuardOpen(true)
       return
     }
-    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })
+    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope(), scopeStatus: 'confirmed' })
   }
 
   async function handleProvisionalSend() {
@@ -2577,6 +2578,7 @@ export function EstimateDraftModal({
     const internalNote = `PROVISIONAL QUOTE — collect before final confirmation: ${missingItems.join(' ')}`
     await onSaveAndPreview({
       provisional: true,
+      scopeStatus: 'provisional',
       missingItems,
       quoteType,
       moveDescription: prependUniqueLine(moveDescription, moveNote),
@@ -7487,11 +7489,17 @@ export function EstimateDraftModal({
                 {sendGuardOpen && (
                   <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
                     <div className="font-semibold text-[var(--app-ink)]">
-                      {blockingReadiness.length > 0 ? 'Quote not ready' : 'Send with caution'}
+                      {blockingReadiness.length > 0 ? 'Scope follow-up needed' : 'Review before sending'}
                     </div>
                     <div className="mt-2 leading-5">
-                      {[...blockingReadiness, ...warningReadiness].map(item => item.detail).join(' · ')}
+                      {blockingReadiness.length > 0
+                        ? `${blockingReadiness.length} scope item${blockingReadiness.length === 1 ? '' : 's'} still need confirmation. You can send the estimate now as provisional and continue the conversation.`
+                        : `${warningReadiness.length} non-blocking item${warningReadiness.length === 1 ? '' : 's'} should be reviewed.`}
                     </div>
+                    <details className="mt-2 rounded-[6px] bg-white/70 px-2.5 py-2">
+                      <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide">View missing details</summary>
+                      <div className="mt-2 space-y-1 text-[11px] leading-4">{[...blockingReadiness, ...warningReadiness].slice(0, 6).map(item => <div key={`${item.label}-${item.detail}`}>• {item.label}</div>)}{blockingReadiness.length + warningReadiness.length > 6 ? <div>• +{blockingReadiness.length + warningReadiness.length - 6} more</div> : null}</div>
+                    </details>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -7509,7 +7517,7 @@ export function EstimateDraftModal({
                         disabled={quoteModalBusy || !quote}
                         className="rounded-[6px] bg-[var(--app-ink)] px-2.5 py-1 text-[10px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
                       >
-                        Send provisional quote
+                        Send quote now — scope pending
                       </button>
                       <button
                         type="button"
