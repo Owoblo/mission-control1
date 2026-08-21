@@ -16,8 +16,9 @@ import { saveJobRecord } from '@/lib/server/repository'
 import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 import { sanitizeCustomerQuoteText } from '@/lib/customer-quote-content'
+import { preserveAcceptedScopeSnapshot } from '@/lib/server/accepted-scope-snapshot'
 
-const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
+const CURRENT_QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
 async function sendQuoteNotification(event: 'viewed' | 'viewed_again' | 'accepted' | 'declined', quote: CRMQuote, lead: CRMLead | null) {
   const resendKey = readEnv('RESEND_API_KEY')
@@ -167,6 +168,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         hourlyRateOverride: quote.hourlyRateOverride,
         legs: quote.legs || [],
         customerScope: quote.customerScope,
+        scopeStatus: quote.scopeStatus,
         jobFactors: lead?.jobFactors || undefined,
         moveDescription: sanitizeCustomerQuoteText(quote.moveDescription),
         conditionalClause: sanitizeCustomerQuoteText(quote.conditionalClause),
@@ -238,6 +240,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       action?: 'accept' | 'decline'
       termsAccepted?: boolean
       termsVersion?: string
+      scopeConfirmed?: boolean
     }
     const quote = await getSalesQuote(params.id)
 
@@ -259,6 +262,9 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     const eventDate = now.toISOString().slice(0, 10)
     if (action === 'accept' && !quote.termsAcceptedAt && body.termsAccepted !== true) {
       return NextResponse.json({ error: 'Terms must be accepted before booking.' }, { status: 400 })
+    }
+    if (action === 'accept' && body.scopeConfirmed !== true) {
+      return NextResponse.json({ error: 'Move scope must be confirmed before booking.' }, { status: 400 })
     }
 
     const acceptedTermsVersion = body.termsVersion || CURRENT_QUOTE_TERMS_VERSION
@@ -304,6 +310,18 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     })
 
     if (action === 'accept') {
+      if (savedLead) {
+        try {
+          await preserveAcceptedScopeSnapshot(savedLead, nextQuote, {
+            acceptedAt: now.toISOString(),
+            termsVersion: acceptedTermsVersion,
+            ipAddress: nextQuote.termsAcceptedIp,
+            userAgent: nextQuote.termsAcceptedUserAgent,
+          })
+        } catch (snapshotError) {
+          console.error('Could not preserve accepted move scope snapshot', snapshotError)
+        }
+      }
       try {
         const client = await getSalesClient(nextQuote.clientId)
         const customerName = savedLead?.name || client?.name || 'Customer'

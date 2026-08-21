@@ -1290,6 +1290,7 @@ export interface CRMQuote {
   acceptToken?: string
   legs?: QuoteLeg[]
   customerScope?: CustomerQuoteScope
+  scopeStatus?: 'confirmed' | 'provisional'
   changeLog?: QuoteChangeEntry[]
   lineItems: QuoteLineItem[]
   discountAmount?: number

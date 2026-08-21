@@ -6,6 +6,7 @@ import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup } from '@/lib/server
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import type { QuoteSendJob } from '@/lib/quote-send-jobs'
 import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
+import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 
 function nextRetryAt(attempts: number) {
   const delaySeconds = Math.min(15 * 60, Math.max(30, 30 * Math.pow(2, attempts - 1)))
@@ -57,7 +58,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
   try {
     const pendingQuote = await getSalesQuote(claimed.quoteId)
     const pendingLead = pendingQuote?.leadId ? await getSalesLead(pendingQuote.leadId) : null
-    if (pendingQuote?.billingModel === 'binding' && pendingLead) {
+    if (pendingQuote?.billingModel === 'binding' && !isProvisionalQuoteScope(pendingQuote) && pendingLead) {
       const safety = evaluateQuoteIntelligenceSafety(pendingLead, pendingQuote)
       if (!safety.allowed) throw new Error(safety.reason || 'Binding quote requires move-intelligence review before sending.')
     }

@@ -75,6 +75,18 @@ export type MoveScopeSnapshot = {
   evidence: ScopeEvidenceReference[]
   unknowns: string[]
   exclusions: Array<{ name: string; room: string; reason: string }>
+  acceptance?: {
+    acceptedAt: string
+    termsVersion: string
+    customerConfirmedScope: boolean
+    customerConfirmedHiddenAreas: boolean
+    customerConfirmedAccess: boolean
+    customerConfirmedSpecialtyItems: boolean
+    customerAcknowledgedArrivalVerification: boolean
+    customerAcknowledgedChangeOrders: boolean
+    ipAddress?: string
+    userAgent?: string
+  }
 }
 
 export type WalkthroughVerification = {
@@ -124,7 +136,12 @@ function disassemblyRequired(item: InventoryItem) {
     flags.some(flag => /disassembl/i.test(flag)) || /disassembl/i.test(item.notes || '')
 }
 
-export function buildMoveScopeSnapshot(lead: CRMLead, quote: CRMQuote, generatedAt = new Date().toISOString()): MoveScopeSnapshot {
+export function buildMoveScopeSnapshot(
+  lead: CRMLead,
+  quote: CRMQuote,
+  generatedAt = new Date().toISOString(),
+  acceptance?: MoveScopeSnapshot['acceptance']
+): MoveScopeSnapshot {
   const included = (lead.inventory || []).filter(item => item.included !== false)
   const excluded = (lead.inventory || []).filter(item => item.included === false)
   const inventory = included.map((item, index): MoveScopeItem => {
@@ -158,7 +175,7 @@ export function buildMoveScopeSnapshot(lead: CRMLead, quote: CRMQuote, generated
   })
   const unknowns = [
     !lead.originAddress ? 'origin_address' : '',
-    !lead.destAddress ? 'destination_address' : '',
+    lead.moveType !== 'labor-only' && lead.quoteType !== 'labor_only' && !lead.destAddress ? 'destination_address' : '',
     !lead.inventoryVerification?.completedAt ? 'customer_inventory_confirmation' : '',
     ...hiddenInventoryCoverage(lead.jobFactors).filter(area => !area.resolved).map(area => `hidden_inventory:${area.key}`),
     ...inventory.flatMap(item => item.unknowns.map(field => `inventory:${item.key}:${field}`)),
@@ -212,6 +229,7 @@ export function buildMoveScopeSnapshot(lead: CRMLead, quote: CRMQuote, generated
     evidence,
     unknowns,
     exclusions: excluded.map(item => ({ name: label(item), room: item.room || 'Unassigned', reason: item.exclusionReason || item.policyReason || 'Excluded from scope' })),
+    acceptance,
   }
 }
 

@@ -34,6 +34,29 @@ test('scope snapshot preserves operational and commercial facts without mutating
   assert.equal(lead.inventory?.[0].name, 'Sofa')
 })
 
+test('accepted snapshot preserves customer confirmations and labour-only does not invent a destination', () => {
+  const { lead, quote } = fixtures()
+  lead.moveType = 'labor-only'
+  lead.quoteType = 'labor_only'
+  lead.destAddress = undefined
+  quote.quoteType = 'labor_only'
+  const acceptance = {
+    acceptedAt: '2026-08-18T12:00:00.000Z',
+    termsVersion: '2026-scope-confirmation',
+    customerConfirmedScope: true,
+    customerConfirmedHiddenAreas: true,
+    customerConfirmedAccess: true,
+    customerConfirmedSpecialtyItems: true,
+    customerAcknowledgedArrivalVerification: true,
+    customerAcknowledgedChangeOrders: true,
+    ipAddress: '203.0.113.1',
+    userAgent: 'Test browser',
+  }
+  const scope = buildMoveScopeSnapshot(lead, quote, acceptance.acceptedAt, acceptance)
+  assert.deepEqual(scope.acceptance, acceptance)
+  assert.equal(scope.unknowns.includes('destination_address'), false)
+})
+
 test('walkthrough requires evidence and reports material discrepancies', () => {
   const base = {
     scopeVersionId: 'scope-v1',

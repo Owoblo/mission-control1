@@ -10,6 +10,7 @@ import type { QuoteChangeEntry } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
 import { hasDeliverableQuotePricing, quotePricingUpdateWouldEraseSnapshot } from '@/lib/quote-pricing-safety'
 import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
+import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 
 export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -98,7 +99,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         { status: 409 },
       )
     }
-    if (proposedStatus === 'sent' && current.status !== 'sent' && proposedQuote.billingModel === 'binding' && currentLead) {
+    if (proposedStatus === 'sent' && current.status !== 'sent' && proposedQuote.billingModel === 'binding' && !isProvisionalQuoteScope(proposedQuote) && currentLead) {
       const safety = evaluateQuoteIntelligenceSafety(currentLead, proposedQuote)
       if (!safety.allowed) {
         return NextResponse.json({ error: safety.reason, moveIntelligence: safety.assessment }, { status: 409 })

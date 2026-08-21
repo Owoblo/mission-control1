@@ -13,6 +13,7 @@ import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
 import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
 import { canUseMobilePhoneLine } from '@/lib/server/mobile-phone-access'
 import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
+import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 
 function normalizePhoneNumber(value?: string | null) {
   const digits = String(value || '').replace(/\D/g, '')
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
       }
       if (payload.quoteId) {
         const quote = await getSalesQuote(payload.quoteId)
-        if (quote?.billingModel === 'binding') {
+        if (quote?.billingModel === 'binding' && !isProvisionalQuoteScope(quote)) {
           const safety = evaluateQuoteIntelligenceSafety(lead, quote)
           if (!safety.allowed) return NextResponse.json({ error: safety.reason, quoteReadiness: safety.quoteReadiness }, { status: 409 })
         }
