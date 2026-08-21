@@ -25,6 +25,7 @@ test('flat-rate public quotes sell the scope without exposing estimated hours', 
   assert.doesNotMatch(source, /label: 'Est\. Hours'/)
   assert.match(source, /isBindingEstimate \? `Stage \$\{i \+ 1\}` : phase\.time/)
   assert.match(source, /isBindingEstimate \? flatRateTimelineDetail\(phase\.title/)
+  assert.match(source, /customerLegNote = isBindingEstimate \? '' : leg\.notes/)
   assert.match(source, /Scope-Based Flat Rate/)
 })
 
