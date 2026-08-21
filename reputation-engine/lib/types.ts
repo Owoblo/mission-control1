@@ -1244,6 +1244,18 @@ export interface QuoteLeg {
   notes?: string
 }
 
+export interface CustomerQuoteScope {
+  version: 1
+  capturedAt: string
+  inventory: InventoryItem[]
+  assemblyMode: 'both' | 'disassemble_only' | 'reassemble_only'
+  assemblyItems: string[]
+  customerHandledAssemblyItems: string[]
+  specialtyItems: string[]
+  wrappingItems: string[]
+  serviceNotes: string[]
+}
+
 export interface CRMQuote {
   id: string
   number: string
@@ -1277,6 +1289,7 @@ export interface CRMQuote {
   validDays?: number
   acceptToken?: string
   legs?: QuoteLeg[]
+  customerScope?: CustomerQuoteScope
   changeLog?: QuoteChangeEntry[]
   lineItems: QuoteLineItem[]
   discountAmount?: number

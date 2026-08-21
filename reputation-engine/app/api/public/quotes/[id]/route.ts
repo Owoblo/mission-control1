@@ -166,6 +166,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         maximumEstimatedHours: quote.maximumEstimatedHours,
         hourlyRateOverride: quote.hourlyRateOverride,
         legs: quote.legs || [],
+        customerScope: quote.customerScope,
         jobFactors: lead?.jobFactors || undefined,
         moveDescription: sanitizeCustomerQuoteText(quote.moveDescription),
         conditionalClause: sanitizeCustomerQuoteText(quote.conditionalClause),
@@ -202,7 +203,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
           : null,
       lead: lead ? {
         name: lead.name,
-        inventory: (lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false),
+        inventory: (quote.customerScope?.inventory || lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false),
         listingPhotos: Array.from(new Set([
           ...(lead.mediaAssets || [])
             .filter(asset => asset.kind === 'image' && !asset.removed && asset.category !== 'receipt')

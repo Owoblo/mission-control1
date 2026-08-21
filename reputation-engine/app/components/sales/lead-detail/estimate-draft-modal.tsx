@@ -13,12 +13,13 @@ import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolic
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
+import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
-import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
+import type { CustomerQuoteScope, EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
 import { buildContributionPricingPlan, buildProtectionRecommendation } from '@/lib/contribution-pricing'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
@@ -154,6 +155,7 @@ type QuoteWorkspaceSaveOptions = {
   internalNotes?: string
   conditionalClause?: string
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+  customerScope?: CustomerQuoteScope
 }
 
 type QuoteWorkspaceSendOptions = QuoteWorkspaceSaveOptions & {
@@ -1664,6 +1666,15 @@ export function EstimateDraftModal({
   const includedDisassemblyItems = pricingBreakdown
     ? getIncludedDisassemblyItems(pricingBreakdown.disassemblyItems, excludedDisassemblyItems)
     : []
+  function captureCustomerScope() {
+    return buildCustomerQuoteScope({
+      inventory: effectiveInventoryMetrics.inventory,
+      jobFactors,
+      assemblyItems: includedDisassemblyItems,
+      customerHandledAssemblyItems: Array.from(excludedDisassemblyItems),
+      specialtyItems: pricingBreakdown?.specialtyItemFlags || [],
+    })
+  }
   const disassemblyScopeLabel = getDisassemblyServiceLabel(jobFactors.disassemblyMode)
   const tvRecommendations = useMemo(() => {
     return effectiveInventoryMetrics.inventory
@@ -2543,7 +2554,7 @@ export function EstimateDraftModal({
       setSendGuardOpen(true)
       return
     }
-    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType })
+    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })
   }
 
   async function handleProvisionalSend() {
@@ -2556,6 +2567,7 @@ export function EstimateDraftModal({
       quoteType,
       moveDescription: prependUniqueLine(moveDescription, moveNote),
       internalNotes: prependUniqueLine(internalNotes, internalNote),
+      customerScope: captureCustomerScope(),
     })
   }
 
@@ -7487,7 +7499,7 @@ export function EstimateDraftModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => void onSaveDraft({ quoteType })}
+                        onClick={() => void onSaveDraft({ quoteType, customerScope: captureCustomerScope() })}
                         disabled={quoteModalBusy || !quote}
                         className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-50"
                       >
@@ -7536,7 +7548,7 @@ export function EstimateDraftModal({
                 <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
-                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
+                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
                 </button>
 

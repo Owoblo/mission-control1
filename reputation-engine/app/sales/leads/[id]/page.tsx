@@ -108,6 +108,7 @@ import type { UserRole } from '@/lib/auth'
 import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 import type {
   CRMAutomationJob,
+  CustomerQuoteScope,
   CRMLead,
   CRMQuote,
   EstimateRouteContext,
@@ -2362,6 +2363,7 @@ export default function SalesLeadDetailPage() {
     internalNotes?: string
     conditionalClause?: string
     quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+    customerScope?: CustomerQuoteScope
   }): Promise<boolean> {
     if (!quote) return false
     if (!ensureLeadEditable()) return false
@@ -2409,6 +2411,8 @@ export default function SalesLeadDetailPage() {
       const result = await updateSalesQuote(quote.id, {
         moveType: effectiveQuoteMoveType,
         quoteType: effectiveQuoteType,
+        customerScope: overrides?.customerScope || quote.customerScope,
+        billingModel: quote.billingModel || 'binding',
         paymentTerms: effectivePaymentTerms,
         lineItems: totals.lineItems,
         discountAmount: effectiveDiscount,
@@ -2488,6 +2492,7 @@ export default function SalesLeadDetailPage() {
     internalNotes?: string
     conditionalClause?: string
     quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+    customerScope?: CustomerQuoteScope
   }) {
     if (!quote) return
     if (!ensureLeadEditable()) return
@@ -2496,6 +2501,7 @@ export default function SalesLeadDetailPage() {
       internalNotes: options?.internalNotes,
       conditionalClause: options?.conditionalClause,
       quoteType: options?.quoteType,
+      customerScope: options?.customerScope,
     })
     if (!saved) return
     if (options?.provisional && lead) {
