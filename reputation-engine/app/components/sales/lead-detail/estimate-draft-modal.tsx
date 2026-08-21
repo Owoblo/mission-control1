@@ -1373,6 +1373,19 @@ export function EstimateDraftModal({
 
   const routeContext = useMemo<EstimateRouteContext | undefined>(() => {
     if (!originFull) return undefined
+    if (quoteType === 'labor_only') {
+      return {
+        pricingStatus: 'ready',
+        routeCategory: 'local',
+        billableDriveHours: route?.yardToOrigin?.driveHours ?? route?.billableDriveHours,
+        operationalDriveHours: route?.operationalDriveHours,
+        yardToOriginHours: route?.yardToOrigin?.driveHours,
+        yardToOriginDistanceKm: route?.yardToOrigin?.distanceKm,
+        billableDistanceKm: route?.yardToOrigin?.distanceKm ?? route?.billableDistanceKm,
+        operationalDistanceKm: route?.operationalDistanceKm,
+        missingRequirements: [],
+      }
+    }
     if (!route) {
       if (destFull) return undefined
       return {
@@ -2231,6 +2244,7 @@ export function EstimateDraftModal({
     jobFactors.destParkingOk !== undefined ||
     jobFactors.destHasElevator !== undefined
   )
+  const isLaborOnly = quoteType === 'labor_only'
   const quoteExplanation = useMemo(() => {
     if (!pricingBreakdown || quoteModalTotals.total <= 0) {
       return { summary: '', short: '', detailed: '' }
@@ -2291,13 +2305,13 @@ export function EstimateDraftModal({
       { category: 'logistics', label: 'Customer name', ready: Boolean(lead.name.trim()), critical: true, detail: 'Customer name is missing.' },
       { category: 'logistics', label: 'Phone', ready: Boolean((lead.phone || '').trim()), critical: true, detail: 'Phone number is missing.' },
       { category: 'logistics', label: 'Email or SMS available', ready: Boolean((lead.email || '').trim() || (lead.phone || '').trim()), critical: true, detail: 'No email or SMS delivery path is available.' },
-      { category: 'logistics', label: 'Origin address', ready: Boolean(originFull.trim()), critical: true, detail: 'Origin address is missing.' },
-      { category: 'logistics', label: 'Destination address', ready: Boolean(destFull.trim()), critical: true, detail: 'Destination address is missing.' },
-      { category: 'logistics', label: 'Origin geocoded', ready: Boolean(originFull.trim() && !routeError && route?.originResolved), critical: true, detail: originFull.trim() ? 'Origin address could not be located.' : 'Origin address is missing.' },
-      { category: 'logistics', label: 'Destination geocoded', ready: Boolean(destFull.trim() && !routeError && route?.destResolved), critical: true, detail: destFull.trim() ? 'Destination address could not be located.' : 'Destination address is missing.' },
+      { category: 'logistics', label: isLaborOnly ? 'Work location' : 'Origin address', ready: Boolean(originFull.trim()), critical: true, detail: isLaborOnly ? 'Work location is missing.' : 'Origin address is missing.' },
+      ...(isLaborOnly ? [] : [{ category: 'logistics' as const, label: 'Destination address', ready: Boolean(destFull.trim()), critical: true, detail: 'Destination address is missing.' }]),
+      { category: 'logistics', label: isLaborOnly ? 'Work location geocoded' : 'Origin geocoded', ready: Boolean(originFull.trim() && !routeError && route?.originResolved), critical: true, detail: originFull.trim() ? `${isLaborOnly ? 'Work location' : 'Origin address'} could not be located.` : `${isLaborOnly ? 'Work location' : 'Origin address'} is missing.` },
+      ...(isLaborOnly ? [] : [{ category: 'logistics' as const, label: 'Destination geocoded', ready: Boolean(destFull.trim() && !routeError && route?.destResolved), critical: true, detail: destFull.trim() ? 'Destination address could not be located.' : 'Destination address is missing.' }]),
       { category: 'logistics', label: 'Move date', ready: Boolean(selectedMoveDate), critical: true, detail: 'Move date is missing.' },
       { category: 'logistics', label: 'Origin access / parking', ready: originAccessConfirmed, detail: 'Origin stairs, elevator, parking, doorway, and carry distance are still unknown.' },
-      { category: 'logistics', label: 'Destination access / parking', ready: destinationAccessConfirmed, detail: 'Destination stairs, elevator, parking, doorway, and carry distance are still unknown.' },
+      ...(isLaborOnly ? [] : [{ category: 'logistics' as const, label: 'Destination access / parking', ready: destinationAccessConfirmed, detail: 'Destination stairs, elevator, parking, doorway, and carry distance are still unknown.' }]),
       { category: 'logistics', label: 'Packing status', ready: Boolean(jobFactors.packingStatus), detail: 'Packing status is not confirmed.' },
       { category: 'logistics', label: 'Boxes asked', ready: boxesAsked, detail: 'Boxes were not confirmed.' },
       { category: 'commercial', label: 'Crew / truck recommendation', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount), critical: true, detail: 'Crew or truck recommendation is missing.' },
@@ -2327,7 +2341,7 @@ export function EstimateDraftModal({
       { category: 'commercial', label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, contributionPlan.pricingGaps, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, quoteReadyAssessment.hidden, route?.category, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, quoteType, unknownVolumeItems.length, unresolvedInventoryItems.length])
+  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, contributionPlan.pricingGaps, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, isLaborOnly, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, quoteReadyAssessment.hidden, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, unknownVolumeItems.length, unresolvedInventoryItems.length])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -2585,7 +2599,7 @@ export function EstimateDraftModal({
             <div className="crm-label">Estimate Draft</div>
             <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
-              <span>{originFull || 'Origin TBD'} → {destFull || 'Destination TBD'}</span>
+              <span>{quoteType === 'labor_only' ? `Work location: ${originFull || 'TBD'}` : `${originFull || 'Origin TBD'} → ${destFull || 'Destination TBD'}`}</span>
               <span>· {effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs} lbs</span>
               {listingContextSummary ? <span>· MLS {listingContextSummary}</span> : null}
               {listingHighlights.length > 0 ? <span>· {listingHighlights.slice(0, 2).join(' · ')}</span> : null}
@@ -2614,7 +2628,7 @@ export function EstimateDraftModal({
         <div className="sticky top-0 z-30 border-b border-[var(--app-line)] bg-white/95 px-4 py-2 backdrop-blur md:px-6">
           <div className="flex items-center gap-2 overflow-x-auto">
             {[
-              { id: 'estimate-route', label: '1 Route', ready: Boolean(originFull && destFull && selectedMoveDate) },
+              { id: 'estimate-route', label: quoteType === 'labor_only' ? '1 Work location' : '1 Route', ready: Boolean(originFull && (quoteType === 'labor_only' || destFull) && selectedMoveDate) },
               { id: 'estimate-services', label: '2 Services', ready: true },
               { id: 'estimate-inventory', label: '3 Inventory', ready: effectiveInventoryMetrics.totalItems > 0 && effectiveInventoryMetrics.totalCubicFeet > 0 },
               { id: 'estimate-operations', label: '4 Crew & access', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount) },
@@ -2812,16 +2826,16 @@ export function EstimateDraftModal({
               )}
             </div>
 
-            {/* Origin → Destination quick edit — hidden when multi-stop is on (legs ARE the route) */}
+            {/* Route / work-location quick edit — hidden when multi-stop is on (legs ARE the route) */}
             {(onOriginAddressChange || onDestAddressChange) && !legsEnabled && (
               <div id="estimate-route" ref={routeSectionRef} className="scroll-mt-16 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
-                <div className="crm-label mb-3">Move Route</div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="crm-label mb-3">{isLaborOnly ? 'Work Location' : 'Move Route'}</div>
+                <div className={`grid gap-3 ${isLaborOnly ? '' : 'sm:grid-cols-2'}`}>
                   <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Origin</div>
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{isLaborOnly ? 'Service address' : 'Origin'}</div>
                     <AddressAutocompleteInput
                       value={originAddress || lead.originAddress || ''}
-                      placeholder="Origin address"
+                      placeholder={isLaborOnly ? 'Where the labour is needed' : 'Origin address'}
                       onSelect={(address, city, placeType, placeId) => {
                         onOriginAddressChange?.(address)
                         if (city) onOriginCityChange?.(city)
@@ -2839,7 +2853,7 @@ export function EstimateDraftModal({
                       </div>
                     )}
                   </div>
-                  <div>
+                  {!isLaborOnly && <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
                     <AddressAutocompleteInput
                       value={destAddress || lead.destAddress || destCity || lead.destCity || ''}
@@ -2855,7 +2869,7 @@ export function EstimateDraftModal({
                         }
                       }}
                     />
-                  </div>
+                  </div>}
                 </div>
                 {routeError && <div className="mt-2 text-xs text-rose-500">{routeError}</div>}
                 {routeBusy && <div className="mt-2 text-xs text-[var(--app-muted)]">Calculating route…</div>}
@@ -2867,7 +2881,7 @@ export function EstimateDraftModal({
                   {route ? (
                     <div className="mt-2 space-y-2">
                       <div className="text-sm font-medium text-[var(--app-ink)]">
-                        {originFull || 'Origin TBD'} → {destFull || 'Destination TBD'}
+                        {isLaborOnly ? originFull || 'Work location TBD' : `${originFull || 'Origin TBD'} → ${destFull || 'Destination TBD'}`}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-muted)]">
                         <span>{route.originToDestination?.driveHours || route.driveHours || 0}h drive</span>

@@ -251,3 +251,15 @@ test('type-only placeholder leg is ignored', () => {
   })
   assert.equal(assessment.questions.some(question => question.id.startsWith('leg-')), false)
 })
+
+test('single-location labour scope does not invent destination requirements', () => {
+  const assessment = assessMoveIntelligence({
+    inventory: [item({ originFloor: 1 })],
+    jobFactors: { originFloors: 1, originHasElevator: false, originParkingOk: true },
+    originAddress: '1 Service St',
+    singleLocation: true,
+  })
+  assert.equal(assessment.readinessReasons.some(reason => /destination|both route/i.test(reason)), false)
+  assert.equal(assessment.questions.some(question => question.id.startsWith('destination-')), false)
+  assert.equal(assessment.uncertaintyPct, 0)
+})
