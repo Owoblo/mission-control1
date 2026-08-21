@@ -11,6 +11,26 @@ import { recommendTruckLoadPlan } from '@/lib/truck-planning'
 import { assessMoveIntelligence } from '@/lib/move-intelligence'
 import { hiddenInventoryCoverage } from '@/lib/quote-readiness'
 import { buildCustomerCarePlan, buildCustomerQuoteScope, getCustomerQuoteOptionLabel } from '@/lib/customer-quote-content'
+import {
+  Archive,
+  Armchair,
+  BedDouble,
+  Bike,
+  Boxes,
+  CheckCircle2,
+  CircleGauge,
+  Dumbbell,
+  Flame,
+  House,
+  MapPin,
+  Music2,
+  PackageCheck,
+  Route,
+  ShieldCheck,
+  Truck,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react'
 
 type PublicQuote = {
   id: string
@@ -252,6 +272,32 @@ interface TimelinePhase {
   detail: string
 }
 
+function timelinePhaseIcon(phase: TimelinePhase): LucideIcon {
+  const text = `${phase.title} ${phase.detail}`.toLowerCase()
+  if (text.includes('complete') || phase.emoji === '✅') return CheckCircle2
+  if (text.includes('destination') || text.includes('new home') || text.includes('final room')) return House
+  if (text.includes('loaded') || text.includes('loading complete') || phase.emoji === '📦') return PackageCheck
+  if (text.includes('pickup') || text.includes('arrive')) return MapPin
+  if (text.includes('route') || text.includes('transit') || text.includes('driv') || phase.emoji === '🛣️') return Route
+  return Truck
+}
+
+function carePlanIcon(item: string, category: 'protection' | 'assembly' | 'specialty'): LucideIcon {
+  const normalized = item.toLowerCase()
+  if (/fireplace|barbecue|bbq|grill/.test(normalized)) return Flame
+  if (/treadmill|exercise|gym|weight/.test(normalized)) return Dumbbell
+  if (/couch|sofa|chair|recliner/.test(normalized)) return Armchair
+  if (/mattress|bed|headboard/.test(normalized)) return BedDouble
+  if (/dresser|cabinet|wardrobe|armoire/.test(normalized)) return Archive
+  if (/piano|organ/.test(normalized)) return Music2
+  if (/bike|bicycle/.test(normalized)) return Bike
+  if (/safe|vault/.test(normalized)) return CircleGauge
+  if (/box|carton|tote/.test(normalized)) return Boxes
+  if (category === 'assembly') return Wrench
+  if (category === 'specialty') return PackageCheck
+  return ShieldCheck
+}
+
 function buildMoveTimeline(params: {
   startTime?: string   // "09:00"
   crewSize: number
@@ -491,13 +537,21 @@ function ScopeOfWork({ scope }: { scope: CustomerQuoteScope }) {
       </div>
       {carePlan.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2">
-          {carePlan.map((plan, index) => (
-            <div key={`${plan.category}-${plan.item}-${index}`} className="rounded-2xl border border-[#071421]/10 bg-white p-5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#C99700]">{categoryLabel[plan.category]}</div>
-              <div className="mt-2 text-base font-bold text-[#071421]">{plan.item}</div>
-              <div className="mt-1 text-xs leading-5 text-[#667085]">{plan.service}</div>
-            </div>
-          ))}
+          {carePlan.map((plan, index) => {
+            const CareIcon = carePlanIcon(plan.item, plan.category)
+            return (
+              <div key={`${plan.category}-${plan.item}-${index}`} className="group flex gap-4 rounded-2xl border border-[#071421]/10 bg-white p-5 transition-colors hover:border-[#C99700]/35">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#C99700]/10 text-[#9b7200]">
+                  <CareIcon className="h-6 w-6" strokeWidth={1.8} aria-hidden="true" />
+                </div>
+                <div className="min-w-0 pt-0.5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#C99700]">{categoryLabel[plan.category]}</div>
+                  <div className="mt-1.5 text-base font-bold text-[#071421]">{plan.item}</div>
+                  <div className="mt-1 text-xs leading-5 text-[#667085]">{plan.service}</div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
       {(scope.serviceNotes.length > 0 || scope.customerHandledAssemblyItems.length > 0) && (
@@ -1511,12 +1565,13 @@ function QuoteAcceptPageInner() {
               <div>
                 <div className="relative">
                   {/* Vertical line */}
-                  <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[#071421]/10" />
+                  <div className="absolute left-[18px] top-4 bottom-4 w-px bg-[#071421]/10" />
                   <div className="space-y-7">
-                    {timeline.map((phase, i) => (
-                      <div key={i} className="flex gap-4">
-                        <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#F7F4ED] text-base">
-                          {phase.emoji}
+                    {timeline.map((phase, i) => {
+                      const PhaseIcon = timelinePhaseIcon(phase)
+                      return <div key={i} className="flex gap-4">
+                        <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#C99700]/15 bg-[#fffaf0] text-[#9b7200] shadow-[0_3px_10px_rgba(7,20,33,0.05)]">
+                          <PhaseIcon className="h-[18px] w-[18px]" strokeWidth={1.9} aria-hidden="true" />
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
                           <div className="flex items-baseline gap-2 flex-wrap">
@@ -1526,7 +1581,7 @@ function QuoteAcceptPageInner() {
                           <div className="mt-1 text-sm leading-5 text-[#667085]">{isBindingEstimate ? flatRateTimelineDetail(phase.title, crewSize, trucks, customerScope.assemblyItems) : phase.detail}</div>
                         </div>
                       </div>
-                    ))}
+                    })}
                   </div>
                 </div>
               </div>
