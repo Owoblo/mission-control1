@@ -1539,7 +1539,21 @@ export function EstimateDraftModal({
 
   function setHiddenCoverage(area: HiddenInventoryArea, state: MoveEvidenceState) {
     const current = jobFactors.hiddenInventoryCoverage?.[area]
-    const entry = { ...current, state, source: state === 'observed' ? 'property evidence' : 'sales consultation', updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' }
+    const areaLabel = HIDDEN_INVENTORY_AREAS.find(item => item.key === area)?.label || area
+    const previousNoteWasAutomatic = current?.state === 'customer_confirmed_empty' || current?.state === 'not_applicable'
+    const automaticNote = state === 'customer_confirmed_empty'
+      ? `Customer confirmed ${areaLabel.toLowerCase()} is empty / has nothing moving.`
+      : state === 'not_applicable'
+        ? `Customer confirmed ${areaLabel.toLowerCase()} does not exist or is not applicable.`
+        : previousNoteWasAutomatic ? undefined : current?.note
+    const entry = {
+      ...current,
+      state,
+      note: automaticNote,
+      source: state === 'observed' ? 'property evidence' : 'sales consultation',
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.name || 'Sales',
+    }
     if (area === 'boxes' && state === 'estimated' && jobFactors.estimatedBoxes) {
       entry.estimatedCountMin = jobFactors.estimatedBoxes
       entry.estimatedCountMax = jobFactors.estimatedBoxes
@@ -5227,9 +5241,27 @@ export function EstimateDraftModal({
                       return <div key={area.key} className="rounded-[8px] border border-amber-200 bg-white p-3">
                         <div className="text-xs font-bold text-[var(--app-ink)]">{area.label}</div>
                         <p className="mt-1 text-[10px] leading-4 text-[var(--app-muted)]">{area.prompt}</p>
-                        <select value={value?.state || 'unknown'} onChange={event => setHiddenCoverage(area.key, event.target.value as MoveEvidenceState)} className="crm-input mt-2 w-full py-1.5 text-xs">
-                          <option value="unknown">Unknown — blocks fixed price</option><option value="observed">Observed in MLS/photo/video</option><option value="customer_confirmed">Customer confirmed</option><option value="estimated">Estimated range</option><option value="not_applicable">Not applicable / area does not exist</option>
-                        </select>
+                        <div className="mt-2 grid grid-cols-2 gap-1.5">
+                          {([
+                            ['customer_confirmed_empty', '✓ Customer says empty'],
+                            ['not_applicable', '✓ No such area'],
+                            ['customer_confirmed', 'Items confirmed'],
+                            ['observed', 'Seen in evidence'],
+                            ['estimated', 'Estimated range'],
+                            ['unknown', 'Still unverified'],
+                          ] as Array<[MoveEvidenceState, string]>).map(([state, label]) => (
+                            <button
+                              key={state}
+                              type="button"
+                              onClick={() => setHiddenCoverage(area.key, state)}
+                              className={`rounded-[6px] border px-2 py-1.5 text-left text-[10px] font-semibold ${value?.state === state
+                                ? state === 'unknown' ? 'border-amber-500 bg-amber-100 text-amber-950' : 'border-emerald-600 bg-emerald-600 text-white'
+                                : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)]'}`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
                         <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="What is there, why empty, or estimate basis" className="crm-input mt-2 w-full py-1.5 text-xs"/>
                         {value?.state === 'estimated' && area.key !== 'boxes' ? <input type="number" min="0" value={value.estimatedCubicFeet ?? ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, estimatedCubicFeet: event.target.value ? Number(event.target.value) : undefined } } })} placeholder="Estimated cubic feet" className="crm-input mt-2 w-full py-1.5 text-xs"/> : null}
                       </div>
