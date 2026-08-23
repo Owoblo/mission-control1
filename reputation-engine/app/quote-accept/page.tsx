@@ -1484,13 +1484,13 @@ function QuoteAcceptPageInner() {
         {hasInventory && (
           <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
             <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Before you continue</div>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">The three inventory blind spots.</h2>
-            <p className="mt-2 text-sm leading-6 text-[#071421]/60">Please make sure these areas are accurately represented above. They can materially change the moving plan and vehicle capacity.</p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {reviewedHiddenAreas.filter(area => ['basement', 'garage', 'outdoor'].includes(area.key)).map(area => (
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">Hidden areas and loose contents.</h2>
+            <p className="mt-2 text-sm leading-6 text-[#071421]/60">This records what was reviewed with you—including areas that are empty or do not apply—so the moving plan reflects the same agreed scope.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {reviewedHiddenAreas.map(area => (
                 <div key={area.key} className={`rounded-xl border px-4 py-4 ${area.resolved ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
                   <div className="flex items-center justify-between gap-2"><span className="font-bold text-[#071421]">{area.label}</span><span className={area.resolved ? 'text-emerald-700' : 'text-amber-700'}>{area.resolved ? '✓' : '!'}</span></div>
-                  <div className="mt-2 text-xs leading-5 text-[#071421]/60">{area.value?.state === 'not_applicable' ? 'None / not applicable' : area.value?.state === 'customer_confirmed' ? 'Customer confirmed' : area.value?.state === 'observed' ? 'Verified from property evidence' : area.value?.state === 'estimated' ? 'Included as an estimate' : 'Tell us if this area contains anything moving'}{area.value?.note ? ` — ${area.value.note}` : ''}</div>
+                  <div className="mt-2 text-xs leading-5 text-[#071421]/60">{area.value?.state === 'customer_confirmed_empty' ? 'Customer confirmed empty—nothing moving' : area.value?.state === 'not_applicable' ? 'Customer confirmed this area does not apply' : area.value?.state === 'customer_confirmed' ? 'Contents confirmed and included in scope' : area.value?.state === 'observed' ? 'Verified from property evidence' : area.value?.state === 'estimated' ? 'Included as a documented estimate' : 'Not yet verified with the customer'}{area.value?.note ? ` — ${area.value.note}` : ''}</div>
                 </div>
               ))}
             </div>

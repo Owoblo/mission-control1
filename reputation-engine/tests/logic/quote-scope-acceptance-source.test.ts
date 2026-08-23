@@ -18,10 +18,11 @@ test('customer acceptance confirms scope and both acceptance paths preserve a sn
   assert.match(checkoutRoute, /preserveAcceptedScopeSnapshot\(lead, quote/)
 })
 
-test('public quote connects inventory, blind spots, arrival verification, and transparent payment math', () => {
+test('public quote connects inventory, hidden-area evidence, arrival verification, and transparent payment math', () => {
   const page = fs.readFileSync(path.join(root, 'app/quote-accept/page.tsx'), 'utf8')
   assert.match(page, /Update my inventory/)
-  assert.match(page, /The three inventory blind spots/)
+  assert.match(page, /Hidden areas and loose contents/)
+  assert.match(page, /Customer confirmed empty—nothing moving/)
   assert.match(page, /Before anything is loaded/)
   assert.match(page, /Total including HST:/)
 })

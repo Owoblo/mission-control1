@@ -196,7 +196,7 @@ export type InboundLeadStatus = 'needs_action' | 'recent_handoff' | 'closed' | '
 export type InboundLeadFocusFilter = 'needs_action' | 'web_qr' | 'calls' | 'sms' | 'high_intent' | 'answered'
 export type InboundClosedFilter = 'all' | 'junk' | 'lost' | 'not_interested'
 export type InventoryVerificationDecision = 'going' | 'not_going' | 'unsure'
-export type MoveEvidenceState = 'observed' | 'customer_confirmed' | 'estimated' | 'unknown' | 'not_applicable'
+export type MoveEvidenceState = 'observed' | 'customer_confirmed' | 'customer_confirmed_empty' | 'estimated' | 'unknown' | 'not_applicable'
 export type HiddenInventoryArea = 'basement' | 'garage' | 'outdoor' | 'storage' | 'boxes'
 export interface HiddenInventoryCoverage {
   state: MoveEvidenceState

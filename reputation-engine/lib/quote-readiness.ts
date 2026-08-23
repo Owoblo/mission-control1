@@ -10,6 +10,7 @@ export const HIDDEN_INVENTORY_AREAS: Array<{ key: HiddenInventoryArea; label: st
 
 export function coverageResolved(value?: HiddenInventoryCoverage) {
   if (!value || value.state === 'unknown') return false
+  if (value.state === 'customer_confirmed_empty' || value.state === 'not_applicable') return true
   const hasBasis = Boolean(value.note?.trim())
   if (value.state === 'estimated') {
     return hasBasis && (Number.isFinite(value.estimatedCubicFeet) || Number.isFinite(value.estimatedCountMin) || Number.isFinite(value.estimatedCountMax))

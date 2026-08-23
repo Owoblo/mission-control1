@@ -39,6 +39,16 @@ test('estimated hidden inventory needs a defensible quantity or volume', () => {
   assert.equal(evaluateQuoteReadiness(lead(factors)).quoteReady, true)
 })
 
+test('customer-confirmed empty and nonexistent areas satisfy scope evidence', () => {
+  const factors = completeFactors()
+  factors.hiddenInventoryCoverage!.basement = { state: 'customer_confirmed_empty' }
+  factors.hiddenInventoryCoverage!.garage = { state: 'not_applicable' }
+  const result = evaluateQuoteReadiness(lead(factors))
+  assert.equal(result.quoteReady, true)
+  assert.equal(result.hidden.find(area => area.key === 'basement')?.resolved, true)
+  assert.equal(result.hidden.find(area => area.key === 'garage')?.resolved, true)
+})
+
 test('a fully resolved move becomes quote ready without a manual checkbox', () => {
   const result = evaluateQuoteReadiness(lead(completeFactors()), { billingModel: 'binding', quoteType: 'standard', originAddress: '1 Main St', destAddress: '2 King St' })
   assert.equal(result.status, 'quote_ready')
