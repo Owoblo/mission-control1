@@ -1004,7 +1004,7 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
     name: lead.name || signals.name || lead.name,
     email: lead.email || normalizeEmail(signals.email),
     phone: lead.phone || normalizePhone(signals.phone),
-    stage: signals.depositConfirmed && lead.stage === 'lost' ? 'booked' : lead.stage,
+    stage: lead.stage,
     moveDate: lead.moveDate || signals.moveDate,
     moveDateFlexible: lead.moveDateFlexible ?? signals.moveDateFlexible,
     moveDateFlexibleReason: lead.moveDateFlexibleReason || signals.moveDateFlexibleReason,
@@ -1017,13 +1017,11 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
     destAccess: lead.destAccess || signals.destAccess,
     parkingNotes: lead.parkingNotes || signals.parkingNotes,
     moveReason: lead.moveReason || signals.moveReason,
-    depositAmount: lead.depositAmount ?? parseMaybeNumber(signals.depositAmount),
-    depositMethod: lead.depositMethod || signals.depositMethod,
-    depositDate: lead.depositDate || (signals.depositConfirmed ? dateStamp() : lead.depositDate),
-    paymentStatus:
-      signals.depositConfirmed
-        ? (lead.paymentStatus === 'paid_in_full' ? lead.paymentStatus : 'deposit_received')
-        : lead.paymentStatus,
+    // Conversation extraction is useful context, never transaction evidence.
+    depositAmount: lead.depositAmount,
+    depositMethod: lead.depositMethod,
+    depositDate: lead.depositDate,
+    paymentStatus: lead.paymentStatus,
     branch: lead.branch || detectSalesBranchFromLocation(signals.originAddress, signals.originCity, signals.destAddress, signals.destCity),
     notes: signals.summary
       ? [lead.notes, `Automation capture: ${signals.summary}`].filter(Boolean).join('\n\n')

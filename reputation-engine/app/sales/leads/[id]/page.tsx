@@ -166,29 +166,6 @@ function isCustomerFacingQuote(quote?: CRMQuote | null) {
   )
 }
 
-function normalizeQuoteLineItemsForCompare(items?: QuoteLineItem[]) {
-  return (items || []).map(item => ({
-    description: (item.description || '').trim(),
-    details: (item.details || '').trim(),
-    amount: Math.round(Number(item.amount || 0) * 100) / 100,
-  }))
-}
-
-function quotePricingInputsMatchSaved(
-  quote: CRMQuote,
-  lineItems: QuoteLineItem[],
-  discountAmount: number,
-  discountLabel: string
-) {
-  const savedDiscountAmount = Math.round(Number(quote.discountAmount || 0) * 100) / 100
-  const nextDiscountAmount = Math.round(Number(discountAmount || 0) * 100) / 100
-  return (
-    JSON.stringify(normalizeQuoteLineItemsForCompare(quote.lineItems)) === JSON.stringify(normalizeQuoteLineItemsForCompare(lineItems)) &&
-    savedDiscountAmount === nextDiscountAmount &&
-    (quote.discountLabel || '').trim() === (discountLabel || '').trim()
-  )
-}
-
 export default function SalesLeadDetailPage() {
   const params = useParams() as { id?: string }
   const router = useRouter()
@@ -2384,9 +2361,10 @@ export default function SalesLeadDetailPage() {
         ? (quote.total > 0 ? quote.deposit / quote.total : 0.3)
         : 0
       const quoteIsLockedForPricing = isCustomerFacingQuote(quote)
-      const preserveCustomerFacingPricing =
-        quoteIsLockedForPricing &&
-        quotePricingInputsMatchSaved(quote, quoteLineItems, quoteDiscountAmount, quoteDiscountLabel)
+      // Once shown to a customer, commercial terms are immutable from this
+      // estimate workspace. Schedule, scope, inventory, and operations may be
+      // updated without silently replacing the price the customer already saw.
+      const preserveCustomerFacingPricing = quoteIsLockedForPricing
       const sourceLineItems = preserveCustomerFacingPricing ? (quote.lineItems || []) : quoteLineItems
 
       // When an override is active, bypass any existing discount — the override IS the final pre-tax price

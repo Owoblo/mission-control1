@@ -1,4 +1,4 @@
-import { dateStamp, detectSalesBranchFromLocation, normalizeLead } from '@/lib/sales'
+import { detectSalesBranchFromLocation, normalizeLead } from '@/lib/sales'
 import type { AISummary, CRMLead, LeadIntelligence, LeadIntelligenceFollowUp, LeadPersonaBadge } from '@/lib/types'
 import { SATURN_STAR_SALES_PROCESS } from '@/lib/server/sales-training'
 import { readEnv } from '@/lib/server/runtime'
@@ -252,13 +252,12 @@ export function applyPhoneCallSummaryToLead(lead: CRMLead, summary: AISummary | 
     originCity: mergeLeadField(lead.originCity, summary.originCity, allowOverwriteMoveDetails),
     destAddress: mergeLeadField(lead.destAddress, summary.destAddress, allowOverwriteMoveDetails),
     destCity: mergeLeadField(lead.destCity, summary.destCity, allowOverwriteMoveDetails),
-    depositAmount: summary.depositAmount ?? lead.depositAmount,
-    depositMethod: lead.depositMethod || summary.depositMethod,
-    depositDate: lead.depositDate || (summary.depositConfirmed ? dateStamp() : lead.depositDate),
-    paymentStatus:
-      summary.depositConfirmed
-        ? (lead.paymentStatus === 'paid_in_full' ? lead.paymentStatus : 'deposit_received')
-        : lead.paymentStatus,
+    // A transcript can describe intent to pay, but it is not payment evidence.
+    // Only Stripe/webhook or explicit manual-payment workflows may mutate money truth.
+    depositAmount: lead.depositAmount,
+    depositMethod: lead.depositMethod,
+    depositDate: lead.depositDate,
+    paymentStatus: lead.paymentStatus,
     branch:
       lead.branch ||
       detectSalesBranchFromLocation(summary.originAddress, summary.originCity, summary.destAddress, summary.destCity),
