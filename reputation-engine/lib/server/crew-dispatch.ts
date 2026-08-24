@@ -3,6 +3,7 @@ import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesBranch } from '@/lib/types'
 import { assessMoveIntelligence } from '@/lib/move-intelligence'
 import { accessProfileCustomerSummary } from '@/lib/access-profile'
+import { operationalBudgetSummary } from '@/lib/operational-time-budget'
 
 type CrewDispatchUser = {
   id: string
@@ -89,6 +90,12 @@ function fallbackCrewBrief(lead: CRMLead, quote: CRMQuote | null, followUps: Fol
   sections.push('')
   sections.push(`BILLING: ${buildBillingLine(quote)}`)
   if (quote) sections.push(`Crew: ${quote.crewSize || '?'} movers | ${quote.truckCount || '?'} truck${(quote.truckCount || 1) > 1 ? 's' : ''} | ~${quote.estimatedHours || '?'}h`)
+  if (lead.jobFactors?.operationalTimeBudget) {
+    sections.push(`Operational time budget: ${operationalBudgetSummary(lead.jobFactors.operationalTimeBudget)}`)
+    for (const stop of lead.jobFactors.operationalTimeBudget.stops) {
+      sections.push(`- ${stop.label}: ${stop.totalHours}h plan (handling ${stop.handlingHours}h, access ${stop.accessHours}h, services ${stop.serviceHours}h, allowance ${stop.allowanceHours}h)`)
+    }
+  }
   const inventory = allIncludedInventory(lead)
   if (inventory.length > 0) {
     sections.push('\nINVENTORY:')

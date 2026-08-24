@@ -1508,6 +1508,14 @@ export function EstimateDraftModal({
     })
   }, [onOperationalPlanChange, open, operationalInventoryWeightLbs, pricingBreakdown])
 
+  useEffect(() => {
+    const nextBudget = pricingBreakdown?.operationalTimeBudget
+    if (!open || !nextBudget) return
+    const comparable = (value: typeof nextBudget | undefined) => JSON.stringify(value ? { ...value, generatedAt: '' } : null)
+    if (comparable(jobFactors.operationalTimeBudget) === comparable(nextBudget)) return
+    onJobFactorsChange({ ...jobFactors, operationalTimeBudget: nextBudget })
+  }, [jobFactors, onJobFactorsChange, open, pricingBreakdown?.operationalTimeBudget])
+
   function selectTruckStrategy(strategy: TripStrategy) {
     const truckCountOverride = strategy === 'two_trucks' ? 2 : strategy === 'three_trucks' ? 3 : 1
     setUhaulSelectedStrategy(strategy)
@@ -5866,6 +5874,33 @@ export function EstimateDraftModal({
                       </div>
                     </div>
                   )}
+
+                  {showLivePricingBreakdown && pricingBreakdown.operationalTimeBudget && (() => {
+                    const budget = pricingBreakdown.operationalTimeBudget
+                    return (
+                      <div className="px-3 py-3 bg-[#071421] text-white space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#C99700]">Operational time budget · shadow mode</span>
+                          <span className="text-sm font-bold">{budget.totalCrewClockTime}h plan</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-white/75">
+                          <span>Productive work</span><span className="text-right">{budget.workingTime}h</span>
+                          <span>Access routes</span><span className="text-right">{budget.accessTime}h</span>
+                          <span>Services</span><span className="text-right">{budget.serviceTime}h</span>
+                          <span>Transportation</span><span className="text-right">{budget.transportationTime}h</span>
+                          <span>Operational allowance</span><span className="text-right">{budget.allowanceTime}h</span>
+                        </div>
+                        <div className="text-[10px] leading-4 text-white/55">Planning blocks are rounded for scheduling. Access intelligence is visible here but does not change the customer price yet.</div>
+                        {budget.stops.map(stop => (
+                          <div key={stop.stopId} className="rounded-md border border-white/10 px-2 py-1.5 text-[10px] text-white/70">
+                            <div className="flex justify-between font-semibold text-white"><span>{stop.label}</span><span>{stop.totalHours}h</span></div>
+                            <div className="mt-0.5">Handling {stop.handlingHours}h · access {stop.accessHours}h · services {stop.serviceHours}h · allowance {stop.allowanceHours}h</div>
+                          </div>
+                        ))}
+                        {budget.manualReviewReasons.length > 0 && <div className="rounded-md bg-rose-500/15 px-2 py-1.5 text-[10px] text-rose-100">Manual review: {budget.manualReviewReasons.join(' ')}</div>}
+                      </div>
+                    )
+                  })()}
 
                   {/* BASE LABOR */}
                   {showLivePricingBreakdown && <div className="px-3 py-2.5 space-y-1">

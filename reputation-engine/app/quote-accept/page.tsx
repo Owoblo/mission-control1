@@ -1128,6 +1128,7 @@ function QuoteAcceptPageInner() {
   })
   const reviewedHiddenAreas = hiddenInventoryCoverage(jobFactors || undefined)
   const confirmedAccessProfiles = (quote.jobFactors?.accessProfiles || []).filter(profile => profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown'))
+  const operationalTimeBudget = quote.jobFactors?.operationalTimeBudget
   const legacyAssemblyItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
     ? inventory
         .filter(item => /\bbed\b|\btable\b|\bdesk\b|\bdresser\b|\bwardrobe\b|\btreadmill\b/i.test(item.name || item.item || ''))
@@ -1514,6 +1515,30 @@ function QuoteAcceptPageInner() {
               ))}
             </div>
             <p className="mt-5 rounded-xl border border-[#C99700]/30 bg-[#C99700]/8 px-4 py-3 text-xs leading-5 text-[#071421]/65">Access conditions described above have been included in the quoted scope. Material changes to parking availability, carrying distance, stairs, elevator access, loading procedures, or building restrictions may require an updated moving plan and price before additional work begins.</p>
+          </section>
+        )}
+
+        {operationalTimeBudget && operationalTimeBudget.totalCrewClockTime > 0 && (
+          <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Your service window</div>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">A schedule built around the actual job.</h2>
+            <p className="mt-2 text-sm leading-6 text-[#071421]/60">This range accounts for the listed inventory, confirmed access, included services, transportation, and a normal operating allowance. Your price remains based on the agreed scope—not a customer-facing hourly calculation.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {operationalTimeBudget.stops.map(stop => (
+                <div key={stop.stopId} className="rounded-xl border border-[#071421]/10 bg-[#F7F4ED] px-4 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#C99700]">{stop.role === 'dropoff' ? 'Destination services' : stop.role === 'storage' ? 'Storage services' : 'Origin services'}</div>
+                  <div className="mt-1 font-bold text-[#071421]">{stop.label}</div>
+                  <div className="mt-2 text-sm text-[#071421]/60">Approximately {stop.customerRange.minHours}–{stop.customerRange.maxHours} hours</div>
+                </div>
+              ))}
+              {operationalTimeBudget.transportationTime > 0 && (
+                <div className="rounded-xl border border-[#071421]/10 bg-[#F7F4ED] px-4 py-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#C99700]">Transportation</div>
+                  <div className="mt-1 font-bold text-[#071421]">Confirmed route plan</div>
+                  <div className="mt-2 text-sm text-[#071421]/60">Approximately {operationalTimeBudget.transportationTime} hours in the operating plan</div>
+                </div>
+              )}
+            </div>
           </section>
         )}
 

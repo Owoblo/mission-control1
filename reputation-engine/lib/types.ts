@@ -245,6 +245,51 @@ export interface AccessProfile {
   verifiedAt?: string
   verifiedBy?: string
 }
+
+export type OperationalTimeCategory = 'working' | 'access' | 'services' | 'transportation' | 'allowance'
+
+export interface OperationalTimeComponent {
+  key: string
+  label: string
+  category: OperationalTimeCategory
+  rawHours: number
+  plannedHours: number
+  source: 'inventory' | 'access_profile' | 'service_scope' | 'route' | 'operational_allowance'
+  confidence: 'confirmed' | 'estimated' | 'provisional'
+  customerVisible: boolean
+}
+
+export interface OperationalStopPlan {
+  stopId: string
+  label: string
+  role: AccessProfile['stopRole']
+  handlingHours: number
+  accessHours: number
+  serviceHours: number
+  allowanceHours: number
+  totalHours: number
+  customerRange: { minHours: number; maxHours: number }
+  assumptions: string[]
+  warnings: string[]
+  manualReviewReasons: string[]
+}
+
+export interface OperationalTimeBudget {
+  version: '2026-08-24'
+  mode: 'shadow' | 'pricing'
+  generatedAt: string
+  components: OperationalTimeComponent[]
+  stops: OperationalStopPlan[]
+  workingTime: number
+  accessTime: number
+  serviceTime: number
+  transportationTime: number
+  allowanceTime: number
+  totalCrewClockTime: number
+  customerServiceRange: { minHours: number; maxHours: number }
+  manualReviewReasons: string[]
+  warnings: string[]
+}
 export interface HiddenInventoryCoverage {
   state: MoveEvidenceState
   note?: string
@@ -685,6 +730,7 @@ export interface PricingBreakdown {
   bufferHours: number
   totalHours: number
   operationalHours: number
+  operationalTimeBudget?: OperationalTimeBudget
   crewSize: number
   crewRatePerHour: number
   truckCount: number
@@ -792,6 +838,9 @@ export interface JobFactors {
   // Canonical per-stop access model. Legacy origin/destination fields remain
   // during migration and are adapted when a profile has not yet been captured.
   accessProfiles?: AccessProfile[]
+  // Frozen with the estimate inputs so quote, dispatch, and customer scope can
+  // read the same operational plan. Shadow mode does not alter customer price.
+  operationalTimeBudget?: OperationalTimeBudget
   // Origin access
   originFloors?: number
   originHasElevator?: boolean
