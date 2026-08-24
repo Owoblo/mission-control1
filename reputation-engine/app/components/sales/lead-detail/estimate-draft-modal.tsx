@@ -27,6 +27,7 @@ import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import { removeStorageQuoteScope, type QuoteType } from '@/lib/storage-quote-scope'
 import { qualifyMoveAddress } from '@/lib/route-address'
 import { evaluateQuoteReadiness, HIDDEN_INVENTORY_AREAS } from '@/lib/quote-readiness'
+import { buildEstimateWorkflowStages, nextEstimateWorkflowStage, type EstimateWorkflowStageId } from '@/lib/estimate-workflow'
 import { selectedAddressCity } from '@/lib/address-city'
 import type { HiddenInventoryArea, MoveEvidenceState } from '@/lib/types'
 import {
@@ -360,47 +361,6 @@ type Props = {
   onRemoveInventoryItem: (index: number) => void
 }
 
-function Toggle({ label, value, onChange }: { label: string; value: boolean | undefined; onChange: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-xs text-[var(--app-muted)]">{label}</span>
-      <div className="flex rounded-[6px] border border-[var(--app-line)] overflow-hidden text-[10px] font-semibold">
-        <button
-          type="button"
-          onClick={() => onChange(true)}
-          className={`px-2.5 py-1 ${value === true ? 'bg-[var(--app-ink)] text-white' : 'bg-white text-[var(--app-muted)]'}`}
-        >
-          Yes
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange(false)}
-          className={`px-2.5 py-1 border-l border-[var(--app-line)] ${value === false ? 'bg-[var(--app-ink)] text-white' : 'bg-white text-[var(--app-muted)]'}`}
-        >
-          No
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function FloorSelect({ label, value, onChange }: { label: string; value: number | undefined; onChange: (v: number) => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-xs text-[var(--app-muted)]">{label}</span>
-      <select
-        value={value ?? 1}
-        onChange={e => onChange(Number(e.target.value))}
-        className="crm-input w-24 py-1 text-xs"
-      >
-        {[1, 2, 3, 4, 5].map(n => (
-          <option key={n} value={n}>{n === 1 ? '1 – Bungalow' : `${n} storeys`}</option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
 export function EstimateDraftModal({
   open,
   quote,
@@ -539,6 +499,7 @@ export function EstimateDraftModal({
   const [intakeApplied, setIntakeApplied] = useState(false)
   const [legsEnabled, setLegsEnabled] = useState(() => (legsProp?.length ?? 0) > 0)
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null)
+  const [activeStage, setActiveStage] = useState<EstimateWorkflowStageId>('lead')
 
   useEffect(() => { onRecalculateRef.current = onRecalculate }, [onRecalculate])
   const [dragOverRoom, setDragOverRoom] = useState<string | null>(null)
@@ -2261,12 +2222,14 @@ export function EstimateDraftModal({
   const originAccessConfirmed = Boolean(
     originAccess ||
     jobFactors.originParkingOk !== undefined ||
-    jobFactors.originHasElevator !== undefined
+    jobFactors.originHasElevator !== undefined ||
+    jobFactors.accessProfiles?.some(profile => profile.stopRole === 'pickup' && (profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown')))
   )
   const destinationAccessConfirmed = Boolean(
     destAccess ||
     jobFactors.destParkingOk !== undefined ||
-    jobFactors.destHasElevator !== undefined
+    jobFactors.destHasElevator !== undefined ||
+    jobFactors.accessProfiles?.some(profile => profile.stopRole === 'dropoff' && (profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown')))
   )
   const isLaborOnly = quoteType === 'labor_only'
   const quoteExplanation = useMemo(() => {
@@ -2374,6 +2337,26 @@ export function EstimateDraftModal({
     () => readinessItems.filter(item => !item.ready && !item.critical),
     [readinessItems]
   )
+  const workflowStages = useMemo(() => buildEstimateWorkflowStages({
+    readiness: readinessItems,
+    laborOnly: isLaborOnly,
+    hasLeadContext: Boolean(lead.name.trim() && (lead.phone || lead.email) && selectedMoveDate),
+    hasOrigin: Boolean(originFull.trim()),
+    hasDestination: Boolean(destFull.trim()),
+    hasInventory: effectiveInventoryMetrics.totalItems > 0,
+    hasHandlingPlan: Boolean(jobFactors.packingStatus || includedDisassemblyItems.length || jobFactors.specialtyNotes),
+    hasOperationalPlan: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount),
+    hasPrice: quoteModalTotals.total > 0,
+  }), [destFull, effectiveInventoryMetrics.totalItems, includedDisassemblyItems.length, isLaborOnly, jobFactors.packingStatus, jobFactors.specialtyNotes, lead.email, lead.name, lead.phone, originFull, pricingBreakdown?.crewSize, pricingBreakdown?.truckCount, quoteModalTotals.total, readinessItems, selectedMoveDate])
+  const activeStageIndex = Math.max(0, workflowStages.findIndex(stage => stage.id === activeStage))
+  const activeWorkflowStage = workflowStages[activeStageIndex] || workflowStages[0]
+  const goToStage = (stage: EstimateWorkflowStageId) => {
+    setActiveStage(stage)
+    requestAnimationFrame(() => document.getElementById('estimate-stage-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+  useEffect(() => {
+    if (!workflowStages.some(stage => stage.id === activeStage)) setActiveStage(workflowStages[0]?.id || 'lead')
+  }, [activeStage, workflowStages])
   const sendIssueDetails = useMemo(
     () => [...blockingReadiness, ...warningReadiness]
       // Commercial checks are internal controls, never customer quote copy.
@@ -2650,40 +2633,41 @@ export function EstimateDraftModal({
           </div>
         </div>
 
-        <div className="sticky top-0 z-30 border-b border-[var(--app-line)] bg-white/95 px-4 py-2 backdrop-blur md:px-6">
+        <div className="sticky top-0 z-30 border-b border-[var(--app-line)] bg-white/95 px-4 py-3 backdrop-blur md:px-6">
           <div className="flex items-center gap-2 overflow-x-auto">
-            {[
-              { id: 'estimate-route', label: quoteType === 'labor_only' ? '1 Work location' : '1 Route', ready: Boolean(originFull && (quoteType === 'labor_only' || destFull) && selectedMoveDate) },
-              { id: 'estimate-services', label: '2 Services', ready: true },
-              { id: 'estimate-inventory', label: '3 Inventory', ready: effectiveInventoryMetrics.totalItems > 0 && effectiveInventoryMetrics.totalCubicFeet > 0 },
-              { id: 'estimate-operations', label: '4 Crew & access', ready: Boolean(pricingBreakdown?.crewSize && pricingBreakdown?.truckCount) },
-              { id: 'estimate-price', label: '5 Price & send', ready: blockingReadiness.length === 0 && quoteModalTotals.total > 0 },
-            ].map(step => (
+            {workflowStages.map((step, index) => (
               <button
                 key={step.id}
                 type="button"
-                onClick={() => document.getElementById(step.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onClick={() => goToStage(step.id)}
                 className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
-                  step.ready
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-amber-200 bg-amber-50 text-amber-800'
+                  activeStage === step.id
+                    ? 'border-[#071421] bg-[#071421] text-white'
+                    : step.status === 'complete'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
                 }`}
               >
-                {step.ready ? '✓ ' : '○ '}{step.label}
+                {step.status === 'complete' ? '✓ ' : step.status === 'needs_attention' ? '! ' : '○ '}{index + 1} · {step.label}
               </button>
             ))}
-            <span className="ml-auto shrink-0 text-[10px] text-[var(--app-muted)]">
-              {blockingReadiness.length ? `${blockingReadiness.length} required item${blockingReadiness.length === 1 ? '' : 's'} left` : 'Ready for review'}
-            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-xs font-semibold text-[var(--app-ink)]">{activeWorkflowStage?.label}</div>
+              <div className="truncate text-[10px] text-[var(--app-muted)]">{activeWorkflowStage?.description}</div>
+            </div>
+            <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{activeWorkflowStage?.issueCount ? `${activeWorkflowStage.issueCount} item${activeWorkflowStage.issueCount === 1 ? '' : 's'} to confirm` : 'Stage complete'}</span>
           </div>
         </div>
 
-        <div className="grid xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div id="estimate-stage-content" className={`scroll-mt-28 grid ${activeStage === 'plan' ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
           {/* Main content */}
           <div className="overflow-y-auto p-4 md:p-6 space-y-6">
+            <style>{`[data-estimate-stage]:not([data-estimate-stage="${activeStage}"]) { display: none !important; }`}</style>
 
             {/* ── SMART INTAKE ── */}
-            <div className={`rounded-[10px] border ${intakeApplied ? 'border-emerald-300 bg-emerald-50' : 'border-[#071421]/20 bg-[#071421]/5'} overflow-hidden`}>
+            <div data-estimate-stage="lead" className={`rounded-[10px] border ${intakeApplied ? 'border-emerald-300 bg-emerald-50' : 'border-[#071421]/20 bg-[#071421]/5'} overflow-hidden`}>
               <button
                 type="button"
                 onClick={() => setIntakeOpen(v => !v)}
@@ -2852,11 +2836,12 @@ export function EstimateDraftModal({
             </div>
 
             {/* Route / work-location quick edit — hidden when multi-stop is on (legs ARE the route) */}
-            {(onOriginAddressChange || onDestAddressChange) && !legsEnabled && (
+            {(activeStage === 'origin' || activeStage === 'destination') && (onOriginAddressChange || onDestAddressChange) && !legsEnabled && (
               <div id="estimate-route" ref={routeSectionRef} className="scroll-mt-16 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
-                <div className="crm-label mb-3">{isLaborOnly ? 'Work Location' : 'Move Route'}</div>
-                <div className={`grid gap-3 ${isLaborOnly ? '' : 'sm:grid-cols-2'}`}>
-                  <div>
+                <div className="crm-label mb-1">{activeStage === 'destination' ? 'Destination' : isLaborOnly ? 'Work Location' : 'Origin'}</div>
+                <div className="mb-3 text-xs text-[var(--app-muted)]">Confirm the address first, then describe the actual route the crew will carry furniture.</div>
+                <div className="grid gap-3">
+                  {(activeStage === 'origin' || isLaborOnly) && <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{isLaborOnly ? 'Service address' : 'Origin'}</div>
                     <AddressAutocompleteInput
                       value={originAddress || lead.originAddress || ''}
@@ -2877,8 +2862,8 @@ export function EstimateDraftModal({
                         {jobFactors.originFloors >= 2 ? '🏢 Apartment detected' : '🏠 House detected'} — adjust in Job Factors if wrong
                       </div>
                     )}
-                  </div>
-                  {!isLaborOnly && <div>
+                  </div>}
+                  {!isLaborOnly && activeStage === 'destination' && <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
                     <AddressAutocompleteInput
                       value={destAddress || lead.destAddress || destCity || lead.destCity || ''}
@@ -2895,6 +2880,19 @@ export function EstimateDraftModal({
                       }}
                     />
                   </div>}
+                </div>
+                <div className="mt-4">
+                  <AccessProfileEditor
+                    lead={lead}
+                    factors={jobFactors}
+                    legs={undefined}
+                    singleLocation={isLaborOnly}
+                    stopRole={activeStage === 'destination' ? 'dropoff' : 'pickup'}
+                    compact
+                    baseHours={{ origin: Number(pricingBreakdown?.loadHours || 0), destination: Number(pricingBreakdown?.unloadHours || 0) }}
+                    currentUserName={currentUser?.name}
+                    onChange={onJobFactorsChange}
+                  />
                 </div>
                 {routeError && <div className="mt-2 text-xs text-rose-500">{routeError}</div>}
                 {routeBusy && <div className="mt-2 text-xs text-[var(--app-muted)]">Calculating route…</div>}
@@ -2956,8 +2954,26 @@ export function EstimateDraftModal({
               </div>
             )}
 
+            {(activeStage === 'origin' || activeStage === 'destination') && legsEnabled && (
+              <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                <div className="crm-label mb-1">{activeStage === 'destination' ? 'Delivery access' : 'Pickup access'}</div>
+                <p className="mb-4 text-xs leading-5 text-[var(--app-muted)]">This move has multiple stops. Each {activeStage === 'destination' ? 'delivery' : 'pickup'} keeps its own access profile so one easy address cannot hide a difficult one.</p>
+                <AccessProfileEditor
+                  lead={lead}
+                  factors={jobFactors}
+                  legs={legs}
+                  singleLocation={isLaborOnly}
+                  stopRole={activeStage === 'destination' ? 'dropoff' : 'pickup'}
+                  compact
+                  baseHours={{ origin: Number(pricingBreakdown?.loadHours || 0), destination: Number(pricingBreakdown?.unloadHours || 0) }}
+                  currentUserName={currentUser?.name}
+                  onChange={onJobFactorsChange}
+                />
+              </div>
+            )}
+
             {/* Quote Type Selector */}
-            <div>
+            <div data-estimate-stage="lead">
               <div className="crm-label mb-2">Quote Type</div>
               <div className="flex flex-wrap gap-2">
                 {([
@@ -2995,7 +3011,7 @@ export function EstimateDraftModal({
             </div>
 
             {effectiveInventoryMetrics.totalCubicFeet > 0 && (
-              <div className="rounded-[10px] border border-sky-200 bg-sky-50 p-4">
+              <div data-estimate-stage="plan" className="rounded-[10px] border border-sky-200 bg-sky-50 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700">Recommended operating setup</div>
@@ -3042,7 +3058,7 @@ export function EstimateDraftModal({
             )}
 
             {lead.moveType === 'commercial' && (
-              <div className="rounded-[8px] border border-sky-200 bg-sky-50/70 p-4 space-y-3">
+              <div data-estimate-stage="handling" className="rounded-[8px] border border-sky-200 bg-sky-50/70 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="crm-label">Commercial Scope</div>
@@ -3147,7 +3163,7 @@ export function EstimateDraftModal({
             )}
 
             {/* ── ADD-ON SERVICES ── */}
-            <div id="estimate-services" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
+            <div data-estimate-stage="handling" id="estimate-services" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
               <div>
                 <div className="crm-label">Customer Move Plan</div>
                 <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Start with the core move, then shape the complete transition around what this customer actually needs.</div>
@@ -3631,7 +3647,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* ── MULTI-STOP / STAGED MOVE ── */}
-            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
+            <div data-estimate-stage="lead" className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="crm-label">Multi-Stop Move</div>
@@ -3882,7 +3898,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* Branch Selector */}
-            <div>
+            <div data-estimate-stage="plan">
               <div className="crm-label mb-2">Branch / Yard Origin</div>
               <div className="flex flex-wrap gap-2">
                 {([
@@ -3923,7 +3939,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* Move Start Time */}
-            <div className="flex items-center gap-4 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+            <div data-estimate-stage="lead" className="flex items-center gap-4 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
               <div className="flex-1">
                 <div className="crm-label">Crew Start Time</div>
                 <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Shown on the customer quote. Default is 9:00 AM.</div>
@@ -3955,7 +3971,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* Move Description + Internal Notes */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div data-estimate-stage="lead" className="grid gap-4 sm:grid-cols-2">
               <div>
                 <div className="crm-label mb-1.5">Move Description <span className="font-normal normal-case text-[var(--app-muted)]">— shown on quote</span></div>
                 <textarea
@@ -3979,7 +3995,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* Inventory + Photos */}
-            <div id="estimate-inventory" className="scroll-mt-16 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+            <div data-estimate-stage="inventory" id="estimate-inventory" className="scroll-mt-16 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="crm-label">Inventory Snapshot</div>
@@ -4871,7 +4887,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* ── JOB FACTORS ── */}
-            <div id="estimate-operations" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+            <div data-estimate-stage="handling" id="estimate-operations" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="crm-label">Job Factors</div>
@@ -5168,63 +5184,6 @@ export function EstimateDraftModal({
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
 
-                {/* Origin Access */}
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">
-                    {conjointMode ? `${jobFactors.personALabel || 'Person A'} — Origin Access` : 'Origin Access'}
-                  </div>
-                  <FloorSelect label="Floors at origin" value={jobFactors.originFloors} onChange={v => setFactor('originFloors', v)} />
-                  <Toggle label="Has elevator?" value={jobFactors.originHasElevator} onChange={v => setFactor('originHasElevator', v)} />
-                  {jobFactors.originHasElevator && (
-                    <Toggle label="Elevator reserved?" value={jobFactors.originElevatorReserved} onChange={v => setFactor('originElevatorReserved', v)} />
-                  )}
-                  <Toggle label="Direct truck access?" value={jobFactors.originParkingOk} onChange={v => setFactor('originParkingOk', v)} />
-                  {!originAccessConfirmed ? (
-                    <button
-                      type="button"
-                      onClick={() => onJobFactorsChange({ ...jobFactors, originFloors: 1, originHasElevator: false, originParkingOk: true })}
-                      className="w-full rounded-[6px] border border-[#071421] bg-white px-3 py-2 text-[10px] font-semibold text-[#071421]"
-                    >
-                      Confirm standard house access
-                    </button>
-                  ) : null}
-                </div>
-
-                {/* Person B Origin Access (conjoint only) */}
-                {conjointMode && (
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-purple-700">
-                      {jobFactors.personBLabel || 'Person B'} — Origin Access
-                    </div>
-                    <FloorSelect label="Floors at origin" value={jobFactors.personBOriginFloors} onChange={v => setFactor('personBOriginFloors', v)} />
-                    <Toggle label="Has elevator?" value={jobFactors.personBOriginHasElevator} onChange={v => setFactor('personBOriginHasElevator', v)} />
-                    {jobFactors.personBOriginHasElevator && (
-                      <Toggle label="Elevator reserved?" value={jobFactors.personBOriginElevatorReserved} onChange={v => setFactor('personBOriginElevatorReserved', v)} />
-                    )}
-                    <Toggle label="Direct truck access?" value={jobFactors.personBOriginParkingOk} onChange={v => setFactor('personBOriginParkingOk', v)} />
-                  </div>
-                )}
-
-                {/* Destination Access */}
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Destination Access</div>
-                  <FloorSelect label="Floors at destination" value={jobFactors.destFloors} onChange={v => setFactor('destFloors', v)} />
-                  <Toggle label="Has elevator?" value={jobFactors.destHasElevator} onChange={v => setFactor('destHasElevator', v)} />
-                  {jobFactors.destHasElevator && (
-                    <Toggle label="Elevator reserved?" value={jobFactors.destElevatorReserved} onChange={v => setFactor('destElevatorReserved', v)} />
-                  )}
-                  <Toggle label="Direct truck access?" value={jobFactors.destParkingOk} onChange={v => setFactor('destParkingOk', v)} />
-                  {!destinationAccessConfirmed ? (
-                    <button
-                      type="button"
-                      onClick={() => onJobFactorsChange({ ...jobFactors, destFloors: 1, destHasElevator: false, destParkingOk: true })}
-                      className="w-full rounded-[6px] border border-[#071421] bg-white px-3 py-2 text-[10px] font-semibold text-[#071421]"
-                    >
-                      Confirm standard house access
-                    </button>
-                  ) : null}
-                </div>
-
                 <div className={`space-y-2 rounded-[8px] border px-4 py-3 lg:col-span-1 ${
                   accessAssessment.status === 'clear'
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
@@ -5238,19 +5197,6 @@ export function EstimateDraftModal({
                   </div>
                   <div className="text-xs leading-relaxed">{accessAssessment.summary}</div>
                 </div>
-
-                <AccessProfileEditor
-                  lead={lead}
-                  factors={jobFactors}
-                  legs={legsEnabled ? legs : undefined}
-                  singleLocation={isLaborOnly}
-                  baseHours={{
-                    origin: Number(pricingBreakdown?.loadHours || 0),
-                    destination: Number(pricingBreakdown?.unloadHours || 0),
-                  }}
-                  currentUserName={currentUser?.name}
-                  onChange={onJobFactorsChange}
-                />
 
                 <div className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -5543,7 +5489,7 @@ export function EstimateDraftModal({
             </div>
 
             {/* Line Items — grouped by service */}
-            <div id="estimate-price" className="scroll-mt-16">
+            <div data-estimate-stage="plan" id="estimate-price" className="scroll-mt-16">
               <div className="mb-4 crm-label">Estimate Line Items</div>
               {quoteLineItems.length === 0 ? (
                 <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
@@ -5686,10 +5632,72 @@ export function EstimateDraftModal({
                 </div>
               )}
             </div>
+
+            <div data-estimate-stage="review" className="space-y-4">
+              <div className="rounded-[12px] border border-[var(--app-line)] bg-white p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="crm-label">Customer scope review</div>
+                    <h3 className="mt-1 text-xl font-semibold text-[var(--app-ink)]">Review exactly what the customer will receive.</h3>
+                    <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--app-muted)]">The customer view is built from the same addresses, inventory, access, handling, and move plan captured in these stages.</p>
+                  </div>
+                  <div className={`rounded-full px-3 py-1.5 text-xs font-bold ${blockingReadiness.length ? 'bg-amber-100 text-amber-900' : 'bg-emerald-600 text-white'}`}>
+                    {blockingReadiness.length ? `${blockingReadiness.length} confirmation${blockingReadiness.length === 1 ? '' : 's'} left` : 'READY TO PREVIEW'}
+                  </div>
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {workflowStages.filter(stage => stage.id !== 'review').map(stage => (
+                    <button key={stage.id} type="button" onClick={() => goToStage(stage.id)} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-left hover:border-[var(--app-ink)]">
+                      <div className="flex items-center justify-between gap-2 text-xs font-semibold text-[var(--app-ink)]"><span>{stage.label}</span><span>{stage.status === 'complete' ? '✓' : stage.issueCount}</span></div>
+                      <div className="mt-1 text-[10px] leading-4 text-[var(--app-muted)]">{stage.description}</div>
+                    </button>
+                  ))}
+                </div>
+                {blockingReadiness.length > 0 ? (
+                  <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-3">
+                    <div className="text-xs font-semibold text-amber-950">Still needs confirmation</div>
+                    <div className="mt-2 grid gap-1 text-xs text-amber-900 sm:grid-cols-2">{blockingReadiness.map(item => <div key={`${item.label}-${item.detail}`}>• {item.label}</div>)}</div>
+                  </div>
+                ) : null}
+                {sendGuardOpen && (blockingReadiness.length > 0 || warningReadiness.length > 0) ? (
+                  <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                    <div className="font-semibold">This is not a final confirmed scope yet.</div>
+                    <p className="mt-1 leading-5">Return to the highlighted stages, or deliberately preview it as provisional so the customer sees what still needs confirmation.</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => {
+                        setSendGuardOpen(false)
+                        const firstIncomplete = workflowStages.find(stage => stage.id !== 'review' && stage.status !== 'complete')
+                        if (firstIncomplete) goToStage(firstIncomplete.id)
+                      }} className="rounded-[6px] border border-amber-300 bg-white px-3 py-1.5 font-semibold">Complete scope</button>
+                      <button type="button" onClick={() => void handleProvisionalSend()} disabled={quoteModalBusy || !quote} className="rounded-[6px] bg-[#071421] px-3 py-1.5 font-semibold text-white disabled:opacity-50">Preview provisional quote</button>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="mt-5 rounded-[10px] bg-[#071421] p-4 text-white">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">Customer total</div>
+                  <div className="mt-1 text-3xl font-bold">{formatMoney(quoteModalTotals.total)}</div>
+                  <div className="mt-1 text-xs text-white/65">Flat-price scope preview · deposit {formatMoney(quoteModalTotals.deposit)}</div>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <button type="button" onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote} className="flex-1 rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Preview customer view →</button>
+                    <button type="button" onClick={() => void onSaveDraft({ quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="rounded-[8px] border border-white/25 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save draft</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 z-20 flex items-center justify-between gap-3 border-t border-[var(--app-line)] bg-white/95 px-1 py-3 backdrop-blur">
+              <button type="button" disabled={activeStageIndex === 0} onClick={() => goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, -1))} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] disabled:opacity-30">← Back</button>
+              <div className="hidden text-center text-[10px] text-[var(--app-muted)] sm:block">Changes stay in the same draft. Moving between stages does not duplicate or resend anything.</div>
+              {activeStageIndex < workflowStages.length - 1 ? (
+                <button type="button" onClick={() => goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, 1))} className="rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white">Next: {workflowStages[activeStageIndex + 1]?.label} →</button>
+              ) : (
+                <span className="text-xs font-semibold text-[var(--app-muted)]">Final review</span>
+              )}
+            </div>
           </div>
 
           {/* Sidebar */}
-          <aside className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0 space-y-6">
+          <aside data-estimate-stage="plan" className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4 md:p-6 xl:border-l xl:border-t-0 space-y-6">
 
             {routeBusy && <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-4">
               <div className="crm-label">Contribution Pricing</div>
@@ -7648,8 +7656,8 @@ export function EstimateDraftModal({
                     </button>
                   </div>
                 )}
-                <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                  {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
+                <button onClick={() => goToStage('review')} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                  {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Review customer scope →'}
                 </button>
                 <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
