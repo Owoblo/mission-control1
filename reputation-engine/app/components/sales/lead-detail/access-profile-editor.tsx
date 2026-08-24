@@ -11,13 +11,14 @@ function Select<T extends string>({ label, value, options, onChange }: { label: 
   return <label className="block text-[10px] font-semibold text-[var(--app-muted)]"><span>{label}</span><select className="crm-input mt-1 w-full py-1.5 text-xs" value={value || ''} onChange={event => onChange(event.target.value as T)}><option value="">Choose…</option>{options.map(([key, text]) => <option key={key} value={key}>{text}</option>)}</select></label>
 }
 
-export function AccessProfileEditor({ lead, factors, legs, singleLocation, baseHours, currentUserName, onChange }: { lead: CRMLead; factors: JobFactors; legs?: QuoteLeg[]; singleLocation?: boolean; baseHours: { origin: number; destination: number }; currentUserName?: string; onChange: (next: JobFactors) => void }) {
+export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopRole, compact = false, baseHours, currentUserName, onChange }: { lead: CRMLead; factors: JobFactors; legs?: QuoteLeg[]; singleLocation?: boolean; stopRole?: 'pickup' | 'dropoff'; compact?: boolean; baseHours: { origin: number; destination: number }; currentUserName?: string; onChange: (next: JobFactors) => void }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const profiles = useMemo(() => accessProfilesForStops({ lead: { ...lead, jobFactors: factors }, legs }).filter(profile => !singleLocation || profile.stopRole !== 'dropoff'), [factors, lead, legs, singleLocation])
+  const allProfiles = useMemo(() => accessProfilesForStops({ lead: { ...lead, jobFactors: factors }, legs }), [factors, lead, legs])
+  const profiles = useMemo(() => allProfiles.filter(profile => (!singleLocation || profile.stopRole !== 'dropoff') && (!stopRole || profile.stopRole === stopRole)), [allProfiles, singleLocation, stopRole])
   const plan = calculateMoveAccessPlan(profiles, baseHours)
 
   function saveProfile(next: AccessProfile) {
-    const nextProfiles = profiles.some(item => item.stopId === next.stopId) ? profiles.map(item => item.stopId === next.stopId ? next : item) : [...profiles, next]
+    const nextProfiles = allProfiles.some(item => item.stopId === next.stopId) ? allProfiles.map(item => item.stopId === next.stopId ? next : item) : [...allProfiles, next]
     onChange({ ...factors, accessProfiles: nextProfiles })
   }
 
@@ -25,7 +26,7 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, baseH
     saveProfile({ ...profile, ...values, standardAccessConfirmed: values.standardAccessConfirmed ?? (Object.keys(values).some(key => !['evidenceStatus', 'evidenceNote'].includes(key)) ? false : profile.standardAccessConfirmed), verifiedAt: new Date().toISOString(), verifiedBy: currentUserName || 'Sales' })
   }
 
-  return <div className="space-y-3 rounded-[8px] border-2 border-sky-200 bg-sky-50 p-4 lg:col-span-3">
+  return <div className={`space-y-3 rounded-[8px] border-2 border-sky-200 bg-sky-50 p-4 ${compact ? '' : 'lg:col-span-3'}`}>
     <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[0.14em] text-sky-950">Per-stop access profiles</div><p className="mt-1 max-w-3xl text-xs text-sky-900/70">Access is measured as repeated carrying time—not a flat apartment or floor fee. New results are shown in shadow mode and do not alter pricing yet.</p></div><div className={`rounded-full px-3 py-1 text-xs font-bold ${plan.ready ? 'bg-emerald-600 text-white' : plan.manualReviewReasons.length ? 'bg-rose-600 text-white' : 'bg-white text-sky-950'}`}>{plan.manualReviewReasons.length ? 'MANUAL REVIEW' : plan.ready ? 'ACCESS READY' : 'VERIFY ACCESS'}</div></div>
     <div className="grid gap-3 xl:grid-cols-2">
       {profiles.map(profile => {
