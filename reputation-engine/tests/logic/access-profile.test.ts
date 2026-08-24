@@ -64,3 +64,27 @@ test('an existing origin profile does not suppress the required destination prof
   const profiles = accessProfilesForStops({ lead: { originAddress: '1 Main St', destAddress: '2 King St', jobFactors: { accessProfiles: [origin] } } })
   assert.equal(profiles.some(item => item.stopId === 'primary-destination'), true)
 })
+
+test('the same physical stop is not repeated when address formatting differs', () => {
+  const profiles = accessProfilesForStops({
+    lead: {
+      originAddress: '830 Revland Drive',
+      originCity: 'Tecumseh',
+      destAddress: '327 West Belle River Road',
+      destCity: 'Belle River',
+      jobFactors: {},
+    },
+    legs: [{
+      id: 'leg-a',
+      label: 'Person A pickup',
+      type: 'move',
+      originAddress: '830 Revland Drive, Tecumseh, Ontario, Canada',
+      originCity: 'Tecumseh',
+      destAddress: '327 West Belle River Road, Belle River, ON, Canada',
+      destCity: 'Belle River',
+    }],
+  })
+
+  assert.equal(profiles.filter(profile => profile.stopRole === 'pickup').length, 1)
+  assert.equal(profiles.filter(profile => profile.stopRole === 'dropoff').length, 1)
+})
