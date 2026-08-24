@@ -24,6 +24,7 @@ import { buildPackingMaterialsEstimate } from './packing-materials'
 import { applyRealtorContactToOpportunityLead } from './realtor-opportunity'
 import { recommendTruckLoadPlan } from './truck-planning'
 import { assessMoveIntelligence } from './move-intelligence'
+import { buildOperationalTimeBudget } from './operational-time-budget'
 
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim()
@@ -1651,6 +1652,11 @@ function estimateSingleLeadQuote(
     },
     intelligenceFlags,
   }
+  pricingBreakdown.operationalTimeBudget = buildOperationalTimeBudget({
+    pricing: pricingBreakdown,
+    accessProfiles: activeFactors?.accessProfiles,
+    singleLocation: isLaborOnly || isPacking,
+  })
 
   return {
     ...computeQuoteTotals(lineItems, getDefaultDepositRate(lead.moveType)),
@@ -2398,6 +2404,11 @@ function buildMultiLegEstimate(
       twoDayMoveEstimate,
     },
   }
+  pricingBreakdown.operationalTimeBudget = buildOperationalTimeBudget({
+    pricing: pricingBreakdown,
+    accessProfiles: baseFactors?.accessProfiles,
+    singleLocation: overrides?.quoteType === 'labor_only' || lead.quoteType === 'labor_only' || lead.moveType === 'labor-only',
+  })
 
   return {
     ...computeQuoteTotals(lineItems, getDefaultDepositRate(lead.moveType)),
