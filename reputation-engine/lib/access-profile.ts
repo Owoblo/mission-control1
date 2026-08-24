@@ -149,18 +149,39 @@ export function legacyAccessProfiles(lead: Pick<CRMLead, 'originAddress' | 'orig
 export function accessProfilesForStops(input: { lead: Pick<CRMLead, 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'jobFactors'>; legs?: QuoteLeg[] }): AccessProfile[] {
   const existing = input.lead.jobFactors?.accessProfiles || []
   const primary = legacyAccessProfiles({ ...input.lead, jobFactors: { ...(input.lead.jobFactors || {}), accessProfiles: undefined } })
-  const result = existing.length ? [...existing] : [...primary]
-  for (const seed of primary) if (!result.some(profile => profile.stopId === seed.stopId)) result.push(seed)
-  const normalizedAddresses = new Set(result.map(profile => (profile.addressSnapshot || '').trim().toLowerCase()).filter(Boolean))
+  const normalizeAddress = (value?: string) => {
+    const ignored = new Set(['ontario', 'on', 'canada'])
+    const seen = new Set<string>()
+    return (value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(token => token && !ignored.has(token) && !/^[a-z]\d[a-z]\d[a-z]\d$/i.test(token))
+      .filter(token => {
+        if (seen.has(token)) return false
+        seen.add(token)
+        return true
+      })
+      .join(' ')
+  }
+  const result: AccessProfile[] = []
+  for (const profile of existing.length ? [...existing, ...primary] : primary) {
+    const normalized = normalizeAddress(profile.addressSnapshot)
+    const duplicate = normalized && result.some(current => normalizeAddress(current.addressSnapshot) === normalized && current.stopRole === profile.stopRole)
+    if (!duplicate && !result.some(current => current.stopId === profile.stopId)) result.push(profile)
+  }
+  const normalizedAddresses = new Set(result.map(profile => `${profile.stopRole}:${normalizeAddress(profile.addressSnapshot)}`).filter(value => !value.endsWith(':')))
   for (const leg of input.legs || []) {
     const stops = [
       { suffix: 'origin', role: 'pickup' as const, address: [leg.originAddress, leg.originCity].filter(Boolean).join(', ') },
       { suffix: 'destination', role: leg.type === 'storage' ? 'storage' as const : 'dropoff' as const, address: [leg.destAddress, leg.destCity].filter(Boolean).join(', ') },
     ]
     for (const stop of stops) {
-      const normalized = stop.address.trim().toLowerCase()
-      if (!normalized || normalizedAddresses.has(normalized)) continue
-      normalizedAddresses.add(normalized)
+      const normalized = normalizeAddress(stop.address)
+      const normalizedKey = `${stop.role}:${normalized}`
+      if (!normalized || normalizedAddresses.has(normalizedKey)) continue
+      normalizedAddresses.add(normalizedKey)
       result.push({ id: `access-${leg.id}-${stop.suffix}`, stopId: `leg:${leg.id}:${stop.suffix}`, stopRole: stop.role, label: `${leg.label} · ${stop.suffix === 'origin' ? 'pickup' : 'destination'}`, addressSnapshot: stop.address, evidenceStatus: 'unknown' })
     }
   }
