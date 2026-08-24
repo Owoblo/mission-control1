@@ -82,8 +82,12 @@ function elevatorFactor(profile: AccessProfile) {
   if (reservation === 'shared') return profile.elevatorWait === 'likely_delays' ? 0.4 : 0.3
   if (reservation === 'requested') return 0.25
   if (reservation === 'not_available') return 0
-  if (profile.elevatorType === 'freight') return profile.elevatorWait === 'slow' ? 0.2 : 0.1
-  return profile.elevatorWait === 'slow' ? 0.2 : 0.15
+  const reservedFactor = profile.elevatorType === 'freight'
+    ? profile.elevatorWait === 'slow' ? 0.2 : 0.1
+    : profile.elevatorWait === 'slow' ? 0.2 : 0.15
+  // A reservation that still shares the car with residents creates repeated
+  // waiting time, even when the building has acknowledged the move.
+  return profile.elevatorExclusive === false ? Math.min(0.3, reservedFactor + 0.1) : reservedFactor
 }
 
 function obstructionFactor(profile: AccessProfile) {
@@ -249,10 +253,15 @@ export function calculateMoveAccessPlan(profiles: AccessProfile[], baseHours: { 
 export function accessProfileCustomerSummary(profile: AccessProfile) {
   if (profile.standardAccessConfirmed) return `${profile.label}: customer confirmed standard ground-floor access, normal entrances, and nearby legal truck parking.`
   const parts = [profile.propertyType?.replace(/_/g, ' ')]
+  if (profile.entranceLocation) parts.push(`${profile.entranceLocation.replace('_', ' ')} entrance`)
   const walk = sumWalkMinutes(profile)
   if (walk !== null) parts.push(walk < 1 ? 'under a one-minute carrying route' : `approximately ${walk} minutes of carrying route per trip`)
   if (profile.verticalMode === 'stairs') parts.push(`${profile.stairFlights || 0} stair flight${profile.stairFlights === 1 ? '' : 's'}`)
-  if (profile.verticalMode?.includes('elevator') || profile.verticalMode === 'stairs_or_elevator') parts.push(`${profile.elevatorReservation === 'confirmed' ? 'reserved' : profile.elevatorReservation === 'shared' ? 'shared' : 'planned'} ${profile.elevatorType || ''} elevator`.replace(/\s+/g, ' ').trim())
+  if (profile.verticalMode?.includes('elevator') || profile.verticalMode === 'stairs_or_elevator') {
+    const count = Number(profile.elevatorCount || 0)
+    const elevator = `${profile.elevatorReservation === 'confirmed' ? 'reserved' : profile.elevatorReservation === 'shared' ? 'shared' : 'planned'} ${profile.elevatorType || ''} elevator${count > 1 ? ` (${count} available)` : ''}`.replace(/\s+/g, ' ').trim()
+    parts.push(profile.elevatorExclusive === true ? `${elevator}, exclusive for the crew` : profile.elevatorExclusive === false ? `${elevator}, shared during the move` : elevator)
+  }
   if (profile.buildingCheckIn) parts.push('normal building check-in')
   if (profile.loadingDockProcedureMinutes) parts.push(`${profile.loadingDockProcedureMinutes}-minute loading-dock procedure`)
   return `${profile.label}: ${parts.filter(Boolean).join(', ')}.`
