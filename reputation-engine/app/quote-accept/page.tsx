@@ -11,6 +11,7 @@ import { recommendTruckLoadPlan } from '@/lib/truck-planning'
 import { assessMoveIntelligence } from '@/lib/move-intelligence'
 import { hiddenInventoryCoverage } from '@/lib/quote-readiness'
 import { buildCustomerCarePlan, buildCustomerQuoteScope, getCustomerQuoteOptionLabel } from '@/lib/customer-quote-content'
+import { accessProfileCustomerSummary } from '@/lib/access-profile'
 import {
   Archive,
   Armchair,
@@ -1126,6 +1127,7 @@ function QuoteAcceptPageInner() {
     singleLocation: isSingleLocationLaborOnly,
   })
   const reviewedHiddenAreas = hiddenInventoryCoverage(jobFactors || undefined)
+  const confirmedAccessProfiles = (quote.jobFactors?.accessProfiles || []).filter(profile => profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown'))
   const legacyAssemblyItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
     ? inventory
         .filter(item => /\bbed\b|\btable\b|\bdesk\b|\bdresser\b|\bwardrobe\b|\btreadmill\b/i.test(item.name || item.item || ''))
@@ -1494,6 +1496,24 @@ function QuoteAcceptPageInner() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {confirmedAccessProfiles.length > 0 && (
+          <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Access included in your moving plan</div>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">From each room to the truck.</h2>
+            <p className="mt-2 text-sm leading-6 text-[#071421]/60">Your quoted scope includes the parking, carrying route, stairs, elevators, and normal building procedures confirmed below.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {confirmedAccessProfiles.map(profile => (
+                <div key={profile.id} className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                  <div className="flex items-center justify-between gap-3"><span className="font-bold text-[#071421]">{profile.label}</span><span className="text-emerald-700">✓</span></div>
+                  <p className="mt-2 text-xs leading-5 text-[#071421]/60">{accessProfileCustomerSummary(profile)}</p>
+                  {profile.evidenceNote && !profile.standardAccessConfirmed ? <p className="mt-2 text-[10px] leading-4 text-[#071421]/45">Confirmation note: {profile.evidenceNote}</p> : null}
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 rounded-xl border border-[#C99700]/30 bg-[#C99700]/8 px-4 py-3 text-xs leading-5 text-[#071421]/65">Access conditions described above have been included in the quoted scope. Material changes to parking availability, carrying distance, stairs, elevator access, loading procedures, or building restrictions may require an updated moving plan and price before additional work begins.</p>
           </section>
         )}
 

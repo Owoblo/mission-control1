@@ -1,4 +1,5 @@
 import type { CRMLead, CRMQuote, HiddenInventoryArea, HiddenInventoryCoverage, JobFactors } from './types'
+import { calculateMoveAccessPlan } from './access-profile'
 
 export const HIDDEN_INVENTORY_AREAS: Array<{ key: HiddenInventoryArea; label: string; prompt: string }> = [
   { key: 'basement', label: 'Basement', prompt: "I don't see the full basement. Is it finished or unfinished, and what is currently down there that is moving?" },
@@ -30,16 +31,25 @@ export function evaluateQuoteReadiness(lead: CRMLead, quote?: Pick<CRMQuote, 'bi
   const blockers: string[] = []
   const warnings: string[] = []
   const isLaborOnly = quote?.quoteType === 'labor_only' || lead.quoteType === 'labor_only' || lead.moveType === 'labor-only'
+  const accessProfiles = factors.accessProfiles || []
+  const originProfile = accessProfiles.find(profile => profile.stopId === 'primary-origin' || profile.stopRole === 'pickup')
+  const destinationProfile = accessProfiles.find(profile => profile.stopId === 'primary-destination' || profile.stopRole === 'dropoff')
+  const profileResolved = (profile: typeof originProfile) => Boolean(profile && (profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown')))
 
   if (!inventory.length) blockers.push('Main inventory has not been captured.')
   if (inventory.some(item => item.status === 'needs_confirmation')) blockers.push('Inventory still contains customer decisions that need confirmation.')
   if (inventory.some(item => Number(item.cubicFeet || 0) <= 0)) blockers.push('One or more included items have unknown volume.')
   for (const area of hidden) if (!area.resolved) blockers.push(`${area.label} has not been explicitly resolved.`)
   if (!factors.packingStatus) blockers.push('Packing status is unknown.')
-  if (factors.originFloors === undefined || factors.originHasElevator === undefined || factors.originParkingOk === undefined) blockers.push('Origin stairs, elevator, and truck access are incomplete.')
-  if (!isLaborOnly && (factors.destFloors === undefined || factors.destHasElevator === undefined || factors.destParkingOk === undefined)) blockers.push('Destination stairs, elevator, and truck access are incomplete.')
-  if (factors.originHasElevator && factors.originElevatorReserved !== true) blockers.push('Origin elevator reservation is not confirmed.')
-  if (!isLaborOnly && factors.destHasElevator && factors.destElevatorReserved !== true) blockers.push('Destination elevator reservation is not confirmed.')
+  if (!profileResolved(originProfile) && (factors.originFloors === undefined || factors.originHasElevator === undefined || factors.originParkingOk === undefined)) blockers.push('Origin stairs, elevator, and truck access are incomplete.')
+  if (!isLaborOnly && !profileResolved(destinationProfile) && (factors.destFloors === undefined || factors.destHasElevator === undefined || factors.destParkingOk === undefined)) blockers.push('Destination stairs, elevator, and truck access are incomplete.')
+  if (!originProfile && factors.originHasElevator && factors.originElevatorReserved !== true) blockers.push('Origin elevator reservation is not confirmed.')
+  if (!isLaborOnly && !destinationProfile && factors.destHasElevator && factors.destElevatorReserved !== true) blockers.push('Destination elevator reservation is not confirmed.')
+  if (accessProfiles.length) {
+    const accessPlan = calculateMoveAccessPlan(accessProfiles, { origin: 1, destination: 1 })
+    blockers.push(...accessPlan.manualReviewReasons.map(reason => `Manual access review required: ${reason}`))
+    warnings.push(...accessPlan.warnings)
+  }
   if (!(quote?.originAddress || lead.originAddress)?.trim()) blockers.push(isLaborOnly ? 'Work location is required.' : 'Origin address is required.')
   if (!isLaborOnly && !(quote?.destAddress || lead.destAddress)?.trim()) blockers.push('Destination address is required.')
   if (!lead.inventoryVerification?.completedAt) warnings.push('Customer inventory confirmation is not recorded.')
@@ -49,9 +59,9 @@ export function evaluateQuoteReadiness(lead: CRMLead, quote?: Pick<CRMQuote, 'bi
     (inventory.length ? inventory.reduce((sum, item) => sum + (item.status === 'confirmed' || item.source === 'customer_verification' ? 1 : Number(item.confidence ?? 0.45)), 0) / inventory.length : 0) * 55 +
     (resolvedCoverage / HIDDEN_INVENTORY_AREAS.length) * 30 +
     (isLaborOnly
-      ? (factors.originFloors !== undefined && factors.originHasElevator !== undefined && factors.originParkingOk !== undefined ? 1 : 0)
-      : ((factors.originFloors !== undefined && factors.originHasElevator !== undefined && factors.originParkingOk !== undefined ? 0.5 : 0) +
-        (factors.destFloors !== undefined && factors.destHasElevator !== undefined && factors.destParkingOk !== undefined ? 0.5 : 0))) * 15
+      ? (profileResolved(originProfile) || (factors.originFloors !== undefined && factors.originHasElevator !== undefined && factors.originParkingOk !== undefined) ? 1 : 0)
+      : ((profileResolved(originProfile) || (factors.originFloors !== undefined && factors.originHasElevator !== undefined && factors.originParkingOk !== undefined) ? 0.5 : 0) +
+        (profileResolved(destinationProfile) || (factors.destFloors !== undefined && factors.destHasElevator !== undefined && factors.destParkingOk !== undefined) ? 0.5 : 0))) * 15
   )))
   return { status: blockers.length ? 'scope_in_progress' as const : 'quote_ready' as const, quoteReady: blockers.length === 0, inventoryConfidence, blockers, warnings, hidden }
 }

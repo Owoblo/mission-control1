@@ -18,6 +18,7 @@ import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
+import { AccessProfileEditor } from './access-profile-editor'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { CustomerQuoteScope, EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
@@ -5229,6 +5230,19 @@ export function EstimateDraftModal({
                   </div>
                   <div className="text-xs leading-relaxed">{accessAssessment.summary}</div>
                 </div>
+
+                <AccessProfileEditor
+                  lead={lead}
+                  factors={jobFactors}
+                  legs={legsEnabled ? legs : undefined}
+                  singleLocation={isLaborOnly}
+                  baseHours={{
+                    origin: Number(pricingBreakdown?.loadHours || 0),
+                    destination: Number(pricingBreakdown?.unloadHours || 0),
+                  }}
+                  currentUserName={currentUser?.name}
+                  onChange={onJobFactorsChange}
+                />
 
                 <div className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
