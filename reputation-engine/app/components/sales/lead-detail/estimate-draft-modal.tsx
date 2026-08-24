@@ -19,6 +19,7 @@ import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logist
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { AccessProfileEditor } from './access-profile-editor'
+import { accessProfilesForStops } from '@/lib/access-profile'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { CustomerQuoteScope, EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
@@ -2634,6 +2635,10 @@ export function EstimateDraftModal({
         </div>
 
         <div className="sticky top-0 z-30 border-b border-[var(--app-line)] bg-white/95 px-4 py-3 backdrop-blur md:px-6">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Move planner</span>
+            <span className="text-[10px] text-[var(--app-muted)]">Start anywhere. Each confirmed fact stays with this draft.</span>
+          </div>
           <div className="flex items-center gap-2 overflow-x-auto">
             {workflowStages.map((step, index) => (
               <button
@@ -2850,18 +2855,13 @@ export function EstimateDraftModal({
                         onOriginAddressChange?.(address)
                         if (city) onOriginCityChange?.(city)
                         if (placeId) setOriginPlaceId(placeId)
-                        if (placeType === 'apartment') {
-                          onJobFactorsChange({ ...jobFactors, originFloors: 2, originHasElevator: true, originParkingOk: undefined })
-                        } else if (placeType === 'house') {
-                          onJobFactorsChange({ ...jobFactors, originFloors: 1, originHasElevator: false, originParkingOk: true })
+                        if (placeType === 'apartment' || placeType === 'house') {
+                          const profiles = accessProfilesForStops({ lead: { ...lead, jobFactors }, legs: undefined })
+                          const suggestedType = placeType === 'apartment' ? 'low_rise' : 'detached'
+                          onJobFactorsChange({ ...jobFactors, accessProfiles: profiles.map(profile => profile.stopRole === 'pickup' ? { ...profile, propertyType: suggestedType, propertyTypeSource: 'address_provider' as const, standardAccessConfirmed: false, evidenceStatus: 'customer_estimated' as const, evidenceNote: 'Property type suggested from the address provider; practical access still needs confirmation.' } : profile) })
                         }
                       }}
                     />
-                    {jobFactors.originFloors && (
-                      <div className="mt-1 text-[10px] text-[var(--app-muted)]">
-                        {jobFactors.originFloors >= 2 ? '🏢 Apartment detected' : '🏠 House detected'} — adjust in Job Factors if wrong
-                      </div>
-                    )}
                   </div>}
                   {!isLaborOnly && activeStage === 'destination' && <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
@@ -2872,10 +2872,10 @@ export function EstimateDraftModal({
                         onDestAddressChange?.(address)
                         if (city) onDestCityChange?.(city)
                         if (placeId) setDestPlaceId(placeId)
-                        if (placeType === 'apartment') {
-                          onJobFactorsChange({ ...jobFactors, destFloors: 2, destHasElevator: true, destParkingOk: undefined })
-                        } else if (placeType === 'house') {
-                          onJobFactorsChange({ ...jobFactors, destFloors: 1, destHasElevator: false, destParkingOk: true })
+                        if (placeType === 'apartment' || placeType === 'house') {
+                          const profiles = accessProfilesForStops({ lead: { ...lead, jobFactors }, legs: undefined })
+                          const suggestedType = placeType === 'apartment' ? 'low_rise' : 'detached'
+                          onJobFactorsChange({ ...jobFactors, accessProfiles: profiles.map(profile => profile.stopRole === 'dropoff' ? { ...profile, propertyType: suggestedType, propertyTypeSource: 'address_provider' as const, standardAccessConfirmed: false, evidenceStatus: 'customer_estimated' as const, evidenceNote: 'Property type suggested from the address provider; practical access still needs confirmation.' } : profile) })
                         }
                       }}
                     />

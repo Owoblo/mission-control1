@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { accessProfilesForStops, calculateMoveAccessPlan, calculateStopAccess, createStandardAccessProfile, legacyAccessProfiles } from '../../lib/access-profile'
+import { accessProfileCustomerSummary, accessProfilesForStops, calculateMoveAccessPlan, calculateStopAccess, createStandardAccessProfile, legacyAccessProfiles } from '../../lib/access-profile'
 import type { AccessProfile } from '../../lib/types'
 
 function profile(overrides: Partial<AccessProfile>): AccessProfile {
@@ -87,4 +87,25 @@ test('the same physical stop is not repeated when address formatting differs', (
 
   assert.equal(profiles.filter(profile => profile.stopRole === 'pickup').length, 1)
   assert.equal(profiles.filter(profile => profile.stopRole === 'dropoff').length, 1)
+})
+
+test('customer scope explains the practical elevator and entrance plan without internal factors', () => {
+  const summary = accessProfileCustomerSummary(profile({
+    propertyType: 'high_rise',
+    entranceLocation: 'rear',
+    elevatorCount: 2,
+    elevatorExclusive: false,
+    elevatorType: 'freight',
+    elevatorReservation: 'shared',
+  }))
+
+  assert.match(summary, /rear entrance/)
+  assert.match(summary, /freight elevator \(2 available\), shared during the move/)
+  assert.doesNotMatch(summary, /factor|allowance|hours/i)
+})
+
+test('a reserved but shared elevator adds more access time than exclusive crew access', () => {
+  const exclusive = calculateStopAccess(profile({ elevatorExclusive: true }), 3)
+  const shared = calculateStopAccess(profile({ elevatorExclusive: false }), 3)
+  assert.ok(shared.additionalAccessHours > exclusive.additionalAccessHours)
 })

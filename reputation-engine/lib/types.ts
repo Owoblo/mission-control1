@@ -211,7 +211,9 @@ export interface AccessProfile {
   label: string
   addressSnapshot?: string
   propertyType?: AccessPropertyType
+  propertyTypeSource?: 'address_provider' | 'lead_record' | 'rep_selected'
   standardAccessConfirmed?: boolean
+  entranceLocation?: 'front' | 'rear' | 'side' | 'loading_dock' | 'other'
   truckPosition?: AccessTruckPosition
   walkToEntrance?: AccessWalkBucket
   entranceToVerticalAccess?: AccessWalkBucket
@@ -228,6 +230,8 @@ export interface AccessProfile {
   stairItemIds?: string[]
   unitFloor?: number
   elevatorType?: 'freight' | 'passenger' | 'unknown'
+  elevatorCount?: number
+  elevatorExclusive?: boolean
   elevatorReservation?: 'confirmed' | 'requested' | 'shared' | 'not_available' | 'unknown'
   elevatorWait?: 'short' | 'normal' | 'slow' | 'likely_delays' | 'unknown'
   elevatorFitsMajorFurniture?: boolean
