@@ -1,5 +1,35 @@
 import type { CRMQuote } from './types'
 
+const COMMERCIAL_KEYS = ['lineItems', 'discountAmount', 'discountLabel', 'subtotal', 'hst', 'total', 'deposit', 'balance'] as const
+
+function normalizeCommercialValue(key: typeof COMMERCIAL_KEYS[number], value: unknown) {
+  if (key === 'lineItems') {
+    return (Array.isArray(value) ? value : []).map(item => {
+      const line = item as { description?: string; details?: string; amount?: number }
+      return { description: (line.description || '').trim(), details: (line.details || '').trim(), amount: Math.round(Number(line.amount || 0) * 100) / 100 }
+    })
+  }
+  if (key === 'discountLabel') return String(value || '').trim()
+  return Math.round(Number(value || 0) * 100) / 100
+}
+
+export function hasCustomerFacingCommercialSnapshot(quote?: Partial<CRMQuote> | null) {
+  return Boolean(quote && (quote.sentAt || quote.viewedAt || quote.acceptedAt || quote.respondedAt || ['sent', 'viewed', 'accepted', 'invoiced', 'declined'].includes(String(quote.status))))
+}
+
+export function quoteCommercialSnapshotChanged(current: CRMQuote, updates: Partial<CRMQuote>) {
+  return COMMERCIAL_KEYS.some(key =>
+    Object.prototype.hasOwnProperty.call(updates, key) &&
+    JSON.stringify(normalizeCommercialValue(key, current[key])) !== JSON.stringify(normalizeCommercialValue(key, updates[key]))
+  )
+}
+
+export function quoteDeliveryBlockReason(quote: Pick<CRMQuote, 'status' | 'respondedAt'>) {
+  if (quote.status === 'declined') return 'This customer declined the quote. Create an explicit revision and obtain permission before sending another quote.'
+  if (quote.status === 'sent' && quote.respondedAt) return 'This quote already has a customer response and cannot be resent as an active quote without explicit reactivation.'
+  return null
+}
+
 export function hasDeliverableQuotePricing(quote?: Partial<CRMQuote> | null) {
   return Boolean(
     quote &&
@@ -14,14 +44,7 @@ export function quotePricingUpdateWouldEraseSnapshot(
   current: CRMQuote,
   updates: Partial<CRMQuote>,
 ) {
-  const pricingTouched = [
-    'lineItems',
-    'subtotal',
-    'hst',
-    'total',
-    'deposit',
-    'balance',
-  ].some(key => Object.prototype.hasOwnProperty.call(updates, key))
+  const pricingTouched = COMMERCIAL_KEYS.some(key => Object.prototype.hasOwnProperty.call(updates, key))
   if (!pricingTouched || !hasDeliverableQuotePricing(current)) return false
   return !hasDeliverableQuotePricing({ ...current, ...updates })
 }

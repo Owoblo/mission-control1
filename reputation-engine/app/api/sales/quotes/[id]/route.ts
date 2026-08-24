@@ -8,7 +8,7 @@ import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFoll
 import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
-import { hasDeliverableQuotePricing, quotePricingUpdateWouldEraseSnapshot } from '@/lib/quote-pricing-safety'
+import { hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quotePricingUpdateWouldEraseSnapshot } from '@/lib/quote-pricing-safety'
 import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
 import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 
@@ -78,7 +78,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
     }
 
-    const updates = (await request.json()) as Partial<typeof current>
+    const requestBody = (await request.json()) as Partial<typeof current> & { pricingRevisionReason?: string; reactivateDeclinedQuote?: boolean }
+    const { pricingRevisionReason, reactivateDeclinedQuote, ...updates } = requestBody
     const currentLead = current.leadId ? await getSalesLead(current.leadId) : null
     if (!canReviseExistingQuote(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
@@ -87,6 +88,23 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     if (quotePricingUpdateWouldEraseSnapshot(current, updates)) {
       return NextResponse.json(
         { error: 'This quote already has customer-facing pricing. An empty or zero-dollar update cannot erase the saved price.' },
+        { status: 409 },
+      )
+    }
+
+    if (hasCustomerFacingCommercialSnapshot(current) && quoteCommercialSnapshotChanged(current, updates)) {
+      const reason = pricingRevisionReason?.trim() || ''
+      if (reason.length < 8) {
+        return NextResponse.json(
+          { error: 'Customer-facing pricing is locked. Start an explicit price revision and record why the agreed price is changing.' },
+          { status: 409 },
+        )
+      }
+    }
+
+    if (current.status === 'declined' && updates.status && updates.status !== 'declined' && !reactivateDeclinedQuote) {
+      return NextResponse.json(
+        { error: 'This customer declined the quote. It cannot be reactivated without an explicit customer-approved revision.' },
         { status: 409 },
       )
     }
@@ -136,13 +154,13 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const previousTotal = current.total
     const newTotal = updates.total ?? current.total
     const isAccepted = !!(current.acceptedAt || updates.acceptedAt)
-    const totalChanged = isAccepted && typeof updates.total === 'number' && Math.abs(newTotal - previousTotal) > 0.5
 
-    const autoChangeEntry: QuoteChangeEntry | null = totalChanged ? {
+    const customerFacingPriceChanged = hasCustomerFacingCommercialSnapshot(current) && quoteCommercialSnapshotChanged(current, updates)
+    const autoChangeEntry: QuoteChangeEntry | null = customerFacingPriceChanged ? {
       id: uid('chg'),
       changedAt: new Date().toISOString(),
       changedBy: session?.name || 'System',
-      reason: 'Quote revised after acceptance',
+      reason: pricingRevisionReason!.trim(),
       changeType: 'price_revision',
       previousTotal,
       newTotal,
