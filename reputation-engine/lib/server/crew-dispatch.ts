@@ -2,6 +2,7 @@ import { detectSalesBranchFromLocation, formatDate } from '@/lib/sales'
 import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesBranch } from '@/lib/types'
 import { assessMoveIntelligence } from '@/lib/move-intelligence'
+import { accessProfileCustomerSummary } from '@/lib/access-profile'
 
 type CrewDispatchUser = {
   id: string
@@ -171,11 +172,15 @@ export async function generateCrewBrief(input: { lead: CRMLead; quote: CRMQuote 
 
     // Access
     const originParts: string[] = []
+    const originProfile = jf?.accessProfiles?.find(profile => profile.stopId === 'primary-origin' || profile.stopRole === 'pickup')
+    if (originProfile) originParts.push(accessProfileCustomerSummary(originProfile))
     if (jf?.originFloors) originParts.push(`${jf.originFloors} floor${jf.originFloors > 1 ? 's' : ''}`)
     if (jf?.originHasElevator) originParts.push(jf.originElevatorReserved ? 'elevator RESERVED' : 'elevator NOT reserved')
     if (lead.originAccess) originParts.push(lead.originAccess)
 
     const destParts: string[] = []
+    const destinationProfile = jf?.accessProfiles?.find(profile => profile.stopId === 'primary-destination' || profile.stopRole === 'dropoff')
+    if (destinationProfile) destParts.push(accessProfileCustomerSummary(destinationProfile))
     if (jf?.destFloors) destParts.push(`${jf.destFloors} floor${jf.destFloors > 1 ? 's' : ''}`)
     if (jf?.destHasElevator) destParts.push(jf.destElevatorReserved ? 'elevator RESERVED' : 'elevator NOT reserved')
     if (lead.destAccess) destParts.push(lead.destAccess)

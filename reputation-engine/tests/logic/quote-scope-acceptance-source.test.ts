@@ -23,8 +23,20 @@ test('public quote connects inventory, hidden-area evidence, arrival verificatio
   assert.match(page, /Update my inventory/)
   assert.match(page, /Hidden areas and loose contents/)
   assert.match(page, /Customer confirmed empty—nothing moving/)
+  assert.match(page, /Access included in your moving plan/)
+  assert.match(page, /Material changes to parking availability, carrying distance, stairs, elevator access/)
   assert.match(page, /Before anything is loaded/)
   assert.match(page, /Total including HST:/)
+})
+
+test('estimate builder exposes per-stop access profiles in shadow mode', () => {
+  const modal = fs.readFileSync(path.join(root, 'app/components/sales/lead-detail/estimate-draft-modal.tsx'), 'utf8')
+  const editor = fs.readFileSync(path.join(root, 'app/components/sales/lead-detail/access-profile-editor.tsx'), 'utf8')
+  assert.match(modal, /AccessProfileEditor/)
+  assert.match(editor, /Per-stop access profiles/)
+  assert.match(editor, /Shadow access total/)
+  assert.match(editor, /Confirm standard access/)
+  assert.match(editor, /Something is different/)
 })
 
 test('provisional quote delivery bypasses only the final-scope readiness gate', () => {

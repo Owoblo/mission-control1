@@ -198,6 +198,53 @@ export type InboundClosedFilter = 'all' | 'junk' | 'lost' | 'not_interested'
 export type InventoryVerificationDecision = 'going' | 'not_going' | 'unsure'
 export type MoveEvidenceState = 'observed' | 'customer_confirmed' | 'customer_confirmed_empty' | 'estimated' | 'unknown' | 'not_applicable'
 export type HiddenInventoryArea = 'basement' | 'garage' | 'outdoor' | 'storage' | 'boxes'
+export type AccessPropertyType = 'detached' | 'semi_detached' | 'townhouse' | 'multiplex' | 'low_rise' | 'high_rise' | 'condo' | 'storage' | 'commercial' | 'other'
+export type AccessWalkBucket = 'under_1' | '1_2' | '2_4' | '4_6' | '6_8' | 'over_8' | 'unknown'
+export type AccessTruckPosition = 'driveway' | 'curb' | 'loading_dock' | 'parking_lot' | 'street_unconfirmed' | 'cannot_reach' | 'unknown'
+export type AccessVerticalMode = 'ground_floor' | 'stairs' | 'elevator' | 'stairs_or_elevator' | 'elevator_and_stairs' | 'unknown'
+export type AccessEvidenceStatus = 'customer_confirmed' | 'photo_video_confirmed' | 'building_confirmed' | 'customer_estimated' | 'unknown'
+
+export interface AccessProfile {
+  id: string
+  stopId: string
+  stopRole: 'pickup' | 'dropoff' | 'storage' | 'service'
+  label: string
+  addressSnapshot?: string
+  propertyType?: AccessPropertyType
+  standardAccessConfirmed?: boolean
+  truckPosition?: AccessTruckPosition
+  walkToEntrance?: AccessWalkBucket
+  entranceToVerticalAccess?: AccessWalkBucket
+  verticalAccessToUnit?: AccessWalkBucket
+  exteriorSteps?: number
+  narrowDoor?: boolean
+  tightTurn?: boolean
+  normalEntranceUsable?: boolean
+  rampAvailable?: boolean
+  verticalMode?: AccessVerticalMode
+  stairFlights?: number
+  stairCondition?: 'normal' | 'narrow' | 'curved' | 'exterior' | 'unsafe'
+  stairExposure?: 'entire_shipment' | 'half_shipment' | 'specific_items'
+  stairItemIds?: string[]
+  unitFloor?: number
+  elevatorType?: 'freight' | 'passenger' | 'unknown'
+  elevatorReservation?: 'confirmed' | 'requested' | 'shared' | 'not_available' | 'unknown'
+  elevatorWait?: 'short' | 'normal' | 'slow' | 'likely_delays' | 'unknown'
+  elevatorFitsMajorFurniture?: boolean
+  buildingCheckIn?: boolean
+  elevatorPadding?: boolean
+  loadingDockProcedureMinutes?: number
+  expectedDelayMinutes?: number
+  restrictedWindowMinutes?: number
+  buildingStaffRequired?: boolean
+  multipleTransfers?: boolean
+  shuttleMayBeRequired?: boolean
+  unsafeAccess?: boolean
+  evidenceStatus?: AccessEvidenceStatus
+  evidenceNote?: string
+  verifiedAt?: string
+  verifiedBy?: string
+}
 export interface HiddenInventoryCoverage {
   state: MoveEvidenceState
   note?: string
@@ -742,6 +789,9 @@ export interface PricingBreakdown {
 }
 
 export interface JobFactors {
+  // Canonical per-stop access model. Legacy origin/destination fields remain
+  // during migration and are adapted when a profile has not yet been captured.
+  accessProfiles?: AccessProfile[]
   // Origin access
   originFloors?: number
   originHasElevator?: boolean
