@@ -12,8 +12,6 @@ import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
 import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
 import { canUseMobilePhoneLine } from '@/lib/server/mobile-phone-access'
-import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
-import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 
 function normalizePhoneNumber(value?: string | null) {
   const digits = String(value || '').replace(/\D/g, '')
@@ -101,13 +99,10 @@ export async function POST(request: Request) {
       if (!canHandleLeadCommunications(session, lead)) {
         return NextResponse.json({ error: 'You do not have permission to send messages for this lead.' }, { status: 403 })
       }
-      if (payload.quoteId) {
-        const quote = await getSalesQuote(payload.quoteId)
-        if (quote?.billingModel === 'binding' && !isProvisionalQuoteScope(quote)) {
-          const safety = evaluateQuoteIntelligenceSafety(lead, quote)
-          if (!safety.allowed) return NextResponse.json({ error: safety.reason, quoteReadiness: safety.quoteReadiness }, { status: 409 })
-        }
-      }
+      // This is the general conversation endpoint. A message may carry quoteId
+      // only so its activity is attached to the right record; that does not make
+      // it a quote-delivery attempt. Binding-scope validation belongs exclusively
+      // to the dedicated quote outbox/worker.
     }
 
     const result = await sendSalesMessage({
