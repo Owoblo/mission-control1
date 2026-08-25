@@ -49,7 +49,18 @@ test('provisional quote delivery bypasses only the final-scope readiness gate', 
   const worker = fs.readFileSync(path.join(root, 'lib/server/quote-send-worker.ts'), 'utf8')
   const leadPage = fs.readFileSync(path.join(root, 'app/sales/leads/[id]/page.tsx'), 'utf8')
   assert.match(quoteRoute, /!isProvisionalQuoteScope\(proposedQuote\)/)
-  assert.match(messageRoute, /!isProvisionalQuoteScope\(quote\)/)
   assert.match(worker, /!isProvisionalQuoteScope\(pendingQuote\)/)
+  assert.doesNotMatch(messageRoute, /evaluateQuoteIntelligenceSafety/)
+  assert.doesNotMatch(messageRoute, /isProvisionalQuoteScope/)
   assert.match(leadPage, /Provisional quote sent — scope follow-up required before final confirmation/)
+})
+
+test('ordinary SMS and email remain independent from quote readiness', () => {
+  const messageRoute = fs.readFileSync(path.join(root, 'app/api/sales/send/route.ts'), 'utf8')
+  const quoteWorker = fs.readFileSync(path.join(root, 'lib/server/quote-send-worker.ts'), 'utf8')
+
+  assert.match(messageRoute, /sendSalesMessage/)
+  assert.match(messageRoute, /canHandleLeadCommunications/)
+  assert.doesNotMatch(messageRoute, /quoteReadiness/)
+  assert.match(quoteWorker, /evaluateQuoteIntelligenceSafety/)
 })
