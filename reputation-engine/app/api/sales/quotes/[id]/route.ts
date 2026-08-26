@@ -8,7 +8,7 @@ import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFoll
 import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
-import { hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quotePricingUpdateWouldEraseSnapshot } from '@/lib/quote-pricing-safety'
+import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quotePricingUpdateWouldEraseSnapshot } from '@/lib/quote-pricing-safety'
 import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
 import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 
@@ -111,6 +111,16 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
     const proposedStatus = updates.status || current.status
     const proposedQuote = { ...current, ...updates }
+    const pricingTouched = ['lineItems', 'discountAmount', 'subtotal', 'hst', 'total'].some(key =>
+      Object.prototype.hasOwnProperty.call(updates, key)
+    )
+    const arithmeticError = pricingTouched ? getQuoteCommercialArithmeticError(proposedQuote) : null
+    if (arithmeticError) {
+      return NextResponse.json(
+        { error: `Quote pricing is inconsistent: ${arithmeticError} The quote was not changed or sent.` },
+        { status: 409 },
+      )
+    }
     if (['sent', 'viewed'].includes(proposedStatus) && !hasDeliverableQuotePricing(proposedQuote)) {
       return NextResponse.json(
         { error: 'This quote cannot be marked sent or viewed without a positive saved price and at least one priced line item.' },

@@ -2434,7 +2434,7 @@ export default function SalesLeadDetailPage() {
         conditionalClause: overrides?.conditionalClause !== undefined ? (overrides.conditionalClause || undefined) : quote.conditionalClause,
         priceOverrideTotal: preserveCustomerFacingPricing
           ? quote.priceOverrideTotal
-          : overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : undefined,
+          : overrideLineItem ? totals.total : undefined,
         priceOverrideReason: preserveCustomerFacingPricing
           ? quote.priceOverrideReason
           : overrideLineItem?.details || undefined,

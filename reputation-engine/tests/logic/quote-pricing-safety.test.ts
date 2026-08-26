@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quoteDeliveryBlockReason, quotePricingUpdateWouldEraseSnapshot } from '../../lib/quote-pricing-safety'
+import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quoteDeliveryBlockReason, quotePricingUpdateWouldEraseSnapshot, splitOntarioHstInclusiveTotal } from '../../lib/quote-pricing-safety'
 import type { CRMQuote } from '../../lib/types'
 
 const quote = {
@@ -56,4 +56,39 @@ test('declined quotes cannot be delivered again without an explicit revision wor
   assert.match(quoteDeliveryBlockReason({ status: 'declined', respondedAt: '2026-08-24T16:41:53.540Z' }) || '', /declined/i)
   assert.match(quoteDeliveryBlockReason({ status: 'sent', respondedAt: '2026-08-24T16:41:53.540Z' }) || '', /customer response/i)
   assert.equal(quoteDeliveryBlockReason({ status: 'sent', respondedAt: undefined }), null)
+})
+
+test('an agreed all-in override is split into subtotal and HST exactly once', () => {
+  assert.deepEqual(splitOntarioHstInclusiveTotal(1600), {
+    subtotal: 1415.93,
+    hst: 184.07,
+    total: 1600,
+  })
+})
+
+test('commercial arithmetic rejects double HST and inconsistent line totals', () => {
+  assert.equal(getQuoteCommercialArithmeticError({
+    lineItems: [{ description: 'Moving Services — Agreed Rate', amount: 1415.93 }],
+    discountAmount: 0,
+    subtotal: 1415.93,
+    hst: 184.07,
+    total: 1600,
+  }), null)
+
+  assert.match(getQuoteCommercialArithmeticError({
+    lineItems: [{ description: 'Moving Services — Agreed Rate', amount: 1600 }],
+    discountAmount: 0,
+    subtotal: 1600,
+    hst: 208,
+    total: 1808,
+    priceOverrideTotal: 1600,
+  }) || '', /agreed customer override total/i)
+
+  assert.match(getQuoteCommercialArithmeticError({
+    lineItems: [{ description: 'Moving Services — Agreed Rate', amount: 1415.93 }],
+    discountAmount: 0,
+    subtotal: 1600,
+    hst: 208,
+    total: 1808,
+  }) || '', /subtotal/i)
 })

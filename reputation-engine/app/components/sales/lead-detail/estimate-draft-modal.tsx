@@ -14,6 +14,7 @@ import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
 import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
+import { splitOntarioHstInclusiveTotal } from '@/lib/quote-pricing-safety'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
@@ -1236,7 +1237,9 @@ export function EstimateDraftModal({
     const overrideItem = quoteLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
     if (overrideItem && overrideItem.amount > 0) {
       setOverrideApplied(true)
-      setOverrideInput(String(overrideItem.amount))
+      const savedCustomerTotal = Number(quote?.priceOverrideTotal || 0)
+      const derivedCustomerTotal = Math.round(Number(overrideItem.amount) * 1.13 * 100) / 100
+      setOverrideInput(String(savedCustomerTotal > 0 ? savedCustomerTotal : derivedCustomerTotal))
     } else if (!overrideItem) {
       setOverrideApplied(false)
     }
@@ -2136,11 +2139,12 @@ export function EstimateDraftModal({
   }, [liveMarginSummary, quoteModalTotals.subtotal, tenPctActive, tenPctDiscountAmount])
   const overrideProjectedMargin = useMemo(() => {
     if (!liveMarginSummary) return null
-    const overrideAmount = Math.round(Number(overrideInput || 0) * 100) / 100
+    const overrideAmount = splitOntarioHstInclusiveTotal(Number(overrideInput || 0)).subtotal
     if (overrideAmount <= 0) return null
     return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
   }, [liveMarginSummary, overrideInput])
-  const overrideAmount = useMemo(() => Math.round(Number(overrideInput || 0) * 100) / 100, [overrideInput])
+  const overridePricing = useMemo(() => splitOntarioHstInclusiveTotal(Number(overrideInput || 0)), [overrideInput])
+  const overrideAmount = overridePricing.subtotal
   const overrideIsIncrease = baseQuoteSubtotal > 0 && overrideAmount >= baseQuoteSubtotal
   const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
   const overrideApprovalMatches = useMemo(() => {
@@ -7274,7 +7278,7 @@ export function EstimateDraftModal({
                       <div>
                         <div className="font-semibold">Customer price override active</div>
                         <div className="mt-1 text-[11px] text-[var(--app-muted)]">
-                          Customer price: {formatMoney(Number(overrideInput) || 0)} pre-tax · {formatMoney(Math.round(Number(overrideInput) * 1.13 * 100) / 100)} with HST
+                          Agreed customer total: {formatMoney(overridePricing.total)} including HST
                         </div>
                         {pricingBreakdown ? (
                           <div className="mt-1 text-[11px] text-[var(--app-muted)]">
@@ -7299,7 +7303,7 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="text-xs font-semibold text-[var(--app-ink)]">Price Override</div>
                   <div className="text-[10px] leading-4 text-[var(--app-muted)]">
-                    Enter the <span className="font-semibold text-[var(--app-ink)]">pre-tax base price</span>. HST (13%) is added on top. Healthy-margin overrides are allowed, but every override needs a quick note.
+                    Enter the <span className="font-semibold text-[var(--app-ink)]">final price promised to the customer, including HST</span>. The CRM separates the pre-tax amount and tax automatically. Every override needs a quick note.
                   </div>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -7315,7 +7319,7 @@ export function EstimateDraftModal({
                           setApprovedOverrideAmount(null)
                           setOverrideApprovalNotice(null)
                         }}
-                        placeholder="e.g. 6000"
+                        placeholder="e.g. 1600 all-in"
                         className="crm-input pl-5 w-full text-sm font-semibold"
                       />
                     </div>
@@ -7347,7 +7351,7 @@ export function EstimateDraftModal({
                   />
                   {overrideInput && Number(overrideInput) > 0 && (
                     <div className="text-[10px] text-[var(--app-muted)]">
-                      {formatMoney(Number(overrideInput))} + HST (13%) = <span className="font-semibold text-[var(--app-ink)]">{formatMoney(Math.round(Number(overrideInput) * 1.13 * 100) / 100)}</span> total
+                      Customer total <span className="font-semibold text-[var(--app-ink)]">{formatMoney(overridePricing.total)}</span> = {formatMoney(overridePricing.subtotal)} pre-tax + {formatMoney(overridePricing.hst)} HST. Tax will not be added again.
                     </div>
                   )}
                   {overrideProjectedMargin !== null && (
