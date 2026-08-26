@@ -158,10 +158,16 @@ export function getFastLaneBlockingIssues(
   now = new Date()
 ): FastLaneReadinessIssue[] {
   const issues = getFastLaneReadinessIssues(lead, now)
+  const hasPickupOrWorkLocation =
+    !!lead.originCity?.trim() ||
+    (!!lead.originAddress?.trim() && !addressContainsScheduleText(lead.originAddress))
   // Fast Lane is an hourly booking in both truck and labour-only modes, not a
   // fixed-scope estimate. Once the service date and pickup/work location are
   // known, remaining scope details can be confirmed before dispatch.
-  return issues.filter(issue => issue === 'move_date' || issue === 'origin_address' || issue === 'origin_city')
+  return issues.filter(issue =>
+    issue === 'move_date' ||
+    (!hasPickupOrWorkLocation && (issue === 'origin_address' || issue === 'origin_city'))
+  )
 }
 
 export const FAST_LANE_ISSUE_LABELS: Record<FastLaneReadinessIssue, string> = {
