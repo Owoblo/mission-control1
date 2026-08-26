@@ -1446,7 +1446,7 @@ export interface CRMQuote {
   // Overridable fields
   moveDescription?: string  // shown on the quote document
   internalNotes?: string    // crew / internal only, not on quote
-  priceOverrideTotal?: number  // if set, this overrides the computed total (incl. HST)
+  priceOverrideTotal?: number  // agreed customer total including HST
   priceOverrideReason?: string
   priceOverrideApprovalCode?: string
   priceOverrideApprovalId?: string

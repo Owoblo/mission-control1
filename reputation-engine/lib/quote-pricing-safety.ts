@@ -1,6 +1,34 @@
 import type { CRMQuote } from './types'
 
 const COMMERCIAL_KEYS = ['lineItems', 'discountAmount', 'discountLabel', 'subtotal', 'hst', 'total', 'deposit', 'balance'] as const
+const ONTARIO_HST_RATE = 0.13
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+export function splitOntarioHstInclusiveTotal(value: number) {
+  const total = Math.max(0, roundMoney(Number(value || 0)))
+  const subtotal = roundMoney(total / (1 + ONTARIO_HST_RATE))
+  const hst = roundMoney(total - subtotal)
+  return { subtotal, hst, total }
+}
+
+export function getQuoteCommercialArithmeticError(quote: Pick<CRMQuote, 'lineItems' | 'discountAmount' | 'subtotal' | 'hst' | 'total'> & Pick<Partial<CRMQuote>, 'priceOverrideTotal'>) {
+  const lineSubtotal = (quote.lineItems || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  const subtotal = Math.max(0, roundMoney(lineSubtotal - Number(quote.discountAmount || 0)))
+  const hst = roundMoney(subtotal * ONTARIO_HST_RATE)
+  const total = roundMoney(subtotal + hst)
+  const differs = (actual: number, expected: number) => Math.abs(roundMoney(Number(actual || 0)) - expected) > 0.01
+
+  if (differs(quote.subtotal, subtotal)) return `Saved subtotal must equal priced lines less discounts (${subtotal.toFixed(2)}).`
+  if (differs(quote.hst, hst)) return `HST must be calculated once from the pre-tax subtotal (${hst.toFixed(2)}).`
+  if (differs(quote.total, total)) return `Total including HST must equal subtotal plus HST (${total.toFixed(2)}).`
+  if (Number(quote.priceOverrideTotal || 0) > 0 && differs(Number(quote.priceOverrideTotal), total)) {
+    return `The agreed customer override total must match the total including HST (${total.toFixed(2)}).`
+  }
+  return null
+}
 
 function normalizeCommercialValue(key: typeof COMMERCIAL_KEYS[number], value: unknown) {
   if (key === 'lineItems') {
