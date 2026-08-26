@@ -197,6 +197,32 @@ test('hourly truck booking also proceeds while remaining scope is confirmed befo
   assert.deepEqual(blocking, [])
 })
 
+test('fast lane accepts a known pickup city while the exact street address is pending', () => {
+  const candidate = lead({
+    moveDate: '2026-09-01',
+    originCity: 'Guelph, Ontario',
+    destCity: 'Guelph',
+    inventory: [],
+  })
+
+  const readiness = getFastLaneReadinessIssues(candidate, new Date('2026-08-26T12:00:00'))
+  const truckBlocking = getFastLaneBlockingIssues(candidate, 'truck', new Date('2026-08-26T12:00:00'))
+  const laborBlocking = getFastLaneBlockingIssues(candidate, 'labor', new Date('2026-08-26T12:00:00'))
+
+  assert.equal(readiness.includes('origin_address'), true)
+  assert.deepEqual(truckBlocking, [])
+  assert.deepEqual(laborBlocking, [])
+})
+
+test('fast lane still blocks when no pickup or work location is known', () => {
+  const candidate = lead({ moveDate: '2026-09-01' })
+
+  const blocking = getFastLaneBlockingIssues(candidate, 'truck', new Date('2026-08-26T12:00:00'))
+
+  assert.equal(blocking.includes('origin_address'), true)
+  assert.equal(blocking.includes('origin_city'), true)
+})
+
 test('fast lane truck size follows the selected crew size', () => {
   assert.equal(getFastLaneTruckSize(2), '15ft')
   assert.equal(getFastLaneTruckSize(3), '20ft')
