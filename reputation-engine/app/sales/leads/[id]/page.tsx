@@ -176,6 +176,7 @@ export default function SalesLeadDetailPage() {
   const [quote, setQuote] = useState<CRMQuote | null>(null)
   const removedInventoryKeysRef = useRef<Set<string>>(new Set())
   const inventoryPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inventoryPersistRevisionRef = useRef(0)
   const leadPollInFlightRef = useRef(false)
   const smsFetchInFlightRef = useRef(false)
   const emailFetchInFlightRef = useRef(false)
@@ -3588,6 +3589,7 @@ export default function SalesLeadDetailPage() {
   }
 
   function persistInventorySnapshot(next: InventoryItem[], options: { immediate?: boolean; inventoryVerification?: CRMLead['inventoryVerification'] } = {}) {
+    const revision = ++inventoryPersistRevisionRef.current
     const metrics = deriveInventoryMetrics(next)
     const leadPatch = {
       inventory: metrics.inventory,
@@ -3605,7 +3607,24 @@ export default function SalesLeadDetailPage() {
       inventoryPersistTimerRef.current = null
     }
     const save = () => {
-      void updateSalesLead(lead.id, leadPatch).catch(() => {})
+      void updateSalesLead(lead.id, leadPatch)
+        .then(saved => {
+          if (revision !== inventoryPersistRevisionRef.current) return
+          setLead(current => current ? {
+            ...current,
+            inventory: saved.inventory,
+            totalItems: saved.totalItems,
+            totalCubicFeet: saved.totalCubicFeet,
+            totalWeightLbs: saved.totalWeightLbs,
+            roomBreakdown: saved.roomBreakdown,
+            removedInventoryItemKeys: saved.removedInventoryItemKeys,
+          } : current)
+          setError(null)
+        })
+        .catch(err => {
+          if (revision !== inventoryPersistRevisionRef.current) return
+          setError(`Inventory was not saved: ${(err as Error).message}`)
+        })
     }
     if (options.immediate) {
       save()
@@ -3752,7 +3771,11 @@ export default function SalesLeadDetailPage() {
   function addPresetItem(presetId: string) {
     const preset = INVENTORY_PRESETS.find(item => item.id === presetId)
     if (!preset) return
-    setInventory(current => [...current, createInventoryItemFromPreset(preset)])
+    setInventory(current => {
+      const next = [...current, createInventoryItemFromPreset(preset)]
+      persistInventorySnapshot(next, { immediate: true })
+      return next
+    })
     setPresetSearch('')
   }
 
@@ -3762,8 +3785,24 @@ export default function SalesLeadDetailPage() {
       propertyType,
     })
     if (!plan) return 0
-    setInventory(current => mergeStarterInventory(current, plan.items))
+    setInventory(current => {
+      const next = mergeStarterInventory(current, plan.items)
+      persistInventorySnapshot(next, { immediate: true })
+      return next
+    })
     return plan.items.length
+  }
+
+  async function openFastLaneQuote() {
+    if (!lead || !ensureLeadEditable()) return
+    if (hasUnsavedChanges) {
+      const saved = await saveLead({
+        preserveInFlightEdits: true,
+        submittedSignature: draftLeadSignatureRef.current,
+      })
+      if (!saved) return
+    }
+    setFastLaneOpen(true)
   }
 
   async function logActivity() {
@@ -5246,12 +5285,12 @@ export default function SalesLeadDetailPage() {
                     canEdit={canEditCurrentLead}
                   />
                   <button
-                    onClick={() => setFastLaneOpen(true)}
-                    disabled={!canEditCurrentLead || (!lead.phone && !lead.email)}
+                    onClick={() => void openFastLaneQuote()}
+                    disabled={saving || !canEditCurrentLead || (!lead.phone && !lead.email)}
                     className="crm-button w-full justify-center disabled:opacity-60"
                     title="Send a quick quote by SMS or email — no inventory scan needed"
                   >
-                    Fast Lane Quote
+                    {saving ? 'Saving lead…' : 'Fast Lane Quote'}
                   </button>
                   {!isClosedLeadStage(lead.stage) && canEditCurrentLead && (
                     <button onClick={() => setShowConsultationModal(true)} className="crm-button w-full justify-center">
