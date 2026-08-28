@@ -2327,6 +2327,7 @@ export default function SalesLeadDetailPage() {
           ? {
               ...item,
               [field]: field === 'amount' ? Number(value || 0) : value,
+              ...(field === 'amount' ? { pricingSource: 'manual' as const } : {}),
             }
           : item
       )
@@ -2335,7 +2336,7 @@ export default function SalesLeadDetailPage() {
   }
 
   function addQuoteLineItem() {
-    setQuoteLineItems(current => [...current, { description: '', details: '', amount: 0 }])
+    setQuoteLineItems(current => [...current, { description: '', details: '', amount: 0, pricingSource: 'manual' }])
     setQuoteModalDirty(true)
   }
 
@@ -2363,10 +2364,18 @@ export default function SalesLeadDetailPage() {
         ? (quote.total > 0 ? quote.deposit / quote.total : 0.3)
         : 0
       const quoteIsLockedForPricing = isCustomerFacingQuote(quote)
-      // Once shown to a customer, commercial terms are immutable from this
-      // estimate workspace. Schedule, scope, inventory, and operations may be
-      // updated without silently replacing the price the customer already saw.
-      const preserveCustomerFacingPricing = quoteIsLockedForPricing
+      const proposedOverrideLineItem = quoteLineItems.find(item => item.description === 'Moving Services — Agreed Rate')
+      const proposedDiscount = proposedOverrideLineItem ? 0 : quoteDiscountAmount
+      const proposedTotals = computeQuoteTotals(quoteLineItems, depositRate, proposedDiscount)
+      const hasExplicitPriceRevision = Boolean(
+        quoteIsLockedForPricing &&
+        proposedOverrideLineItem &&
+        Math.abs(Number(proposedTotals.total || 0) - Number(quote.total || 0)) > 0.01
+      )
+      // Customer-facing pricing remains protected from background recalculation.
+      // A rep-applied Agreed Rate is different: it is an intentional revision,
+      // so save it through the API's approval, arithmetic, and audit controls.
+      const preserveCustomerFacingPricing = quoteIsLockedForPricing && !hasExplicitPriceRevision
       const sourceLineItems = preserveCustomerFacingPricing ? (quote.lineItems || []) : quoteLineItems
 
       // When an override is active, bypass any existing discount — the override IS the final pre-tax price
@@ -2397,6 +2406,9 @@ export default function SalesLeadDetailPage() {
           ? 'standard'
           : selectedQuoteType
       const result = await updateSalesQuote(quote.id, {
+        ...(hasExplicitPriceRevision ? {
+          pricingRevisionReason: proposedOverrideLineItem?.details || 'Sales rep applied an approved customer price revision.',
+        } : {}),
         moveType: effectiveQuoteMoveType,
         quoteType: effectiveQuoteType,
         customerScope: overrides?.customerScope || quote.customerScope,

@@ -7700,8 +7700,8 @@ export function EstimateDraftModal({
                     </button>
                   </div>
                 )}
-                <button onClick={() => goToStage('review')} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
-                  {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Review customer scope →'}
+                <button onClick={() => estimateView === 'simple' ? void handlePreviewSend() : goToStage('review')} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                  {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : estimateView === 'simple' ? 'Preview & send quote →' : 'Review customer scope →'}
                 </button>
                 <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft

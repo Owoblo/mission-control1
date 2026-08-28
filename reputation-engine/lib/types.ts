@@ -1300,6 +1300,8 @@ export interface QuoteLineItem {
   description: string
   details?: string
   amount: number
+  /** A rep-entered value is authoritative and must survive estimate recalculation. */
+  pricingSource?: 'calculated' | 'manual'
 }
 
 export type QuoteLegType = 'move' | 'junk' | 'delivery' | 'storage' | 'storage_delivery'

@@ -254,7 +254,7 @@ export async function fetchSalesQuote(id: string): Promise<{
 
 export async function updateSalesQuote(
   id: string,
-  updates: Partial<CRMQuote>
+  updates: Partial<CRMQuote> & { pricingRevisionReason?: string }
 ): Promise<{ quote: CRMQuote; lead: CRMLead | null }> {
   const response = await fetch(`/api/sales/quotes/${id}`, {
     method: 'PATCH',

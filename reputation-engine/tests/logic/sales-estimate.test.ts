@@ -68,6 +68,26 @@ test('quote line-item reconciliation updates calculated rows and preserves manua
   ])
 })
 
+test('rep-entered specialty pricing survives automatic estimate recalculation', () => {
+  const manualSpecialty = {
+    description: 'Specialty Item Handling',
+    details: 'Upright piano — rep confirmed',
+    amount: 275,
+    pricingSource: 'manual' as const,
+  }
+  const reconciled = reconcileEstimatedQuoteLineItems([
+    { description: 'Full-Service Moving', details: '3 movers', amount: 2400 },
+    manualSpecialty,
+  ], [
+    { description: 'Full-Service Moving', details: '4 movers', amount: 3552.5 },
+    { description: 'Specialty Item Handling', details: 'Upright piano', amount: 0 },
+  ])
+  assert.deepEqual(reconciled, [
+    { description: 'Full-Service Moving', details: '4 movers', amount: 3552.5 },
+    manualSpecialty,
+  ])
+})
+
 test('quote line-item reconciliation protects local and long-distance locked prices', () => {
   for (const description of [
     'Moving Services — Agreed Rate',
