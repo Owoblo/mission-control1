@@ -1217,7 +1217,7 @@ function estimateSingleLeadQuote(
   const totalCubicFeet = baseCubicFeet + extraCubicFeet
   const totalWeightLbs = Number(overrides?.estimatedWeightLbs || lead.totalWeightLbs || metrics.totalWeightLbs)
   const suggestedCrew = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
-  const suggestedTruckCount = suggestTruckCount(totalCubicFeet, totalWeightLbs, lead.moveType)
+  const suggestedTruckCount = suggestTruckCount(totalCubicFeet, totalWeightLbs, isLongDistance ? 'long-distance' : lead.moveType)
   const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
 
   // Multi-truck coordination overhead: each additional truck adds ~30 min for
@@ -1296,15 +1296,23 @@ function estimateSingleLeadQuote(
     ? (routeContext?.returnTripDistanceKm || 0) + (routeContext?.originToDestinationDistanceKm || 0)
     : 0
 
-  const loadHours =
-    totalWeightLbs > 0
+  // A long-distance one-way booking purchases a truck-capacity band. Inventory
+  // determines whether the move needs one truck or more and still contributes
+  // specialty/access adjustments, but ordinary pieces inside the same capacity
+  // band must not make the transport quote drift every time the list is edited.
+  const longDistanceCapacityLoadHours = roundQuarterHour(5 * truckCount * (3 / Math.max(1, crewSize)))
+  const longDistanceCapacityUnloadHours = roundQuarterHour(3.5 * truckCount * (3 / Math.max(1, crewSize)))
+  const loadHours = isLongDistance
+    ? longDistanceCapacityLoadHours
+    : totalWeightLbs > 0
       ? totalWeightLbs / LOAD_RATE_LBS_PER_MAN_HOUR / Math.max(1, crewSize)
       : totalCubicFeet > 0
         ? totalCubicFeet / (LOAD_RATE_CF_PER_MAN_HOUR * Math.max(1, crewSize))
         : isLongDistance ? 4 : crewSize >= 3 ? 2.5 : 2
 
-  const unloadHours =
-    totalWeightLbs > 0
+  const unloadHours = isLongDistance
+    ? longDistanceCapacityUnloadHours
+    : totalWeightLbs > 0
       ? totalWeightLbs / UNLOAD_RATE_LBS_PER_MAN_HOUR / Math.max(1, crewSize)
       : totalCubicFeet > 0
         ? totalCubicFeet / (UNLOAD_RATE_CF_PER_MAN_HOUR * Math.max(1, crewSize))

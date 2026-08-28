@@ -12,9 +12,10 @@ const leadWorkspace = fs.readFileSync(
   'utf8',
 )
 
-test('manual override accepts the promised all-in customer total', () => {
-  assert.match(estimateWorkspace, /final price promised to the customer, including HST/)
-  assert.match(estimateWorkspace, /splitOntarioHstInclusiveTotal\(Number\(overrideInput/)
+test('manual override requires an explicit plus-HST or all-in meaning', () => {
+  assert.match(estimateWorkspace, /Price \+ HST/)
+  assert.match(estimateWorkspace, /HST included \/ all-in/)
+  assert.match(estimateWorkspace, /resolveOntarioPriceOverride\(Number\(overrideInput/)
   assert.doesNotMatch(estimateWorkspace, /Enter the .*pre-tax base price/)
 })
 
