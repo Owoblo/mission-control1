@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quoteDeliveryBlockReason, quotePricingUpdateWouldEraseSnapshot, splitOntarioHstInclusiveTotal } from '../../lib/quote-pricing-safety'
+import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quoteDeliveryBlockReason, quotePricingUpdateWouldEraseSnapshot, resolveOntarioPriceOverride, splitOntarioHstInclusiveTotal } from '../../lib/quote-pricing-safety'
 import type { CRMQuote } from '../../lib/types'
 
 const quote = {
@@ -60,6 +60,19 @@ test('declined quotes cannot be delivered again without an explicit revision wor
 
 test('an agreed all-in override is split into subtotal and HST exactly once', () => {
   assert.deepEqual(splitOntarioHstInclusiveTotal(1600), {
+    subtotal: 1415.93,
+    hst: 184.07,
+    total: 1600,
+  })
+})
+
+test('price overrides explicitly distinguish plus-HST from all-in promises', () => {
+  assert.deepEqual(resolveOntarioPriceOverride(1600, 'plus_hst'), {
+    subtotal: 1600,
+    hst: 208,
+    total: 1808,
+  })
+  assert.deepEqual(resolveOntarioPriceOverride(1600, 'hst_included'), {
     subtotal: 1415.93,
     hst: 184.07,
     total: 1600,

@@ -3,6 +3,8 @@ import type { CRMQuote } from './types'
 const COMMERCIAL_KEYS = ['lineItems', 'discountAmount', 'discountLabel', 'subtotal', 'hst', 'total', 'deposit', 'balance'] as const
 const ONTARIO_HST_RATE = 0.13
 
+export type OntarioPriceOverrideMode = 'plus_hst' | 'hst_included'
+
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100
 }
@@ -12,6 +14,14 @@ export function splitOntarioHstInclusiveTotal(value: number) {
   const subtotal = roundMoney(total / (1 + ONTARIO_HST_RATE))
   const hst = roundMoney(total - subtotal)
   return { subtotal, hst, total }
+}
+
+export function resolveOntarioPriceOverride(value: number, mode: OntarioPriceOverrideMode) {
+  const enteredAmount = Math.max(0, roundMoney(Number(value || 0)))
+  if (mode === 'hst_included') return splitOntarioHstInclusiveTotal(enteredAmount)
+  const subtotal = enteredAmount
+  const hst = roundMoney(subtotal * ONTARIO_HST_RATE)
+  return { subtotal, hst, total: roundMoney(subtotal + hst) }
 }
 
 export function getQuoteCommercialArithmeticError(quote: Pick<CRMQuote, 'lineItems' | 'discountAmount' | 'subtotal' | 'hst' | 'total'> & Pick<Partial<CRMQuote>, 'priceOverrideTotal'>) {

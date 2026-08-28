@@ -100,6 +100,36 @@ test('small hourly moves include dispatch base and short-notice priority pricing
   assert.equal(estimate.pricingBreakdown.internalCostEstimate.commissionCost, 0)
 })
 
+test('long-distance pricing stays within the selected one-way truck capacity band', () => {
+  const routeContext = {
+    pricingStatus: 'ready' as const,
+    routeCategory: 'long-distance' as const,
+    originToDestinationHours: 20,
+    returnTripHours: 0,
+    billableDriveHours: 20,
+    operationalDriveHours: 20,
+    billableDistanceKm: 2000,
+    operationalDistanceKm: 2000,
+  }
+  const overrides = {
+    quoteType: 'long_distance' as const,
+    crewSize: 3,
+    longDistanceTruckCost: 4200,
+    longDistanceGasCost: 1800,
+    longDistanceInsuranceCost: 300,
+    longDistanceMiscCost: 250,
+    longDistanceMarkupRate: 40,
+    routeContext,
+  }
+  const partialTruck = estimateLeadQuote(makeLead({ totalCubicFeet: 600, totalWeightLbs: 3000 }), overrides)
+  const fullTruck = estimateLeadQuote(makeLead({ totalCubicFeet: 1600, totalWeightLbs: 6000 }), overrides)
+
+  assert.equal(partialTruck.truckCount, 1)
+  assert.equal(fullTruck.truckCount, 1, 'long-distance quote type must use the 1,700 cu ft capacity even when the lead began as residential')
+  assert.equal(fullTruck.estimatedHours, partialTruck.estimatedHours)
+  assert.equal(fullTruck.subtotal, partialTruck.subtotal)
+})
+
 test('premium scope follows inventory evidence and never invents TV mounting', () => {
   const base = makeLead({
     surveyCompletedAt: '2026-08-13T18:00:00.000Z',

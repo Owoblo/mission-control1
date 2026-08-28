@@ -14,7 +14,7 @@ import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
 import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
-import { splitOntarioHstInclusiveTotal } from '@/lib/quote-pricing-safety'
+import { resolveOntarioPriceOverride, type OntarioPriceOverrideMode } from '@/lib/quote-pricing-safety'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
@@ -448,6 +448,7 @@ export function EstimateDraftModal({
   const [tenPctActive, setTenPctActive] = useState(false)
   const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
   const [overrideInput, setOverrideInput] = useState('')
+  const [overrideTaxMode, setOverrideTaxMode] = useState<OntarioPriceOverrideMode>('plus_hst')
   const [overrideReason, setOverrideReason] = useState('relationship')
   const [overrideNote, setOverrideNote] = useState('')
   const [overrideApprovalCode, setOverrideApprovalCode] = useState('')
@@ -502,6 +503,17 @@ export function EstimateDraftModal({
   const [legsEnabled, setLegsEnabled] = useState(() => (legsProp?.length ?? 0) > 0)
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null)
   const [activeStage, setActiveStage] = useState<EstimateWorkflowStageId>('lead')
+  const [estimateView, setEstimateView] = useState<'simple' | 'guided'>('simple')
+
+  useEffect(() => {
+    const savedView = window.localStorage.getItem('sales-estimate-view')
+    if (savedView === 'simple' || savedView === 'guided') setEstimateView(savedView)
+  }, [])
+
+  function chooseEstimateView(view: 'simple' | 'guided') {
+    setEstimateView(view)
+    window.localStorage.setItem('sales-estimate-view', view)
+  }
 
   useEffect(() => { onRecalculateRef.current = onRecalculate }, [onRecalculate])
   const [dragOverRoom, setDragOverRoom] = useState<string | null>(null)
@@ -1240,6 +1252,7 @@ export function EstimateDraftModal({
       const savedCustomerTotal = Number(quote?.priceOverrideTotal || 0)
       const derivedCustomerTotal = Math.round(Number(overrideItem.amount) * 1.13 * 100) / 100
       setOverrideInput(String(savedCustomerTotal > 0 ? savedCustomerTotal : derivedCustomerTotal))
+      setOverrideTaxMode('hst_included')
     } else if (!overrideItem) {
       setOverrideApplied(false)
     }
@@ -2139,11 +2152,11 @@ export function EstimateDraftModal({
   }, [liveMarginSummary, quoteModalTotals.subtotal, tenPctActive, tenPctDiscountAmount])
   const overrideProjectedMargin = useMemo(() => {
     if (!liveMarginSummary) return null
-    const overrideAmount = splitOntarioHstInclusiveTotal(Number(overrideInput || 0)).subtotal
+    const overrideAmount = resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode).subtotal
     if (overrideAmount <= 0) return null
     return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
-  }, [liveMarginSummary, overrideInput])
-  const overridePricing = useMemo(() => splitOntarioHstInclusiveTotal(Number(overrideInput || 0)), [overrideInput])
+  }, [liveMarginSummary, overrideInput, overrideTaxMode])
+  const overridePricing = useMemo(() => resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode), [overrideInput, overrideTaxMode])
   const overrideAmount = overridePricing.subtotal
   const overrideIsIncrease = baseQuoteSubtotal > 0 && overrideAmount >= baseQuoteSubtotal
   const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
@@ -2640,10 +2653,16 @@ export function EstimateDraftModal({
 
         <div className="sticky top-0 z-30 border-b border-[var(--app-line)] bg-white/95 px-4 py-3 backdrop-blur md:px-6">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Move planner</span>
-            <span className="text-[10px] text-[var(--app-muted)]">Start anywhere. Each confirmed fact stays with this draft.</span>
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Estimate view</span>
+              <span className="ml-2 text-[10px] text-[var(--app-muted)]">Both views save the same complete move context.</span>
+            </div>
+            <div className="flex rounded-[7px] border border-[var(--app-line)] bg-[var(--app-bg)] p-0.5">
+              <button type="button" onClick={() => chooseEstimateView('simple')} className={`rounded-[5px] px-3 py-1 text-[10px] font-semibold ${estimateView === 'simple' ? 'bg-white text-[var(--app-ink)] shadow-sm' : 'text-[var(--app-muted)]'}`}>Simple</button>
+              <button type="button" onClick={() => chooseEstimateView('guided')} className={`rounded-[5px] px-3 py-1 text-[10px] font-semibold ${estimateView === 'guided' ? 'bg-[#071421] text-white' : 'text-[var(--app-muted)]'}`}>Guided</button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 overflow-x-auto">
+          {estimateView === 'guided' ? <><div className="flex items-center gap-2 overflow-x-auto">
             {workflowStages.map((step, index) => (
               <button
                 key={step.id}
@@ -2667,13 +2686,13 @@ export function EstimateDraftModal({
               <div className="truncate text-[10px] text-[var(--app-muted)]">{activeWorkflowStage?.description}</div>
             </div>
             <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{activeWorkflowStage?.issueCount ? `${activeWorkflowStage.issueCount} item${activeWorkflowStage.issueCount === 1 ? '' : 's'} to confirm` : 'Stage complete'}</span>
-          </div>
+          </div></> : <div className="text-xs text-[var(--app-muted)]">Everything is on one page. Review only what matters, then use the readiness summary before sending.</div>}
         </div>
 
-        <div id="estimate-stage-content" className={`scroll-mt-28 grid ${activeStage === 'plan' ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+        <div id="estimate-stage-content" className={`scroll-mt-28 grid ${estimateView === 'simple' || activeStage === 'plan' ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
           {/* Main content */}
           <div className="overflow-y-auto p-4 md:p-6 space-y-6">
-            <style>{`[data-estimate-stage]:not([data-estimate-stage="${activeStage}"]) { display: none !important; }`}</style>
+            {estimateView === 'guided' ? <style>{`[data-estimate-stage]:not([data-estimate-stage="${activeStage}"]) { display: none !important; }`}</style> : null}
 
             {/* ── SMART INTAKE ── */}
             <div data-estimate-stage="lead" className={`rounded-[10px] border ${intakeApplied ? 'border-emerald-300 bg-emerald-50' : 'border-[#071421]/20 bg-[#071421]/5'} overflow-hidden`}>
@@ -2845,12 +2864,12 @@ export function EstimateDraftModal({
             </div>
 
             {/* Route / work-location quick edit — hidden when multi-stop is on (legs ARE the route) */}
-            {(activeStage === 'origin' || activeStage === 'destination') && (onOriginAddressChange || onDestAddressChange) && !legsEnabled && (
+            {(estimateView === 'simple' || activeStage === 'origin' || activeStage === 'destination') && (onOriginAddressChange || onDestAddressChange) && !legsEnabled && (
               <div id="estimate-route" ref={routeSectionRef} className="scroll-mt-16 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
-                <div className="crm-label mb-1">{activeStage === 'destination' ? 'Destination' : isLaborOnly ? 'Work Location' : 'Origin'}</div>
+                <div className="crm-label mb-1">{estimateView === 'simple' ? (isLaborOnly ? 'Work Location' : 'Move Route') : activeStage === 'destination' ? 'Destination' : isLaborOnly ? 'Work Location' : 'Origin'}</div>
                 <div className="mb-3 text-xs text-[var(--app-muted)]">Confirm the address first, then describe the actual route the crew will carry furniture.</div>
-                <div className="grid gap-3">
-                  {(activeStage === 'origin' || isLaborOnly) && <div>
+                <div className={`grid gap-3 ${estimateView === 'simple' && !isLaborOnly ? 'sm:grid-cols-2' : ''}`}>
+                  {(estimateView === 'simple' || activeStage === 'origin' || isLaborOnly) && <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{isLaborOnly ? 'Service address' : 'Origin'}</div>
                     <AddressAutocompleteInput
                       value={originAddress || lead.originAddress || ''}
@@ -2867,7 +2886,7 @@ export function EstimateDraftModal({
                       }}
                     />
                   </div>}
-                  {!isLaborOnly && activeStage === 'destination' && <div>
+                  {!isLaborOnly && (estimateView === 'simple' || activeStage === 'destination') && <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
                     <AddressAutocompleteInput
                       value={destAddress || lead.destAddress || destCity || lead.destCity || ''}
@@ -2891,7 +2910,7 @@ export function EstimateDraftModal({
                     factors={jobFactors}
                     legs={undefined}
                     singleLocation={isLaborOnly}
-                    stopRole={activeStage === 'destination' ? 'dropoff' : 'pickup'}
+                    stopRole={estimateView === 'simple' ? undefined : activeStage === 'destination' ? 'dropoff' : 'pickup'}
                     compact
                     baseHours={{ origin: Number(pricingBreakdown?.loadHours || 0), destination: Number(pricingBreakdown?.unloadHours || 0) }}
                     currentUserName={currentUser?.name}
@@ -2958,7 +2977,7 @@ export function EstimateDraftModal({
               </div>
             )}
 
-            {(activeStage === 'origin' || activeStage === 'destination') && legsEnabled && (
+            {(estimateView === 'simple' || activeStage === 'origin' || activeStage === 'destination') && legsEnabled && (
               <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="crm-label mb-1">{activeStage === 'destination' ? 'Delivery access' : 'Pickup access'}</div>
                 <p className="mb-4 text-xs leading-5 text-[var(--app-muted)]">This move has multiple stops. Each {activeStage === 'destination' ? 'delivery' : 'pickup'} keeps its own access profile so one easy address cannot hide a difficult one.</p>
@@ -2967,7 +2986,7 @@ export function EstimateDraftModal({
                   factors={jobFactors}
                   legs={legs}
                   singleLocation={isLaborOnly}
-                  stopRole={activeStage === 'destination' ? 'dropoff' : 'pickup'}
+                  stopRole={estimateView === 'simple' ? undefined : activeStage === 'destination' ? 'dropoff' : 'pickup'}
                   compact
                   baseHours={{ origin: Number(pricingBreakdown?.loadHours || 0), destination: Number(pricingBreakdown?.unloadHours || 0) }}
                   currentUserName={currentUser?.name}
@@ -3023,12 +3042,15 @@ export function EstimateDraftModal({
                       {suggestTruckCount(
                         effectiveInventoryMetrics.totalCubicFeet,
                         effectiveInventoryMetrics.totalWeightLbs,
-                        lead.moveType,
-                      )} company truck{suggestTruckCount(effectiveInventoryMetrics.totalCubicFeet, effectiveInventoryMetrics.totalWeightLbs, lead.moveType) > 1 ? 's' : ''}
+                        route?.category === 'long-distance' || quoteType === 'long_distance' ? 'long-distance' : lead.moveType,
+                      )} company truck{suggestTruckCount(effectiveInventoryMetrics.totalCubicFeet, effectiveInventoryMetrics.totalWeightLbs, route?.category === 'long-distance' || quoteType === 'long_distance' ? 'long-distance' : lead.moveType) > 1 ? 's' : ''}
                       {' · '}{pricingBreakdown?.crewSize || 3} movers
                     </div>
                     <div className="mt-1 text-xs leading-5 text-sky-800">
                       Based on {effectiveInventoryMetrics.totalCubicFeet.toLocaleString()} cu ft / {effectiveInventoryMetrics.totalWeightLbs.toLocaleString()} lbs.
+                      {(route?.category === 'long-distance' || quoteType === 'long_distance')
+                        ? ' Long-distance transport is priced by the required one-way truck capacity, not by each ordinary item. Inventory is still required to confirm truck count, loading complexity, specialty handling, and safe dispatch.'
+                        : null}
                       {effectiveInventoryMetrics.totalCubicFeet >= 1200 && effectiveInventoryMetrics.totalCubicFeet <= 1600
                         ? ' This is close to practical capacity; safer fallback is one main truck plus a 10-ft overflow truck.'
                         : effectiveInventoryMetrics.totalCubicFeet > 1600
@@ -3041,7 +3063,7 @@ export function EstimateDraftModal({
                       type="button"
                       onClick={() => setFactors({
                         ...jobFactors,
-                        truckCountOverride: suggestTruckCount(effectiveInventoryMetrics.totalCubicFeet, effectiveInventoryMetrics.totalWeightLbs, lead.moveType),
+                        truckCountOverride: suggestTruckCount(effectiveInventoryMetrics.totalCubicFeet, effectiveInventoryMetrics.totalWeightLbs, route?.category === 'long-distance' || quoteType === 'long_distance' ? 'long-distance' : lead.moveType),
                       })}
                       className="rounded-[6px] bg-sky-900 px-3 py-1.5 text-[11px] font-semibold text-white"
                     >
@@ -5375,7 +5397,7 @@ export function EstimateDraftModal({
                   {/* Truck size suggestion */}
                   {effectiveInventoryMetrics.totalCubicFeet > 0 && (() => {
                     const cf = effectiveInventoryMetrics.totalCubicFeet
-                    const count = suggestTruckCount(cf, effectiveInventoryMetrics.totalWeightLbs, lead.moveType)
+                    const count = suggestTruckCount(cf, effectiveInventoryMetrics.totalWeightLbs, route?.category === 'long-distance' || quoteType === 'long_distance' ? 'long-distance' : lead.moveType)
                     const size = cf < 250 ? '15 ft' : cf < 700 ? '20 ft' : '26 ft'
                     return (
                       <div className="rounded-[6px] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-muted)]">
@@ -5689,7 +5711,7 @@ export function EstimateDraftModal({
               </div>
             </div>
 
-            <div className="sticky bottom-0 z-20 flex items-center justify-between gap-3 border-t border-[var(--app-line)] bg-white/95 px-1 py-3 backdrop-blur">
+            {estimateView === 'guided' ? <div className="sticky bottom-0 z-20 flex items-center justify-between gap-3 border-t border-[var(--app-line)] bg-white/95 px-1 py-3 backdrop-blur">
               <button type="button" disabled={activeStageIndex === 0} onClick={() => goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, -1))} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] disabled:opacity-30">← Back</button>
               <div className="hidden text-center text-[10px] text-[var(--app-muted)] sm:block">Changes stay in the same draft. Moving between stages does not duplicate or resend anything.</div>
               {activeStageIndex < workflowStages.length - 1 ? (
@@ -5697,7 +5719,7 @@ export function EstimateDraftModal({
               ) : (
                 <span className="text-xs font-semibold text-[var(--app-muted)]">Final review</span>
               )}
-            </div>
+            </div> : null}
           </div>
 
           {/* Sidebar */}
@@ -7279,6 +7301,7 @@ export function EstimateDraftModal({
                         <div className="font-semibold">Customer price override active</div>
                         <div className="mt-1 text-[11px] text-[var(--app-muted)]">
                           Agreed customer total: {formatMoney(overridePricing.total)} including HST
+                          {overrideTaxMode === 'plus_hst' ? ` · entered as ${formatMoney(overridePricing.subtotal)} + HST` : ' · entered as all-in'}
                         </div>
                         {pricingBreakdown ? (
                           <div className="mt-1 text-[11px] text-[var(--app-muted)]">
@@ -7303,7 +7326,17 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="text-xs font-semibold text-[var(--app-ink)]">Price Override</div>
                   <div className="text-[10px] leading-4 text-[var(--app-muted)]">
-                    Enter the <span className="font-semibold text-[var(--app-ink)]">final price promised to the customer, including HST</span>. The CRM separates the pre-tax amount and tax automatically. Every override needs a quick note.
+                    First choose what the amount means. The CRM will calculate HST exactly once and show the final customer total before you apply it.
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => { setOverrideTaxMode('plus_hst'); setOverrideApplied(false); setApprovedOverrideAmount(null) }} className={`rounded-[7px] border px-3 py-2 text-left ${overrideTaxMode === 'plus_hst' ? 'border-[#071421] bg-[#071421] text-white' : 'border-[var(--app-line)] bg-white text-[var(--app-ink)]'}`}>
+                      <span className="block text-[11px] font-semibold">Price + HST</span>
+                      <span className={`mt-0.5 block text-[9px] ${overrideTaxMode === 'plus_hst' ? 'text-white/65' : 'text-[var(--app-muted)]'}`}>Example: $1,600 becomes $1,808 total</span>
+                    </button>
+                    <button type="button" onClick={() => { setOverrideTaxMode('hst_included'); setOverrideApplied(false); setApprovedOverrideAmount(null) }} className={`rounded-[7px] border px-3 py-2 text-left ${overrideTaxMode === 'hst_included' ? 'border-[#071421] bg-[#071421] text-white' : 'border-[var(--app-line)] bg-white text-[var(--app-ink)]'}`}>
+                      <span className="block text-[11px] font-semibold">HST included / all-in</span>
+                      <span className={`mt-0.5 block text-[9px] ${overrideTaxMode === 'hst_included' ? 'text-white/65' : 'text-[var(--app-muted)]'}`}>Example: $1,600 stays $1,600 total</span>
+                    </button>
                   </div>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -7319,7 +7352,7 @@ export function EstimateDraftModal({
                           setApprovedOverrideAmount(null)
                           setOverrideApprovalNotice(null)
                         }}
-                        placeholder="e.g. 1600 all-in"
+                        placeholder={overrideTaxMode === 'plus_hst' ? 'e.g. 1600 + HST' : 'e.g. 1600 all-in'}
                         className="crm-input pl-5 w-full text-sm font-semibold"
                       />
                     </div>
@@ -7351,7 +7384,9 @@ export function EstimateDraftModal({
                   />
                   {overrideInput && Number(overrideInput) > 0 && (
                     <div className="text-[10px] text-[var(--app-muted)]">
-                      Customer total <span className="font-semibold text-[var(--app-ink)]">{formatMoney(overridePricing.total)}</span> = {formatMoney(overridePricing.subtotal)} pre-tax + {formatMoney(overridePricing.hst)} HST. Tax will not be added again.
+                      {overrideTaxMode === 'plus_hst'
+                        ? <><span className="font-semibold text-[var(--app-ink)]">{formatMoney(overridePricing.subtotal)} + {formatMoney(overridePricing.hst)} HST = {formatMoney(overridePricing.total)} customer total</span>.</>
+                        : <>Customer total <span className="font-semibold text-[var(--app-ink)]">{formatMoney(overridePricing.total)}</span> = {formatMoney(overridePricing.subtotal)} pre-tax + {formatMoney(overridePricing.hst)} HST. Tax will not be added again.</>}
                     </div>
                   )}
                   {overrideProjectedMargin !== null && (
