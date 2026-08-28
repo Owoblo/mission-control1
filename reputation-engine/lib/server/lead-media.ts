@@ -6,6 +6,8 @@ import { saveSalesLead } from '@/lib/server/sales-repository'
 import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import type { CRMLead, InventoryItem, LeadMediaAsset } from '@/lib/types'
+// @ts-expect-error heic-convert does not publish TypeScript declarations.
+import convertHeic from 'heic-convert'
 
 const BUCKET = 'survey-photos'
 const MAX_MEDIA_UPLOAD_FILES = 30
@@ -105,8 +107,20 @@ export async function uploadLeadMediaAssets(input: {
   const assets: LeadMediaAsset[] = []
 
   for (const file of input.files.slice(0, MAX_MEDIA_UPLOAD_FILES)) {
-    const buffer = await file.arrayBuffer()
-    const url = await uploadToStorage(input.leadId, input.namespace, file.name || 'media', buffer, file.type || 'application/octet-stream')
+    const originalBuffer = Buffer.from(await file.arrayBuffer())
+    const isHeic = /image\/hei[cf]/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || '')
+    const convertedBytes = isHeic
+      ? Buffer.from(await convertHeic({ buffer: originalBuffer, format: 'JPEG', quality: 0.88 }))
+      : originalBuffer
+    const preparedBuffer = convertedBytes.buffer.slice(
+      convertedBytes.byteOffset,
+      convertedBytes.byteOffset + convertedBytes.byteLength,
+    ) as ArrayBuffer
+    const preparedName = isHeic
+      ? `${(file.name || 'photo').replace(/\.(?:heic|heif)$/i, '')}.jpg`
+      : (file.name || 'media')
+    const preparedMime = isHeic ? 'image/jpeg' : (file.type || 'application/octet-stream')
+    const url = await uploadToStorage(input.leadId, input.namespace, preparedName, preparedBuffer, preparedMime)
     assets.push({
       id: uid('media'),
       url,
@@ -114,8 +128,8 @@ export async function uploadLeadMediaAssets(input: {
       source: input.source,
       category: input.category,
       room: input.room || undefined,
-      filename: file.name || undefined,
-      mimeType: file.type || undefined,
+      filename: preparedName || undefined,
+      mimeType: preparedMime || undefined,
       uploadedAt: new Date().toISOString(),
       uploadedByUserId: input.uploadedByUserId,
       uploadedByName: input.uploadedByName,

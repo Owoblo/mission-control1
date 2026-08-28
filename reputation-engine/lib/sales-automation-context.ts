@@ -138,6 +138,16 @@ function extractRouteAddresses(message?: string | null) {
   const text = cleanLine(message)
   if (!text) return {}
 
+  // Never flatten a second pickup into the canonical origin field.
+  const labeledMultiStop = text.match(
+    /pickup\s+addresses?\s*:\s*(.+?)\s*,?\s+then\s+(.+?)\s*,?\s+drop\s*-?\s*off\s+address\s*:\s*(.+?)(?=\s*[.;]\s*(?:the\s+)?(?:majority|items?|no\s+assembly|all\s+items?)\b|$)/i,
+  )
+  if (labeledMultiStop) {
+    const originAddress = firstCompleteAddress(labeledMultiStop[1])
+    const destAddress = firstCompleteAddress(labeledMultiStop[3])
+    if (originAddress && destAddress) return { originAddress, destAddress }
+  }
+
   const splitParts = text.split(ADDRESS_SPLIT_RE).map(part => part.trim()).filter(Boolean)
   if (splitParts.length >= 2) {
     const originAddress = firstCompleteAddress(splitParts[0])

@@ -22,3 +22,9 @@ test('manual override requires an explicit plus-HST or all-in meaning', () => {
 test('saved override total uses the canonical total including HST', () => {
   assert.match(leadWorkspace, /overrideLineItem \? totals\.total : undefined/)
 })
+
+test('an explicit agreed-rate revision updates a viewed quote instead of silently restoring the old price', () => {
+  assert.match(leadWorkspace, /hasExplicitPriceRevision/)
+  assert.match(leadWorkspace, /quoteIsLockedForPricing && !hasExplicitPriceRevision/)
+  assert.match(leadWorkspace, /pricingRevisionReason: proposedOverrideLineItem\?\.details/)
+})

@@ -9,6 +9,13 @@ import {
 import { getAutomationMissingFields } from '../../lib/sales-automation-qualification'
 import type { CRMLead } from '../../lib/types'
 
+test('multi-stop customer prose keeps origin and destination fields clean', () => {
+  const message = 'Pickup addresses: 784 Eminence Street K2J6X6, then 10 Westchester Court K2J3P9, drop-off address: 43 St. Claire Ave K2G2A1. The majority of the items are boxes.'
+  const updated = resolveInboundSalesContext(lead(), message)
+  assert.equal(updated.originAddress, '784 Eminence Street K2J6X6')
+  assert.equal(updated.destAddress, '43 St. Claire Ave K2G2A1')
+})
+
 function lead(overrides: Partial<CRMLead> = {}): CRMLead {
   return {
     id: 'lead_context_test',
