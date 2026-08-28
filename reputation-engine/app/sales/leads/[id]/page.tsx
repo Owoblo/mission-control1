@@ -177,6 +177,7 @@ export default function SalesLeadDetailPage() {
   const removedInventoryKeysRef = useRef<Set<string>>(new Set())
   const inventoryPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inventoryPersistRevisionRef = useRef(0)
+  const inventoryPersistPendingRef = useRef(false)
   const leadPollInFlightRef = useRef(false)
   const smsFetchInFlightRef = useRef(false)
   const emailFetchInFlightRef = useRef(false)
@@ -534,7 +535,7 @@ export default function SalesLeadDetailPage() {
     return 'Card on file'
   }, [quote?.depositStripeCardBrand, quote?.depositStripeCardLast4])
 
-  function applyLeadSnapshot(nextLead: CRMLead, options?: { hydrateForm?: boolean }) {
+  function applyLeadSnapshot(nextLead: CRMLead, options?: { hydrateForm?: boolean; preserveInventory?: boolean }) {
     const incomingRemovedKeys = new Set(nextLead.removedInventoryItemKeys || [])
     removedInventoryKeysRef.current.forEach(key => incomingRemovedKeys.add(key))
     removedInventoryKeysRef.current = incomingRemovedKeys
@@ -587,7 +588,7 @@ export default function SalesLeadDetailPage() {
     setCustomerPriority(draftState.customerPriority)
     setNotes(draftState.notes)
     setRealtorBrokerage(draftState.realtorBrokerage)
-    setInventory(filterRemovedInventoryItems(draftState.inventory || []))
+    if (!options?.preserveInventory) setInventory(filterRemovedInventoryItems(draftState.inventory || []))
     setJobFactors(draftState.jobFactors)
     setContextFlag(draftState.contextFlag)
     setAssignedRep(draftState.assignedRep)
@@ -777,10 +778,10 @@ export default function SalesLeadDetailPage() {
         // automation refreshes from overwriting addresses or other in-progress changes.
         const hasInFlightEdits = draftLeadSignatureRef.current !== null &&
           autoSaveBlockedSignatureRef.current === null
-        applyLeadSnapshot(nextLead, { hydrateForm: !hasInFlightEdits })
+        applyLeadSnapshot(nextLead, { hydrateForm: !hasInFlightEdits, preserveInventory: inventoryPersistPendingRef.current })
         // Always sync inventory from DB — scan results must reach the estimate modal
         // regardless of whether the rep has in-flight edits on other fields.
-        if (hasInFlightEdits && Array.isArray(nextLead.inventory)) {
+        if (hasInFlightEdits && !inventoryPersistPendingRef.current && Array.isArray(nextLead.inventory)) {
           setInventory(filterRemovedInventoryItems(nextLead.inventory))
         }
         setAutomationSettings(resolveAutomationSettings(nextLead.automationSettings))
@@ -3590,6 +3591,7 @@ export default function SalesLeadDetailPage() {
 
   function persistInventorySnapshot(next: InventoryItem[], options: { immediate?: boolean; inventoryVerification?: CRMLead['inventoryVerification'] } = {}) {
     const revision = ++inventoryPersistRevisionRef.current
+    inventoryPersistPendingRef.current = true
     const metrics = deriveInventoryMetrics(next)
     const leadPatch = {
       inventory: metrics.inventory,
@@ -3610,6 +3612,7 @@ export default function SalesLeadDetailPage() {
       void updateSalesLead(lead.id, leadPatch)
         .then(saved => {
           if (revision !== inventoryPersistRevisionRef.current) return
+          inventoryPersistPendingRef.current = false
           setLead(current => current ? {
             ...current,
             inventory: saved.inventory,
@@ -3623,6 +3626,7 @@ export default function SalesLeadDetailPage() {
         })
         .catch(err => {
           if (revision !== inventoryPersistRevisionRef.current) return
+          inventoryPersistPendingRef.current = false
           setError(`Inventory was not saved: ${(err as Error).message}`)
         })
     }

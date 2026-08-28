@@ -448,7 +448,7 @@ export function EstimateDraftModal({
   const [tenPctActive, setTenPctActive] = useState(false)
   const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
   const [overrideInput, setOverrideInput] = useState('')
-  const [overrideTaxMode, setOverrideTaxMode] = useState<OntarioPriceOverrideMode>('plus_hst')
+  const [overrideTaxMode, setOverrideTaxMode] = useState<OntarioPriceOverrideMode | null>(null)
   const [overrideReason, setOverrideReason] = useState('relationship')
   const [overrideNote, setOverrideNote] = useState('')
   const [overrideApprovalCode, setOverrideApprovalCode] = useState('')
@@ -505,14 +505,8 @@ export function EstimateDraftModal({
   const [activeStage, setActiveStage] = useState<EstimateWorkflowStageId>('lead')
   const [estimateView, setEstimateView] = useState<'simple' | 'guided'>('simple')
 
-  useEffect(() => {
-    const savedView = window.localStorage.getItem('sales-estimate-view')
-    if (savedView === 'simple' || savedView === 'guided') setEstimateView(savedView)
-  }, [])
-
   function chooseEstimateView(view: 'simple' | 'guided') {
     setEstimateView(view)
-    window.localStorage.setItem('sales-estimate-view', view)
   }
 
   useEffect(() => { onRecalculateRef.current = onRecalculate }, [onRecalculate])
@@ -1251,8 +1245,10 @@ export function EstimateDraftModal({
       setOverrideApplied(true)
       const savedCustomerTotal = Number(quote?.priceOverrideTotal || 0)
       const derivedCustomerTotal = Math.round(Number(overrideItem.amount) * 1.13 * 100) / 100
-      setOverrideInput(String(savedCustomerTotal > 0 ? savedCustomerTotal : derivedCustomerTotal))
-      setOverrideTaxMode('hst_included')
+      const savedTotal = savedCustomerTotal > 0 ? savedCustomerTotal : derivedCustomerTotal
+      const savedAsAllIn = Math.abs(savedTotal - derivedCustomerTotal) < 0.02
+      setOverrideTaxMode(savedAsAllIn ? 'hst_included' : 'plus_hst')
+      setOverrideInput(String(savedAsAllIn ? savedTotal : overrideItem.amount))
     } else if (!overrideItem) {
       setOverrideApplied(false)
     }
@@ -2152,11 +2148,13 @@ export function EstimateDraftModal({
   }, [liveMarginSummary, quoteModalTotals.subtotal, tenPctActive, tenPctDiscountAmount])
   const overrideProjectedMargin = useMemo(() => {
     if (!liveMarginSummary) return null
-    const overrideAmount = resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode).subtotal
+    const overrideAmount = overrideTaxMode ? resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode).subtotal : 0
     if (overrideAmount <= 0) return null
     return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
   }, [liveMarginSummary, overrideInput, overrideTaxMode])
-  const overridePricing = useMemo(() => resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode), [overrideInput, overrideTaxMode])
+  const overridePricing = useMemo(() => overrideTaxMode
+    ? resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode)
+    : { subtotal: 0, hst: 0, total: 0 }, [overrideInput, overrideTaxMode])
   const overrideAmount = overridePricing.subtotal
   const overrideIsIncrease = baseQuoteSubtotal > 0 && overrideAmount >= baseQuoteSubtotal
   const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
@@ -2590,6 +2588,10 @@ export function EstimateDraftModal({
 
   async function handlePreviewSend() {
     if (blockingReadiness.length > 0 || warningReadiness.length > 0) {
+      if (estimateView === 'simple') {
+        await handleProvisionalSend()
+        return
+      }
       setSendGuardOpen(true)
       return
     }
@@ -5224,12 +5226,12 @@ export function EstimateDraftModal({
                   <div className="text-xs leading-relaxed">{accessAssessment.summary}</div>
                 </div>
 
-                <div className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <details open={estimateView === 'guided' ? true : undefined} className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
                     <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">Hidden Inventory Check</div><p className="mt-1 text-xs text-amber-800">Every area needs its own factual answer. Silence and a general inventory confirmation do not count.</p></div>
                     <div className={`rounded-full px-3 py-1 text-xs font-bold ${blockingReadiness.length === 0 ? 'bg-emerald-600 text-white' : 'bg-white text-amber-900'}`}>{blockingReadiness.length === 0 ? 'QUOTE READY' : `${quoteReadyAssessment.inventoryConfidence}% inventory confidence`}</div>
-                  </div>
-                  <div className="grid gap-3 lg:grid-cols-2">
+                  </summary>
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     {HIDDEN_INVENTORY_AREAS.map(area => {
                       const value = jobFactors.hiddenInventoryCoverage?.[area.key]
                       return <div key={area.key} className="rounded-[8px] border border-amber-200 bg-white p-3">
@@ -5262,7 +5264,7 @@ export function EstimateDraftModal({
                     })}
                   </div>
                   {blockingReadiness.length > 0 && <div className="rounded-[6px] border border-amber-300 bg-white px-3 py-2 text-xs text-amber-900"><strong>Fixed price remains locked:</strong> {blockingReadiness.slice(0, 4).map(item => item.detail).join(' · ')}{blockingReadiness.length > 4 ? ` · +${blockingReadiness.length - 4} more` : ''}</div>}
-                </div>
+                </details>
 
                 {/* Packing Status */}
                 <div className="space-y-3">
@@ -5704,7 +5706,7 @@ export function EstimateDraftModal({
                   <div className="mt-1 text-3xl font-bold">{formatMoney(quoteModalTotals.total)}</div>
                   <div className="mt-1 text-xs text-white/65">Flat-price scope preview · deposit {formatMoney(quoteModalTotals.deposit)}</div>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                    <button type="button" onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote} className="flex-1 rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Preview customer view →</button>
+                    <button type="button" onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote} className="flex-1 rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{estimateView === 'simple' && (blockingReadiness.length > 0 || warningReadiness.length > 0) ? 'Preview provisional estimate →' : 'Preview customer view →'}</button>
                     <button type="button" onClick={() => void onSaveDraft({ quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="rounded-[8px] border border-white/25 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save draft</button>
                   </div>
                 </div>
@@ -7326,7 +7328,7 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="text-xs font-semibold text-[var(--app-ink)]">Price Override</div>
                   <div className="text-[10px] leading-4 text-[var(--app-muted)]">
-                    First choose what the amount means. The CRM will calculate HST exactly once and show the final customer total before you apply it.
+                    Choose what the amount means before entering it. There is no assumed default: the CRM will calculate HST exactly once and show the final customer total before you apply it.
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => { setOverrideTaxMode('plus_hst'); setOverrideApplied(false); setApprovedOverrideAmount(null) }} className={`rounded-[7px] border px-3 py-2 text-left ${overrideTaxMode === 'plus_hst' ? 'border-[#071421] bg-[#071421] text-white' : 'border-[var(--app-line)] bg-white text-[var(--app-ink)]'}`}>
@@ -7384,7 +7386,9 @@ export function EstimateDraftModal({
                   />
                   {overrideInput && Number(overrideInput) > 0 && (
                     <div className="text-[10px] text-[var(--app-muted)]">
-                      {overrideTaxMode === 'plus_hst'
+                      {!overrideTaxMode
+                        ? <span className="font-semibold text-amber-700">Choose “Price + HST” or “HST included / all-in” above before applying this amount.</span>
+                        : overrideTaxMode === 'plus_hst'
                         ? <><span className="font-semibold text-[var(--app-ink)]">{formatMoney(overridePricing.subtotal)} + {formatMoney(overridePricing.hst)} HST = {formatMoney(overridePricing.total)} customer total</span>.</>
                         : <>Customer total <span className="font-semibold text-[var(--app-ink)]">{formatMoney(overridePricing.total)}</span> = {formatMoney(overridePricing.subtotal)} pre-tax + {formatMoney(overridePricing.hst)} HST. Tax will not be added again.</>}
                     </div>
@@ -7438,6 +7442,7 @@ export function EstimateDraftModal({
                     type="button"
                     disabled={
                       !overrideInput ||
+                      !overrideTaxMode ||
                       overrideAmount <= 0 ||
                       overrideNote.trim().length < 6 ||
                       (overrideNeedsApproval && !canApproveMarginException && !overrideApprovalMatches)
