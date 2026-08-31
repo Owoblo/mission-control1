@@ -11,6 +11,7 @@ import { enqueueQuoteSendJobs, fetchQuoteSendJobs, fetchSalesQuote, saveSalesFol
 import { buildManualQuoteSmsDraft } from '@/lib/sales-quote-sms'
 import { compactCustomerLink } from '@/lib/customer-links'
 import { getReceiptBrand } from '@/lib/receipt-brand'
+import { quoteCommercialSnapshotChanged } from '@/lib/quote-pricing-safety'
 import type { QuoteSendJob } from '@/lib/quote-send-jobs'
 import type { CRMClient, CRMLead, CRMQuote, FollowUpLog, QuoteLineItem } from '@/lib/types'
 
@@ -465,7 +466,15 @@ ${brand.fullName}`
     if (quoteTotals.total <= 0 || quoteTotals.lineItems.length === 0 || !quoteTotals.lineItems.some(item => Number(item.amount || 0) > 0)) {
       throw new Error('Quote delivery blocked: save a positive price and at least one priced line item before sending.')
     }
-    const result = await updateSalesQuote(quote.id, buildQuotePricingUpdates({ status: quote.status }))
+    const pricingUpdates = buildQuotePricingUpdates({ status: quote.status })
+    // Preview is normally opened immediately after the estimate was saved. Do
+    // not put a second, identical PATCH in front of the send request: a slow or
+    // rejected no-op save previously made the button flash "Sending…" and then
+    // return without ever reaching the outbox.
+    if (!quoteCommercialSnapshotChanged(quote, pricingUpdates)) {
+      return { quote, lead }
+    }
+    const result = await updateSalesQuote(quote.id, pricingUpdates)
     if (
       Math.abs(Number(result.quote.total || 0) - quoteTotals.total) > 0.01 ||
       !result.quote.lineItems?.some(item => Number(item.amount || 0) > 0)
@@ -1357,6 +1366,11 @@ ${brand.fullName}`
 
             {/* Modal footer */}
             <div className="border-t border-[var(--app-line)] px-6 py-4 space-y-3">
+              {error && (
+                <div role="alert" className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700">
+                  {error}
+                </div>
+              )}
               {/* Price confirmation */}
               <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Confirm Price Being Sent</div>
