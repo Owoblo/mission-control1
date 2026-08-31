@@ -162,6 +162,7 @@ type RouteResult = {
     driveHours: number
   } | null
   missingRequirements?: string[]
+  serviceAreaMode?: 'branch' | 'open_market'
 }
 
 type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: number }>]>
@@ -2408,6 +2409,11 @@ export function EstimateDraftModal({
 
   useEffect(() => {
     if (!open) return
+    if (route?.serviceAreaMode === 'open_market') {
+      setCapacitySnapshot(null)
+      setCapacityBusy(false)
+      return
+    }
     if (!selectedMoveDate) {
       setCapacitySnapshot(null)
       return
@@ -2483,7 +2489,7 @@ export function EstimateDraftModal({
     return () => {
       cancelled = true
     }
-  }, [open, selectedBranch, selectedMoveDate])
+  }, [open, route?.serviceAreaMode, selectedBranch, selectedMoveDate])
 
   async function copyPriceExplanation(mode: 'short' | 'detailed') {
     const text = mode === 'short' ? quoteExplanation.short : quoteExplanation.detailed
@@ -2937,7 +2943,9 @@ export function EstimateDraftModal({
                 <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Route Context</div>
-                    <div className="text-[10px] font-medium text-[var(--app-muted)]">{getSalesBranchLabel(selectedBranch)} branch</div>
+                    <div className="text-[10px] font-medium text-[var(--app-muted)]">
+                      {route?.serviceAreaMode === 'open_market' ? `${originCity || lead.originCity || 'Origin'} open market` : `${getSalesBranchLabel(selectedBranch)} branch`}
+                    </div>
                   </div>
                   {route ? (
                     <div className="mt-2 space-y-2">
@@ -7032,7 +7040,9 @@ export function EstimateDraftModal({
                     <div className="text-xs font-semibold text-[var(--app-ink)]">Capacity Awareness</div>
                     <div className="text-[10px] font-medium text-[var(--app-muted)]">{selectedMoveDate || 'Move date TBD'}</div>
                   </div>
-                  {!selectedMoveDate ? (
+                  {route?.serviceAreaMode === 'open_market' ? (
+                    <div className="mt-2 text-[10px] text-[var(--app-muted)]">Open-market sales estimate. Branch capacity does not affect quote or booking.</div>
+                  ) : !selectedMoveDate ? (
                     <div className="mt-2 text-[10px] text-[var(--app-muted)]">Capacity estimate unavailable. Confirm manually before booking.</div>
                   ) : capacityBusy ? (
                     <div className="mt-2 text-[10px] text-[var(--app-muted)]">Checking branch load…</div>

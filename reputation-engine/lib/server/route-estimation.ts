@@ -139,6 +139,20 @@ function inferRouteBranchForEstimate(input: {
   return undefined
 }
 
+function inferOriginBranchForEstimate(input: {
+  branch?: string
+  origin?: string
+  originDisplayName?: string
+}): keyof typeof BRANCH_YARDS | undefined {
+  const explicitBranch = normalizeRouteBranch(input.branch)
+  if (explicitBranch) return explicitBranch
+  const originText = normalizeRouteLocationText([input.origin, input.originDisplayName].filter(Boolean).join(' '))
+  for (const branch of ['waterloo', 'london', 'ottawa', 'windsor'] as Array<keyof typeof BRANCH_YARDS>) {
+    if (ROUTE_BRANCH_ALIASES[branch].some(alias => originText.includes(normalizeRouteLocationText(alias)))) return branch
+  }
+  return undefined
+}
+
 export function findNearestRouteBranch(origin: Pick<GeocodeResult, 'lat' | 'lng'>): keyof typeof BRANCH_YARDS {
   let nearest: keyof typeof BRANCH_YARDS = 'windsor'
   let nearestDistance = Number.POSITIVE_INFINITY
@@ -455,8 +469,10 @@ export async function estimateRouteContext(input: {
   destResolved?: string
   yardResolved?: string
   branch?: keyof typeof BRANCH_YARDS
+  serviceAreaMode?: 'branch' | 'open_market'
 }> {
-  let routeBranch = inferRouteBranchForEstimate(input)
+  let routeBranch = inferOriginBranchForEstimate(input)
+  const explicitlyOrLocallyBranched = Boolean(routeBranch)
 
   // Geocode with fallback: if full address fails, try stripping the last token
   // Also handles pre-resolved "lat,lng" format passed from place_id resolution
@@ -484,14 +500,10 @@ export async function estimateRouteContext(input: {
     throw new Error(`Could not locate: "${input.origin}"`)
   }
 
-  // Unknown cities must never silently inherit Windsor. Once the origin is
-  // geocoded, choose the closest yard. Explicit staff selection still wins.
-  routeBranch ||= findNearestRouteBranch(originGeo)
-  const yardGeoHardcoded = BRANCH_YARD_COORDS[routeBranch] || BRANCH_YARD_COORDS.windsor
-
-  // Yard: always use hardcoded branch coords for routing
-  // U-Haul pickup distance is handled separately in the Live Margin — keeps pricing engine clean
-  const yardGeo = yardGeoHardcoded
+  // Locations outside established branches are open sales markets. Anchor the
+  // estimate at the customer's origin instead of inventing an Ontario deadhead.
+  const serviceAreaMode = explicitlyOrLocallyBranched ? 'branch' : 'open_market'
+  const yardGeo = input.yardOverride || (routeBranch ? BRANCH_YARD_COORDS[routeBranch] : originGeo)
 
   const yardToOrigin = await getDrivingRoute(yardGeo, originGeo)
   if (!yardToOrigin) {
@@ -518,6 +530,7 @@ export async function estimateRouteContext(input: {
       originResolved: originGeo.displayName,
       yardResolved: yardGeo.displayName,
       branch: routeBranch,
+      serviceAreaMode,
     }
   }
 
@@ -596,5 +609,6 @@ export async function estimateRouteContext(input: {
     destResolved: destGeo.displayName,
     yardResolved: yardGeo.displayName,
     branch: routeBranch,
+    serviceAreaMode,
   }
 }

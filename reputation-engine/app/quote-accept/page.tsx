@@ -264,7 +264,12 @@ function quoteMarketLabel(quote: PublicQuote) {
   const detectedBranch = quoteBranch(quote)
   if (detectedBranch && PUBLIC_BRANCH_MARKETS[detectedBranch]) return PUBLIC_BRANCH_MARKETS[detectedBranch]
   const city = quote.originCity || quote.destCity || getSalesBranchLabel(detectedBranch)
-  return city && city !== 'Unassigned' ? `${city}, Ontario` : 'Ontario'
+  const locationText = [quote.originAddress, quote.originCity, quote.destAddress, quote.destCity].filter(Boolean).join(', ')
+  const provinceMatch = locationText.match(/\b(AB|BC|MB|NB|NL|NS|NT|NU|ON|PE|QC|SK|YT|Alberta|British Columbia|Manitoba|New Brunswick|Newfoundland(?: and Labrador)?|Nova Scotia|Northwest Territories|Nunavut|Ontario|Prince Edward Island|Quebec|Québec|Saskatchewan|Yukon)\b/i)
+  const province = provinceMatch?.[1]
+  return city && city !== 'Unassigned'
+    ? [city, province].filter(Boolean).join(', ')
+    : province || 'Canada'
 }
 
 interface TimelinePhase {
