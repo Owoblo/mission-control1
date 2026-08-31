@@ -443,6 +443,9 @@ ${brand.fullName}`
       total: quoteTotals.total,
       deposit: quoteTotals.deposit,
       balance: quoteTotals.balance,
+      ...(Number(quote?.priceOverrideTotal || 0) > 0
+        ? { priceOverrideTotal: quoteTotals.total }
+        : {}),
       discountAmount,
       discountLabel,
       crewSize,
