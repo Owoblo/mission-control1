@@ -65,6 +65,13 @@ test('unqualified local addresses retain the Ontario default', () => {
   )
 })
 
+test('open-market Canadian cities are not relabelled as Ontario', () => {
+  assert.equal(
+    qualifyMoveAddress('123 Portage Avenue', 'Winnipeg'),
+    '123 Portage Avenue, Winnipeg, Canada'
+  )
+})
+
 test('route sanity guard rejects a wrong-country distance mismatch', () => {
   const windsor = { lat: 42.3149, lng: -83.0364 }
   const cantonMichigan = { lat: 42.3086, lng: -83.4822 }
