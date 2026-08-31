@@ -21,7 +21,7 @@ import { DEFAULT_ROOM_OPTIONS } from './helpers'
 import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
-import { qualifyMoveAddress } from '@/lib/route-address'
+import { extractCityFromFormattedAddress, qualifyMoveAddress } from '@/lib/route-address'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
@@ -42,6 +42,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   const containerRef = useRef<HTMLDivElement>(null)
   const focusedRef = useRef(false)
   const latestQueryRef = useRef('')
+  const suggestionSelectedRef = useRef(false)
   useEffect(() => {
     if (!focusedRef.current) setRaw(value)
   }, [value])
@@ -57,6 +58,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
   }, [])
   function handleChange(val: string) {
     setRaw(val)
+    suggestionSelectedRef.current = false
     onSelect(val)
     latestQueryRef.current = val
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -78,7 +80,11 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
     }, 350)
   }
   function select(s: { label: string; city?: string; country?: string; countryCode?: 'ca' | 'us'; placeType?: string; placeId?: string }) {
-    setRaw(s.label); setSuggestions([]); setOpen(false); onSelect(s.label, s.city, s.placeType, s.placeId)
+    suggestionSelectedRef.current = true
+    setRaw(s.label)
+    setSuggestions([])
+    setOpen(false)
+    onSelect(s.label, s.city || extractCityFromFormattedAddress(s.label), s.placeType, s.placeId)
   }
   return (
     <div ref={containerRef} className="relative">
@@ -89,7 +95,14 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
         }}
         onBlur={() => {
           focusedRef.current = false
-          onSelect(raw)
+          // Blur occurs before a suggestion's click. Let an explicit click win;
+          // otherwise resolve typed street text to the best match and save city.
+          setTimeout(() => {
+            if (suggestionSelectedRef.current) return
+            const bestMatch = suggestions[0]
+            if (bestMatch && latestQueryRef.current === raw) select(bestMatch)
+            else onSelect(raw, extractCityFromFormattedAddress(raw))
+          }, 100)
         }}
         className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent)]"
         placeholder={placeholder} autoComplete="off" />

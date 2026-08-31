@@ -12,6 +12,15 @@ export function inferAddressCountryContext(value?: string): 'ca' | 'us' | undefi
   return undefined
 }
 
+const ADDRESS_REGION_RE = /^(?:ON|QC|BC|AB|MB|SK|NS|NB|NL|PE|YT|NT|NU|MI|NY|OH|PA|IN|IL|WI|MN)(?:\s+[A-Z]\d[A-Z](?:\s*\d[A-Z]\d)?)?$/i
+
+/** Extract a city from a provider-formatted address. */
+export function extractCityFromFormattedAddress(value?: string) {
+  const parts = (value || '').split(',').map(part => part.trim()).filter(Boolean)
+  const regionIndex = parts.findIndex(part => ADDRESS_REGION_RE.test(part))
+  return regionIndex > 0 ? parts[regionIndex - 1] : undefined
+}
+
 export function qualifyMoveAddress(address?: string, city?: string) {
   const addr = (address || '').trim()
   const cityText = (city || '').trim()
