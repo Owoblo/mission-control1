@@ -8,7 +8,7 @@ import { deleteSalesQuote, getSalesClient, getSalesLead, getSalesQuote, listFoll
 import { sendRepAlertEmail, quoteViewedEmail, quoteAcceptedEmail } from '@/lib/server/internal-notifications'
 import type { QuoteChangeEntry } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
-import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quotePricingUpdateWouldEraseSnapshot } from '@/lib/quote-pricing-safety'
+import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quotePricingUpdateWouldEraseSnapshot, synchronizeQuotePriceOverride } from '@/lib/quote-pricing-safety'
 import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
 import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 
@@ -110,6 +110,9 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
 
     const proposedStatus = updates.status || current.status
+    // The visible commercial price is authoritative. Older editors could leave
+    // stale override metadata behind after a rep changed the priced line.
+    Object.assign(updates, synchronizeQuotePriceOverride(current, updates))
     const proposedQuote = { ...current, ...updates }
     const pricingTouched = ['lineItems', 'discountAmount', 'subtotal', 'hst', 'total'].some(key =>
       Object.prototype.hasOwnProperty.call(updates, key)

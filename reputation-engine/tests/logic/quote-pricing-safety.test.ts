@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quoteDeliveryBlockReason, quotePricingUpdateWouldEraseSnapshot, resolveOntarioPriceOverride, splitOntarioHstInclusiveTotal } from '../../lib/quote-pricing-safety'
+import { getQuoteCommercialArithmeticError, hasCustomerFacingCommercialSnapshot, hasDeliverableQuotePricing, quoteCommercialSnapshotChanged, quoteDeliveryBlockReason, quotePricingUpdateWouldEraseSnapshot, resolveOntarioPriceOverride, splitOntarioHstInclusiveTotal, synchronizeQuotePriceOverride } from '../../lib/quote-pricing-safety'
 import type { CRMQuote } from '../../lib/types'
 
 const quote = {
@@ -104,4 +104,20 @@ test('commercial arithmetic rejects double HST and inconsistent line totals', ()
     hst: 208,
     total: 1808,
   }) || '', /subtotal/i)
+})
+
+test('visible pricing changes synchronize an existing agreed override total', () => {
+  const updates = synchronizeQuotePriceOverride(
+    { priceOverrideTotal: 5751.7 },
+    { subtotal: 4581, hst: 595.53, total: 5176.53 },
+  )
+  assert.equal(updates.priceOverrideTotal, 5176.53)
+})
+
+test('an explicit override update is preserved', () => {
+  const updates = synchronizeQuotePriceOverride(
+    { priceOverrideTotal: 5751.7 },
+    { subtotal: 4581, hst: 595.53, total: 5176.53, priceOverrideTotal: undefined },
+  )
+  assert.equal(updates.priceOverrideTotal, undefined)
 })

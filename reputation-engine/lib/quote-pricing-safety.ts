@@ -24,6 +24,21 @@ export function resolveOntarioPriceOverride(value: number, mode: OntarioPriceOve
   return { subtotal, hst, total: roundMoney(subtotal + hst) }
 }
 
+/** Keep direct-price metadata aligned with the customer-facing total. */
+export function synchronizeQuotePriceOverride(
+  current: Pick<Partial<CRMQuote>, 'priceOverrideTotal'>,
+  updates: Partial<CRMQuote>,
+): Partial<CRMQuote> {
+  const pricingTouched = ['lineItems', 'discountAmount', 'subtotal', 'hst', 'total'].some(key =>
+    Object.prototype.hasOwnProperty.call(updates, key)
+  )
+  const hasExistingOverride = Number(current.priceOverrideTotal || 0) > 0
+  const overrideExplicitlyUpdated = Object.prototype.hasOwnProperty.call(updates, 'priceOverrideTotal')
+  if (!pricingTouched || !hasExistingOverride || overrideExplicitlyUpdated) return updates
+
+  return { ...updates, priceOverrideTotal: roundMoney(Number(updates.total || 0)) }
+}
+
 export function getQuoteCommercialArithmeticError(quote: Pick<CRMQuote, 'lineItems' | 'discountAmount' | 'subtotal' | 'hst' | 'total'> & Pick<Partial<CRMQuote>, 'priceOverrideTotal'>) {
   const lineSubtotal = (quote.lineItems || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
   const subtotal = Math.max(0, roundMoney(lineSubtotal - Number(quote.discountAmount || 0)))
