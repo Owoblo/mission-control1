@@ -317,12 +317,25 @@ export async function enqueueQuoteSendJobs(payload: {
     notes?: string
   }>
 }): Promise<{ ok: true; jobs: QuoteSendJob[] }> {
-  const response = await fetch('/api/sales/quote-send-jobs', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 45_000)
+  let response: Response
+  try {
+    response = await fetch('/api/sales/quote-send-jobs', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Sending is taking longer than expected. The outbox may still complete it—check Delivery status before trying again.')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
   return readJson(response)
 }
 
