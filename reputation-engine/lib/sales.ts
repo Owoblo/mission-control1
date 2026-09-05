@@ -25,6 +25,9 @@ import { applyRealtorContactToOpportunityLead } from './realtor-opportunity'
 import { recommendTruckLoadPlan } from './truck-planning'
 import { assessMoveIntelligence } from './move-intelligence'
 import { buildOperationalTimeBudget } from './operational-time-budget'
+import { isCrossBorderMove } from './route-address'
+
+export const CROSS_BORDER_LOGISTICS_PREMIUM = 500
 
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim()
@@ -1475,6 +1478,10 @@ function estimateSingleLeadQuote(
 
   const effectiveBillableDistanceKm = roundCurrency((billableDistanceKm || 0) + additionalTripDistanceKm)
   const effectiveOperationalDistanceKm = roundCurrency((operationalDistanceKm || 0) + additionalTripDistanceKm)
+  const crossBorder = isLongDistance && isCrossBorderMove(
+    [lead.originAddress, lead.originCity].filter(Boolean).join(', '),
+    [lead.destAddress, lead.destCity].filter(Boolean).join(', '),
+  )
   const laborCost = roundCurrency(crewSize * operationalHours * LABOR_COST_PER_MOVER_HOUR)
   const truckDailyCost = roundCurrency(truckCount * TRUCK_DAILY_COST)
   const truckFuelMileageCost = roundCurrency((effectiveOperationalDistanceKm || 0) * truckCount * TRUCK_OPS_COST_PER_KM)
@@ -1487,7 +1494,7 @@ function estimateSingleLeadQuote(
   const computedRevenue = roundCurrency(
     lead.moveType === 'commercial'
       ? commercialRevenueBase + commercialCostLayer.markupAmount
-      : laborAmount + smallMoveBaseFee + priorityBookingSurcharge
+      : laborAmount + smallMoveBaseFee + priorityBookingSurcharge + longDistanceOperationalBase + longDistanceMarkupAmount + (crossBorder ? CROSS_BORDER_LOGISTICS_PREMIUM : 0)
   )
   const grossProfit = roundCurrency(computedRevenue - directCost)
   const grossMarginPct = computedRevenue > 0 ? Math.round((grossProfit / computedRevenue) * 1000) / 10 : 0
@@ -1554,6 +1561,14 @@ function estimateSingleLeadQuote(
       amount: totalServiceAmount,
     },
   ]
+
+  if (crossBorder) {
+    lineItems.push({
+      description: 'Cross-Border Logistics Premium',
+      details: 'Border scheduling, customs-document coordination, delay contingency, crew meals, and international return planning',
+      amount: CROSS_BORDER_LOGISTICS_PREMIUM,
+    })
+  }
 
   const includedInventory = (lead.inventory || []).filter(item => item.included !== false)
   const tvCount = includedInventory.reduce((sum, item) => /\b(tv|television|flat.?screen)\b/i.test(`${item.name || item.item || ''}`) ? sum + Math.max(1, Number(item.qty || 1)) : sum, 0)

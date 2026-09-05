@@ -14,6 +14,12 @@ export function inferAddressCountryContext(value?: string): 'ca' | 'us' | undefi
   return undefined
 }
 
+export function isCrossBorderMove(origin?: string, destination?: string) {
+  const originCountry = inferAddressCountryContext(origin)
+  const destinationCountry = inferAddressCountryContext(destination)
+  return Boolean(originCountry && destinationCountry && originCountry !== destinationCountry)
+}
+
 export function qualifyMoveAddress(address?: string, city?: string) {
   const addr = (address || '').trim()
   const cityText = (city || '').trim()
