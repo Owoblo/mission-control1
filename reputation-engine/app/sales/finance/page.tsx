@@ -5,6 +5,7 @@ import { computeCrewPayoutAmounts, CREW_PAYOUT_METHOD_LABELS, CREW_PAYOUT_STATUS
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatMoney, isBookedLikeStage } from '@/lib/sales'
 import { deriveMoneyState } from '@/lib/payment-state'
+import { deriveJobTelemetry } from '@/lib/job-telemetry'
 import type { CRMLead, CRMQuote, CrewPayoutEntry } from '@/lib/types'
 
 interface JobCost {
@@ -57,6 +58,9 @@ const CATEGORIES = [
   { value: 'labor',        label: 'Labor',            icon: '👷' },
   { value: 'truck',        label: 'Truck / Rental',   icon: '🚛' },
   { value: 'fuel',         label: 'Fuel / Gas',       icon: '⛽' },
+  { value: 'tolls',        label: 'Tolls / Border',   icon: '🛣️' },
+  { value: 'lodging',      label: 'Hotel / Lodging',  icon: '🏨' },
+  { value: 'storage',      label: 'Storage',          icon: '🏢' },
   { value: 'supplies',     label: 'Supplies',         icon: '📦' },
   { value: 'extra_fees',   label: 'Extra Fees',       icon: '🧾' },
   { value: 'claims',       label: 'Claims / Damage',  icon: '⚠️' },
@@ -148,7 +152,7 @@ export default function FinancePage() {
             id: l.id,
             name: l.name,
             moveDate: acceptedQuote?.moveDate || l.moveDate,
-            revenue: acceptedQuote?.total || 0,
+            revenue: acceptedQuote?.subtotal || 0,
             quote: acceptedQuote,
             lead: l,
           }
@@ -278,19 +282,21 @@ export default function FinancePage() {
   // Compute P&L per job
   const jobPL = jobs.map(job => {
     const jobCosts = costs.filter(c => c.lead_id === job.id)
-    const totalCosts = moneyFromCents(jobCosts.reduce((s, c) => s + c.amount_cents, 0))
-    const profit = job.revenue - totalCosts
-    const quoteAmount = Number(job.quote?.total || job.revenue || 0)
+    const customerTotal = Number(job.quote?.total || 0)
+    const telemetry = deriveJobTelemetry({ lead: job.lead, quote: job.quote, costs: jobCosts })
+    const totalCosts = telemetry.actualCost
+    const profit = telemetry.actualGrossProfit
+    const quoteAmount = telemetry.revenue
     const depositRequired = Number(job.quote?.deposit || 0)
     const paid = getPaidSoFar(job)
     const moneyState = deriveMoneyState(job.quote, job.lead)
-    const cashPending = Math.max(0, Math.round((quoteAmount - paid.cashCollected) * 100) / 100)
-    const margin = quoteAmount > 0 ? profit / quoteAmount : 0
+    const cashPending = Math.max(0, Math.round((customerTotal - paid.cashCollected) * 100) / 100)
+    const margin = telemetry.actualMarginPct / 100
     const truckCost = costByCategory(jobCosts, 'truck')
     const laborCost = costByCategory(jobCosts, 'labor')
     const fuelCost = costByCategory(jobCosts, 'fuel')
     const suppliesCost = costByCategory(jobCosts, 'supplies')
-    const extraFees = costByCategory(jobCosts, 'extra_fees') + costByCategory(jobCosts, 'equipment') + costByCategory(jobCosts, 'food')
+    const extraFees = costByCategory(jobCosts, 'extra_fees') + costByCategory(jobCosts, 'equipment') + costByCategory(jobCosts, 'food') + costByCategory(jobCosts, 'tolls') + costByCategory(jobCosts, 'lodging') + costByCategory(jobCosts, 'storage')
     const claimsReserve = costByCategory(jobCosts, 'claims') + costByCategory(jobCosts, 'insurance')
     const estimatedLaborBudget = Number(job.quote?.crewSize || 0) * Number(job.quote?.estimatedHours || 0) * 20
     const warnings = [
@@ -302,6 +308,7 @@ export default function FinancePage() {
       quoteAmount > 0 && totalCosts === 0 ? 'No actual costs logged' : '',
       profit < 0 ? 'Job profitable on quote but losing after actual costs' : '',
       moneyState.requiresAttention ? moneyState.explanation : '',
+      telemetry.primaryBottleneck !== 'on_plan' ? `Bottleneck: ${telemetry.primaryBottleneck.replaceAll('_', ' ')}` : '',
     ].filter(Boolean)
     return {
       ...job,
@@ -312,6 +319,7 @@ export default function FinancePage() {
       cashCollected: paid.cashCollected,
       cashPending,
       moneyState,
+      telemetry,
       jobCosts,
       totalCosts,
       truckCost,
@@ -578,7 +586,7 @@ export default function FinancePage() {
                           <span title={job.moneyState.explanation} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${job.moneyState.requiresAttention ? 'border-amber-300 bg-amber-50 text-amber-800' : job.moneyState.status === 'paid_in_full' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>{job.moneyState.label}</span>
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                          <span className="text-[var(--app-muted)]">Quote: <span className="font-semibold text-[#071421]">{formatMoney(job.quoteAmount)}</span></span>
+                          <span className="text-[var(--app-muted)]">Revenue (pre-tax): <span className="font-semibold text-[#071421]">{formatMoney(job.quoteAmount)}</span></span>
                           <span className="text-[var(--app-muted)]">Deposit collected: <span className={`font-semibold ${job.depositCollected > 0 ? 'text-emerald-600' : 'text-amber-600'}`}>{formatMoney(job.depositCollected)}</span></span>
                           <span className="text-[var(--app-muted)]">Balance pending: <span className={`font-semibold ${job.cashPending > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{formatMoney(job.cashPending)}</span></span>
                           <span className="text-[var(--app-muted)]">Costs: <span className="font-semibold text-rose-600">{formatMoney(job.totalCosts)}</span></span>
@@ -586,6 +594,12 @@ export default function FinancePage() {
                           {job.quoteAmount > 0 && (
                             <span className="text-[var(--app-muted)]">Margin: <span className={`font-semibold ${job.margin >= 0.4 ? 'text-emerald-600' : job.margin >= 0.25 ? 'text-amber-600' : 'text-rose-600'}`}>{Math.round(job.margin * 100)}%</span></span>
                           )}
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+                          <div className="rounded-lg border border-[var(--app-line)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Estimated cost</span><div className="font-semibold text-[#071421]">{formatMoney(job.telemetry.estimatedCost)}</div></div>
+                          <div className="rounded-lg border border-[var(--app-line)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Cost variance</span><div className={`font-semibold ${job.telemetry.costVariance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{job.telemetry.costVariance > 0 ? '+' : ''}{formatMoney(job.telemetry.costVariance)}</div></div>
+                          <div className="rounded-lg border border-[var(--app-line)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Hours variance</span><div className={`font-semibold ${(job.telemetry.hoursVariance || 0) > 0 ? 'text-rose-600' : 'text-[#071421]'}`}>{job.telemetry.hoursVariance === null ? 'Not logged' : `${job.telemetry.hoursVariance > 0 ? '+' : ''}${job.telemetry.hoursVariance}h`}</div></div>
+                          <div className="rounded-lg border border-[var(--app-line)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Primary bottleneck</span><div className="font-semibold capitalize text-[#071421]">{job.telemetry.primaryBottleneck.replaceAll('_', ' ')}</div></div>
                         </div>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-6">
                           <div className="rounded-lg bg-[var(--app-bg)] px-2 py-1.5"><span className="text-[var(--app-muted)]">Truck</span><div className="font-semibold text-[#071421]">{formatMoney(job.truckCost)}</div></div>

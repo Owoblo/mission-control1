@@ -4,6 +4,7 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { getSalesLead, listSalesLeads, saveSalesLead } from '@/lib/server/sales-repository'
 import { isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import type { CRMLead, LeadMediaAsset } from '@/lib/types'
+import { reconcileJobOutcomeTelemetry } from '@/lib/server/job-telemetry'
 
 interface JobCost {
   id: string
@@ -259,6 +260,8 @@ export async function POST(request: Request) {
       })
     }
 
+    await reconcileJobOutcomeTelemetry(row.lead_id).catch(() => null)
+
     return NextResponse.json({
       ...row,
       linkedReceiptCount: receiptAssetIds.length,
@@ -295,5 +298,6 @@ export async function DELETE(request: Request) {
 
   const { url, headers } = requireSupabaseEnv()
   await fetch(`${url}/rest/v1/job_costs?id=eq.${id}`, { method: 'DELETE', headers })
+  await reconcileJobOutcomeTelemetry(existingCost.lead_id).catch(() => null)
   return NextResponse.json({ ok: true })
 }
