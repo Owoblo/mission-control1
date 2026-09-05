@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatListingContextSummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getQuotedTruckCount } from '@/lib/operations'
-import { fetchSalesOverview, requestPriceOverrideApproval, verifyPriceOverrideApproval } from '@/lib/sales-api'
+import { fetchSalesBranchCapacity, requestPriceOverrideApproval, verifyPriceOverrideApproval } from '@/lib/sales-api'
 import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset, matchInventoryPreset } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
@@ -13,15 +13,16 @@ import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolic
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
+import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
-import type { EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
+import type { CustomerQuoteScope, EstimateRouteContext, JobFactors, CRMLead, CRMQuote, InventoryItem, LeadMediaAsset, PricingBreakdown, QuoteLineItem, QuoteLeg, QuoteLegType } from '@/lib/types'
 import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
-import { extractCityFromFormattedAddress, qualifyMoveAddress } from '@/lib/route-address'
+import { extractCityFromFormattedAddress, isCrossBorderMove, qualifyMoveAddress } from '@/lib/route-address'
 import {
   calcUHaulCost, compareStrategies, truckSizeFromCubicFeet, calcStrategyTiming, calcLongDistanceUHaul,
   DEFAULT_BLANKET_BAGS, DEFAULT_GAS_PRICE_PER_L, DEFAULT_MISC_BUFFER,
@@ -152,6 +153,7 @@ type RouteResult = {
     driveHours: number
   } | null
   missingRequirements?: string[]
+  serviceAreaMode?: 'branch' | 'open_market'
 }
 
 type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: number }>]>
@@ -162,6 +164,7 @@ type QuoteWorkspaceSaveOptions = {
   internalNotes?: string
   conditionalClause?: string
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
+  customerScope?: CustomerQuoteScope
 }
 
 type QuoteWorkspaceSendOptions = QuoteWorkspaceSaveOptions & {
@@ -1237,6 +1240,7 @@ export function EstimateDraftModal({
   const destFull = (() => {
     return buildRouteAddress(destAddress || lead.destAddress, destCity || lead.destCity)
   })()
+  const crossBorderMove = isCrossBorderMove(originFull, destFull)
   const selectedBranch = (localBranch || branch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
   const baseQuoteSubtotal = useMemo(
     () => quoteLineItems.reduce((sum, item) => {
@@ -1573,6 +1577,16 @@ export function EstimateDraftModal({
   const includedDisassemblyItems = pricingBreakdown
     ? getIncludedDisassemblyItems(pricingBreakdown.disassemblyItems, excludedDisassemblyItems)
     : []
+
+  function captureCustomerScope() {
+    return buildCustomerQuoteScope({
+      inventory: effectiveInventoryMetrics.inventory,
+      jobFactors,
+      assemblyItems: includedDisassemblyItems,
+      customerHandledAssemblyItems: Array.from(excludedDisassemblyItems),
+      specialtyItems: pricingBreakdown?.specialtyItemFlags || [],
+    })
+  }
   const disassemblyScopeLabel = getDisassemblyServiceLabel(jobFactors.disassemblyMode)
   const tvRecommendations = useMemo(() => {
     return effectiveInventoryMetrics.inventory
@@ -2188,7 +2202,11 @@ export function EstimateDraftModal({
     [readinessItems]
   )
   const sendIssueDetails = useMemo(
-    () => [...blockingReadiness, ...warningReadiness].map(item => item.detail),
+    () => [...blockingReadiness, ...warningReadiness]
+      // Commercial checks (margin, approval, deposit, profitability) are internal
+      // controls and must never be copied into customer-facing quote language.
+      .filter(item => item.category !== 'commercial')
+      .map(item => item.detail),
     [blockingReadiness, warningReadiness]
   )
   // Discounts available any time — rep decides when to apply them
@@ -2206,58 +2224,21 @@ export function EstimateDraftModal({
 
   useEffect(() => {
     if (!open) return
+    if (route?.serviceAreaMode === 'open_market') {
+      setCapacitySnapshot(null)
+      setCapacityBusy(false)
+      return
+    }
     if (!selectedMoveDate) {
       setCapacitySnapshot(null)
       return
     }
     let cancelled = false
     setCapacityBusy(true)
-    void fetchSalesOverview()
-      .then(data => {
+    void fetchSalesBranchCapacity(selectedBranch, selectedMoveDate)
+      .then(snapshot => {
         if (cancelled) return
-        const quoteMap = new Map(data.quotes.map(item => [item.id, item]))
-        const jobs = data.leads.filter(item => {
-          if (!isBookedLikeStage(item.stage)) return false
-          const itemQuote = item.quoteId ? quoteMap.get(item.quoteId) : null
-          const itemDate = itemQuote?.moveDate || item.moveDate
-          return itemDate === selectedMoveDate && (item.branch || 'windsor') === selectedBranch
-        })
-        const capacity = BRANCH_CAPACITY_ESTIMATES[selectedBranch]
-        const crewUsed = jobs.reduce((sum, item) => {
-          const itemQuote = item.quoteId ? quoteMap.get(item.quoteId) : null
-          return sum + Number(itemQuote?.crewSize || item.assignedCrew?.length || 0)
-        }, 0)
-        const trucksUsed = jobs.reduce((sum, item) => {
-          const itemQuote = item.quoteId ? quoteMap.get(item.quoteId) : null
-          return sum + Number(getQuotedTruckCount(item, itemQuote || null) || 0)
-        }, 0)
-        const crewPct = capacity.crew > 0 ? Math.round((crewUsed / capacity.crew) * 100) : 0
-        const trucksRemaining = Math.max(0, capacity.trucks - trucksUsed)
-        const risk =
-          crewPct >= 85 || trucksRemaining <= 1
-            ? 'high'
-            : crewPct >= 70 || trucksRemaining <= 2
-              ? 'medium'
-              : 'low'
-        const note =
-          jobs.some(item => {
-            const itemQuote = item.quoteId ? quoteMap.get(item.quoteId) : null
-            return !itemQuote?.crewSize || !getQuotedTruckCount(item, itemQuote || null)
-          })
-            ? 'Estimate based on booked jobs with partial crew or truck data.'
-            : 'Estimate based on currently booked jobs in this branch.'
-        setCapacitySnapshot({
-          status: 'ready',
-          jobsBooked: jobs.length,
-          crewUsed,
-          crewCapacity: capacity.crew,
-          crewPct,
-          trucksUsed,
-          truckCapacity: capacity.trucks,
-          trucksRemaining,
-          risk,
-          note,
-        })
+        setCapacitySnapshot(snapshot)
       })
       .catch(() => {
         if (!cancelled) {
@@ -2281,7 +2262,7 @@ export function EstimateDraftModal({
     return () => {
       cancelled = true
     }
-  }, [open, selectedBranch, selectedMoveDate])
+  }, [open, route?.serviceAreaMode, selectedBranch, selectedMoveDate])
 
   async function copyPriceExplanation(mode: 'short' | 'detailed') {
     const text = mode === 'short' ? quoteExplanation.short : quoteExplanation.detailed
@@ -2403,7 +2384,7 @@ export function EstimateDraftModal({
       setSendGuardOpen(true)
       return
     }
-    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType })
+    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })
   }
 
   async function handleProvisionalSend() {
@@ -2416,6 +2397,7 @@ export function EstimateDraftModal({
       quoteType,
       moveDescription: prependUniqueLine(moveDescription, moveNote),
       internalNotes: prependUniqueLine(internalNotes, internalNote),
+      customerScope: captureCustomerScope(),
     })
   }
 
@@ -2710,7 +2692,9 @@ export function EstimateDraftModal({
                 <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Route Context</div>
-                    <div className="text-[10px] font-medium text-[var(--app-muted)]">{getSalesBranchLabel(selectedBranch)} branch</div>
+                    <div className="text-[10px] font-medium text-[var(--app-muted)]">
+                      {route?.serviceAreaMode === 'open_market' ? `${originCity || lead.originCity || 'Origin'} open market` : `${getSalesBranchLabel(selectedBranch)} branch`}
+                    </div>
                   </div>
                   {route ? (
                     <div className="mt-2 space-y-2">
@@ -2739,6 +2723,27 @@ export function EstimateDraftModal({
                           {route.missingRequirements.join(' · ')}
                         </div>
                       ) : null}
+                      {crossBorderMove && (
+                        <div className="rounded-[8px] border border-blue-200 bg-blue-50 px-3 py-3 text-xs text-blue-950">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-bold">Canada → U.S. cross-border plan</div>
+                            <div className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-blue-800">
+                              {pricingBreakdown && pricingBreakdown.totalHours <= 13 ? '1-day target · 2-day contingency' : '2-day operating plan'}
+                            </div>
+                          </div>
+                          <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                            <div>✓ One-way U-Haul is the default truck plan; confirm the rental permits U.S. entry.</div>
+                            <div>✓ $500 cross-border logistics premium is added automatically.</div>
+                            <div>□ Detailed item-and-quantity inventory ready for border review.</div>
+                            <div>□ Customer entry paperwork/authorization and driver travel documents confirmed.</div>
+                            <div>□ Restricted goods reviewed; no plants, firewood, hazardous, or undeclared items.</div>
+                            <div>□ Border delay, crew food, fuel, materials, and return travel reviewed in Live Margin.</div>
+                          </div>
+                          <div className="mt-2 text-[10px] leading-4 text-blue-700">
+                            Customer talking point: the flat rate covers the scoped move and planned route; an unexpected border hold may move unloading to the contingency day without changing the agreed inventory scope.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-2 text-xs text-[var(--app-muted)]">
@@ -4689,7 +4694,7 @@ export function EstimateDraftModal({
                       <div className="mt-0.5 text-[10px] text-sky-700">
                         4 movers · {flags.multiTruckOption?.totalHours ?? pricingBreakdown?.totalHours}h
                       </div>
-                      <div className="mt-1 text-[9px] text-slate-400">Both trucks load in parallel — fastest</div>
+                      <div className="mt-1 text-[9px] text-slate-400">{flags.twoTripComparison.twoTruckSpecification} · both load in parallel — fastest</div>
                     </button>
 
                     {/* Option B — 1 truck, 3 movers, 2 trips (RECOMMENDED for local) */}
@@ -4710,7 +4715,7 @@ export function EstimateDraftModal({
                       <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Option B ★ Recommended</div>
                       <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.totalAmount)}</div>
                       <div className="mt-0.5 text-[10px] text-emerald-700">
-                        3 movers · {flags.twoTripComparison.totalHours}h · 1 truck, 2 trips
+                        3 movers · {flags.twoTripComparison.totalHours}h · {flags.twoTripComparison.oneTruckSpecification}, 2 trips
                       </div>
                       <div className="mt-1 text-[9px] text-slate-400">
                         {flags.twoTripComparison.savings > 0
@@ -4737,7 +4742,7 @@ export function EstimateDraftModal({
                       <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Option C — 1 Trip</div>
                       <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.oneTripAmount)}</div>
                       <div className="mt-0.5 text-[10px] text-slate-500">
-                        3 movers · {flags.twoTripComparison.oneTripHours}h · 1 truck, 1 trip
+                        3 movers · {flags.twoTripComparison.oneTripHours}h · {flags.twoTripComparison.oneTruckSpecification}, 1 trip
                       </div>
                       <div className="mt-1 text-[9px] text-slate-400">Optimistic — conditional clause added if 2nd trip needed</div>
                     </button>
@@ -4748,6 +4753,7 @@ export function EstimateDraftModal({
                       ? 'Volume exceeds 1 truck safe-load limit. Option B is recommended for local moves — 2nd trip is often cheaper than 2 trucks.'
                       : 'Local move: all 3 options are viable. Option B is the balanced pick.'}
                   </div>
+                  <div className="mt-1 text-[10px] text-sky-700">Load basis: {flags.twoTripComparison.inventoryBasis}. Confirm the included inventory before sending.</div>
                 </div>
               )}
 
@@ -4930,6 +4936,17 @@ export function EstimateDraftModal({
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">
                     {conjointMode ? `${jobFactors.personALabel || 'Person A'} — Origin Access` : 'Origin Access'}
                   </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: 'House', values: { originFloors: 1, originHasElevator: false, originParkingOk: true } },
+                      { label: 'Basement', values: { originFloors: 2, originHasElevator: false, originParkingOk: true } },
+                      { label: 'Apartment', values: { originFloors: 2, originHasElevator: true, originParkingOk: undefined } },
+                    ].map(option => (
+                      <button key={option.label} type="button" onClick={() => onJobFactorsChange({ ...jobFactors, ...option.values })} className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                   <FloorSelect label="Floors at origin" value={jobFactors.originFloors} onChange={v => setFactor('originFloors', v)} />
                   <Toggle label="Has elevator?" value={jobFactors.originHasElevator} onChange={v => setFactor('originHasElevator', v)} />
                   {jobFactors.originHasElevator && (
@@ -4965,6 +4982,17 @@ export function EstimateDraftModal({
                 {/* Destination Access */}
                 <div className="space-y-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Destination Access</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: 'House', values: { destFloors: 1, destHasElevator: false, destParkingOk: true } },
+                      { label: 'Basement', values: { destFloors: 2, destHasElevator: false, destParkingOk: true } },
+                      { label: 'Apartment', values: { destFloors: 2, destHasElevator: true, destParkingOk: undefined } },
+                    ].map(option => (
+                      <button key={option.label} type="button" onClick={() => onJobFactorsChange({ ...jobFactors, ...option.values })} className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                   <FloorSelect label="Floors at destination" value={jobFactors.destFloors} onChange={v => setFactor('destFloors', v)} />
                   <Toggle label="Has elevator?" value={jobFactors.destHasElevator} onChange={v => setFactor('destHasElevator', v)} />
                   {jobFactors.destHasElevator && (
@@ -6517,7 +6545,7 @@ export function EstimateDraftModal({
                   <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{formatMoney(quoteModalTotals.total)}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-[var(--app-muted)]">Deposit (20%)</div>
+                  <div className="text-xs text-[var(--app-muted)]">Deposit ({quoteModalTotals.total > 0 ? Math.round((quoteModalTotals.deposit / quoteModalTotals.total) * 100) : 30}%)</div>
                   <div className="mt-1 text-lg font-medium text-[var(--app-ink)]">{formatMoney(quoteModalTotals.deposit)}</div>
                 </div>
               </div>
@@ -6605,7 +6633,9 @@ export function EstimateDraftModal({
                     <div className="text-xs font-semibold text-[var(--app-ink)]">Capacity Awareness</div>
                     <div className="text-[10px] font-medium text-[var(--app-muted)]">{selectedMoveDate || 'Move date TBD'}</div>
                   </div>
-                  {!selectedMoveDate ? (
+                  {route?.serviceAreaMode === 'open_market' ? (
+                    <div className="mt-2 text-[10px] text-[var(--app-muted)]">Open-market sales estimate. Branch capacity does not affect quote or booking.</div>
+                  ) : !selectedMoveDate ? (
                     <div className="mt-2 text-[10px] text-[var(--app-muted)]">Capacity estimate unavailable. Confirm manually before booking.</div>
                   ) : capacityBusy ? (
                     <div className="mt-2 text-[10px] text-[var(--app-muted)]">Checking branch load…</div>
@@ -7218,7 +7248,7 @@ export function EstimateDraftModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => void onSaveDraft({ quoteType })}
+                          onClick={() => void onSaveDraft({ quoteType, customerScope: captureCustomerScope() })}
                         disabled={quoteModalBusy || !quote}
                         className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-50"
                       >
@@ -7267,7 +7297,7 @@ export function EstimateDraftModal({
                 <button onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : 'Preview & Send →'}
                 </button>
-                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
+                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
                 </button>
 

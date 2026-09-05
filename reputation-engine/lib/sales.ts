@@ -22,7 +22,11 @@ import { applyMovePolicyToInventory } from './move-policy'
 import { normalizeCrewPayouts } from './operations'
 import { buildPackingMaterialsEstimate } from './packing-materials'
 import { applyRealtorContactToOpportunityLead } from './realtor-opportunity'
+import { recommendTruckLoadPlan } from './truck-planning'
 import { assessMoveIntelligence } from './move-intelligence'
+import { isCrossBorderMove } from './route-address'
+
+export const CROSS_BORDER_LOGISTICS_PREMIUM = 500
 
 function normalizeOptionalText(value?: string | null) {
   const trimmed = value?.trim()
@@ -466,46 +470,46 @@ export function normalizeQuote(quote: CRMQuote): CRMQuote {
 
 // Base crew rates for 1-truck jobs (customer-facing $/hr)
 const LOCAL_CREW_RATES: Record<number, number> = {
-  1: 100,
-  2: 160,
-  3: 200,
-  4: 270,
-  5: 325,
-  6: 375,
+  1: 110,
+  2: 170,
+  3: 210,
+  4: 280,
+  5: 335,
+  6: 385,
 }
 
 // Truck-aware combined rates: key = `${crewSize}-${truckCount}`
 // 2-truck jobs get a built-in volume discount vs raw base × multiplier
 // because the customer is paying for speed/efficiency, not just headcount
 const LOCAL_CREW_RATES_TRUCK_AWARE: Record<string, number> = {
-  '1-1': 100,
-  '2-1': 160,
-  '3-1': 200,
-  '4-1': 270,   // rare — 4 movers, 1 large truck
-  '4-2': 290,   // standard 2-truck job — competitive market rate
-  '5-2': 350,
-  '6-2': 395,
-  '6-3': 480,
-  '7-3': 530,
-  '8-3': 580,
+  '1-1': 110,
+  '2-1': 170,
+  '3-1': 210,
+  '4-1': 280,   // rare — 4 movers, 1 large truck
+  '4-2': 300,   // standard 2-truck job — competitive market rate
+  '5-2': 360,
+  '6-2': 405,
+  '6-3': 490,
+  '7-3': 540,
+  '8-3': 590,
 }
 
 const LABOR_ONLY_CREW_RATES: Record<number, number> = {
-  1: 100,
-  2: 120,
-  3: 150,
-  4: 200,
-  5: 250,
-  6: 300,
+  1: 110,
+  2: 165,
+  3: 160,
+  4: 210,
+  5: 260,
+  6: 310,
 }
 
 const PACKING_CREW_RATES: Record<number, number> = {
-  1: 90,
-  2: 150,
-  3: 150,
-  4: 200,
-  5: 250,
-  6: 300,
+  1: 100,
+  2: 160,
+  3: 160,
+  4: 210,
+  5: 260,
+  6: 310,
 }
 
 function roundQuarterHour(value: number) {
@@ -657,7 +661,7 @@ export function getCrewRate(
 
 export function getDefaultDepositRate(moveType?: CRMLead['moveType'] | CRMQuote['moveType']) {
   if (moveType === 'commercial') return 0
-  return moveType === 'long-distance' ? 0.4 : 0.2
+  return moveType === 'long-distance' ? 0.5 : 0.3
 }
 
 export function getDefaultPaymentTerms(moveType?: CRMLead['moveType'] | CRMQuote['moveType']): CRMQuote['paymentTerms'] {
@@ -1336,11 +1340,15 @@ function estimateSingleLeadQuote(
     oneTripHours: number
     oneTripAmount: number
     oneTripSavingsVsTwoTrip: number
+    oneTruckSpecification: string
+    twoTruckSpecification: string
+    inventoryBasis: string
   } | null = null
 
   let multiTruckOption: PricingBreakdown['intelligenceFlags']['multiTruckOption'] = null
 
   if (!missingDestination && !isLongDistance && !isPacking && !isLaborOnly && (truckCount >= 2 || totalCubicFeet >= TWO_TRIP_ZONE_CF)) {
+    const twoTruckPlan = recommendTruckLoadPlan({ totalCubicFeet, totalWeightLbs, truckCount: 2 })
     // Business rule: 1 truck always = 3 movers (4th mover not productive on single truck)
     const tripCrewSize = 3
     const oneTruckRate = roundCurrency(getCrewRate(tripCrewSize, lead.moveType))
@@ -1385,6 +1393,9 @@ function estimateSingleLeadQuote(
       oneTripHours,
       oneTripAmount,
       oneTripSavingsVsTwoTrip: roundCurrency(twoTripAmount - oneTripAmount),
+      oneTruckSpecification: '1 × 26ft',
+      twoTruckSpecification: twoTruckPlan.summary,
+      inventoryBasis: twoTruckPlan.basis,
     }
 
     multiTruckOption = {
@@ -1392,6 +1403,7 @@ function estimateSingleLeadQuote(
       totalAmount: laborAmount,
       truckCount,
       note: `${truckCount} trucks reduces repeat travel but carries a higher hourly rate`,
+      truckSpecification: truckCount === 2 ? twoTruckPlan.summary : undefined,
     }
   }
 
@@ -1436,6 +1448,10 @@ function estimateSingleLeadQuote(
 
   const effectiveBillableDistanceKm = roundCurrency((billableDistanceKm || 0) + additionalTripDistanceKm)
   const effectiveOperationalDistanceKm = roundCurrency((operationalDistanceKm || 0) + additionalTripDistanceKm)
+  const crossBorder = isLongDistance && isCrossBorderMove(
+    [lead.originAddress, lead.originCity].filter(Boolean).join(', '),
+    [lead.destAddress, lead.destCity].filter(Boolean).join(', '),
+  )
   const laborCost = roundCurrency(crewSize * operationalHours * LABOR_COST_PER_MOVER_HOUR)
   const truckDailyCost = roundCurrency(truckCount * TRUCK_DAILY_COST)
   const truckFuelMileageCost = roundCurrency((effectiveOperationalDistanceKm || 0) * truckCount * TRUCK_OPS_COST_PER_KM)
@@ -1446,7 +1462,7 @@ function estimateSingleLeadQuote(
   const computedRevenue = roundCurrency(
     lead.moveType === 'commercial'
       ? commercialRevenueBase + commercialCostLayer.markupAmount
-      : laborAmount
+      : laborAmount + longDistanceOperationalBase + longDistanceMarkupAmount + (crossBorder ? CROSS_BORDER_LOGISTICS_PREMIUM : 0)
   )
   const grossProfit = roundCurrency(computedRevenue - directCost)
   const grossMarginPct = computedRevenue > 0 ? Math.round((grossProfit / computedRevenue) * 1000) / 10 : 0
@@ -1505,7 +1521,6 @@ function estimateSingleLeadQuote(
     : 'Full-Service Moving'
 
   const totalServiceAmount = laborAmount + extraTruckAmount + longDistanceOperationalBase + longDistanceMarkupAmount
-
   const lineItems: QuoteLineItem[] = [
     {
       description: moveServiceTitle,
@@ -1513,6 +1528,14 @@ function estimateSingleLeadQuote(
       amount: totalServiceAmount,
     },
   ]
+
+  if (crossBorder) {
+    lineItems.push({
+      description: 'Cross-Border Logistics Premium',
+      details: 'Border scheduling, customs-document coordination, delay contingency, crew meals, and international return planning',
+      amount: CROSS_BORDER_LOGISTICS_PREMIUM,
+    })
+  }
 
   if (lead.moveType === 'commercial' && commercialCostLayer.markupAmount > 0) {
     lineItems.push({
@@ -2354,7 +2377,7 @@ export function estimateLeadQuote(
   return buildMultiLegEstimate(lead, { ...overrides, legs }, factors)
 }
 
-export function computeQuoteTotals(lineItems: QuoteLineItem[], depositRate = 0.4, discountAmount = 0) {
+export function computeQuoteTotals(lineItems: QuoteLineItem[], depositRate = 0.3, discountAmount = 0) {
   const normalizedItems = lineItems.map(item => ({
     description: item.description || 'Custom line item',
     details: item.details || '',

@@ -133,6 +133,22 @@ test('customer inventory uses known moving dimensions instead of zero-value plac
   assert.equal(knownItems.find(item => item.name === 'Night Tables')?.qty, 4)
 })
 
+test('pasted small-move list preserves fireplace, totes, and measured labels', () => {
+  const items = extractCustomerInventoryItems(`
+Chair — 9.2 Cu Ft
+Desk
+Sofa
+Electric Fireplace
+40 Totes
+  `)
+  const byName = new Map(items.map(item => [item.name, item]))
+
+  assert.equal(items.length, 5)
+  assert.equal(byName.get('Chair')?.qty, 1)
+  assert.equal(byName.get('Electric Fireplace')?.qty, 1)
+  assert.equal(byName.get('Totes')?.qty, 40)
+})
+
 test('customer inventory separates adjacent counted items from conversational prose', () => {
   const items = extractCustomerInventoryItems(
     "I can't count boxes yet because nothing is packed. I have three beds two couches, dining table, patio furniture, four night tables, storage furniture midsize. One TV console."

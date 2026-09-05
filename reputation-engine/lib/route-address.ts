@@ -12,7 +12,14 @@ export function inferAddressCountryContext(value?: string): 'ca' | 'us' | undefi
   return undefined
 }
 
+export function isCrossBorderMove(origin?: string, destination?: string) {
+  const originCountry = inferAddressCountryContext(origin)
+  const destinationCountry = inferAddressCountryContext(destination)
+  return Boolean(originCountry && destinationCountry && originCountry !== destinationCountry)
+}
+
 const ADDRESS_REGION_RE = /^(?:ON|QC|BC|AB|MB|SK|NS|NB|NL|PE|YT|NT|NU|MI|NY|OH|PA|IN|IL|WI|MN)(?:\s+[A-Z]\d[A-Z](?:\s*\d[A-Z]\d)?)?$/i
+const ESTABLISHED_ONTARIO_MARKET_RE = /\b(?:windsor|tecumseh|lasalle|la salle|amherstburg|essex|lakeshore|leamington|kingsville|chatham|waterloo|kitchener|cambridge|guelph|elmira|elora|fergus|london|st\.? thomas|woodstock|strathroy|ottawa|kanata|orleans|orléans|nepean|barrhaven|gloucester|stittsville|manotick)\b/i
 
 /** Extract a city from a provider-formatted address. */
 export function extractCityFromFormattedAddress(value?: string) {
@@ -31,6 +38,11 @@ export function qualifyMoveAddress(address?: string, city?: string) {
   if (cityText && !hasCity) parts.push(cityText)
 
   const combined = parts.filter(Boolean).join(', ')
-  if (!inferAddressCountryContext(combined)) parts.push('Ontario', 'Canada')
+  if (!inferAddressCountryContext(combined)) {
+    // Preserve the convenient Ontario default inside established markets, but
+    // never relabel an arbitrary Canadian city (for example Winnipeg) as ON.
+    if (!cityText || ESTABLISHED_ONTARIO_MARKET_RE.test(cityText)) parts.push('Ontario')
+    parts.push('Canada')
+  }
   return parts.filter(Boolean).join(', ')
 }

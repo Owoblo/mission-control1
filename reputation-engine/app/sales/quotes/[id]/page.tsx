@@ -116,7 +116,7 @@ export default function SalesQuoteDetailPage() {
   const [sendChannel, setSendChannel] = useState<'email' | 'sms'>('email')
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([])
   const [validDays, setValidDays] = useState(30)
-  const [depositRate, setDepositRate] = useState(40)
+  const [depositRate, setDepositRate] = useState(30)
   const [paymentTerms, setPaymentTerms] = useState<CRMQuote['paymentTerms']>('deposit_required')
   const [discountAmount, setDiscountAmount] = useState(0)
   const [discountLabel, setDiscountLabel] = useState('Courtesy discount')
@@ -269,6 +269,19 @@ export default function SalesQuoteDetailPage() {
     if (!quote?.id || !quote.acceptToken || typeof window === 'undefined') return ''
     return compactCustomerLink(`${window.location.origin}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken)}`)
   }, [quote])
+
+  // Keep the internal preview on the canonical route. The customer-facing URL is
+  // intentionally compact (/q/:id/:token), so appending query parameters to it
+  // with "&" would make them part of the token path segment and invalidate it.
+  const quotePreviewUrl = useMemo(() => {
+    if (!quote?.id || !quote.acceptToken || typeof window === 'undefined') return ''
+    const url = new URL('/quote-accept', window.location.origin)
+    url.searchParams.set('id', quote.id)
+    url.searchParams.set('token', quote.acceptToken)
+    url.searchParams.set('preview', '1')
+    url.searchParams.set('_t', String(quote.total ?? ''))
+    return url.toString()
+  }, [quote?.acceptToken, quote?.id, quote?.total])
 
   function closePreviewModal() {
     setShowPreview(null)
@@ -1316,7 +1329,7 @@ ${brand.fullName}`
                   )}
                   <iframe
                     key={`${quote?.id}-${quoteTotals.subtotal}`}
-                    src={acceptUrl ? `${acceptUrl}&preview=1&_t=${encodeURIComponent(String(quote?.total ?? ''))}` : ''}
+                    src={quotePreviewUrl}
                     className="w-full border-0"
                     style={{ height: '520px' }}
                     title="Customer Quote View"

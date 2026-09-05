@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { computeJobPenalties, estimateLeadQuote, reconcileEstimatedQuoteLineItems } from '../../lib/sales'
+import { CROSS_BORDER_LOGISTICS_PREMIUM, computeJobPenalties, estimateLeadQuote, getDefaultDepositRate, reconcileEstimatedQuoteLineItems } from '../../lib/sales'
 import type { CRMLead, JobFactors, QuoteLeg } from '../../lib/types'
 
 function makeLead(overrides: Partial<CRMLead> = {}): CRMLead {
@@ -30,6 +30,14 @@ function makeLead(overrides: Partial<CRMLead> = {}): CRMLead {
     ...overrides,
   }
 }
+
+test('deposit policy uses 30% locally, 50% long-distance, and invoices commercial work', () => {
+  assert.equal(getDefaultDepositRate('residential'), 0.3)
+  assert.equal(getDefaultDepositRate('labor-only'), 0.3)
+  assert.equal(getDefaultDepositRate('packing'), 0.3)
+  assert.equal(getDefaultDepositRate('long-distance'), 0.5)
+  assert.equal(getDefaultDepositRate('commercial'), 0)
+})
 
 test('quote line-item reconciliation is stable when the estimate is unchanged', () => {
   const current = [
@@ -71,6 +79,35 @@ test('quote line-item reconciliation protects local and long-distance locked pri
     ])
     assert.equal(reconciled, current)
   }
+})
+
+test('cross-border long-distance quotes include a fixed logistics premium', () => {
+  const estimate = estimateLeadQuote(
+    makeLead({
+      moveType: 'long-distance',
+      originAddress: '1477 Stillriver Crescent, Mississauga, ON, Canada',
+      destAddress: '2414 Swede Ave, Midland, Michigan, USA',
+    }),
+    {
+      quoteType: 'long_distance',
+      routeContext: {
+        routeCategory: 'long-distance',
+        pricingStatus: 'ready',
+        originToDestinationHours: 5,
+        billableDriveHours: 10,
+        operationalDriveHours: 10,
+        billableDistanceKm: 936,
+        operationalDistanceKm: 936,
+      },
+    }
+  )
+
+  assert.equal(
+    estimate.lineItems.find(item => item.description === 'Cross-Border Logistics Premium')?.amount,
+    CROSS_BORDER_LOGISTICS_PREMIUM
+  )
+  assert.equal(estimate.pricingBreakdown.internalCostEstimate.computedRevenue, estimate.subtotal)
+  assert.ok(estimate.pricingBreakdown.internalCostEstimate.grossProfit > CROSS_BORDER_LOGISTICS_PREMIUM)
 })
 
 test('estimateLeadQuote prices storage, storage delivery, and secondary stop legs distinctly', () => {

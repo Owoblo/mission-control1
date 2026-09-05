@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { extractCityFromFormattedAddress, inferAddressCountryContext, qualifyMoveAddress } from '../../lib/route-address'
+import { extractCityFromFormattedAddress, inferAddressCountryContext, isCrossBorderMove, qualifyMoveAddress } from '../../lib/route-address'
 import { findNearestRouteBranch, isDrivingRoutePlausible, normalizeDrivingRoute, resolveRouteBranchForEstimate } from '../../lib/server/route-estimation'
 
 test('route estimate infers Waterloo/KW branch from Waterloo to Kitchener addresses', () => {
@@ -56,6 +56,8 @@ test('cross-border Michigan destinations are not coerced into Ontario', () => {
     '43175 Londonderry Court, Canton, Michigan, USA'
   )
   assert.equal(inferAddressCountryContext('Canton Township, Michigan'), 'us')
+  assert.equal(isCrossBorderMove('Mississauga, ON, Canada', 'Midland, Michigan, USA'), true)
+  assert.equal(isCrossBorderMove('Mississauga, ON, Canada', 'Windsor, ON, Canada'), false)
 })
 
 test('formatted autocomplete addresses expose their Canadian city', () => {
@@ -67,6 +69,13 @@ test('unqualified local addresses retain the Ontario default', () => {
   assert.equal(
     qualifyMoveAddress('666 Chippawa Street', 'Windsor'),
     '666 Chippawa Street, Windsor, Ontario, Canada'
+  )
+})
+
+test('open-market Canadian cities are not relabelled as Ontario', () => {
+  assert.equal(
+    qualifyMoveAddress('123 Portage Avenue', 'Winnipeg'),
+    '123 Portage Avenue, Winnipeg, Canada'
   )
 })
 
