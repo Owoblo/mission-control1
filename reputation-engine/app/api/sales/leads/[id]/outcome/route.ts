@@ -6,6 +6,7 @@ import { logEvent } from '@/lib/server/analytics'
 import { recalculateQuoteFromActuals } from '@/lib/server/job-billing'
 import { getSalesLead, getSalesQuote, saveFollowUpLog, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { canAccessOperationsWorkspace, canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { deriveJobTelemetry } from '@/lib/job-telemetry'
 
 function canManageOutcome(session: Awaited<ReturnType<typeof getSessionUser>>, lead: Awaited<ReturnType<typeof getSalesLead>>) {
   if (!session || !lead) return false
@@ -119,10 +120,21 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     // Get job costs
     const costsRes = await fetch(`${url}/rest/v1/job_costs?lead_id=eq.${params.id}`, { headers })
     const costs = costsRes.ok ? await costsRes.json() : []
-    const revenueCents = savedQuote?.total ? Math.round(Number(savedQuote.total) * 100) : 0
-    const totalCostsCents = costs.reduce((sum: number, c: any) => sum + (Number(c.amount_cents) || 0), 0)
-    const netProfitCents = revenueCents - totalCostsCents
-    const marginPct = revenueCents > 0 ? Math.round((netProfitCents / revenueCents) * 100 * 10) / 10 : 0
+    const telemetry = deriveJobTelemetry({
+      lead: savedLead,
+      quote: savedQuote,
+      costs,
+      actuals: {
+        actualHours: body.actual_hours,
+        actualCrew: body.actual_crew,
+        damageFlag: body.damage_flag,
+        varianceReason: body.notes,
+      },
+    })
+    const revenueCents = Math.round(telemetry.revenue * 100)
+    const totalCostsCents = Math.round(telemetry.actualCost * 100)
+    const netProfitCents = Math.round(telemetry.actualGrossProfit * 100)
+    const marginPct = telemetry.actualMarginPct
 
     const now = new Date().toISOString()
     const outcome = {
@@ -134,10 +146,22 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       estimated_hours: savedQuote?.estimatedHours ?? null,
       actual_hours: body.actual_hours ?? null,
       actual_crew: body.actual_crew ?? null,
+      estimated_crew: telemetry.estimatedCrew || null,
+      estimated_volume_cf: telemetry.estimatedVolumeCf || null,
+      estimated_weight_lbs: telemetry.estimatedWeightLbs || null,
       revenue_cents: revenueCents || null,
       total_costs_cents: totalCostsCents || null,
       net_profit_cents: netProfitCents || null,
       margin_pct: marginPct || null,
+      estimated_costs_cents: Math.round(telemetry.estimatedCost * 100) || null,
+      estimated_profit_cents: Math.round(telemetry.estimatedGrossProfit * 100) || null,
+      estimated_margin_pct: telemetry.estimatedMarginPct || null,
+      actual_profit_cents: Math.round(telemetry.actualGrossProfit * 100) || null,
+      hours_variance: telemetry.hoursVariance,
+      cost_variance_cents: Math.round(telemetry.costVariance * 100),
+      primary_bottleneck: telemetry.primaryBottleneck,
+      variance_reasons: telemetry.varianceReasons,
+      actuals_complete: telemetry.actualsComplete,
       damage_flag: body.damage_flag ?? false,
       customer_rating: body.customer_rating ?? null,
       review_left: body.review_left ?? false,
@@ -184,6 +208,10 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         referral_generated: body.referral_generated,
         net_profit: netProfitCents / 100,
         margin_pct: marginPct,
+        estimated_vs_actual_hours_delta: telemetry.hoursVariance ?? undefined,
+        estimated_vs_actual_cost_delta: telemetry.costVariance,
+        primary_bottleneck: telemetry.primaryBottleneck,
+        actuals_complete: telemetry.actualsComplete,
       },
     })
 
