@@ -7,13 +7,13 @@ const ADDRESS_SPLIT_RE = /\s+(?:to|->|→|drop\s*off\s*(?:is|:)?|dropoff\s*(?:is
 const PICKUP_RE = /\b(pick\s*up|pickup|origin|from)\b/i
 const DROPOFF_RE = /\b(drop\s*off|dropoff|destination|to)\b/i
 const ADDRESS_HINT_RE = /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway|unit|suite|apt|apartment|#)\b/i
-const INVENTORY_HINT_RE = /\b(sofa|couch|recliner|chair|table|tv|television|computer|desk|dishwasher|microwave|bicycle|bike|closet|bed|mattress|dresser|armoire|nightstand|bookshelf|shelf|boxes|box|wardrobe|fridge|freezer|stove|washer|dryer|cabinet|pinball)\b/i
-const INVENTORY_ITEM_RE = /\b(sofas?|couch(?:es)?|recliners?|chairs?|tables?|stands?|lamps?|tvs?|televisions?|monitors?|computers?|desks?|dishwashers?|microwaves?|bicycles?|bikes?|closets?|beds?|headboards?|mattresses?|dressers?|armoires?|drawers?|nightstands?|night\s+tables?|bookshelves?|shelves?|boxes?|bins?|wardrobes?|fridges?|freezers?|stoves?|washers?|dryers?|cabinets?|pinball|pianos?|benches?|stools?|ottomans?|loveseats?|sectionals?|consoles?|appliances?|suitcases?|hampers?|baskets?|racks?|machines?)\b/i
+const INVENTORY_HINT_RE = /\b(sofa|couch|recliner|chair|table|tv|television|computer|desk|dishwasher|microwave|bicycle|bike|closet|bed|mattress|dresser|armoire|nightstand|bookshelf|shelf|boxes|box|tote|wardrobe|fridge|freezer|stove|washer|dryer|cabinet|fireplace|pinball)\b/i
+const INVENTORY_ITEM_RE = /\b(sofas?|couch(?:es)?|recliners?|chairs?|tables?|stands?|lamps?|tvs?|televisions?|monitors?|computers?|desks?|dishwashers?|microwaves?|bicycles?|bikes?|closets?|beds?|headboards?|mattresses?|dressers?|armoires?|drawers?|nightstands?|night\s+tables?|bookshelves?|shelves?|boxes?|bins?|totes?|wardrobes?|fridges?|freezers?|stoves?|washers?|dryers?|cabinets?|fireplaces?|pinball|pianos?|benches?|stools?|ottomans?|loveseats?|sectionals?|consoles?|appliances?|suitcases?|hampers?|baskets?|racks?|machines?)\b/i
 const QUANTITY_WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
 }
 const QUANTITY_TOKEN = '(?:one|two|three|four|five|six|seven|eight|nine|ten|\\d{1,2})'
-const COUNTABLE_ITEM_TOKEN = '(?:beds?|mattresses?|sofas?|couches?|recliners?|chairs?|(?:end|side|coffee|dining|kitchen|night|study|patio)\\s+tables?|tables?|nightstands?|desks?|dressers?|armoires?|bookshelves?|boxes?|bins?|televisions?|tvs?|consoles?|cabinets?|pinball\\s+machines?|lamps?|stools?|suitcases?|baskets?|racks?)'
+const COUNTABLE_ITEM_TOKEN = '(?:beds?|mattresses?|sofas?|couches?|recliners?|chairs?|(?:end|side|coffee|dining|kitchen|night|study|patio)\\s+tables?|tables?|nightstands?|desks?|dressers?|armoires?|bookshelves?|boxes?|bins?|totes?|televisions?|tvs?|consoles?|cabinets?|fireplaces?|pinball\\s+machines?|lamps?|stools?|suitcases?|baskets?|racks?)'
 const INVENTORY_ROOM_TOKEN = '(?:(?:living|dining|family|bed)\\s+room|bedroom|kitchen|office|basement|garage|outdoor|patio)'
 
 function cleanLine(value?: string | null) {
@@ -172,6 +172,7 @@ function titleCase(value: string) {
 function normalizeInventoryName(value: string) {
   let text = value
     .toLowerCase()
+    .replace(/\s*(?:—|–|-)\s*\d+(?:\.\d+)?\s*(?:cu(?:bic)?\.?\s*ft|ft\s*3|lbs?)\b.*$/i, ' ')
     .replace(/\b(recline)\b/g, 'recliner')
     .replace(/\b(tv)\b/g, 'television')
     .replace(/\b(?:was|were)\s+(?:missed|forgotten|left off|not included)\b/g, ' ')

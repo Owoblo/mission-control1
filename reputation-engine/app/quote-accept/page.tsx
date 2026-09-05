@@ -984,6 +984,7 @@ function QuoteAcceptPageInner() {
 
   const id = searchParams.get('id')
   const token = searchParams.get('token')
+  const previewMode = searchParams.get('preview') === '1'
   const printMode = searchParams.get('print') === '1'
   const justPaid = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('paid') === '1'
   const depositConfirmed = justPaid || quote?.depositPaid === true
@@ -992,7 +993,9 @@ function QuoteAcceptPageInner() {
     async function load() {
       if (!id || !token) { setError('Missing quote link details.'); setLoading(false); return }
       try {
-        const r = await fetch(`/api/public/quotes/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
+        const params = new URLSearchParams({ token })
+        if (previewMode) params.set('preview', '1')
+        const r = await fetch(`/api/public/quotes/${encodeURIComponent(id)}?${params.toString()}`, { cache: 'no-store' })
         const payload = await r.json()
         if (!r.ok) throw new Error(payload?.error || 'Failed to load quote')
         setQuote(payload.quote)
@@ -1013,7 +1016,7 @@ function QuoteAcceptPageInner() {
       }
     }
     void load()
-  }, [id, token])
+  }, [id, previewMode, token])
 
   useEffect(() => {
     if (!printMode || loading || !quote) return

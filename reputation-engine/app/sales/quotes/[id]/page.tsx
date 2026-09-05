@@ -271,6 +271,16 @@ export default function SalesQuoteDetailPage() {
     return compactCustomerLink(`${window.location.origin}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken)}`)
   }, [quote])
 
+  const quotePreviewUrl = useMemo(() => {
+    if (!quote?.id || !quote.acceptToken || typeof window === 'undefined') return ''
+    const url = new URL('/quote-accept', window.location.origin)
+    url.searchParams.set('id', quote.id)
+    url.searchParams.set('token', quote.acceptToken)
+    url.searchParams.set('preview', '1')
+    url.searchParams.set('_t', String(quote.total ?? ''))
+    return url.toString()
+  }, [quote?.acceptToken, quote?.id, quote?.total])
+
   function closePreviewModal() {
     setShowPreview(null)
     setPreviewTab('email')
@@ -1328,7 +1338,7 @@ ${brand.fullName}`
                   )}
                   <iframe
                     key={`${quote?.id}-${quoteTotals.subtotal}`}
-                    src={acceptUrl ? `${acceptUrl}&preview=1&_t=${encodeURIComponent(String(quote?.total ?? ''))}` : ''}
+                    src={quotePreviewUrl}
                     className="w-full border-0"
                     style={{ height: '520px' }}
                     title="Customer Quote View"
