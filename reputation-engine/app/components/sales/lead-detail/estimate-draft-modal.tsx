@@ -2406,6 +2406,9 @@ export function EstimateDraftModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="estimate-draft-title"
         className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:my-4 md:min-h-0 md:rounded-[12px]"
         onClick={event => event.stopPropagation()}
       >
@@ -2413,7 +2416,7 @@ export function EstimateDraftModal({
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
             <div className="crm-label">Estimate Draft</div>
-            <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</div>
+            <h2 id="estimate-draft-title" className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
               <span>{originFull || 'Origin TBD'} → {destFull || 'Destination TBD'}</span>
               <span>· {effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs} lbs</span>
@@ -2436,7 +2439,7 @@ export function EstimateDraftModal({
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {quote ? <Link href={`/sales/quotes/${quote.id}`} className="crm-button w-full sm:w-auto">Open Full Workspace</Link> : null}
+            {quote ? <Link href={`/sales/quotes/${quote.id}`} className="crm-button w-full sm:w-auto">Advanced workspace</Link> : null}
             <button onClick={onClose} className="crm-button w-full sm:w-auto">Close</button>
           </div>
         </div>
@@ -2454,7 +2457,7 @@ export function EstimateDraftModal({
                 key={step.id}
                 type="button"
                 onClick={() => document.getElementById(step.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
+                className={`min-h-11 shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${
                   step.ready
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                     : 'border-amber-200 bg-amber-50 text-amber-800'
@@ -2463,7 +2466,7 @@ export function EstimateDraftModal({
                 {step.ready ? '✓ ' : '○ '}{step.label}
               </button>
             ))}
-            <span className="ml-auto shrink-0 text-[10px] text-[var(--app-muted)]">
+            <span role="status" aria-live="polite" className="ml-auto shrink-0 text-xs text-[var(--app-muted)]">
               {blockingReadiness.length ? `${blockingReadiness.length} required item${blockingReadiness.length === 1 ? '' : 's'} left` : 'Ready for review'}
             </span>
           </div>
