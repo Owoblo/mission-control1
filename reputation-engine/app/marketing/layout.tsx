@@ -19,6 +19,11 @@ function MarketingNav() {
   const tab = searchParams.get('tab')
   const partnershipInbox = pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
 
+  // The partnership workspace owns its own task-level navigation. Rendering a
+  // second, nearly identical tab bar above it forced users to choose between
+  // two competing navigation systems for the same work.
+  if (pathname.startsWith('/marketing/partners')) return null
+
   return (
     <div className={`${partnershipInbox ? 'hidden' : 'flex'} mb-6 items-center gap-1 overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel)] px-1`}>
       {MARKET_NAV.map(item => {
@@ -42,19 +47,7 @@ function MarketingNav() {
 }
 
 function MarketingNavFallback() {
-  return (
-    <div className="mb-6 hidden items-center gap-1 overflow-x-auto border-b border-[var(--app-line)] bg-[var(--app-panel)] px-1 md:flex">
-      {MARKET_NAV.map(item => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className="shrink-0 border-b-2 border-transparent px-4 py-3 text-sm font-medium text-[var(--app-muted)] transition hover:text-[var(--app-ink)]"
-        >
-          {item.label}
-        </Link>
-      ))}
-    </div>
-  )
+  return null
 }
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
