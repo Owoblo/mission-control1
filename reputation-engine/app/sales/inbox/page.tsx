@@ -1204,12 +1204,12 @@ function SalesInboxPageInner() {
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--app-muted)]">Inbox</div>
                   </div>
                   {([
-                    { id: 'queue',    label: 'Live',     icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><circle cx="10" cy="10" r="3"/><path d="M10 3v2M10 15v2M3 10h2M15 10h2M5.05 5.05l1.41 1.41M13.54 13.54l1.41 1.41M5.05 14.95l1.41-1.41M13.54 6.46l1.41-1.41"/></svg>, count: sectionCounts.live },
+                    { id: 'queue',    label: 'Action',   icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><circle cx="10" cy="10" r="3"/><path d="M10 3v2M10 15v2M3 10h2M15 10h2M5.05 5.05l1.41 1.41M13.54 13.54l1.41 1.41M5.05 14.95l1.41-1.41M13.54 6.46l1.41-1.41"/></svg>, count: sectionCounts.live },
                     { id: 'messages', label: 'SMS',      icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><path d="M3 4h14a1 1 0 011 1v8a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z"/></svg>, count: sectionCounts.sms },
                     { id: 'calls',    label: 'Calls',    icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><path d="M3 4.5A1.5 1.5 0 014.5 3h1a1.5 1.5 0 011.5 1.5c0 1.128-.15 2.22-.435 3.255a1.5 1.5 0 01-.668.88l-.913.543a11.07 11.07 0 005.487 5.487l.543-.913a1.5 1.5 0 01.88-.668A14.15 14.15 0 0015.5 13a1.5 1.5 0 011.5 1.5v1A1.5 1.5 0 0115.5 17C8.596 17 3 11.404 3 4.5z"/></svg>, count: sectionCounts.calls },
                     { id: 'webforms', label: 'Forms',    icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><rect x="3" y="2" width="14" height="16" rx="2"/><path d="M7 6h6M7 10h6M7 14h4"/></svg>, count: sectionCounts.forms },
                     { id: 'email',    label: 'Email',    icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><rect x="2" y="4" width="16" height="12" rx="2"/><path d="M2 7l8 5 8-5"/></svg>, count: sectionCounts.email },
-                    { id: 'handoffs', label: 'Pipeline', icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/><path d="M6 10h2M12 10h2"/></svg>, count: sectionCounts.handoffs },
+                    { id: 'handoffs', label: 'Handoffs', icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/><path d="M6 10h2M12 10h2"/></svg>, count: sectionCounts.handoffs },
                     { id: 'closed',   label: 'Closed',   icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><path d="M5 10l4 4 6-7"/><rect x="2" y="2" width="16" height="16" rx="3"/></svg>, count: sectionCounts.closed },
                   ] as { id: 'queue'|'messages'|'calls'|'webforms'|'email'|'handoffs'|'closed'; label: string; icon: React.ReactNode; count: number }[]).map(tab => {
                     const active = viewMode === tab.id
@@ -1252,12 +1252,12 @@ function SalesInboxPageInner() {
                     {/* Mobile tab row */}
                     <div className="flex gap-1.5 overflow-x-auto pb-0.5 md:hidden">
                       {([
-                        { id: 'queue', label: 'Live', count: sectionCounts.live },
+                        { id: 'queue', label: 'Action', count: sectionCounts.live },
                         { id: 'messages', label: 'SMS', count: sectionCounts.sms },
                         { id: 'calls', label: 'Calls', count: sectionCounts.calls },
                         { id: 'webforms', label: 'Forms', count: sectionCounts.forms },
                         { id: 'email', label: 'Email', count: sectionCounts.email },
-                        { id: 'handoffs', label: 'Pipeline', count: sectionCounts.handoffs },
+                        { id: 'handoffs', label: 'Handoffs', count: sectionCounts.handoffs },
                         { id: 'closed', label: 'Closed', count: sectionCounts.closed },
                       ] as const).map(tab => (
                         <button key={tab.id} onClick={() => startTransition(() => setViewMode(tab.id))}
