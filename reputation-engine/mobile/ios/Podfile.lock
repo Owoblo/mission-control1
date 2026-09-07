@@ -1982,8 +1982,8 @@ PODS:
     - Yoga
   - twilio-voice-react-native (1.7.0):
     - React-Core
-    - TwilioVoice (= 6.13.3)
-  - TwilioVoice (6.13.3)
+    - TwilioVoice (= 6.13.7)
+  - TwilioVoice (6.13.7)
   - Yoga (0.0.0)
 
 DEPENDENCIES:

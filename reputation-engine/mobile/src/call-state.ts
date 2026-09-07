@@ -38,20 +38,21 @@ export const initialCallState: CallState = {
 };
 
 export type CallAction =
-  | {type: 'INCOMING'; phone: string; displayName?: string}
-  | {type: 'DIAL'; phone: string}
-  | {type: 'RINGING'}
-  | {type: 'CONNECTED'; phone?: string}
-  | {type: 'RECONNECTING'}
-  | {type: 'RECOVERED'}
-  | {type: 'MUTE'; value: boolean}
-  | {type: 'SPEAKER'; value: boolean}
-  | {type: 'HOLD'; value: boolean}
-  | {type: 'CONSULT'; conference: ConferenceSession}
-  | {type: 'JOIN_CONFERENCE'}
-  | {type: 'RETURN_TO_CUSTOMER'}
-  | {type: 'ERROR'; message: string}
-  | {type: 'END'};
+  | { type: 'INCOMING'; phone: string; displayName?: string }
+  | { type: 'DIAL'; phone: string; displayName?: string }
+  | { type: 'RINGING' }
+  | { type: 'CONNECTED'; phone?: string }
+  | { type: 'RECONNECTING' }
+  | { type: 'RECOVERED' }
+  | { type: 'MUTE'; value: boolean }
+  | { type: 'SPEAKER'; value: boolean }
+  | { type: 'HOLD'; value: boolean }
+  | { type: 'CONSULT'; conference: ConferenceSession }
+  | { type: 'JOIN_CONFERENCE' }
+  | { type: 'RETURN_TO_CUSTOMER' }
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'ERROR'; message: string }
+  | { type: 'END' };
 
 export function callReducer(state: CallState, action: CallAction): CallState {
   switch (action.type) {
@@ -63,9 +64,14 @@ export function callReducer(state: CallState, action: CallAction): CallState {
         displayName: action.displayName || action.phone || 'Incoming call',
       };
     case 'DIAL':
-      return {...initialCallState, phase: 'dialing', phone: action.phone};
+      return {
+        ...initialCallState,
+        phase: 'dialing',
+        phone: action.phone,
+        displayName: action.displayName || '',
+      };
     case 'RINGING':
-      return {...state, phase: 'ringing'};
+      return { ...state, phase: 'ringing' };
     case 'CONNECTED':
       return {
         ...state,
@@ -75,15 +81,15 @@ export function callReducer(state: CallState, action: CallAction): CallState {
         error: undefined,
       };
     case 'RECONNECTING':
-      return {...state, phase: 'reconnecting'};
+      return { ...state, phase: 'reconnecting' };
     case 'RECOVERED':
-      return {...state, phase: 'connected', error: undefined};
+      return { ...state, phase: 'connected', error: undefined };
     case 'MUTE':
-      return {...state, muted: action.value};
+      return { ...state, muted: action.value };
     case 'SPEAKER':
-      return {...state, speaker: action.value};
+      return { ...state, speaker: action.value };
     case 'HOLD':
-      return {...state, held: action.value};
+      return { ...state, held: action.value };
     case 'CONSULT':
       return {
         ...state,
@@ -109,10 +115,12 @@ export function callReducer(state: CallState, action: CallAction): CallState {
         conferenceMode: undefined,
         error: undefined,
       };
+    case 'CLEAR_ERROR':
+      return { ...state, error: undefined };
     case 'ERROR':
-      return {...state, error: action.message};
+      return { ...state, error: action.message };
     case 'END':
-      return {...initialCallState, phase: 'ended'};
+      return { ...initialCallState, phase: 'ended' };
     default:
       return state;
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { DialerEventPayload, DialerPresencePayload } from '@/lib/dialer'
-import { getSessionUser } from '@/lib/server/session'
+import { getRequestSessionUser } from '@/lib/server/request-session'
 import {
   listRecentDialerEvents,
   listRecentDialerPresence,
@@ -19,7 +19,7 @@ type EventsRequestBody =
     }
 
 export async function GET(request: Request) {
-  const user = await getSessionUser()
+  const user = await getRequestSessionUser(request)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await getSessionUser()
+  const user = await getRequestSessionUser(request)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

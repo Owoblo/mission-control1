@@ -1,6 +1,6 @@
 import { getSmsContactPhone, normalizePhone } from '@/lib/sales-phones'
 import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
-import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
+import { buildSmsThreads, listSmsThreadSummaryMessages } from '@/lib/server/sms-threads'
 import { listAllInboundLeads, listSalesLeads } from '@/lib/server/sales-repository'
 import { getRequestSessionUser } from '@/lib/server/request-session'
 import { canUseMobilePhoneLine, listMobilePhoneLines } from '@/lib/server/mobile-phone-access'
@@ -39,6 +39,17 @@ function touchLine(touch: Touch) {
     : metadataPhone(touch, ['from', 'From', 'from_number', 'fromNumber'])
 }
 
+function matchesConversationSearch(values: Array<string | null | undefined>, search: string) {
+  if (!search) return true
+  const normalized = search.toLowerCase()
+  const searchDigits = search.replace(/\D/g, '')
+  return values.some(value => {
+    const text = String(value || '')
+    if (text.toLowerCase().includes(normalized)) return true
+    return searchDigits.length >= 3 && text.replace(/\D/g, '').includes(searchDigits)
+  })
+}
+
 async function loadContactsByIds(
   url: string,
   headers: Record<string, string>,
@@ -66,6 +77,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const workspace = searchParams.get('workspace') === 'partnership' ? 'partnership' : 'sales'
+  const search = (searchParams.get('q') || '').trim().slice(0, 100)
   const selectedLine = normalizePhone(searchParams.get('line'))
   const allowedLines = listMobilePhoneLines(session).filter(line => line.workspace === workspace)
   if (selectedLine && !canUseMobilePhoneLine(session, selectedLine)) {
@@ -77,13 +89,27 @@ export async function GET(request: Request) {
   )
 
   if (workspace === 'sales') {
-    const [messages, leads, inboundLeads] = await Promise.all([
-      listSmsMessages(),
+    const [directMessages, allRecentMessages, leads, inboundLeads] = await Promise.all([
+      listSmsThreadSummaryMessages(250, 0, search),
+      search ? Promise.all([0, 250, 500, 750].map(offset => listSmsThreadSummaryMessages(250, offset))) : Promise.resolve([]),
       listSalesLeads().catch(() => []),
       listAllInboundLeads().catch(() => []),
     ])
+    const messages = [...directMessages, ...allRecentMessages.flat()]
+      .filter((message, index, all) => {
+        const key = `${message.direction}:${message.from_number}:${message.to_number}:${message.created_at}:${message.body}`
+        return all.findIndex(candidate =>
+          `${candidate.direction}:${candidate.from_number}:${candidate.to_number}:${candidate.created_at}:${candidate.body}` === key
+        ) === index
+      })
     const conversations = buildSmsThreads(messages, leads, inboundLeads)
       .filter(thread => lineNumbers.has(thread.businessNumber))
+      .filter(thread => matchesConversationSearch([
+        thread.leadName,
+        thread.contactPhone,
+        thread.branchLabel,
+        thread.lastMessage,
+      ], search))
       .slice(0, 150)
       .map(thread => ({
         id: thread.contactPhone,
@@ -130,6 +156,18 @@ export async function GET(request: Request) {
     return Response.json({ error: 'Partnership contacts are temporarily unavailable.' }, { status: 503 })
   }
   const conversations = contacts
+    .filter(contact => {
+      const touch = latest.get(contact.id)
+      return matchesConversationSearch([
+        contact.name,
+        contact.company,
+        contact.phone,
+        contact.city,
+        contact.stage,
+        contact.decision,
+        touch?.notes,
+      ], search)
+    })
     .map(contact => {
       const touch = latest.get(contact.id)
       if (!touch) return null

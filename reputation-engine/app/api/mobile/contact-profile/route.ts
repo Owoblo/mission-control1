@@ -6,6 +6,11 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSalesLeadByContact } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 
+function actionLabel(value?: string) {
+  if (!value) return ''
+  return value.replace(/^rep_/, '').replace(/^await_/, 'Wait for ').replaceAll('_', ' ').replace(/^\w/, letter => letter.toUpperCase())
+}
+
 export async function GET(request: Request) {
   const session = await getRequestSessionUser(request)
   if (!session?.userId) {
@@ -36,6 +41,12 @@ export async function GET(request: Request) {
         city: lead.originCity || lead.destCity || '',
         area: lead.branch || '',
         status: lead.stage,
+        quoteStatus: lead.automatedQuoteSentAt
+          ? 'Quote sent'
+          : lead.quoteId
+            ? 'Quote in progress'
+            : 'No quote yet',
+        nextAction: actionLabel(lead.qualificationState?.nextBestAction),
         notes: lead.notes || lead.opportunityContext?.summary || '',
         details: [
           lead.moveDate ? `Move date · ${lead.moveDate}` : '',

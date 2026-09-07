@@ -1,6 +1,6 @@
 import { getTwilioCredentials, getAppBaseUrl } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
-import { hasInternalSession } from '@/lib/server/session'
+import { getRequestSessionUser } from '@/lib/server/request-session'
 import { getDialerIdentityAvailability } from '@/lib/server/telephony-monitoring'
 
 const QUEUE_NAME = 'saturn-main-queue'
@@ -33,9 +33,9 @@ async function findQueue(accountSid: string, auth: string): Promise<TwilioQueue 
   }
 }
 
-export async function GET() {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+export async function GET(request: Request) {
+  const session = await getRequestSessionUser(request)
+  if (!session?.userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { accountSid, authToken } = getTwilioCredentials()
@@ -53,8 +53,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authed = await hasInternalSession()
-  if (!authed) return new Response('Unauthorized', { status: 401 })
+  const session = await getRequestSessionUser(request)
+  if (!session?.userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
     const { identity } = await request.json() as { identity?: string }
