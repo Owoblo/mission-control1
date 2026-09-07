@@ -1,4 +1,4 @@
-import { saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
+import { getSalesLeadByContact, saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl, requireSupabaseEnv } from '@/lib/server/runtime'
 import { getHealthyBrowserPresence } from '@/lib/server/telephony-monitoring'
@@ -21,6 +21,8 @@ const INBOUND_RING_TIMEOUT = 28             // seconds before missed-call action
 const DIAL_RECORDING_MODE = 'record-from-answer'
 const DIAL_RECORDING_TRIM = 'do-not-trim'
 const DIAL_RECORDING_EVENTS = 'completed absent'
+const OPERATIONS_NUMBER = '+12267746581'
+const OPERATIONS_FORWARD_NUMBER = '+12267241730'
 
 const dialerRosterCache: Partial<Record<'sales' | 'partnership', {
   expiresAt: number
@@ -46,6 +48,15 @@ function xmlResponse(twiml: string) {
 // Escape & in URLs placed inside XML attributes — & must be &amp; in XML
 function xmlUrl(url: string) {
   return url.replace(/&/g, '&amp;')
+}
+
+function xmlValue(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 function internalSipTargets(users?: string[]) {
@@ -107,12 +118,20 @@ async function getDialerRosterIdentities(workspace: 'sales' | 'partnership') {
   return identities
 }
 
-function internalRingTargets(browserIdentities: string[], fallbackToLegacy = false, sipUsers?: string[]) {
+function internalRingTargets(
+  browserIdentities: string[],
+  fallbackToLegacy = false,
+  sipUsers?: string[],
+  displayName?: string,
+) {
   // Rings simultaneously: all active rep browsers + Groundwire/SIP.
   // Prefers available (not-busy) reps to avoid interrupting active calls.
+  const clientTarget = (identity: string) => displayName
+    ? `<Client><Identity>${xmlValue(identity)}</Identity><Parameter name="DisplayName" value="${xmlValue(displayName)}" /></Client>`
+    : `<Client>${xmlValue(identity)}</Client>`
   const clients = browserIdentities.length > 0
-    ? browserIdentities.map(id => `<Client>${id}</Client>`).join('')
-    : fallbackToLegacy ? `<Client>${FALLBACK_CLIENT_IDENTITY}</Client>` : ''
+    ? browserIdentities.map(clientTarget).join('')
+    : fallbackToLegacy ? clientTarget(FALLBACK_CLIENT_IDENTITY) : ''
   return `${clients}${internalSipTargets(sipUsers)}`
 }
 
@@ -150,6 +169,13 @@ function extractSipDialTarget(value?: string | null) {
   const atIndex = sipBody.indexOf('@')
   const username = atIndex >= 0 ? sipBody.slice(0, atIndex) : sipBody
   return normalizePhoneTarget(username)
+}
+
+function extractClientIdentity(value?: string | null) {
+  const raw = (value || '').trim()
+  if (!raw.toLowerCase().startsWith('client:')) return ''
+  const identity = raw.slice(7)
+  return /^saturn-rep-[A-Za-z0-9_-]+$/.test(identity) ? identity : ''
 }
 
 function matchesPhone(phone: string, lead?: CRMLead | null) {
@@ -237,6 +263,16 @@ export async function POST(request: Request) {
       }
       const appUrl = getRequestOrigin(request) || getAppUrl()
 
+      // The dedicated Operations line behaves like the partnership lines: calls
+      // follow the operator to their phone while preserving recording callbacks.
+      if (normalizePhoneTarget(normalizedTo) === OPERATIONS_NUMBER) {
+        const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
+        const dialAttrs = buildDialRecordingAttrs(recordingCallback)
+        return xmlResponse(
+          `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${OPERATIONS_FORWARD_NUMBER}</Number></Dial></Response>`
+        )
+      }
+
       // IVR menu — active when enabled in Settings UI (or env var override)
       const ivrEnabled = dialerSettings?.ivr?.enabled || process.env.ENABLE_IVR_MENU === 'true'
       if (ivrEnabled && appUrl) {
@@ -272,22 +308,48 @@ export async function POST(request: Request) {
       // Dynamic ring timeout from settings
       const ringTimeout = dialerSettings?.ringTimeout || INBOUND_RING_TIMEOUT
       // Dynamic SIP users from settings
-      const activeSipUsers = dialerSettings?.sipUsers?.length ? dialerSettings.sipUsers : INTERNAL_SIP_USERS
-
-      const browserPresence = await getHealthyBrowserPresence({
-        maxAgeSeconds: 90,
-      }).catch(() => ({
+      const inboundWorkspace = getSaturnTrackingSource(normalizedTo) === 'partnership_outreach'
+        ? 'partnership'
+        : 'sales'
+      // Call delivery is the critical path. Presence, roster and caller-name
+      // resolution are independent, so never make Twilio wait for them serially.
+      // Caller name is cosmetic and gets a strict budget; the number remains a
+      // safe CallKit fallback if CRM is slow.
+      const [browserPresence, roleRosterIdentities, callerLead] = await Promise.all([
+        getHealthyBrowserPresence({ maxAgeSeconds: 90 }).catch(() => ({
         active: true,
         sessionCount: 0,
         sessions: [] as string[],
         userIds: [] as string[],
         identities: [] as string[],
         availableIdentities: [] as string[],
-      }))
-      const inboundWorkspace = getSaturnTrackingSource(normalizedTo) === 'partnership_outreach'
-        ? 'partnership'
-        : 'sales'
-      const rosterIdentities = await getDialerRosterIdentities(inboundWorkspace).catch(() => [LEGACY_OWNER_IDENTITY])
+        })),
+        getDialerRosterIdentities(inboundWorkspace).catch(() => [LEGACY_OWNER_IDENTITY]),
+        from
+          ? Promise.race([
+              getSalesLeadByContact(from, null, null, { includeClosed: true }).catch(() => null),
+              new Promise<null>(resolve => setTimeout(() => resolve(null), 400)),
+            ])
+          : Promise.resolve(null),
+      ])
+      const configuredRingUserIds = inboundWorkspace === 'partnership'
+        ? dialerSettings?.ringGroups?.partnershipUserIds
+        : dialerSettings?.ringGroups?.salesUserIds
+      const configuredRingIdentities = (configuredRingUserIds || []).map(clientIdentityForUserId)
+      const rosterIdentities = configuredRingIdentities.length > 0
+        ? roleRosterIdentities.filter(identity => configuredRingIdentities.includes(identity))
+        : roleRosterIdentities
+      const workspaceSipUsers = inboundWorkspace === 'partnership'
+        ? dialerSettings?.sipUsersByWorkspace?.partnership
+        : dialerSettings?.sipUsersByWorkspace?.sales
+      // An explicitly configured empty list means SIP/Groundwire is disabled.
+      // Only fall back to the legacy shared list when workspace routing has not
+      // been configured at all.
+      const activeSipUsers = Array.isArray(workspaceSipUsers)
+        ? workspaceSipUsers
+        : dialerSettings?.sipUsers?.length
+          ? dialerSettings.sipUsers
+          : INTERNAL_SIP_USERS
       const presentAllowedIdentities = browserPresence.identities.filter(identity =>
         rosterIdentities.includes(identity)
       )
@@ -298,6 +360,7 @@ export async function POST(request: Request) {
         : []
       const staleOrUnseenRosterIdentities = rosterIdentities.filter(identity => !presentAllowedIdentities.includes(identity))
       const ringIdentities = uniqueIdentities(presenceIdentities, staleOrUnseenRosterIdentities)
+      const incomingDisplayName = callerLead?.name?.trim() || from || 'Unknown caller'
 
       if (from) {
         // Fire all CRM writes in the background — never block TwiML response on DB latency.
@@ -442,11 +505,25 @@ export async function POST(request: Request) {
       // safety net. A registered browser can still ring even if its telemetry heartbeat
       // was delayed or dropped.
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers)}</Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers, incomingDisplayName)}</Dial></Response>`
       )
     }
 
     // Outbound call — browser SDK or Linphone dialing out
+    const internalClientIdentity = extractClientIdentity(to)
+    if (fromBrowser && internalClientIdentity) {
+      const callerName =
+        ((formData.get('InternalCallerName') as string | null) || '').trim().slice(0, 80) ||
+        'Saturn Star teammate'
+      return xmlResponse(
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial timeout="30">` +
+        `<Client><Identity>${xmlValue(internalClientIdentity)}</Identity>` +
+        `<Parameter name="DisplayName" value="${xmlValue(callerName)}" />` +
+        `<Parameter name="CallType" value="internal" />` +
+        `</Client></Dial></Response>`
+      )
+    }
+
     const dialTarget = sipDialTarget || to || ''
     if (!dialTarget) return fallbackTwiml(getRequestOrigin(request) || getAppUrl())
 

@@ -2637,6 +2637,9 @@ export function EstimateDraftModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="estimate-draft-title"
         className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:my-4 md:min-h-0 md:rounded-[12px]"
         onClick={event => event.stopPropagation()}
       >
@@ -2644,7 +2647,7 @@ export function EstimateDraftModal({
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
             <div className="crm-label">Estimate Draft</div>
-            <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</div>
+            <h2 id="estimate-draft-title" className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
               <span>{quoteType === 'labor_only' ? `Work location: ${originFull || 'TBD'}` : `${originFull || 'Origin TBD'} → ${destFull || 'Destination TBD'}`}</span>
               <span>· {effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs} lbs</span>
@@ -2667,7 +2670,7 @@ export function EstimateDraftModal({
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {quote ? <Link href={`/sales/quotes/${quote.id}`} className="crm-button w-full sm:w-auto">Open Full Workspace</Link> : null}
+            {quote ? <Link href={`/sales/quotes/${quote.id}`} className="crm-button w-full sm:w-auto">Advanced workspace</Link> : null}
             <button onClick={onClose} className="crm-button w-full sm:w-auto">Close</button>
           </div>
         </div>
@@ -2689,7 +2692,7 @@ export function EstimateDraftModal({
                 key={step.id}
                 type="button"
                 onClick={() => goToStage(step.id)}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
+                className={`min-h-11 shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${
                   activeStage === step.id
                     ? 'border-[#071421] bg-[#071421] text-white'
                     : step.status === 'complete'
@@ -2700,6 +2703,9 @@ export function EstimateDraftModal({
                 {step.status === 'complete' ? '✓ ' : step.status === 'needs_attention' ? '! ' : '○ '}{index + 1} · {step.label}
               </button>
             ))}
+            <span role="status" aria-live="polite" className="ml-auto shrink-0 text-xs text-[var(--app-muted)]">
+              {blockingReadiness.length ? `${blockingReadiness.length} required item${blockingReadiness.length === 1 ? '' : 's'} left` : 'Ready for review'}
+            </span>
           </div>
           <div className="mt-2 flex items-center justify-between gap-3">
             <div className="min-w-0">

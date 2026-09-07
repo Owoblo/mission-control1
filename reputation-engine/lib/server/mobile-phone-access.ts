@@ -19,7 +19,7 @@ function sessionBranch(session?: SessionPayload | null) {
 }
 
 export function canUseAllMobilePhoneLines(session?: SessionPayload | null) {
-  return session?.role === 'owner' || (session?.role === 'manager' && !session.branch)
+  return session?.role === 'owner'
 }
 
 export function listMobilePhoneLines(session?: SessionPayload | null): MobilePhoneLine[] {
@@ -31,11 +31,20 @@ export function listMobilePhoneLines(session?: SessionPayload | null): MobilePho
       const workspace = getSaturnTrackingSource(number) === 'partnership_outreach'
         ? 'partnership'
         : 'sales'
-      if (!branch || getSalesBranchFromSaturnPhone(number) !== branch) return false
+      // Central sales staff intentionally have no branch: they work every sales
+      // market, but never inherit partnership caller IDs.
+      if (!branch) {
+        if (session.role === 'sales_rep' || session.role === 'manager') {
+          return workspace === 'sales'
+        }
+        return session.role === 'partnership_manager' && workspace === 'partnership'
+      }
+      if (getSalesBranchFromSaturnPhone(number) !== branch) return false
       // Caller IDs are tenant-scoped just like lead access. A branch rep must
       // never present another market's number to a customer.
       if (session.role === 'sales_rep') return workspace === 'sales'
       if (session.role === 'partnership_manager') return workspace === 'partnership'
+      if (session.role === 'manager') return workspace === 'sales'
       return true
     })
     .map(number => ({

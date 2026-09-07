@@ -66,7 +66,7 @@ async function buildVoiceToken(
 export async function GET(request: Request) {
   try {
     const sessionUser = await getRequestSessionUser(request)
-    if (!sessionUser || !['owner', 'manager', 'sales_rep', 'partnership_manager'].includes(sessionUser.role || '')) {
+    if (!sessionUser || !['owner', 'manager', 'sales_rep', 'operations_lead', 'partnership_manager'].includes(sessionUser.role || '')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -80,6 +80,7 @@ export async function GET(request: Request) {
       !apiKeySid ? 'TWILIO_API_KEY_SID' : null,
       !apiKeySecret ? 'TWILIO_API_KEY_SECRET' : null,
       !twimlAppSid ? 'TWILIO_TWIML_APP_SID' : null,
+      !pushCredentialSid ? 'TWILIO_VOICE_PUSH_CREDENTIAL_SID' : null,
     ].filter(Boolean)
 
     if (missing.length > 0) {
@@ -113,6 +114,7 @@ export async function GET(request: Request) {
       repName: sessionUser.name || identity,
       repId: sessionUser.userId || null,
       expiresAt,
+      pushConfigured: Boolean(pushCredentialSid),
     })
   } catch (error) {
     return NextResponse.json(

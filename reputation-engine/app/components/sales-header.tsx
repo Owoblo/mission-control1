@@ -144,6 +144,7 @@ export function SalesHeader() {
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [moreNavOpen, setMoreNavOpen] = useState(false)
 
   // ── Notification state ──────────────────────────────────────────────────
   const [notifItems, setNotifItems] = useState<NotificationItem[]>([])
@@ -369,6 +370,11 @@ export function SalesHeader() {
   const navItems = BASE_NAV
     .filter(item => item.roles.includes(role))
     .filter(item => !(role === 'sales_rep' && ['Finance', 'Live Feed', 'Analytics', 'Reps', 'Team', 'Partnerships'].includes(item.label)))
+  const primaryNavLabels = new Set(['Dashboard', 'Tasks', 'Inbox', 'Leads', 'Pipeline', 'Booked', 'Partnerships', 'Operations'])
+  const primaryNavItems = navItems.filter(item => primaryNavLabels.has(item.label))
+  const secondaryNavItems = navItems.filter(item => !primaryNavLabels.has(item.label))
+  const activeSecondaryItem = secondaryNavItems.some(item => item.match(pathname))
+  const visibleNavItems = moreNavOpen || activeSecondaryItem ? navItems : primaryNavItems
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'SS'
 
   return (
@@ -603,13 +609,13 @@ export function SalesHeader() {
           {/* ── Nav ───────────────────────────────────────────────────── */}
           <div className="flex min-h-0 flex-col gap-3 md:flex-row md:items-center md:justify-between lg:flex-1 lg:flex-col lg:items-stretch lg:justify-start">
             <nav className={`-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 md:gap-6 md:px-0 md:pb-0 lg:mx-0 lg:min-h-0 lg:flex-1 lg:flex-col lg:items-stretch lg:gap-0.5 lg:overflow-y-auto lg:p-0 ${sidebarCollapsed ? 'lg:px-2' : 'lg:px-3'}`}>
-              {navItems.map((item, index) => {
+              {visibleNavItems.map((item, index) => {
                 const active = item.match(pathname)
                 const showInboxDot = item.href === '/sales/inbox' && notifBreakdown.leads > 0 && !active
                 const showFollowUpDot = item.href === '/sales/follow-up' && notifBreakdown.leads > 0 && !active
                 return (
                   <React.Fragment key={item.href}>
-                  {(!index || navItems[index - 1]?.environment !== item.environment) && !sidebarCollapsed && (
+                  {(!index || visibleNavItems[index - 1]?.environment !== item.environment) && !sidebarCollapsed && (
                     <div className="hidden px-3 pb-1 pt-4 text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)] first:pt-1 lg:block">
                       {item.environment}
                     </div>
@@ -647,6 +653,17 @@ export function SalesHeader() {
                   </React.Fragment>
                 )
               })}
+              {secondaryNavItems.length > 0 && (
+                <button
+                  type="button"
+                  aria-expanded={moreNavOpen || activeSecondaryItem}
+                  onClick={() => setMoreNavOpen(current => !current)}
+                  className={`relative mt-1 shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 lg:flex lg:w-full lg:items-center lg:rounded-[10px] lg:border lg:py-2 ${sidebarCollapsed ? 'lg:justify-center lg:px-0' : 'lg:justify-between lg:px-3'} ${activeSecondaryItem ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] md:border-transparent lg:border-transparent lg:hover:bg-[var(--app-line)]/40'}`}
+                >
+                  <span className={sidebarCollapsed ? 'lg:hidden' : ''}>More</span>
+                  <span aria-hidden className="hidden lg:inline">{moreNavOpen || activeSecondaryItem ? '−' : '+'}</span>
+                </button>
+              )}
             </nav>
 
             {canUseSalesActions && (
