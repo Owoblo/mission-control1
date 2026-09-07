@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { getSessionUser } from '@/lib/server/session'
 import { listFollowUpLogs } from '@/lib/server/sales-repository'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
@@ -37,6 +39,11 @@ function probe(name: string, lastSeenAt: string | null): HealthProbe {
 }
 
 export async function GET(request: Request) {
+  const session = await getSessionUser()
+  if (!session || !canAccessSalesWorkspace(session)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const [lastInboundCallAt, lastInboundSmsAt, lastRecordingCallbackAt, lastTranscriptionAt, followUpLogs, metrics, browserPresence, recentDialerEvents] = await Promise.all([
     fetchLatestTimestamp('inbound_leads?source=eq.twilio_call&select=created_at&order=created_at.desc&limit=1'),
     fetchLatestTimestamp('sms_messages?direction=eq.inbound&select=created_at&order=created_at.desc&limit=1'),

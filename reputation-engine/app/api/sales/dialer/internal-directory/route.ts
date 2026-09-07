@@ -25,48 +25,58 @@ export async function GET(request: Request) {
       getDialerSettings().catch(() => null),
     ])
     const recentPresence = await listRecentDialerPresence({ sinceMinutes: 5, limit: 200 }).catch(() => [])
-    const latestByIdentity = new Map<string, { userId?: string | null }>()
+    const latestByIdentity = new Map<string, {
+      userId?: string | null
+      userName?: string | null
+      platform?: string | null
+    }>()
     for (const row of recentPresence) {
       const identity = String(row.properties.identity || '')
       if (!identity || latestByIdentity.has(identity)) continue
       latestByIdentity.set(identity, {
         userId: typeof row.properties.userId === 'string' ? row.properties.userId : null,
+        userName: typeof row.properties.userName === 'string' ? row.properties.userName : null,
+        platform: typeof row.properties.platform === 'string' ? row.properties.platform : null,
       })
     }
 
     const { url, headers } = requireSupabaseEnv()
-    const uniqueUserIds = Array.from(new Set([
-      ...presence.userIds.filter(Boolean),
-      ...Array.from(latestByIdentity.values()).map(entry => entry.userId || '').filter(Boolean),
-    ]))
+    const allowedRoles = ['owner', 'manager', 'sales_rep', 'partnership_manager']
     let users: Array<{ id: string; name: string; role?: string | null }> = []
 
-    if (uniqueUserIds.length > 0) {
-      const response = await fetch(
-        `${url}/rest/v1/app_users?select=id,name,role&id=in.(${uniqueUserIds.map(id => `"${id}"`).join(',')})`,
-        { headers, cache: 'no-store' }
-      )
-      if (response.ok) {
-        users = (await response.json()) as Array<{ id: string; name: string; role?: string | null }>
-      }
+    const response = await fetch(
+      `${url}/rest/v1/app_users?select=id,name,role&role=in.(${allowedRoles.join(',')})&order=name.asc&limit=50`,
+      { headers, cache: 'no-store' }
+    )
+    if (response.ok) {
+      users = (await response.json()) as Array<{ id: string; name: string; role?: string | null }>
     }
 
-    const userById = new Map(users.map(user => [user.id, user]))
-    const browserTargets = presence.availableIdentities.map(identity => {
-      const matchingUserId = latestByIdentity.get(identity)?.userId || null
-      const user = matchingUserId ? userById.get(matchingUserId) : null
+    const availableIdentities = new Set(presence.availableIdentities)
+    const presentIdentities = new Set(presence.identities)
+    const teamTargets = users
+      .filter(user => user.id !== session.userId)
+      .map(user => {
+      const identity = `saturn-rep-${user.id}`
+      const presenceDetail = latestByIdentity.get(identity)
       return {
         id: `client:${identity}`,
-        label: user?.name || identity,
+        userId: user.id,
+        label: user.name || presenceDetail?.userName || 'Team member',
+        role: user.role || null,
         target: `client:${identity}`,
-        status: 'available',
-        kind: 'browser',
+        status: availableIdentities.has(identity)
+          ? 'available'
+          : presentIdentities.has(identity)
+            ? 'busy'
+            : 'offline',
+        kind: presenceDetail?.platform === 'mobile' ? 'mobile' : 'browser',
       }
     })
 
     const sipUsers = Array.from(new Set((settings?.sipUsers || []).filter(Boolean)))
     const sipTargets = sipUsers
-      .filter(username => !browserTargets.some(entry => entry.label.toLowerCase() === username.toLowerCase()))
+      .filter(username => !teamTargets.some(entry => entry.label.toLowerCase() === username.toLowerCase()))
       .map(username => ({
         id: `sip:${username}`,
         label: username,
@@ -76,7 +86,7 @@ export async function GET(request: Request) {
       }))
 
     return NextResponse.json({
-      entries: [...browserTargets, ...sipTargets],
+      entries: [...teamTargets, ...sipTargets],
     })
   } catch (error) {
     return NextResponse.json(

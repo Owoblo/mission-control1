@@ -25,7 +25,9 @@ import {
 } from '@/lib/server/lead-identity'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { normalizePhone } from '@/lib/sales-phones'
+import { logSlowDependency } from '@/lib/server/performance'
 import { decideListingMatch, extractListingReference, listingPhotoCount, scoreListingCandidate } from '@/lib/listing-match'
+import { computeBranchCapacitySnapshot, type BranchCapacitySnapshot, type CapacityJob } from '@/lib/operations-capacity'
 import type {
   CallLogEntry,
   CRMClient,
@@ -261,6 +263,11 @@ const LEAD_INBOX_SELECT = [
   'assignedRepUserId:data->>assignedRepUserId',
 ].join(',')
 
+const LEAD_NOTIFICATION_SELECT = LEAD_INBOX_SELECT
+  .split(',')
+  .filter(field => !field.startsWith('callLogs:'))
+  .join(',')
+
 const LEAD_SEARCH_SELECT = [
   'id',
   'name:data->>name',
@@ -283,6 +290,34 @@ const LEAD_LIFECYCLE_SELECT = [
   'createdAt:data->>createdAt',
 ].join(',')
 
+const LEAD_CAPACITY_SELECT = [
+  'id',
+  'stage:data->>stage',
+  'branch:data->>branch',
+  'quoteId:data->>quoteId',
+  'moveDate:data->>moveDate',
+  'assignedCrew:data->assignedCrew',
+  'truckCountConfirmed:data->>truckCountConfirmed',
+].join(',')
+
+type LeadCapacityRow = {
+  id: string
+  stage?: string | null
+  branch?: string | null
+  quoteId?: string | null
+  moveDate?: string | null
+  assignedCrew?: string[] | null
+  truckCountConfirmed?: string | number | null
+}
+
+type QuoteCapacityRow = {
+  id: string
+  leadId?: string | null
+  moveDate?: string | null
+  crewSize?: string | number | null
+  truckCount?: string | number | null
+}
+
 function isRetryableSupabaseStatus(status: number) {
   return status === 408 ||
     status === 425 ||
@@ -299,18 +334,34 @@ function isRetryableSupabaseStatus(status: number) {
 }
 
 async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
-  const maxAttempts = 3
+  // Read retries can amplify a database stall across many Vercel instances.
+  // One bounded retry handles transient network failures without turning a
+  // CRM refresh burst into sustained connection pressure.
+  const maxAttempts = 2
   let lastError: unknown
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const startedAt = performance.now()
     try {
       const response = await fetch(input, {
         ...init,
         signal: AbortSignal.timeout(12_000),
       })
       if (!isRetryableSupabaseStatus(response.status) || attempt === maxAttempts) {
+        logSlowDependency('supabase_rest', startedAt, {
+          table: new URL(input).pathname.split('/').pop() || 'unknown',
+          method: init?.method || 'GET',
+          status: response.status,
+          attempt,
+        })
         return response
       }
+      logSlowDependency('supabase_rest_retry', startedAt, {
+        table: new URL(input).pathname.split('/').pop() || 'unknown',
+        method: init?.method || 'GET',
+        status: response.status,
+        attempt,
+      })
       await response.body?.cancel().catch(() => undefined)
     } catch (error) {
       lastError = error
@@ -326,8 +377,14 @@ async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
 async function selectLeadLifecycleSnapshots() {
   try {
     const { url, headers } = requireSupabase()
+    const query = new URLSearchParams({
+      select: LEAD_LIFECYCLE_SELECT,
+      deleted: 'eq.false',
+      'data->>notes': `in.("${LEAD_ARCHIVED_NOTE}","${LEAD_RESTORED_NOTE}")`,
+      order: 'updated_at.desc',
+    })
     const response = await fetchSupabaseWithRetry(
-      `${url}/rest/v1/crm_followup_logs?select=${encodeURIComponent(LEAD_LIFECYCLE_SELECT)}&deleted=eq.false&order=updated_at.desc`,
+      `${url}/rest/v1/crm_followup_logs?${query.toString()}`,
       { headers, cache: 'no-store' }
     )
 
@@ -353,6 +410,33 @@ async function selectLeadLifecycleSnapshots() {
     if (isMissingRelationError(message)) {
       return [] as LeadLifecycleSnapshot[]
     }
+    throw error
+  }
+}
+
+async function isSalesLeadArchived(leadId: string) {
+  try {
+    const { url, headers } = requireSupabase()
+    const query = new URLSearchParams({
+      select: LEAD_LIFECYCLE_SELECT,
+      deleted: 'eq.false',
+      'data->>leadId': `eq.${leadId}`,
+      'data->>notes': `in.("${LEAD_ARCHIVED_NOTE}","${LEAD_RESTORED_NOTE}")`,
+      order: 'updated_at.desc',
+      limit: '1',
+    })
+    const response = await fetchSupabaseWithRetry(
+      `${url}/rest/v1/crm_followup_logs?${query.toString()}`,
+      { headers, cache: 'no-store' }
+    )
+    if (!response.ok) {
+      throw new Error(`Failed to read crm_followup_logs lifecycle for ${leadId}`)
+    }
+    const rows = await response.json() as Array<{ notes?: string | null }>
+    return rows[0]?.notes === LEAD_ARCHIVED_NOTE
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (isMissingRelationError(message)) return false
     throw error
   }
 }
@@ -390,6 +474,23 @@ async function selectAll<T>(table: TableName): Promise<T[]> {
     return records.map(record => record.data)
   }
   throw new Error(`Failed to read ${table}. Supabase ${response.status}`)
+}
+
+async function selectOverviewSalesLeads(): Promise<CRMLead[]> {
+  const { url, headers } = requireSupabase()
+  const response = await fetchSupabaseWithRetry(`${url}/rest/v1/rpc/crm_sales_overview_leads`, {
+    method: 'POST',
+    headers,
+    body: '{}',
+    cache: 'no-store',
+  })
+  if (response.ok) {
+    const rows = await response.json() as Array<{ data: CRMLead }>
+    return rows.map(row => row.data)
+  }
+  // Allows code and migration rollout order to remain independent.
+  if (response.status === 404 || response.status === 400) return selectAll<CRMLead>('crm_leads')
+  throw new Error(`Failed to read sales overview leads. Supabase ${response.status}`)
 }
 
 async function selectAllRecords<T>(table: TableName): Promise<PersistedRecord<T>[]> {
@@ -431,27 +532,45 @@ async function selectRecordById<T>(table: TableName, id: string): Promise<Persis
 }
 
 async function upsert<T extends { id: string }>(table: TableName, data: T): Promise<T> {
-  const existing = await selectRecordById<T>(table, data.id)
-  if (existing?.deleted) {
-    throw new Error(`Cannot save deleted ${table}/${data.id}`)
-  }
-
   const { url, headers } = requireSupabase()
-  const response = await fetchSupabaseWithRetry(`${url}/rest/v1/${table}`, {
+  const row = { data, updated_at: new Date().toISOString() }
+  const patchUrl = `${url}/rest/v1/${table}?id=eq.${encodeURIComponent(data.id)}&deleted=eq.false&select=data`
+  const patchExisting = () => fetchSupabaseWithRetry(patchUrl, {
+    method: 'PATCH',
+    headers: {
+      ...headers,
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(row),
+  })
+
+  // Updates are the dominant CRM write. Patch active rows directly so a save
+  // takes one database round trip instead of SELECT followed by UPSERT.
+  const updateResponse = await patchExisting()
+  if (!updateResponse.ok) throw new Error(`Failed to save ${table}`)
+  const updated = (await updateResponse.json()) as Array<{ data: T }>
+  if (updated[0]?.data) return updated[0].data
+
+  // No active row exists. Insert without reviving a soft-deleted record. If a
+  // concurrent creator won the race, one final patch updates that active row.
+  const insertResponse = await fetchSupabaseWithRetry(`${url}/rest/v1/${table}?select=data`, {
     method: 'POST',
     headers: {
       ...headers,
-      Prefer: 'resolution=merge-duplicates,return=representation',
+      Prefer: 'resolution=ignore-duplicates,return=representation',
     },
-    body: JSON.stringify([{ id: data.id, data, updated_at: new Date().toISOString(), deleted: false }]),
+    body: JSON.stringify([{ id: data.id, ...row, deleted: false }]),
   })
+  if (!insertResponse.ok) throw new Error(`Failed to save ${table}`)
+  const inserted = (await insertResponse.json()) as Array<{ data: T }>
+  if (inserted[0]?.data) return inserted[0].data
 
-  if (!response.ok) {
-    throw new Error(`Failed to save ${table}`)
-  }
+  const retryResponse = await patchExisting()
+  if (!retryResponse.ok) throw new Error(`Failed to save ${table}`)
+  const retried = (await retryResponse.json()) as Array<{ data: T }>
+  if (retried[0]?.data) return retried[0].data
 
-  const records = (await response.json()) as PersistedRecord<T>[]
-  return records[0]?.data ?? data
+  throw new Error(`Cannot save deleted ${table}/${data.id}`)
 }
 
 async function markDeleted(table: TableName, id: string) {
@@ -531,8 +650,24 @@ export async function listSalesLeadIdentitySnapshots() {
 }
 
 export async function listSalesLeadInboxSnapshots() {
+  const { url, headers } = requireSupabase()
+  const [response, lifecycle] = await Promise.all([
+    fetchSupabaseWithRetry(`${url}/rest/v1/rpc/crm_sales_inbox_leads`, {
+      method: 'POST', headers, body: '{}', cache: 'no-store',
+    }),
+    selectLeadLifecycleSnapshots(),
+  ])
+  if (!response.ok) throw new Error(`Failed to read CRM inbox leads. Supabase ${response.status}`)
+  const records = await response.json() as Array<{ data: CRMLead }>
+  const archivedLeadIds = getArchivedLeadIds(lifecycle)
+  return records
+    .map(record => normalizeLead(record.data) as SalesLeadInboxSnapshot)
+    .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
+}
+
+export async function listSalesLeadNotificationSnapshots() {
   const [rows, lifecycle] = await Promise.all([
-    selectProjectedLeadRows<LeadInboxRow>(LEAD_INBOX_SELECT),
+    selectProjectedLeadRows<LeadInboxRow>(LEAD_NOTIFICATION_SELECT),
     selectLeadLifecycleSnapshots(),
   ])
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
@@ -550,6 +685,49 @@ export async function listSalesLeadSearchSnapshots() {
   return rows
     .map(normalizeLeadSearchSnapshot)
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
+}
+
+export async function getSalesBranchCapacity(
+  branch: NonNullable<CRMLead['branch']>,
+  date: string,
+): Promise<BranchCapacitySnapshot> {
+  const { url, headers } = requireSupabase()
+  const quoteSelect = ['id', 'leadId:data->>leadId', 'moveDate:data->>moveDate', 'crewSize:data->>crewSize', 'truckCount:data->>truckCount'].join(',')
+  const quoteQuery = new URLSearchParams({ select: quoteSelect, deleted: 'eq.false' })
+  const [leadRows, quoteResponse] = await Promise.all([
+    selectProjectedLeadRows<LeadCapacityRow>(LEAD_CAPACITY_SELECT),
+    fetchSupabaseWithRetry(`${url}/rest/v1/crm_quotes?${quoteQuery.toString()}`, { headers, cache: 'no-store' }),
+  ])
+  if (!quoteResponse.ok) throw new Error('Failed to read capacity quote rows')
+  const quoteRows = await quoteResponse.json() as QuoteCapacityRow[]
+  const quoteById = new Map(quoteRows.map(row => [row.id, {
+    id: row.id,
+    leadId: normalizeProjectedText(row.leadId),
+    moveDate: normalizeProjectedText(row.moveDate),
+    crewSize: normalizeProjectedNumber(row.crewSize),
+    truckCount: normalizeProjectedNumber(row.truckCount),
+  }]))
+  const jobs: CapacityJob[] = leadRows
+    .filter(row => BOOKED_LIKE_STAGES.includes((row.stage || '') as CRMLead['stage']))
+    .map(row => {
+      const quoteId = normalizeProjectedText(row.quoteId)
+      const quote = quoteId ? quoteById.get(quoteId) || null : null
+      const lead = {
+        id: row.id,
+        name: '',
+        createdAt: '',
+        stage: row.stage as CRMLead['stage'],
+        branch: (row.branch || 'windsor') as CRMLead['branch'],
+        quoteId,
+        // Quote scheduling is authoritative when it differs from the older
+        // lead date, matching the estimate modal's previous behavior.
+        moveDate: quote?.moveDate || normalizeProjectedText(row.moveDate),
+        assignedCrew: Array.isArray(row.assignedCrew) ? row.assignedCrew : [],
+        truckCountConfirmed: normalizeProjectedNumber(row.truckCountConfirmed),
+      } satisfies CRMLead
+      return { lead, quote: quote as CRMQuote | null }
+    })
+  return computeBranchCapacitySnapshot(jobs, branch, date)
 }
 
 export async function listSalesLeadsPaginated(page: number, limit: number) {
@@ -591,8 +769,42 @@ export async function getSalesLead(id: string) {
   const lead = await selectById<CRMLead>('crm_leads', id)
   if (!lead) return null
 
-  const archivedLeadIds = getArchivedLeadIds(await selectLeadLifecycleSnapshots())
-  return archivedLeadIds.has(id) ? null : normalizeLead(lead)
+  return await isSalesLeadArchived(id) ? null : normalizeLead(lead)
+}
+
+export type SalesLeadLiveSnapshot = Pick<CRMLead,
+  'id' | 'branch' | 'mergedIntoLeadId' | 'callLogs' | 'lastInboundAt' | 'lastOutboundAt' | 'lastHumanOutboundAt'
+>
+
+export async function getSalesLeadLiveSnapshot(id: string): Promise<SalesLeadLiveSnapshot | null> {
+  const { url, headers } = requireSupabase()
+  const select = [
+    'id',
+    'branch:data->>branch',
+    'mergedIntoLeadId:data->>mergedIntoLeadId',
+    'callLogs:data->callLogs',
+    'lastInboundAt:data->>lastInboundAt',
+    'lastOutboundAt:data->>lastOutboundAt',
+    'lastHumanOutboundAt:data->>lastHumanOutboundAt',
+  ].join(',')
+  const query = new URLSearchParams({ id: `eq.${id}`, select, deleted: 'eq.false', limit: '1' })
+  const response = await fetchSupabaseWithRetry(
+    `${url}/rest/v1/crm_leads?${query.toString()}`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) throw new Error(`Failed to read live crm_leads/${id}`)
+  const rows = await response.json() as Array<Record<string, unknown>>
+  const row = rows[0]
+  if (!row || row.mergedIntoLeadId) return null
+  return {
+    id: String(row.id),
+    branch: normalizeProjectedText(row.branch as string | null) as CRMLead['branch'],
+    mergedIntoLeadId: normalizeProjectedText(row.mergedIntoLeadId as string | null),
+    callLogs: normalizeProjectedCallLogs(row.callLogs as CallLogEntry[] | string | null),
+    lastInboundAt: normalizeProjectedText(row.lastInboundAt as string | null),
+    lastOutboundAt: normalizeProjectedText(row.lastOutboundAt as string | null),
+    lastHumanOutboundAt: normalizeProjectedText(row.lastHumanOutboundAt as string | null),
+  }
 }
 
 export async function getSalesLeadByInboundId(inboundId: string) {
@@ -908,6 +1120,33 @@ export async function listFollowUpLogs() {
   }
 }
 
+// Dashboard/list screens only need enough recent history to derive guidance and
+// latest activity. Full customer history is served by the lead follow-up route.
+// Keeping this response below Vercel's shared-cache item limit also prevents
+// concurrent dashboard refreshes from rebuilding the same large read model.
+export async function listRecentFollowUpLogs(limit = 1000) {
+  try {
+    const { url, headers } = requireSupabase()
+    const query = new URLSearchParams({
+      select: 'data',
+      deleted: 'eq.false',
+      order: 'updated_at.desc',
+      limit: String(limit),
+    })
+    const response = await fetchSupabaseWithRetry(
+      `${url}/rest/v1/crm_followup_logs?${query.toString()}`,
+      { headers, cache: 'no-store' }
+    )
+    if (!response.ok) throw new Error('Failed to read recent crm_followup_logs')
+    const records = await response.json() as Array<{ data: FollowUpLog }>
+    return records.map(record => normalizeFollowUp(record.data))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (isMissingRelationError(message)) return []
+    throw error
+  }
+}
+
 async function listFollowUpLogsByDataField(field: 'leadId' | 'quoteId', value: string) {
   const { url, headers } = requireSupabase()
   const response = await fetch(
@@ -955,6 +1194,43 @@ export async function listSalesEmails() {
   return selectAll<CRMEmail>('crm_emails')
 }
 
+export async function listRecentSalesEmails(since: string, limit = 500) {
+  const { url, headers } = requireSupabase()
+  const query = new URLSearchParams({
+    select: 'data',
+    deleted: 'eq.false',
+    updated_at: `gte.${since}`,
+    order: 'updated_at.desc',
+    limit: String(limit),
+  })
+  const response = await fetchSupabaseWithRetry(
+    `${url}/rest/v1/crm_emails?${query.toString()}`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) throw new Error('Failed to read recent crm_emails')
+  const records = await response.json() as Array<{ data: CRMEmail }>
+  return records.map(record => record.data)
+}
+
+export async function listRecentSalesAlerts(since: string, limit = 200) {
+  const { url, headers } = requireSupabase()
+  const query = new URLSearchParams({
+    select: 'data',
+    deleted: 'eq.false',
+    updated_at: `gte.${since}`,
+    'data->>notes': 'like.[SYSTEM ALERT]*',
+    order: 'updated_at.desc',
+    limit: String(limit),
+  })
+  const response = await fetchSupabaseWithRetry(
+    `${url}/rest/v1/crm_followup_logs?${query.toString()}`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) throw new Error('Failed to read recent sales alerts')
+  const records = await response.json() as Array<{ data: FollowUpLog }>
+  return records.map(record => normalizeFollowUp(record.data))
+}
+
 export async function saveSalesEmail(email: CRMEmail) {
   return upsert<CRMEmail>('crm_emails', email)
 }
@@ -966,13 +1242,14 @@ export async function getSalesOverview(): Promise<{
   followUps: FollowUpLog[]
   summary: SalesDashboardSummary
 }> {
-  // The overview needs follow-ups both for its response and to exclude archived
-  // leads. Share one request so a cold page load does not issue two identical,
-  // full-table crm_followup_logs reads and double the chance of a timeout.
-  const followUpsPromise = listFollowUpLogs()
+  // Archive state is a tiny, indexed lifecycle query. Activity feeds only need
+  // the newest records; sending the entire audit history made this endpoint grow
+  // without bound and forced every dashboard refresh to download megabytes.
+  const lifecyclePromise = selectLeadLifecycleSnapshots()
+  const followUpsPromise = listRecentFollowUpLogs()
   const leadsPromise = Promise.all([
-    selectAll<CRMLead>('crm_leads'),
-    followUpsPromise,
+    selectOverviewSalesLeads(),
+    lifecyclePromise,
   ]).then(([storedLeads, lifecycle]) => {
     const archivedLeadIds = getArchivedLeadIds(lifecycle)
     return filterDisplayDuplicateSalesLeads(storedLeads
@@ -987,7 +1264,7 @@ export async function getSalesOverview(): Promise<{
     followUpsPromise,
   ])
 
-  const archivedLeadIds = getArchivedLeadIds(followUps)
+  const archivedLeadIds = getArchivedLeadIds(await lifecyclePromise)
   const activeLeads = leads.filter(lead => !archivedLeadIds.has(lead.id))
   const activeLeadIds = new Set(leads.map(lead => lead.id))
   const activeQuoteIds = new Set(quotes.map(quote => quote.id))
@@ -1090,6 +1367,22 @@ export async function listAllInboundLeads() {
   }
 
   return (await response.json()) as InboundLead[]
+}
+
+export async function listRecentInboundLeads(since: string, limit = 500) {
+  const { url, headers } = requireSupabase()
+  const query = new URLSearchParams({
+    select: 'id,source,name,phone,email,message,raw_data,created_at,claimed,claimed_at',
+    created_at: `gte.${since}`,
+    order: 'created_at.desc',
+    limit: String(limit),
+  })
+  const response = await fetch(
+    `${url}/rest/v1/inbound_leads?${query.toString()}`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) throw new Error('Failed to read recent inbound leads')
+  return await response.json() as InboundLead[]
 }
 
 export async function getInboundLead(id: string) {
@@ -1415,35 +1708,6 @@ function normalizeAddressInput(address: string) {
     .replace(/[,\n]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-const STREET_SUFFIX_CANONICAL: Record<string, string> = {
-  street: 'st',
-  st: 'st',
-  avenue: 'ave',
-  ave: 'ave',
-  road: 'rd',
-  rd: 'rd',
-  drive: 'dr',
-  dr: 'dr',
-  boulevard: 'blvd',
-  blvd: 'blvd',
-  lane: 'ln',
-  ln: 'ln',
-  court: 'crt',
-  crt: 'crt',
-  crescent: 'cres',
-  cres: 'cres',
-  place: 'pl',
-  pl: 'pl',
-  terrace: 'terr',
-  terr: 'terr',
-  trail: 'trl',
-  trl: 'trl',
-  circle: 'cir',
-  cir: 'cir',
-  parkway: 'pkway',
-  pkway: 'pkway',
 }
 
 function buildAddressLookupVariants(address: string) {

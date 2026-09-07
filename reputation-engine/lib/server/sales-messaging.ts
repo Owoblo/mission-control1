@@ -9,6 +9,8 @@ import { logEvent } from '@/lib/server/analytics'
 import { getTwilioCredentials, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { logSlowDependency } from '@/lib/server/performance'
+import { smsThreadPhoneMatches } from '@/lib/sms-thread-identity'
 import {
   getSalesLead,
   listFollowUpLogsForLead,
@@ -97,6 +99,12 @@ export interface SendSalesMessageResult {
 export async function recordOutboundSmsToSupabase(from: string, to: string, body: string, leadId: string | undefined, sid?: string | null) {
   try {
     const { url, headers } = requireSupabaseEnv()
+    const linkedLead = leadId ? await getSalesLead(leadId).catch(() => null) : null
+    // Do not persist a foreign lead association on a phone thread. A stale UI
+    // selection or bulk-send context must not relabel the recipient later.
+    const verifiedLeadId = linkedLead && smsThreadPhoneMatches(linkedLead.identityPhone || linkedLead.phone, to)
+      ? linkedLead.id
+      : null
     await fetch(`${url}/rest/v1/sms_messages`, {
       method: 'POST',
       headers: { ...headers, Prefer: 'return=minimal' },
@@ -106,7 +114,7 @@ export async function recordOutboundSmsToSupabase(from: string, to: string, body
         to_number: to,
         body,
         direction: 'outbound',
-        lead_id: leadId || null,
+        lead_id: verifiedLeadId,
         twilio_sid: sid || null,
         created_at: new Date().toISOString(),
       }),
@@ -181,7 +189,7 @@ async function resolveSmsFromNumber(input: SendSalesMessageInput) {
   return resolution.fromNumber
 }
 
-async function syncLeadMessagingState(leadId: string, actor: 'human' | 'automation') {
+async function syncLeadMessagingState(leadId: string, actor: 'human' | 'automation', followUpOnQuote = false) {
   const lead = await getSalesLead(leadId)
   if (!lead) return null
 
@@ -210,6 +218,11 @@ async function syncLeadMessagingState(leadId: string, actor: 'human' | 'automati
     }
   }
 
+  if (followUpOnQuote && !lead.followUpDate) {
+    next.followUpDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    next.followUpNote = lead.followUpNote || 'Follow up on sent quote'
+  }
+
   return saveSalesLead(next)
 }
 
@@ -223,6 +236,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
       throw new Error('Missing RESEND_API_KEY')
     }
 
+    const providerStartedAt = performance.now()
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -238,6 +252,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         reply_to: 'business@inbound.starmovers.ca',
       }),
     })
+    logSlowDependency('resend_send', providerStartedAt, { channel: 'email', status: resendRes.status })
 
     const resendResult = await resendRes.json().catch(() => ({})) as Record<string, unknown>
     if (!resendRes.ok) {
@@ -312,6 +327,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     const fromNumber = isWhatsApp ? `whatsapp:${rawFrom}` : rawFrom
     const toNumber = isWhatsApp ? `whatsapp:${rawTo}` : rawTo
 
+    const providerStartedAt = performance.now()
     const smsRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
@@ -324,6 +340,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         return p.toString()
       })(),
     })
+    logSlowDependency('twilio_send', providerStartedAt, { channel: input.channel, status: smsRes.status })
 
     const smsResult = await smsRes.json().catch(() => ({})) as Record<string, unknown>
     if (!smsRes.ok || !smsResult?.sid) {
@@ -349,11 +366,8 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
         : `SMS sent to ${input.to}`),
   }
 
-  const savedLog = await saveFollowUpLog(log)
-
-  let emailRecord: CRMEmail | null = null
-  if (input.channel === 'email') {
-    emailRecord = await saveSalesEmail({
+  const emailPromise: Promise<CRMEmail | null> = input.channel === 'email'
+    ? saveSalesEmail({
       id: uid('em'),
       leadId: input.leadId || null,
       quoteId: input.quoteId || null,
@@ -366,25 +380,15 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
       status: 'sent',
       sentAt: now,
     })
-  }
-
-  const lead = input.leadId ? await syncLeadMessagingState(input.leadId, actor) : null
-
-  if (input.quoteId && input.leadId && input.channel === 'email') {
-    try {
-      const currentLead = lead || (await getSalesLead(input.leadId))
-      if (currentLead && !currentLead.followUpDate) {
-        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
-        await saveSalesLead({
-          ...currentLead,
-          followUpDate: tomorrow.toISOString().slice(0, 10),
-          followUpNote: currentLead.followUpNote || 'Follow up on sent quote',
-        })
-      }
-    } catch {
-      // best-effort
-    }
-  }
+    : Promise.resolve(null)
+  const leadPromise = input.leadId
+    ? syncLeadMessagingState(input.leadId, actor, Boolean(input.quoteId && input.channel === 'email'))
+    : Promise.resolve(null)
+  const [savedLog, emailRecord, lead] = await Promise.all([
+    saveFollowUpLog(log),
+    emailPromise,
+    leadPromise,
+  ])
 
   if (input.leadId && input.body) {
     ;(async () => {

@@ -58,6 +58,8 @@ const JOB_SELECT = [
   'updated_at',
 ].join(',')
 
+const STALE_JOB_LOCK_MS = 2 * 60 * 1000
+
 function parseResult(value: QuoteSendJobRow['result']) {
   if (!value) return {}
   if (typeof value === 'string') {
@@ -187,10 +189,32 @@ export async function enqueueQuoteSendJob(input: QuoteSendJobInput & {
   actorUserId?: string | null
   actorName?: string | null
   dueAt?: string
+  result?: Record<string, unknown>
 }) {
   const dedupeKey = buildQuoteSendDedupeKey(input)
   const existing = await getQuoteSendJobByDedupeKey(dedupeKey)
+  if (existing && (existing.status === 'failed' || existing.status === 'cancelled')) {
+    return await patchQuoteSendJob(existing.id, {
+      status: 'pending',
+      attempts: 0,
+      dueAt: input.dueAt || new Date().toISOString(),
+      lockedAt: null,
+      sentAt: null,
+      completedAt: null,
+      lastError: null,
+      result: input.result || {},
+    }) || existing
+  }
   if (existing && existing.status !== 'failed' && existing.status !== 'cancelled') {
+    const lockTime = existing.lockedAt ? new Date(existing.lockedAt).getTime() : 0
+    if (existing.status === 'running' && (!lockTime || lockTime < Date.now() - STALE_JOB_LOCK_MS)) {
+      return await patchQuoteSendJob(existing.id, {
+        status: 'pending',
+        lockedAt: null,
+        dueAt: new Date().toISOString(),
+        lastError: 'Recovered an interrupted delivery attempt.',
+      }) || existing
+    }
     return existing
   }
 
@@ -218,7 +242,7 @@ export async function enqueueQuoteSendJob(input: QuoteSendJobInput & {
     sentAt: null,
     completedAt: null,
     lastError: null,
-    result: {},
+    result: input.result || {},
     createdAt: now,
     updatedAt: now,
   })
@@ -231,6 +255,27 @@ export async function listDueQuoteSendJobs(limit = 25) {
     { headers, cache: 'no-store' }
   )
   if (!response.ok) throw new Error(`Failed to list due quote_send_jobs: ${await readError(response)}`)
+  return ((await response.json()) as QuoteSendJobRow[]).map(normalizeJob)
+}
+
+export async function recoverStaleQuoteSendJobs() {
+  const { url, headers } = requireSupabaseEnv()
+  const cutoff = new Date(Date.now() - STALE_JOB_LOCK_MS).toISOString()
+  const response = await fetch(
+    `${url}/rest/v1/quote_send_jobs?status=eq.running&locked_at=lt.${encodeURIComponent(cutoff)}&select=${encodeURIComponent(JOB_SELECT)}`,
+    {
+      method: 'PATCH',
+      headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        status: 'pending',
+        locked_at: null,
+        due_at: new Date().toISOString(),
+        last_error: 'Recovered an interrupted delivery attempt.',
+        updated_at: new Date().toISOString(),
+      }),
+    }
+  )
+  if (!response.ok) throw new Error(`Failed to recover stale quote_send_jobs: ${await readError(response)}`)
   return ((await response.json()) as QuoteSendJobRow[]).map(normalizeJob)
 }
 

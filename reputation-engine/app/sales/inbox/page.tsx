@@ -329,6 +329,7 @@ function SalesInboxPageInner() {
   const searchParams = useSearchParams()
   const [items, setItems] = useState<InboundLead[]>([])
   const [summary, setSummary] = useState<InboundInboxPayload['summary']>(EMPTY_SUMMARY)
+  const [inboundHasMore, setInboundHasMore] = useState(true)
   const [viewMode, setViewMode] = useState<'queue' | 'calls' | 'webforms' | 'handoffs' | 'closed' | 'messages' | 'email'>('queue')
   const [focusFilter, setFocusFilter] = useState<InboundLeadFocusFilter>('needs_action')
   const [closedFilter, setClosedFilter] = useState<InboundClosedFilter>('all')
@@ -359,6 +360,7 @@ function SalesInboxPageInner() {
   // SMS threads (2-way messages view)
   const [smsThreads, setSmsThreads] = useState<SmsThread[]>([])
   const [threadsLoading, setThreadsLoading] = useState(false)
+  const [smsHasMore, setSmsHasMore] = useState(true)
   const [selectedThread, setSelectedThread] = useState<string | null>(null)
   const [smsReply, setSmsReply] = useState('')
   const [smsReplyBusy, setSmsReplyBusy] = useState(false)
@@ -369,6 +371,7 @@ function SalesInboxPageInner() {
   // Email inbox state
   const [emailList, setEmailList] = useState<CRMEmail[]>([])
   const [emailLoading, setEmailLoading] = useState(false)
+  const [emailHasMore, setEmailHasMore] = useState(true)
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null)
   const [emailReply, setEmailReply] = useState({ subject: '', body: '' })
   const [emailReplyBusy, setEmailReplyBusy] = useState(false)
@@ -376,6 +379,11 @@ function SalesInboxPageInner() {
   const inboxRefreshInFlightRef = React.useRef(false)
   const smsThreadsInFlightRef = React.useRef(false)
   const emailsInFlightRef = React.useRef(false)
+  const smsDetailInFlightRef = React.useRef<string | null>(null)
+  const emailDetailInFlightRef = React.useRef<string | null>(null)
+  const inboundDetailInFlightRef = React.useRef<string | null>(null)
+  const loadedSmsDetailsRef = React.useRef(new Set<string>())
+  const loadedEmailDetailsRef = React.useRef(new Set<string>())
 
   // Keep urgency badges fresh without forcing the full inbox to repaint every second.
   const [tick, setTick] = useState(0)
@@ -484,16 +492,25 @@ function SalesInboxPageInner() {
     }
   }
 
-  async function refresh(silent = false) {
+  async function refresh(silent = false, append = false, query = viewMode === 'messages' || viewMode === 'email' ? '' : deferredSearch.trim(), replace = false) {
     if (inboxRefreshInFlightRef.current) return
     inboxRefreshInFlightRef.current = true
     try {
       if (!silent) setLoading(true)
-      const data = await fetchInboundLeads()
-      setItems(data.items)
+      const offset = append ? items.length : 0
+      const data = await fetchInboundLeads({ limit: 150, offset, search: query })
+      setInboundHasMore(data.page?.hasMore ?? data.items.length >= 150)
+      setItems(current => {
+        if (!append && (!silent || replace)) return data.items
+        const merged = new Map(current.map(item => [item.id, item]))
+        for (const item of data.items) merged.set(item.id, item)
+        return Array.from(merged.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      })
       setSummary(data.summary)
       // Keep current selection if still valid — never auto-open a different lead
-      setSelectedId(current => (current && data.items.some(item => item.id === current) ? current : null))
+      if (!silent && !append) {
+        setSelectedId(current => (current && data.items.some(item => item.id === current) ? current : null))
+      }
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -519,6 +536,9 @@ function SalesInboxPageInner() {
     const key = `sms:${thread.contactPhone}:${thread.lastAt}`
     if (readStateRef.current.has(key) || !thread.unread) return
     readStateRef.current.add(key)
+    setSmsThreads(threads => threads.map(item => item.contactPhone === thread.contactPhone
+      ? { ...item, unread: false, unreadCount: 0, lastReadAt: new Date().toISOString() }
+      : item))
     try {
       await markInboxRead({
         smsThreads: [{ leadId: thread.leadId, inboundId: thread.inboundLeadId, channel: 'sms' }],
@@ -526,6 +546,7 @@ function SalesInboxPageInner() {
       await fetchSmsThreads(true)
     } catch {
       readStateRef.current.delete(key)
+      setSmsThreads(threads => threads.map(item => item.contactPhone === thread.contactPhone ? thread : item))
     }
   }
 
@@ -612,6 +633,24 @@ function SalesInboxPageInner() {
       void fetchEmails()
     }
   }, [viewMode])
+
+  useEffect(() => {
+    if (viewMode === 'messages' || viewMode === 'email') return
+    const timer = window.setTimeout(() => void refresh(true, false, deferredSearch.trim(), true), 250)
+    return () => window.clearTimeout(timer)
+  }, [deferredSearch, viewMode])
+
+  useEffect(() => {
+    if (viewMode !== 'messages') return
+    const timer = window.setTimeout(() => void fetchSmsThreads(true, false, deferredSearch.trim()), 250)
+    return () => window.clearTimeout(timer)
+  }, [deferredSearch, viewMode])
+
+  useEffect(() => {
+    if (viewMode !== 'email') return
+    const timer = window.setTimeout(() => void fetchEmails(true, false, deferredSearch.trim(), true), 250)
+    return () => window.clearTimeout(timer)
+  }, [deferredSearch, viewMode])
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -743,6 +782,22 @@ function SalesInboxPageInner() {
 
   const selected = useMemo(() => filteredItems.find(item => item.id === selectedId) || null, [filteredItems, selectedId])
   const selectedRaw = useMemo(() => parseRawData(selected?.raw_data), [selected?.raw_data])
+
+  useEffect(() => {
+    if (!selectedId || viewMode === 'messages' || viewMode === 'email') return
+    const current = items.find(item => item.id === selectedId)
+    const raw = parseRawData(current?.raw_data)
+    if (!current || raw?._summaryOnly !== true || inboundDetailInFlightRef.current === selectedId) return
+    inboundDetailInFlightRef.current = selectedId
+    fetch(`/api/sales/inbox?id=${encodeURIComponent(selectedId)}`, { cache: 'no-store', credentials: 'include' })
+      .then(async response => {
+        if (!response.ok) throw new Error('Failed to load inbox detail')
+        const payload = await response.json() as { item: InboundLead }
+        setItems(currentItems => currentItems.map(item => item.id === payload.item.id ? payload.item : item))
+      })
+      .catch(() => {})
+      .finally(() => { if (inboundDetailInFlightRef.current === selectedId) inboundDetailInFlightRef.current = null })
+  }, [items, selectedId, viewMode])
   const selectedBranch = useMemo(() => getInboundBranchMeta(selected), [selected])
   const selectedDisposition = useMemo(
     () => selected ? (selected.inboxDisposition || getInboundDisposition(selected, selectedRaw)) : 'open',
@@ -774,6 +829,38 @@ function SalesInboxPageInner() {
     () => smsThreads.find(thread => thread.contactPhone === selectedThread) || null,
     [selectedThread, smsThreads]
   )
+
+  useEffect(() => {
+    if (viewMode !== 'messages' || !selectedThread) return
+    const current = smsThreads.find(thread => thread.contactPhone === selectedThread)
+    if (current?.messages.length || loadedSmsDetailsRef.current.has(selectedThread) || smsDetailInFlightRef.current === selectedThread) return
+    smsDetailInFlightRef.current = selectedThread
+    fetch(`/api/sales/sms-threads?phone=${encodeURIComponent(selectedThread)}`, { cache: 'no-store', credentials: 'include' })
+      .then(async response => {
+        if (!response.ok) throw new Error('Failed to load conversation')
+        const messages = await response.json() as SmsThread['messages']
+        loadedSmsDetailsRef.current.add(selectedThread)
+        setSmsThreads(threads => threads.map(thread => thread.contactPhone === selectedThread ? { ...thread, messages } : thread))
+      })
+      .catch(() => {})
+      .finally(() => { if (smsDetailInFlightRef.current === selectedThread) smsDetailInFlightRef.current = null })
+  }, [selectedThread, smsThreads, viewMode])
+
+  useEffect(() => {
+    if (viewMode !== 'email' || !selectedEmailId) return
+    const current = emailList.find(email => email.id === selectedEmailId)
+    if (!current || loadedEmailDetailsRef.current.has(selectedEmailId) || emailDetailInFlightRef.current === selectedEmailId) return
+    emailDetailInFlightRef.current = selectedEmailId
+    fetch(`/api/sales/emails?id=${encodeURIComponent(selectedEmailId)}`, { cache: 'no-store', credentials: 'include' })
+      .then(async response => {
+        if (!response.ok) throw new Error('Failed to load email')
+        const email = await response.json() as CRMEmail
+        loadedEmailDetailsRef.current.add(selectedEmailId)
+        setEmailList(emails => emails.map(item => item.id === email.id ? email : item))
+      })
+      .catch(() => {})
+      .finally(() => { if (emailDetailInFlightRef.current === selectedEmailId) emailDetailInFlightRef.current = null })
+  }, [emailList, selectedEmailId, viewMode])
   const aiSummary = selectedRaw?.aiSummary as
     | {
         summary?: string
@@ -1072,15 +1159,30 @@ function SalesInboxPageInner() {
     }
   }
 
-  async function fetchSmsThreads(silent = false) {
+  async function fetchSmsThreads(silent = false, append = false, query = viewMode === 'messages' ? deferredSearch.trim() : '') {
     if (smsThreadsInFlightRef.current) return
     smsThreadsInFlightRef.current = true
     try {
       if (!silent) setThreadsLoading(true)
-      const res = await fetch('/api/sales/sms-threads', { cache: 'no-store' })
+      const offset = append ? smsThreads.length : 0
+      const params = new URLSearchParams({ limit: '150', offset: String(offset) })
+      if (query) params.set('search', query)
+      const res = await fetch(`/api/sales/sms-threads?${params.toString()}`, { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json() as typeof smsThreads
-        setSmsThreads(data)
+        // A page can lose a handful of internal/invalid phone rows during
+        // thread normalization; that must not hide access to older pages.
+        setSmsHasMore(data.length >= 140)
+        setSmsThreads(current => {
+          const incoming = data.map(summary => {
+            const existing = current.find(thread => thread.contactPhone === summary.contactPhone)
+            return existing?.messages.length ? { ...summary, messages: existing.messages } : summary
+          })
+          if (!append && !silent) return incoming
+          const merged = new Map(current.map(thread => [thread.contactPhone, thread]))
+          for (const thread of incoming) merged.set(thread.contactPhone, thread)
+          return Array.from(merged.values()).sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime())
+        })
         // Do not auto-open any thread — rep must click explicitly
       }
     } catch { /* non-fatal */ } finally {
@@ -1130,15 +1232,27 @@ function SalesInboxPageInner() {
     }
   }
 
-  async function fetchEmails(silent = false) {
+  async function fetchEmails(silent = false, append = false, query = viewMode === 'email' ? deferredSearch.trim() : '', replace = false) {
     if (emailsInFlightRef.current) return
     emailsInFlightRef.current = true
     try {
       if (!silent) setEmailLoading(true)
-      const res = await fetch('/api/sales/emails', { cache: 'no-store' })
+      const params = new URLSearchParams({ limit: '150', offset: String(append ? emailList.length : 0) })
+      if (query) params.set('search', query)
+      const res = await fetch(`/api/sales/emails?${params.toString()}`, { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json() as CRMEmail[]
-        setEmailList(data)
+        setEmailHasMore(res.headers.get('x-has-more') === 'true')
+        setEmailList(current => {
+          const incoming = data.map(summary => {
+            const existing = current.find(email => email.id === summary.id)
+            return existing && loadedEmailDetailsRef.current.has(existing.id) ? existing : summary
+          })
+          if (!append && (!silent || replace)) return incoming
+          const merged = new Map(current.map(email => [email.id, email]))
+          for (const email of incoming) merged.set(email.id, email)
+          return Array.from(merged.values()).sort((a, b) => a.sentAt < b.sentAt ? 1 : -1)
+        })
         if (!selectedEmailId && data.length > 0) setSelectedEmailId(data[0].id)
       }
     } catch { /* non-fatal */ } finally {
@@ -1371,7 +1485,8 @@ function SalesInboxPageInner() {
                     <div className="p-6 text-sm text-[var(--app-muted)]">Loading emails...</div>
                   ) : emailList.length === 0 ? (
                     <div className="p-6 text-sm text-[var(--app-muted)]">No emails yet. Sent and received emails will appear here.</div>
-                  ) : emailList.map(em => (
+                  ) : <>
+                  {emailList.map(em => (
                     <button
                       key={em.id}
                       onClick={() => {
@@ -1410,7 +1525,17 @@ function SalesInboxPageInner() {
                         )
                       })()}
                     </button>
-                  ))
+                  ))}
+                  {emailHasMore && !deferredSearch.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => void fetchEmails(false, true, '')}
+                      className="block w-full border-b border-[var(--app-line)] px-4 py-3 text-center text-xs font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)]"
+                    >
+                      Load 150 older emails
+                    </button>
+                  ) : null}
+                  </>
                 ) : viewMode === 'messages' ? (
                   <>
                   <div className="border-b border-[var(--app-line)] px-3 py-2 flex items-center gap-2">
@@ -1429,7 +1554,8 @@ function SalesInboxPageInner() {
                     <div className="p-6 text-sm text-[var(--app-muted)]">Loading conversations...</div>
                   ) : filteredSmsThreads.length === 0 ? (
                     <div className="p-6 text-sm text-[var(--app-muted)]">No SMS conversations yet. Tap + New to start one.</div>
-                  ) : filteredSmsThreads.map(thread => {
+                  ) : <>
+                  {filteredSmsThreads.map(thread => {
                     const hasInbound = thread.unreadCount > 0 || thread.lastDirection === 'inbound'
                     const outboundOnly = !hasInbound
                     return (
@@ -1466,6 +1592,16 @@ function SalesInboxPageInner() {
                       <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--app-muted)] opacity-70">{thread.lastMessage || '—'}</p>
                     </button>
                   )})}
+                  {smsHasMore && !deferredSearch.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => void fetchSmsThreads(false, true, '')}
+                      className="block w-full border-b border-[var(--app-line)] px-4 py-3 text-center text-xs font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)]"
+                    >
+                      Load 150 older conversations
+                    </button>
+                  ) : null}
+                  </>}
                   </>
                 ) : filteredItems.length === 0 ? (
                   <div className="p-6 text-sm text-[var(--app-muted)]">
@@ -1565,6 +1701,15 @@ function SalesInboxPageInner() {
                           </button>
                         )
                       })}
+                      {inboundHasMore && !deferredSearch.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() => void refresh(false, true, '')}
+                          className="block w-full border-b border-[var(--app-line)] px-4 py-3 text-center text-xs font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)]"
+                        >
+                          Load 150 older inbox items
+                        </button>
+                      ) : null}
                     </>
                   )
                 })()}

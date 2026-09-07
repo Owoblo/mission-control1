@@ -113,6 +113,8 @@ import type {
   LeadQualificationState,
   QuoteLineItem,
 } from '@/lib/types'
+import { getAutomationJobRetryDelayMs, shouldRetryAutomationJob } from '@/lib/automation-job-retry'
+import { refreshLeadIntelligence } from '@/lib/server/lead-intelligence-service'
 
 const OPENAI_MODEL = readEnv('OPENAI_AUTOMATION_MODEL') || 'gpt-4o-mini'
 
@@ -3904,6 +3906,11 @@ async function handleLostFeedbackJob(job: CRMAutomationJob, lead: CRMLead) {
   }, lead)
 }
 
+async function handleIntelligenceRefreshJob(job: CRMAutomationJob, lead: CRMLead) {
+  await refreshLeadIntelligence(lead.id)
+  return { status: 'completed' as const, sent: false, refreshed: true, source: job.payload?.source || 'queue' }
+}
+
 export async function processAutomationJob(job: CRMAutomationJob) {
   const running = await claimAutomationJob(job)
   if (!running) return job
@@ -3933,7 +3940,7 @@ export async function processAutomationJob(job: CRMAutomationJob) {
       return deferred || activeJob
     }
 
-    const skipReason = shouldSkipAutomation(lead, activeJob)
+    const skipReason = activeJob.kind === 'intelligence_refresh' ? null : shouldSkipAutomation(lead, activeJob)
     if (skipReason) {
       const cancelled = await patchAutomationJob(activeJob.id, {
         status: 'cancelled',
@@ -3945,7 +3952,9 @@ export async function processAutomationJob(job: CRMAutomationJob) {
     }
 
     const outcome =
-      activeJob.payload?.task === 'listing_inventory_scan'
+      activeJob.kind === 'intelligence_refresh'
+        ? await handleIntelligenceRefreshJob(activeJob, lead)
+        : activeJob.payload?.task === 'listing_inventory_scan'
         ? await handleListingInventoryScanJob(activeJob, lead)
         : activeJob.kind === 'quote_followup'
         ? await handleQuoteFollowupJob(activeJob, lead)
@@ -3976,11 +3985,32 @@ export async function processAutomationJob(job: CRMAutomationJob) {
 
     return saved || activeJob
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Automation failed'
+    const retry = shouldRetryAutomationJob(running.attempts)
+    const completedAt = retry ? null : new Date().toISOString()
     const saved = await patchAutomationJob(running.id, {
-      status: 'failed',
+      status: retry ? 'pending' : 'failed',
+      dueAt: retry
+        ? new Date(Date.now() + getAutomationJobRetryDelayMs(running.attempts)).toISOString()
+        : running.dueAt,
       lockedAt: null,
-      lastError: error instanceof Error ? error.message : 'Automation failed',
+      lastError: errorMessage,
+      result: retry
+        ? { retryScheduled: true, attempt: running.attempts, error: errorMessage }
+        : { deadLettered: true, attempts: running.attempts, error: errorMessage },
+      completedAt,
     })
+
+    if (!retry) {
+      await createSalesSystemAlert({
+        title: 'Automation job failed permanently',
+        leadId: running.leadId,
+        severity: 'critical',
+        details: `${running.kind} failed after ${running.attempts} attempts. ${errorMessage.slice(0, 500)}`,
+        occurredAt: completedAt || undefined,
+      }).catch(() => {})
+    }
+
     return saved || running
   }
 }

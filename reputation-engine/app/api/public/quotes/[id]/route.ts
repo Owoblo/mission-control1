@@ -15,6 +15,7 @@ import { uid, formatMoney, getDefaultPaymentTerms } from '@/lib/sales'
 import { saveJobRecord } from '@/lib/server/repository'
 import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
+import { sanitizeCustomerQuoteText } from '@/lib/customer-quote-content'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
 
@@ -122,7 +123,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       if (quote.leadId) {
         void scheduleQuoteViewedFollowup(quote.leadId, quote.id).catch(() => null)
         void scheduleQuoteExpiryFollowup(quote.leadId, quote.id).catch(() => null)
-        queueLeadIntelligenceRefresh(quote.leadId, new URL(request.url).origin)
+        await queueLeadIntelligenceRefresh(quote.leadId, new URL(request.url).origin)
       }
 
       // Notify team — first view vs repeat view
@@ -165,9 +166,10 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         maximumEstimatedHours: quote.maximumEstimatedHours,
         hourlyRateOverride: quote.hourlyRateOverride,
         legs: quote.legs || [],
+        customerScope: quote.customerScope,
         jobFactors: lead?.jobFactors || undefined,
-        moveDescription: quote.moveDescription,
-        conditionalClause: quote.conditionalClause,
+        moveDescription: sanitizeCustomerQuoteText(quote.moveDescription),
+        conditionalClause: sanitizeCustomerQuoteText(quote.conditionalClause),
         status: quote.status,
         validDays: quote.validDays,
         lineItems: quote.lineItems,
@@ -175,6 +177,15 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         hst: quote.hst,
         total: quote.total,
         deposit: quote.deposit,
+        depositPaid: Boolean(
+          quote.depositPaidAt ||
+          quote.depositStripePaymentIntentId ||
+          Number(quote.depositPaidAmount || 0) > 0 ||
+          lead?.paymentStatus === 'deposit_received' ||
+          lead?.paymentStatus === 'paid_in_full'
+        ),
+        depositPaidAt: quote.depositPaidAt || lead?.depositDate,
+        depositPaidAmount: Number(quote.depositPaidAmount || lead?.depositAmount || 0),
         balance: quote.balance,
         discountAmount: quote.discountAmount,
         discountLabel: quote.discountLabel,
@@ -183,6 +194,8 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         acceptedAt: quote.acceptedAt,
         termsAcceptedAt: quote.termsAcceptedAt,
         termsAcceptedVersion: quote.termsAcceptedVersion,
+        protectionOffer: quote.protectionOffer,
+        protectionPurchase: quote.protectionPurchase,
       },
       client: lead
         ? {
@@ -195,11 +208,14 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
           : null,
       lead: lead ? {
         name: lead.name,
-        inventory: (lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false),
-        listingPhotos: ((lead.supabaseListing as { carouselphotos?: Array<{ url: string } | string> } | null)?.carouselphotos || [])
-          .slice(0, 12)
-          .map((p: { url: string } | string) => typeof p === 'string' ? p : p.url)
-          .filter(Boolean),
+        inventory: (quote.customerScope?.inventory || lead.inventory || []).filter((item: { included?: boolean }) => item.included !== false),
+        listingPhotos: Array.from(new Set([
+          ...(lead.mediaAssets || [])
+            .filter(asset => asset.kind === 'image' && !asset.removed && asset.category !== 'receipt')
+            .map(asset => asset.url),
+          ...((lead.supabaseListing as { carouselphotos?: Array<{ url: string } | string> } | null)?.carouselphotos || [])
+            .map((p: { url: string } | string) => typeof p === 'string' ? p : p.url),
+        ].filter(Boolean))).slice(0, 12),
         listingSummary: lead.supabaseListing ? {
           address: lead.supabaseListing.address,
           bedrooms: lead.supabaseListing.bedrooms ?? lead.supabaseListing.beds,

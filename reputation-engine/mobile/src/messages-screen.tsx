@@ -27,6 +27,7 @@ import {
   loadContactProfile,
   loadConversationMessages,
   loadConversations,
+  peekConversations,
   PhoneLine,
   sendConversationMessage,
   uploadMessageMedia,
@@ -79,40 +80,65 @@ export function MessagesScreen({
   onOpenDialer: (phone?: string, line?: string) => void;
   canAccessPartnership: boolean;
 }) {
+  const initialConversations = peekConversations(token, 'sales');
   const [workspace, setWorkspace] = useState<Workspace>('sales');
-  const [lines, setLines] = useState<PhoneLine[]>([]);
+  const [lines, setLines] = useState<PhoneLine[]>(initialConversations?.lines || []);
   const [line, setLine] = useState('');
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(
+    initialConversations?.conversations || [],
+  );
   const [selected, setSelected] = useState<Conversation | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialConversations);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [serverQuery, setServerQuery] = useState('');
   const [filter, setFilter] = useState<InboxFilter>('all');
   const [city, setCity] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const searchInput = useRef<TextInput>(null);
+  const requestSequence = useRef(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setServerQuery(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const refresh = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
+    const sequence = ++requestSequence.current;
+    const cached = peekConversations(token, workspace, line || undefined, serverQuery || undefined);
+    if (cached) {
+      setLines(cached.lines);
+      setConversations(cached.conversations);
+      setLoading(false);
+    } else if (!quiet) {
+      setLoading(true);
+    }
     setError('');
     try {
-      const result = await loadConversations(token, workspace, line || undefined);
+      const result = await loadConversations(token, workspace, line || undefined, serverQuery || undefined);
+      if (sequence !== requestSequence.current) return;
       setLines(result.lines);
       if (line && !result.lines.some(item => item.number === line)) setLine('');
       setConversations(result.conversations);
     } catch (reason) {
+      if (sequence !== requestSequence.current) return;
       setError(reason instanceof Error ? reason.message : 'Messages are temporarily unavailable.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (sequence === requestSequence.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [line, token, workspace]);
+  }, [line, serverQuery, token, workspace]);
 
   useEffect(() => {
     setSelected(null);
     setLine('');
     setCity('');
     setFilter('all');
+    setQuery('');
+    setServerQuery('');
   }, [workspace]);
 
   const availableFilters = useMemo(
@@ -216,14 +242,19 @@ export function MessagesScreen({
       </View>
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
-          <Icon name="search" size={18} color="#7D8794" />
+          <Pressable accessibilityLabel="Focus message search" onPress={() => searchInput.current?.focus()} hitSlop={8}>
+            <Icon name="search" size={18} color="#7D8794" />
+          </Pressable>
           <TextInput
+            ref={searchInput}
             value={query}
             onChangeText={setQuery}
             placeholder={workspace === 'sales' ? 'Search customers' : 'Search partners or brokerages'}
             placeholderTextColor="#858E9A"
             returnKeyType="search"
             clearButtonMode="while-editing"
+            autoCorrect={false}
+            autoCapitalize="none"
             style={styles.searchInput}
           />
         </View>
@@ -292,9 +323,11 @@ export function MessagesScreen({
           }
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.emptyTitle}>No conversations yet</Text>
+              <Text style={styles.emptyTitle}>{query.trim() ? 'No matching conversations' : 'No conversations yet'}</Text>
               <Text style={styles.emptyCopy}>
-                New replies on the selected company line will appear here.
+                {query.trim()
+                  ? `No customer, partner, phone number, city, company, or message matched “${query.trim()}”.`
+                  : 'New replies on the selected company line will appear here.'}
               </Text>
             </View>
           }

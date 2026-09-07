@@ -13,6 +13,7 @@ import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCr
 import { deriveOpsChecklist, getQuotedTruckCount } from '@/lib/operations'
 import { assertQuoteStripeAccount, requireStripeWebhookAccount, resolveStripeAccountKeyForLead, webhookMetadataMatchesAccount, type StripeAccountKey } from '@/lib/server/stripe-accounts'
 import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
+import { MOVE_PROTECTION_NAME, MOVE_PROTECTION_PRODUCT_CODE, MOVE_PROTECTION_VERSION, splitProtectionCheckoutPayment } from '@/lib/move-protection'
 
 function buildBookingConfirmationEmail(name: string, brand: ReceiptBrand, moveDate?: string, originCity?: string, destCity?: string) {
   const first = (name || 'there').split(' ')[0]
@@ -90,10 +91,21 @@ export async function POST(request: Request) {
         // Stripe is the only source of truth here. Never turn a quoted amount
         // into a receipt when the provider event omits the captured amount.
         const providerAmount = piAmountPaid ?? (session.amount_total ? session.amount_total / 100 : undefined)
-        const actualDepositPaid = typeof providerAmount === 'number' ? providerAmount : Number.NaN
-        if (!Number.isFinite(actualDepositPaid) || actualDepositPaid <= 0) {
+        const capturedTotal = typeof providerAmount === 'number' ? providerAmount : Number.NaN
+        if (!Number.isFinite(capturedTotal) || capturedTotal <= 0) {
           throw new Error('Stripe webhook did not include a positive captured amount')
         }
+        const protectionSelected = session.metadata?.protectionChoice === 'selected'
+        const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 20 })
+        const protectionLine = lineItems.data.find(item => item.description === MOVE_PROTECTION_NAME)
+        const split = splitProtectionCheckoutPayment({
+          quoteDeposit: quote.deposit,
+          capturedTotal,
+          protectionSelected,
+          protectionLineAmount: protectionLine ? Number(protectionLine.amount_total || 0) / 100 : 0,
+        })
+        const actualDepositPaid = split.depositAmount
+        const protectionAmount = split.protectionAmount
 
         // Update the quote with deposit payment info
         const receiptAlreadyRecorded = quote?.depositStripeSessionId === session.id && !!quote.depositPaidAt
@@ -112,6 +124,17 @@ export async function POST(request: Request) {
             depositStripePaymentMethodId: paymentMethodId,
             stripeAccountKey: stripeAccount.key,
             paymentRecords: paymentRecord ? [...(quote.paymentRecords || []), paymentRecord] : quote.paymentRecords,
+            protectionPurchase: protectionAmount > 0 ? {
+              status: 'captured',
+              productCode: MOVE_PROTECTION_PRODUCT_CODE,
+              version: session.metadata?.protectionVersion || MOVE_PROTECTION_VERSION,
+              name: MOVE_PROTECTION_NAME,
+              amount: protectionAmount,
+              currency: 'cad',
+              purchasedAt: now,
+              stripeSessionId: session.id,
+              stripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
+            } : quote.protectionPurchase,
           })
         }
 
@@ -124,6 +147,9 @@ export async function POST(request: Request) {
             const branch = deriveLeadBranch(lead)
             const autoAssignedCrew = (lead.assignedCrew?.length ?? 0) > 0 ? lead.assignedCrew! : await pickAutoAssignedCrewIds(branch).catch(() => [] as string[])
             const autoCrewBrief = await generateCrewBrief({ lead: { ...lead, branch }, quote: quote ?? null }).catch(() => '')
+            const protectionCrewBrief = protectionAmount > 0
+              ? 'MOVE PROTECTION PLUS PURCHASED: Complete condition photos and enhanced wrapping for selected TVs, mirrors, artwork, glass, mattresses, and other high-risk items before loading.'
+              : ''
             const quotedTruckCount = getQuotedTruckCount(lead, quote ?? null)
 
             await saveSalesLead({
@@ -138,7 +164,7 @@ export async function POST(request: Request) {
               followUpDate: alreadyBooked ? lead.followUpDate : undefined,
               followUpNote: alreadyBooked ? lead.followUpNote : undefined,
               assignedCrew: autoAssignedCrew.length > 0 ? autoAssignedCrew : lead.assignedCrew,
-              crewNote: mergeCrewBrief(lead.crewNote, autoCrewBrief),
+              crewNote: mergeCrewBrief(lead.crewNote, [autoCrewBrief, protectionCrewBrief].filter(Boolean).join('\n\n')),
               truckCountConfirmed: quotedTruckCount || lead.truckCountConfirmed,
               truckSize: quotedTruckCount ? (lead.truckSize || '26ft') : lead.truckSize,
               truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus || 'needs_booking') : lead.truckReservationStatus,
@@ -153,7 +179,7 @@ export async function POST(request: Request) {
                 type: 'status_change',
                 date: now,
                 createdAt: now,
-                notes: `Job auto-confirmed via Stripe deposit payment ($${(depositAmt || 0).toFixed(2)}).`,
+                notes: `Job auto-confirmed via Stripe deposit payment ($${(depositAmt || 0).toFixed(2)})${protectionAmount > 0 ? ` with ${MOVE_PROTECTION_NAME} ($${protectionAmount.toFixed(2)})` : ''}.`,
               }).catch(() => {})
 
               if (lead.email && quote) {
@@ -171,12 +197,13 @@ export async function POST(request: Request) {
               const quoteNum = quote?.number || ''
               const crmUrl = `${readEnv('NEXT_PUBLIC_APP_URL') || 'https://go.quote2move.com'}/sales/leads/${lead.id}`
               void sendRepAlertEmail(
-                `💳 ${customerName} paid deposit — ${quoteNum}`,
+                `${protectionAmount > 0 ? '🛡️' : '💳'} ${customerName} paid deposit${protectionAmount > 0 ? ' + protection' : ''} — ${quoteNum}`,
                 `<div style="font-family:sans-serif;color:#071421;max-width:520px">
                   <p><strong>${customerName}</strong> just paid their deposit of <strong>$${depositAmt.toFixed(2)}</strong> via Stripe.</p>
                   <table style="font-size:14px;border-collapse:collapse;width:100%">
                     <tr><td style="padding:4px 0;color:#666">Quote</td><td style="padding:4px 0">${quoteNum}</td></tr>
                     <tr><td style="padding:4px 0;color:#666">Deposit paid</td><td style="padding:4px 0;font-weight:600;color:#0f6a53">$${depositAmt.toFixed(2)}</td></tr>
+                    ${protectionAmount > 0 ? `<tr><td style="padding:4px 0;color:#666">${MOVE_PROTECTION_NAME}</td><td style="padding:4px 0;font-weight:600;color:#9b5b00">$${protectionAmount.toFixed(2)}</td></tr><tr><td style="padding:4px 0;color:#666">Charged today</td><td style="padding:4px 0;font-weight:700">$${split.capturedTotal.toFixed(2)}</td></tr>` : ''}
                     <tr><td style="padding:4px 0;color:#666">Balance due</td><td style="padding:4px 0">$${Math.max(0,(quote?.total||0)-depositAmt).toFixed(2)}</td></tr>
                     ${lead.phone ? `<tr><td style="padding:4px 0;color:#666">Phone</td><td style="padding:4px 0">${lead.phone}</td></tr>` : ''}
                   </table>
@@ -204,6 +231,8 @@ export async function POST(request: Request) {
                 receiptUrl: paymentRecord ? `${getAppBaseUrl('https://go.quote2move.com')}/receipt?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(paymentRecord.publicToken)}` : undefined,
                 paidAt: paymentRecord?.paidAt,
                 reference: paymentRecord?.reference,
+                protectionName: protectionAmount > 0 ? MOVE_PROTECTION_NAME : undefined,
+                protectionAmount: protectionAmount || undefined,
                 brand: getReceiptBrand(lead, quote),
               }).catch(() => null)
             }

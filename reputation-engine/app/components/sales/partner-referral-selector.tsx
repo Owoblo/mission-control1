@@ -7,6 +7,7 @@ import {
   partnerServiceAreaForCity,
   type PartnerDirectoryCreateInput,
   type PartnerDirectoryEntry,
+  type PartnerCompanyOption,
 } from '@/lib/partner-directory'
 
 type Props = {
@@ -36,7 +37,11 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
   const [creating, setCreating] = useState(false)
   const [createForm, setCreateForm] = useState<PartnerDirectoryCreateInput>({ ...EMPTY_CREATE })
   const [error, setError] = useState('')
+  const [companyOptions, setCompanyOptions] = useState<PartnerCompanyOption[]>([])
+  const [companyOpen, setCompanyOpen] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchControllerRef = useRef<AbortController | null>(null)
+  const latestQueryRef = useRef(query)
 
   useEffect(() => {
     if (value) setQuery(value.name)
@@ -50,33 +55,42 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
+    searchControllerRef.current?.abort()
   }, [])
 
   function search(next: string) {
     setQuery(next)
+    latestQueryRef.current = next
     if (value && next !== value.name) onChange(null)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (next.trim().length < 2) {
+      searchControllerRef.current?.abort()
       setResults([])
       setOpen(false)
       return
     }
     debounceRef.current = setTimeout(async () => {
+      searchControllerRef.current?.abort()
+      const controller = new AbortController()
+      searchControllerRef.current = controller
       setSearching(true)
       setError('')
       try {
         const response = await fetch(`/api/sales/partner-directory?q=${encodeURIComponent(next)}`, {
           credentials: 'include',
           cache: 'no-store',
+          signal: controller.signal,
         })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'Search failed')
+        if (latestQueryRef.current !== next) return
         setResults(payload.contacts || [])
         setOpen(true)
       } catch (searchError) {
+        if (controller.signal.aborted || latestQueryRef.current !== next) return
         setError((searchError as Error).message)
       } finally {
-        setSearching(false)
+        if (latestQueryRef.current === next) setSearching(false)
       }
     }, 250)
   }
@@ -113,6 +127,14 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
     } finally {
       setSearching(false)
     }
+  }
+
+  async function searchCompanies(next: string) {
+    setCreateForm(current => ({ ...current, company: next, partnerCompanyId: undefined }))
+    if (next.trim().length < 2) { setCompanyOptions([]); setCompanyOpen(false); return }
+    const response = await fetch(`/api/sales/partner-directory?type=companies&q=${encodeURIComponent(next)}`, { credentials: 'include', cache: 'no-store' })
+    const payload = await response.json()
+    if (response.ok) { setCompanyOptions(payload.companies || []); setCompanyOpen(true) }
   }
 
   if (value) {
@@ -182,7 +204,14 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
             <select className="crm-input" value={createForm.category} onChange={event => setCreateForm(current => ({ ...current, category: event.target.value }))}>
               {CATEGORY_LIST.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
             </select>
-            <input className="crm-input" placeholder="Company / brokerage" value={createForm.company} onChange={event => setCreateForm(current => ({ ...current, company: event.target.value }))} />
+            <div className="relative">
+              <input className="crm-input w-full" placeholder="Search company / brokerage" value={createForm.company} onChange={event => void searchCompanies(event.target.value)} onFocus={() => companyOptions.length > 0 && setCompanyOpen(true)} autoComplete="off" />
+              {companyOpen && <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded border border-slate-200 bg-white shadow-xl">
+                {companyOptions.map(company => <button key={company.id} type="button" onMouseDown={() => { setCreateForm(current => ({ ...current, company: company.name, partnerCompanyId: company.id })); setCompanyOpen(false) }} className="block w-full px-3 py-2 text-left hover:bg-slate-50"><span className="block text-xs font-semibold text-slate-900">{company.name}</span><span className="block text-[10px] text-slate-500">{[company.city, company.industry].filter(Boolean).join(' · ')}</span></button>)}
+                <button type="button" onMouseDown={() => setCompanyOpen(false)} className="block w-full border-t px-3 py-2 text-left text-[10px] font-semibold text-[#8a6800]">Use “{createForm.company}” as a new brokerage</button>
+              </div>}
+              {createForm.partnerCompanyId && <div className="mt-1 text-[10px] font-semibold text-emerald-700">Existing brokerage selected — contact will be linked.</div>}
+            </div>
             <input className="crm-input" placeholder="Email" value={createForm.email} onChange={event => setCreateForm(current => ({ ...current, email: event.target.value }))} />
             <input className="crm-input" placeholder="Phone" value={createForm.phone} onChange={event => setCreateForm(current => ({ ...current, phone: event.target.value }))} />
             <label className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[#5d5642]">

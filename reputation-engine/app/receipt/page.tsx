@@ -3,11 +3,12 @@
 import Image from 'next/image'
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import type { PaymentRecord } from '@/lib/types'
+import type { MoveProtectionPurchase, PaymentRecord } from '@/lib/types'
 import type { ReceiptBrand } from '@/lib/receipt-brand'
 
 type ReceiptPayload = {
   receipt: PaymentRecord
+  protectionPurchase?: MoveProtectionPurchase
   quote: { id: string; number: string; total: number; moveDate?: string; originCity?: string; destCity?: string }
   customer: { name: string }
   brand: ReceiptBrand
@@ -37,7 +38,9 @@ function ReceiptInner() {
   if (error) return <main className="flex min-h-screen items-center justify-center bg-[#F7F4ED] p-6"><div className="rounded-[20px] border border-[#E5E7EB] bg-white p-8 text-center text-sm text-[#667085]">{error}</div></main>
   if (!data) return <main className="flex min-h-screen items-center justify-center bg-[#F7F4ED]"><div className="h-10 w-10 animate-pulse rounded-full bg-[#C99700]" /></main>
 
-  const { receipt, quote, customer, brand } = data
+  const { receipt, quote, customer, brand, protectionPurchase } = data
+  const protectionAmount = protectionPurchase?.status === 'captured' ? protectionPurchase.amount : 0
+  const chargedToday = receipt.amount + protectionAmount
   const route = [quote.originCity, quote.destCity].filter(Boolean).join(' → ') || 'Move details on file'
   return (
     <main className="min-h-screen bg-[#F7F4ED] px-4 py-8 text-[#111827] print:bg-white print:p-0">
@@ -57,7 +60,7 @@ function ReceiptInner() {
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8A6800]">Official receipt</div>
               <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#071421]">Thank you, {customer.name.split(' ')[0]}.</h1>
-              <p className="mt-2 text-sm leading-6 text-[#667085]">Your payment has been recorded and applied to your move.</p>
+              <p className="mt-2 text-sm leading-6 text-[#667085]">Your payment has been recorded. Your deposit has been applied to your move.</p>
             </div>
             <div className="text-left sm:text-right">
               <div className="text-xs text-[#667085]">Receipt number</div>
@@ -77,14 +80,18 @@ function ReceiptInner() {
           <section className="rounded-[20px] border border-[#071421] p-5 sm:p-6">
             <div className="flex items-end justify-between border-b border-[#E5E7EB] pb-5">
               <div><div className="text-[11px] font-semibold uppercase tracking-wider text-[#667085]">Payment received</div><div className="mt-1 text-sm font-semibold text-[#071421]">{receipt.methodLabel}{receipt.cardLast4 ? ` ···· ${receipt.cardLast4}` : ''}</div></div>
-              <div className="text-3xl font-extrabold text-[#071421]">{money(receipt.amount)}</div>
+              <div className="text-3xl font-extrabold text-[#071421]">{money(chargedToday)}</div>
             </div>
             <div className="space-y-3 pt-5 text-sm">
+              <div className="flex justify-between text-[#667085]"><span>Move deposit</span><span>{money(receipt.amount)}</span></div>
+              {protectionAmount > 0 && <div className="flex justify-between text-[#667085]"><span>{protectionPurchase?.name}</span><span>{money(protectionAmount)}</span></div>}
               <div className="flex justify-between text-[#667085]"><span>Move total</span><span>{money(quote.total)}</span></div>
               <div className="flex justify-between text-[#667085]"><span>Total paid to date</span><span>{money(receipt.paidAfterPayment)}</span></div>
               <div className="flex justify-between border-t border-[#E5E7EB] pt-3 font-bold text-[#071421]"><span>Remaining balance</span><span>{money(receipt.balanceAfterPayment)}</span></div>
             </div>
           </section>
+
+          {protectionAmount > 0 && <section className="mt-6 rounded-[18px] border border-[#C99700]/40 bg-[#FFF9E8] p-5 text-sm leading-6 text-[#5F4A08]"><strong className="text-[#071421]">Move Protection Plus is active.</strong> Your crew will receive the enhanced-service instructions attached to your booking. This optional service is not an insurance policy; terms and exclusions apply.</section>}
 
           {(receipt.reference || receipt.note) && <section className="mt-6 rounded-[18px] border border-[#E5E7EB] p-5 text-sm text-[#667085]">{receipt.reference && <div><strong className="text-[#111827]">Reference:</strong> {receipt.reference}</div>}{receipt.note && <div className={receipt.reference ? 'mt-2' : ''}><strong className="text-[#111827]">Note:</strong> {receipt.note}</div>}</section>}
 

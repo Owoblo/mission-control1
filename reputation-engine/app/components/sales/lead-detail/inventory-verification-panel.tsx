@@ -111,18 +111,30 @@ export function InventoryVerificationPanel({
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {customerImageAssets.map((asset, index) => (
-                    <button
-                      key={asset.id || index}
-                      type="button"
-                      onClick={() => setLightboxIndex(index)}
-                      className="group relative aspect-square overflow-hidden rounded-[6px] border border-emerald-200 cursor-zoom-in"
-                      title={asset.room || `Photo ${index + 1}`}
-                    >
-                      <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                    <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-[6px] border border-emerald-200">
+                      <button
+                        type="button"
+                        onClick={() => setLightboxIndex(index)}
+                        className="absolute inset-0 cursor-zoom-in"
+                        title={asset.room || `Photo ${index + 1}`}
+                      >
+                        <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                      </button>
                       {asset.room && (
                         <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>
                       )}
-                    </button>
+                      {canEditCurrentLead && onRemoveMedia && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMedia(asset.id)}
+                          className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-rose-600 text-[12px] font-semibold leading-none text-white shadow-sm transition hover:scale-110 hover:bg-rose-700"
+                          aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`}
+                          title="Delete this uploaded photo"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
                 {customerVideoAssets.length > 0 && (
@@ -231,7 +243,7 @@ export function InventoryVerificationPanel({
                 {customerImageAssets.map((asset, index) => {
                   const sourceLabel = asset.source === 'mms' ? 'MMS' : asset.source === 'survey' ? 'Survey' : 'Rep'
                   const sourceTone = asset.source === 'mms' ? 'bg-sky-100 text-sky-700' : asset.source === 'survey' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
-                  const canRemove = asset.source === 'rep_upload' && canEditCurrentLead && !!onRemoveMedia
+                  const canRemove = canEditCurrentLead && !!onRemoveMedia
                   return (
                     <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-[6px] border border-[var(--app-line)]">
                       <button type="button" onClick={() => setLightboxIndex(index)} className="absolute inset-0 cursor-zoom-in">
@@ -243,8 +255,9 @@ export function InventoryVerificationPanel({
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); onRemoveMedia!(asset.id) }}
-                          className="absolute right-1 top-1 hidden group-hover:flex items-center justify-center rounded-full bg-rose-600 text-white w-5 h-5 text-[10px] font-bold shadow"
-                          title="Remove this photo"
+                          className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 text-sm font-bold text-white shadow"
+                          aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`}
+                          title="Delete this uploaded photo"
                         >
                           ×
                         </button>
@@ -300,13 +313,18 @@ export function InventoryVerificationPanel({
               )}
 
               {totalCustomerMedia > 0 && (
-                <button
-                  onClick={onScanCustomerMedia}
-                  disabled={surveyBusy}
-                  className={`w-full rounded-[6px] py-2 text-xs font-semibold transition disabled:opacity-60 ${surveyScanned ? 'border border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
-                >
-                  {surveyBusy ? '⏳ Scanning…' : surveyScanned ? '✓ Re-scan customer media' : '🔍 Scan media into inventory'}
-                </button>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <a href={`/api/sales/leads/${lead.id}/media/download`} download className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-center text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                    ↓ Download all media
+                  </a>
+                  <button
+                    onClick={onScanCustomerMedia}
+                    disabled={surveyBusy}
+                    className={`rounded-[6px] py-2 text-xs font-semibold transition disabled:opacity-60 ${surveyScanned ? 'border border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                  >
+                    {surveyBusy ? '⏳ Scanning…' : surveyScanned ? '✓ Re-scan customer media' : '🔍 Scan media into inventory'}
+                  </button>
+                </div>
               )}
 
               {surveyScanned && (

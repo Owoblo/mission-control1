@@ -12,6 +12,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
   return NextResponse.json({
     receipt: payment,
     quote: { id: quote.id, number: quote.number, total: quote.total, moveDate: quote.moveDate, originCity: quote.originCity, destCity: quote.destCity },
+    protectionPurchase: quote.protectionPurchase,
     customer: { name: lead?.name || 'Customer' },
     brand: getReceiptBrand(lead, quote),
   })

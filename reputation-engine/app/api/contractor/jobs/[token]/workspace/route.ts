@@ -38,13 +38,25 @@ export async function POST(request: Request, context: { params: Promise<{ token:
   if (body.action === 'checkpoint') {
     const allowed = new Set(['preparing','en_route','arrived','walkthrough_complete','work_started','loading_complete','destination_arrival','unloading_complete','final_walkthrough','completed','paused','resumed','trip_started','trip_completed','day_ended','day_started'])
     if (!body.eventType || !allowed.has(body.eventType)) return NextResponse.json({ error: 'Valid checkpoint required.' }, { status: 400 })
+    if (body.eventType === 'work_started') {
+      const [events, changes] = await Promise.all([listJobEvents(match.lead.id), listChangeOrders(match.lead.id)])
+      if (!events.some(item => item.event_type === 'walkthrough_complete')) {
+        return NextResponse.json({ error: 'Complete the arrival walkthrough before starting work.' }, { status: 409 })
+      }
+      const blocking = changes.find(item => ['operations_review', 'customer_authorization'].includes(item.status))
+      if (blocking) return NextResponse.json({ error: 'Changed work is on hold until the open change order is decided.' }, { status: 409 })
+    }
     const event = await createJobEvent({ leadId: match.lead.id, subcontractorId: match.entry.subcontractorId, eventType: body.eventType, tripNumber: body.tripNumber, serviceDay: body.serviceDay, actorName: match.entry.workerName, note: body.details, facts: body.facts })
     await createPartnerJobMessage({ ...base, direction: 'system', channel: 'system', body: `CHECKPOINT · ${body.eventType.replaceAll('_',' ')}`, media: [], senderName: match.entry.workerName, urgent: false })
     return NextResponse.json({ event }, { status: 201 })
   }
   if (body.action === 'change_order') {
     if (!body.changeType || !body.summary?.trim()) return NextResponse.json({ error: 'Change type and description are required.' }, { status: 400 })
-    const change = await createChangeOrder({ lead_id: match.lead.id, offer_id: match.entry.subcontractorOfferId || null, subcontractor_id: match.entry.subcontractorId, change_type: body.changeType, description: body.summary.trim(), evidence: body.media || [], billing_model: body.billingModel || match.quote?.billingModel || 'fixed', partner_delta: Number(body.requestedAdjustment || 0), estimated_extra_hours: Number(body.requestedExtraHours || 0), status: 'operations_review' })
+    const lineItems = Array.isArray((body as any).lineItems) ? (body as any).lineItems.map((item:any) => ({ description: String(item.description || '').trim(), kind: item.kind === 'credit' ? 'credit' : 'charge', customerAmount: Math.abs(Number(item.customerAmount || 0)), partnerAmount: Math.abs(Number(item.partnerAmount || 0)) })).filter((item:any) => item.description) : []
+    if (!lineItems.length) return NextResponse.json({ error: 'Add at least one item or credit to explain the scope difference.' }, { status: 400 })
+    const customerDelta = lineItems.reduce((sum:number, item:any) => sum + (item.kind === 'credit' ? -item.customerAmount : item.customerAmount), 0)
+    const partnerDelta = lineItems.reduce((sum:number, item:any) => sum + (item.kind === 'credit' ? -item.partnerAmount : item.partnerAmount), 0)
+    const change = await createChangeOrder({ lead_id: match.lead.id, offer_id: match.entry.subcontractorOfferId || null, subcontractor_id: match.entry.subcontractorId, change_type: body.changeType, description: body.summary.trim(), evidence: body.media || [], line_items: lineItems, billing_model: body.billingModel || match.quote?.billingModel || 'fixed', customer_delta: customerDelta, partner_delta: partnerDelta, estimated_extra_hours: Number(body.requestedExtraHours || 0), status: 'operations_review' })
     await createPartnerJobMessage({ ...base, direction: 'system', channel: 'system', body: `CHANGE REQUEST · ${body.changeType.replaceAll('_',' ')} · ${body.summary.trim()}`, media: body.media || [], senderName: 'Change control', urgent: true })
     return NextResponse.json({ change }, { status: 201 })
   }

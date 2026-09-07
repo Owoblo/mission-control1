@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { dateStamp, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
-import { fetchDashboardDrilldown, fetchSalesOverview, sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
+import { fetchDashboardDrilldown, fetchSalesDashboard, sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
 import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesDashboardSummary } from '@/lib/types'
@@ -106,6 +106,7 @@ export default function SalesDashboardPage() {
   const [telephonyHealth, setTelephonyHealth] = useState<TelephonyHealth | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const refreshSequenceRef = useRef(0)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [drilldown, setDrilldown] = useState<DashboardDrilldownResponse | null>(null)
   const [drilldownLoading, setDrilldownLoading] = useState(false)
@@ -166,12 +167,14 @@ export default function SalesDashboardPage() {
   }, [currentUser?.role, router])
 
   async function refresh() {
+    const sequence = ++refreshSequenceRef.current
     try {
       setLoading(true)
       const [data, telephonyResponse] = await Promise.all([
-        fetchSalesOverview(),
+        fetchSalesDashboard(),
         fetch('/api/sales/telephony-health', { cache: 'no-store', credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
       ])
+      if (sequence !== refreshSequenceRef.current) return
       setLeads(data.leads)
       setQuotes(data.quotes)
       setFollowUps(data.followUps)
@@ -179,9 +182,9 @@ export default function SalesDashboardPage() {
       setTelephonyHealth(telephonyResponse)
       setError(null)
     } catch (err) {
-      setError((err as Error).message)
+      if (sequence === refreshSequenceRef.current) setError((err as Error).message)
     } finally {
-      setLoading(false)
+      if (sequence === refreshSequenceRef.current) setLoading(false)
     }
   }
 
@@ -190,11 +193,13 @@ export default function SalesDashboardPage() {
     // Silent background refresh every 60s
     const interval = setInterval(() => {
       if (document.hidden) return
+      const sequence = ++refreshSequenceRef.current
       Promise.all([
-        fetchSalesOverview(),
+        fetchSalesDashboard(),
         fetch('/api/sales/telephony-health', { cache: 'no-store', credentials: 'include' }).then(r => r.ok ? r.json() : null).catch(() => null),
       ])
         .then(([data, telephonyResponse]) => {
+          if (sequence !== refreshSequenceRef.current) return
           setLeads(data.leads)
           setQuotes(data.quotes)
           setFollowUps(data.followUps)
@@ -511,7 +516,7 @@ export default function SalesDashboardPage() {
           </div>
 
           {loading ? (
-            <div className="grid gap-4 pt-5 lg:grid-cols-2">
+            <div className="grid min-w-0 gap-4 pt-5 lg:grid-cols-2">
               {['New', 'Working', 'Waiting', 'Booked'].map(label => (
                 <div key={label} className="rounded-[10px] border border-dashed border-[var(--app-line)] px-4 py-10 text-center text-sm text-[var(--app-muted)]">
                   Loading {label.toLowerCase()} queue...
@@ -519,8 +524,8 @@ export default function SalesDashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-4 pt-5 lg:grid-cols-2">
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+            <div className="grid min-w-0 gap-4 pt-5 lg:grid-cols-2">
+              <div className="min-w-0 rounded-[10px] border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">New</div>
@@ -532,7 +537,7 @@ export default function SalesDashboardPage() {
                   {newInboundLeads.length === 0 ? (
                     <div className="px-4 py-8 text-sm text-[var(--app-muted)]">Nothing new right now.</div>
                   ) : newInboundLeads.map(({ lead, guidance }) => (
-                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block min-w-0 px-4 py-3 transition hover:bg-[var(--app-bg)]">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
@@ -545,7 +550,7 @@ export default function SalesDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+              <div className="min-w-0 rounded-[10px] border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">Working</div>
@@ -557,7 +562,7 @@ export default function SalesDashboardPage() {
                   {workingQueue.length === 0 ? (
                     <div className="px-4 py-8 text-sm text-[var(--app-muted)]">No open prep work right now.</div>
                   ) : workingQueue.map(({ lead, quote, guidance }) => (
-                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block min-w-0 px-4 py-3 transition hover:bg-[var(--app-bg)]">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
@@ -573,7 +578,7 @@ export default function SalesDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+              <div className="min-w-0 rounded-[10px] border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">Waiting</div>
@@ -585,7 +590,7 @@ export default function SalesDashboardPage() {
                   {waitingQueue.length === 0 ? (
                     <div className="px-4 py-8 text-sm text-[var(--app-muted)]">No waiting leads right now.</div>
                   ) : waitingQueue.map(({ lead, quote, guidance }) => (
-                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block min-w-0 px-4 py-3 transition hover:bg-[var(--app-bg)]">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
@@ -601,7 +606,7 @@ export default function SalesDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+              <div className="min-w-0 rounded-[10px] border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">Booked</div>
@@ -613,7 +618,7 @@ export default function SalesDashboardPage() {
                   {bookedQueue.length === 0 ? (
                     <div className="px-4 py-8 text-sm text-[var(--app-muted)]">No booked jobs in this view yet.</div>
                   ) : bookedQueue.map(({ lead, quote }) => (
-                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block px-4 py-3 transition hover:bg-[var(--app-bg)]">
+                    <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block min-w-0 px-4 py-3 transition hover:bg-[var(--app-bg)]">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>

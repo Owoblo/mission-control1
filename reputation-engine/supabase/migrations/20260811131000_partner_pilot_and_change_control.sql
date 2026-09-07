@@ -25,7 +25,7 @@ create table if not exists public.partner_change_orders (
   subcontractor_id uuid references public.subcontractors(id) on delete set null,
   report_id uuid references public.partner_job_reports(id) on delete set null,
   change_type text not null check(change_type in ('inventory','extra_labor','extra_truck','extra_trip','waiting_time','access','weather','schedule','multi_day','other')),
-  description text not null, evidence jsonb not null default '[]', billing_model text not null default 'fixed',
+  description text not null, evidence jsonb not null default '[]', line_items jsonb not null default '[]', billing_model text not null default 'fixed',
   customer_delta numeric(12,2) not null default 0, partner_delta numeric(12,2) not null default 0,
   estimated_extra_hours numeric, status text not null default 'operations_review'
     check(status in ('operations_review','customer_authorization','approved','declined','cancelled','completed')),

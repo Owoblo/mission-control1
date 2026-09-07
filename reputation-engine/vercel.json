@@ -5,6 +5,10 @@
       "schedule": "0 */12 * * *"
     },
     {
+      "path": "/api/ops/performance-health",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/ops/media-reconciliation",
       "schedule": "30 6 * * *"
     },

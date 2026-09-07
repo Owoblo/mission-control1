@@ -16,6 +16,7 @@ import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import type { QuoteChangeEntry } from '@/lib/types'
 import { logEvent } from '@/lib/server/analytics'
+import { createChangeOrder } from '@/lib/server/partner-pilot'
 
 const JOHN_CELL     = '+12267241730'
 const SATURN_NUMBER = '+12267732993'
@@ -86,6 +87,33 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         changeLog: [...(quote.changeLog || []), changeEntry],
       })
     }
+
+    // Create the canonical operational change order as well. This is the row
+    // Operations prices and releases to the customer; the quote log remains an
+    // immutable sales-history snapshot.
+    const requestedDelta = Number(body.estimatedExtraCost || 0)
+    const operationalType = body.changeType === 'onsite_addition'
+      ? 'inventory'
+      : body.changeType === 'customer_request'
+        ? 'extra_labor'
+        : 'other'
+    const changeOrder = await createChangeOrder({
+      lead_id: lead.id,
+      change_type: operationalType,
+      description: body.reason.trim(),
+      evidence: [],
+      line_items: [{
+        description: body.reason.trim(),
+        kind: requestedDelta < 0 ? 'credit' : 'charge',
+        customerAmount: Math.abs(requestedDelta),
+        partnerAmount: 0,
+      }],
+      billing_model: quote?.billingModel || 'fixed',
+      customer_delta: requestedDelta,
+      partner_delta: 0,
+      estimated_extra_hours: Number(body.deltaHours || 0),
+      status: 'operations_review',
+    })
 
     // Build timeline note
     const changeTypeLabel: Record<QuoteChangeEntry['changeType'], string> = {
@@ -160,7 +188,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       },
     })
 
-    return NextResponse.json({ ok: true, log, changeEntry, quote: updatedQuote })
+    return NextResponse.json({ ok: true, log, changeEntry, changeOrder, quote: updatedQuote })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to log on-site change' },

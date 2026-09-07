@@ -17,6 +17,9 @@ export async function POST(
 
     const lead = await getSalesLead(params.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    const asset = (lead.mediaAssets || []).find(item => item.id === params.assetId)
+    if (!asset) return NextResponse.json({ error: 'Uploaded media was not found' }, { status: 404 })
+    if (asset.removed) return NextResponse.json({ ok: true, alreadyRemoved: true })
 
     const updated = normalizeLead({
       ...lead,
@@ -28,7 +31,7 @@ export async function POST(
     })
 
     await saveSalesLead(updated)
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, assetId: params.assetId })
   } catch (err) {
     console.error('[media/remove] error', err)
     return NextResponse.json({ error: 'Failed to remove media' }, { status: 500 })

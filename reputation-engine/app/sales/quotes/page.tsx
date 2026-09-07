@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { fetchSalesOverview } from '@/lib/sales-api'
+import { fetchSalesQuotesIndex } from '@/lib/sales-api'
 import { dateStamp, formatDate, formatMoney, validUntil } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 
@@ -25,7 +25,7 @@ export default function SalesQuotesIndexPage() {
   async function refresh() {
     try {
       setLoading(true)
-      const data = await fetchSalesOverview()
+      const data = await fetchSalesQuotesIndex()
       setQuotes(data.quotes)
       setLeads(data.leads)
       setError(null)

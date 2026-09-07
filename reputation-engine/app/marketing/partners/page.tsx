@@ -1772,6 +1772,39 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
 
 // ─── Tab: Overview ────────────────────────────────────────────────────────────
 
+function NewRelationshipModal({ onClose, onCreated }: { onClose: () => void; onCreated: (contact: Contact) => void }) {
+  const [form, setForm] = useState({ name: '', company: '', title: '', city: '', category: 'realtor', phone: '', email: '', preferred_channel: 'sms', notes: '' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  async function submit(event: React.FormEvent) {
+    event.preventDefault(); setSaving(true); setError('')
+    const response = await fetch('/api/marketing/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(form) })
+    const payload = await response.json().catch(() => ({})) as { contact?: Contact; error?: string }
+    setSaving(false)
+    if (!response.ok || !payload.contact) { setError(payload.error || 'Could not create relationship.'); return }
+    onCreated(payload.contact)
+  }
+  const field = 'w-full rounded-xl border border-[var(--app-line)] bg-white px-3 py-2.5 text-sm text-[#14213d] outline-none focus:border-[#9a762f]'
+  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#071421]/45 p-4" onMouseDown={onClose}>
+    <form onSubmit={submit} onMouseDown={event => event.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-[#fbfaf6] p-6 shadow-2xl">
+      <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-[#14213d]">Add relationship</h2><p className="mt-1 text-sm text-[var(--app-muted)]">Create one structured person record connected to their company and market.</p></div><button type="button" onClick={onClose} className="text-xl text-slate-500">×</button></div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <label className="text-xs font-semibold text-slate-600">Name *<input className={`${field} mt-1`} value={form.name} onChange={e => setForm(v => ({ ...v, name: e.target.value }))} required /></label>
+        <label className="text-xs font-semibold text-slate-600">Role / title<input className={`${field} mt-1`} value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} placeholder="Property Manager" /></label>
+        <label className="text-xs font-semibold text-slate-600">Company<input className={`${field} mt-1`} value={form.company} onChange={e => setForm(v => ({ ...v, company: e.target.value }))} /></label>
+        <label className="text-xs font-semibold text-slate-600">City / market *<input className={`${field} mt-1`} value={form.city} onChange={e => setForm(v => ({ ...v, city: e.target.value }))} required /></label>
+        <label className="text-xs font-semibold text-slate-600">Category *<select className={`${field} mt-1`} value={form.category} onChange={e => setForm(v => ({ ...v, category: e.target.value }))}>{[['realtor','Realtor'],['brokerage','Brokerage'],['property_manager','Property manager'],['maintenance_manager','Maintenance manager'],['mortgage_broker','Mortgage broker'],['storage_facility','Storage facility'],['senior_living','Senior living'],['corporate','Employer / corporate'],['school','School'],['insurance','Insurance'],['other','Other']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="text-xs font-semibold text-slate-600">Preferred channel<select className={`${field} mt-1`} value={form.preferred_channel} onChange={e => setForm(v => ({ ...v, preferred_channel: e.target.value }))}><option value="sms">SMS</option><option value="phone">Phone</option><option value="email">Email</option><option value="in_person">In person</option><option value="linkedin">LinkedIn</option></select></label>
+        <label className="text-xs font-semibold text-slate-600">Phone<input className={`${field} mt-1`} value={form.phone} onChange={e => setForm(v => ({ ...v, phone: e.target.value }))} /></label>
+        <label className="text-xs font-semibold text-slate-600">Email<input type="email" className={`${field} mt-1`} value={form.email} onChange={e => setForm(v => ({ ...v, email: e.target.value }))} /></label>
+        <label className="text-xs font-semibold text-slate-600 sm:col-span-2">Context / notes<textarea className={`${field} mt-1 min-h-24`} value={form.notes} onChange={e => setForm(v => ({ ...v, notes: e.target.value }))} /></label>
+      </div>
+      {error && <div className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
+      <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={onClose} className="crm-button">Cancel</button><button disabled={saving} className="crm-button-dark disabled:opacity-50">{saving ? 'Creating…' : 'Create relationship'}</button></div>
+    </form>
+  </div>
+}
+
 type RelationshipMarketSummary = Record<PartnershipMarketKey, {
   known: number
   active: number
@@ -1779,9 +1812,19 @@ type RelationshipMarketSummary = Record<PartnershipMarketKey, {
   conversations: number
 }>
 
-function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenInbox, onOpenPipeline, onOpenMarket }: {
+type RelationshipRolling30 = {
+  newRelationships: number
+  maintainedRelationships: number
+  touchpoints: number
+  referrals: number
+  bookedReferrals: number
+  bookedRevenueCents: number
+}
+
+function RelationshipLobby({ contacts, marketSummary, rolling30, loading, onSelect, onOpenInbox, onOpenPipeline, onOpenMarket }: {
   contacts: Contact[]
   marketSummary: RelationshipMarketSummary | null
+  rolling30: RelationshipRolling30 | null
   loading: boolean
   onSelect: (contact: Contact) => void
   onOpenInbox: () => void
@@ -1836,6 +1879,22 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
             <button onClick={onOpenInbox} className="crm-button">Open conversations</button>
             <button onClick={onOpenPipeline} className="crm-button-dark">View relationships</button>
           </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-baseline justify-between border-b border-[var(--app-line)] pb-3">
+          <div><h3 className="text-lg font-semibold text-[#14213d]">Last 30 days</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationship progress tied to recorded evidence</p></div>
+        </div>
+        <div className="grid gap-px overflow-hidden border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            ['New', rolling30?.newRelationships ?? 0],
+            ['Maintained', rolling30?.maintainedRelationships ?? 0],
+            ['Touchpoints', rolling30?.touchpoints ?? 0],
+            ['Referrals', rolling30?.referrals ?? 0],
+            ['Booked', rolling30?.bookedReferrals ?? 0],
+            ['Revenue', `$${((rolling30?.bookedRevenueCents ?? 0) / 100).toLocaleString('en-CA', { maximumFractionDigits: 0 })}`],
+          ].map(([label, value]) => <div key={label} className="bg-white p-4"><div className="text-2xl font-semibold text-[#14213d]">{value}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{label}</div></div>)}
         </div>
       </section>
 
@@ -6900,8 +6959,10 @@ function PartnershipEngineInner() {
   const [contactsLoading, setContactsLoading] = useState(true)
   const [batchesLoading, setBatchesLoading] = useState(true)
   const [relationshipSummary, setRelationshipSummary] = useState<RelationshipMarketSummary | null>(null)
+  const [relationshipRolling30, setRelationshipRolling30] = useState<RelationshipRolling30 | null>(null)
   const [relationshipSummaryLoading, setRelationshipSummaryLoading] = useState(true)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [newRelationshipOpen, setNewRelationshipOpen] = useState(false)
 
   const loadContacts = useCallback(async () => {
     setContactsLoading(true)
@@ -6937,8 +6998,9 @@ function PartnershipEngineInner() {
     setRelationshipSummaryLoading(true)
     const response = await fetch('/api/marketing/relationship-summary', { credentials: 'include' })
     if (response.ok) {
-      const payload = await response.json() as { markets?: RelationshipMarketSummary }
+      const payload = await response.json() as { markets?: RelationshipMarketSummary; rolling30?: RelationshipRolling30 }
       setRelationshipSummary(payload.markets || null)
+      setRelationshipRolling30(payload.rolling30 || null)
     }
     setRelationshipSummaryLoading(false)
   }, [])
@@ -7043,6 +7105,7 @@ function PartnershipEngineInner() {
               {needsReplyCount > 0 && <span className="ml-2 rounded-full bg-[var(--app-accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">{needsReplyCount} responded</span>}
             </p>
           </div>
+          <button type="button" onClick={() => setNewRelationshipOpen(true)} className="crm-button-dark">+ Add relationship</button>
         </div>
 
         <div className={`${inboxActive ? 'hidden' : 'flex'} ${inboxActive ? 'mb-2 gap-1 rounded-[14px] p-1' : 'mb-6 gap-1 rounded-[16px] p-1.5'} border border-[var(--app-line)] bg-[var(--app-panel,white)]`}>
@@ -7074,6 +7137,7 @@ function PartnershipEngineInner() {
           <RelationshipLobby
             contacts={contacts}
             marketSummary={relationshipSummary}
+            rolling30={relationshipRolling30}
             loading={relationshipSummaryLoading}
             onSelect={setSelectedContact}
             onOpenInbox={() => handleOpenInbox()}
@@ -7127,6 +7191,7 @@ function PartnershipEngineInner() {
             onRefresh={() => { void loadContacts(); void loadBatches() }}
           />
         )}
+        {newRelationshipOpen && <NewRelationshipModal onClose={() => setNewRelationshipOpen(false)} onCreated={contact => { handleContactUpdated(contact); setNewRelationshipOpen(false); void loadRelationshipSummary() }} />}
 
         {bulkSmsContacts && (
           <BulkSmsModal contacts={bulkSmsContacts} onClose={() => setBulkSmsContacts(null)} />

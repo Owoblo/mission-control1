@@ -1,5 +1,4 @@
 create extension if not exists pgcrypto;
-
 create table if not exists public.partner_sale_signals (
   id uuid primary key default gen_random_uuid(),
   event_key text not null,
@@ -41,17 +40,14 @@ create table if not exists public.partner_sale_signals (
   constraint partner_sale_signals_status_check
     check (status in ('needs_verification', 'needs_match', 'needs_review', 'ready', 'scheduled', 'sent', 'dismissed'))
 );
-
 create index if not exists partner_sale_signals_status_idx
   on public.partner_sale_signals(status, sold_verified_at desc);
 create index if not exists partner_sale_signals_contact_idx
   on public.partner_sale_signals(contact_id, sold_verified_at desc);
 create index if not exists partner_sale_signals_city_idx
   on public.partner_sale_signals(city, sold_verified_at desc);
-
 drop trigger if exists partner_sale_signals_touch_updated_at on public.partner_sale_signals;
 create trigger partner_sale_signals_touch_updated_at
 before update on public.partner_sale_signals
 for each row execute function public.touch_partner_company_updated_at();
-
 alter table public.partner_sale_signals enable row level security;

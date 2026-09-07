@@ -4,22 +4,27 @@ import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { isInvoiceStylePaymentTerms } from '@/lib/sales'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
+import { buildMoveProtectionOffer, type MoveProtectionChoice } from '@/lib/move-protection'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
 
 export async function POST(request: Request) {
   try {
-    const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion } = (await request.json()) as {
+    const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion, protectionChoice } = (await request.json()) as {
       quoteId: string
       token?: string
       successUrl?: string
       cancelUrl?: string
       termsAccepted?: boolean
       termsVersion?: string
+      protectionChoice?: MoveProtectionChoice
     }
 
     if (!quoteId) return NextResponse.json({ error: 'quoteId is required' }, { status: 400 })
     if (!token) return NextResponse.json({ error: 'Quote token is required' }, { status: 401 })
+    if (protectionChoice !== 'selected' && protectionChoice !== 'declined') {
+      return NextResponse.json({ error: 'Choose Move Protection Plus or continue with standard service.' }, { status: 400 })
+    }
 
     let quote = await getSalesQuote(quoteId)
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
@@ -70,9 +75,41 @@ export async function POST(request: Request) {
     // Find the linked lead for customer info + leadId in metadata
     const lead = quote.leadId ? await getSalesLead(quote.leadId).catch(() => null) : null
     if (!lead) return NextResponse.json({ error: 'Quote lead not found' }, { status: 404 })
+    const depositAlreadyPaid = Boolean(
+      quote.depositPaidAt ||
+      quote.depositStripePaymentIntentId ||
+      Number(quote.depositPaidAmount || 0) > 0 ||
+      lead.paymentStatus === 'deposit_received' ||
+      lead.paymentStatus === 'paid_in_full'
+    )
+    if (depositAlreadyPaid) {
+      return NextResponse.json({
+        error: 'The deposit for this move has already been received.',
+        code: 'deposit_already_paid',
+        paidAt: quote.depositPaidAt || lead.depositDate,
+        amount: Number(quote.depositPaidAmount || lead.depositAmount || 0),
+      }, { status: 409 })
+    }
     const stripeAccount = requireStripeAccountForLead(lead)
     assertQuoteStripeAccount(quote, stripeAccount.key)
     const stripeKey = stripeAccount.secretKey
+    const protection = buildMoveProtectionOffer()
+    const now = new Date().toISOString()
+    const { saveSalesQuote: saveQ } = await import('@/lib/server/sales-repository')
+    quote = await saveQ({
+      ...quote,
+      protectionOffer: {
+        productCode: protection.productCode,
+        version: protection.version,
+        name: protection.name,
+        price: protection.price,
+        currency: protection.currency,
+        decision: protectionChoice,
+        decidedAt: now,
+        ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined,
+      },
+    })
 
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     const returnBase = `${appUrl}/quote-accept?id=${encodeURIComponent(quote.id)}&token=${encodeURIComponent(quote.acceptToken || '')}`
@@ -97,6 +134,8 @@ export async function POST(request: Request) {
     params.set('payment_intent_data[metadata][quoteId]', quote.id)
     params.set('payment_intent_data[metadata][quoteNumber]', quote.number)
     if (lead?.id) params.set('payment_intent_data[metadata][leadId]', lead.id)
+    params.set('payment_intent_data[metadata][protectionChoice]', protectionChoice)
+    params.set('payment_intent_data[metadata][protectionVersion]', protection.version)
     appendStripeAccountMetadata(params, stripeAccount, 'payment_intent_data[metadata]')
 
     if (lead) {
@@ -115,13 +154,26 @@ export async function POST(request: Request) {
     params.set('line_items[0][price_data][unit_amount]', String(Math.round(quote.deposit * 100)))
     params.set('line_items[0][quantity]', '1')
 
+    if (protectionChoice === 'selected') {
+      params.set('line_items[1][price_data][currency]', 'cad')
+      params.set('line_items[1][price_data][product_data][name]', protection.name)
+      params.set('line_items[1][price_data][product_data][description]', 'Optional enhanced moving service. Not an insurance policy. Includes selected-item condition records, enhanced wrapping, crew handling notes, and priority damage-intake support.')
+      params.set('line_items[1][price_data][product_data][metadata][productCode]', protection.productCode)
+      params.set('line_items[1][price_data][product_data][metadata][version]', protection.version)
+      params.set('line_items[1][price_data][unit_amount]', String(Math.round(protection.price * 100)))
+      params.set('line_items[1][quantity]', '1')
+    }
+
     // Metadata on session for webhook
     params.set('metadata[quoteId]', quote.id)
     params.set('metadata[quoteNumber]', quote.number)
     if (lead?.id) params.set('metadata[leadId]', lead.id)
+    params.set('metadata[protectionChoice]', protectionChoice)
+    params.set('metadata[protectionVersion]', protection.version)
+    params.set('metadata[protectionPrice]', protectionChoice === 'selected' ? String(protection.price) : '0')
     appendStripeAccountMetadata(params, stripeAccount)
 
-    params.set('success_url', safeRedirectUrl(successUrl, `${returnBase}&paid=1`))
+    params.set('success_url', safeRedirectUrl(successUrl, `${returnBase}&paid=1${protectionChoice === 'selected' ? '&protection=1' : ''}`))
     params.set('cancel_url', safeRedirectUrl(cancelUrl, returnBase))
 
     const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {

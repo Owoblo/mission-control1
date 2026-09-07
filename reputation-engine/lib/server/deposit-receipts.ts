@@ -19,6 +19,8 @@ export type DepositReceiptPayload = {
   paidAt?: string
   note?: string
   reference?: string
+  protectionName?: string
+  protectionAmount?: number
   brand?: ReceiptBrand
 }
 
@@ -53,6 +55,8 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
     paidAt,
     note,
     reference,
+    protectionName,
+    protectionAmount,
     brand = {
       name: 'Saturn Star', fullName: 'Saturn Star Movers', tagline: 'Moving with care, from city to city.',
       phone: '226-773-2993', phoneHref: 'tel:+12267732993', email: 'info@starmovers.ca', website: 'starmovers.ca',
@@ -158,6 +162,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
               <span style="font-size:13px;font-weight:700;color:#16a34a;">−${formatMoney(depositAmount)}</span>
             </td>
           </tr>
+          ${protectionName && protectionAmount ? `<tr><td style="font-size:13px;color:#64748b;padding-bottom:8px;">${protectionName}<div style="font-size:10px;color:#94a3b8;">Optional enhanced moving service · Not insurance</div></td><td align="right" style="font-size:13px;font-weight:700;color:#9b5b00;padding-bottom:8px;">${formatMoney(protectionAmount)}</td></tr>` : ''}
           <tr>
             <td colspan="2" style="border-top:1px solid #e2e8f0;padding-top:10px;"></td>
           </tr>
@@ -199,7 +204,7 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
       : paymentKind === 'payment'
         ? 'Your payment has been received.'
         : 'Your deposit has been received and your move is confirmed!'
-  const plain = `Hi ${firstName},\n\n${plainIntro}\n\n${receiptNumber ? `Receipt: ${receiptNumber}\n` : ''}Quote: ${quoteNumber}\nMove Date: ${moveDateStr}\nRoute: ${routeStr}\n\n${paidLabel}: ${formatMoney(depositAmount)} (${paymentStr})\n${balanceLabel}: ${formatMoney(balanceAmount)}${reference ? `\nReference: ${reference}` : ''}${note ? `\nNote: ${note}` : ''}${receiptUrl ? `\n\nView official receipt: ${receiptUrl}` : ''}\n\nQuestions? Call us at ${brand.phone} or reply to this email.\n\nThanks,\n${brand.fullName}`
+  const plain = `Hi ${firstName},\n\n${plainIntro}\n\n${receiptNumber ? `Receipt: ${receiptNumber}\n` : ''}Quote: ${quoteNumber}\nMove Date: ${moveDateStr}\nRoute: ${routeStr}\n\n${paidLabel}: ${formatMoney(depositAmount)} (${paymentStr})${protectionName && protectionAmount ? `\n${protectionName}: ${formatMoney(protectionAmount)} (optional enhanced moving service; not insurance)` : ''}\n${balanceLabel}: ${formatMoney(balanceAmount)}${reference ? `\nReference: ${reference}` : ''}${note ? `\nNote: ${note}` : ''}${receiptUrl ? `\n\nView official receipt: ${receiptUrl}` : ''}\n\nQuestions? Call us at ${brand.phone} or reply to this email.\n\nThanks,\n${brand.fullName}`
 
   return { subject, html, plain }
 }

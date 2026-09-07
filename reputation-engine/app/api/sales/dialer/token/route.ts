@@ -80,6 +80,7 @@ export async function GET(request: Request) {
       !apiKeySid ? 'TWILIO_API_KEY_SID' : null,
       !apiKeySecret ? 'TWILIO_API_KEY_SECRET' : null,
       !twimlAppSid ? 'TWILIO_TWIML_APP_SID' : null,
+      !pushCredentialSid ? 'TWILIO_VOICE_PUSH_CREDENTIAL_SID' : null,
     ].filter(Boolean)
 
     if (missing.length > 0) {
@@ -113,6 +114,7 @@ export async function GET(request: Request) {
       repName: sessionUser.name || identity,
       repId: sessionUser.userId || null,
       expiresAt,
+      pushConfigured: Boolean(pushCredentialSid),
     })
   } catch (error) {
     return NextResponse.json(

@@ -62,6 +62,31 @@ test('inventory verification converts customer decisions into scoped inventory u
   assert.equal(updatedInventory[2].room, 'Garage')
 })
 
+test('inventory verification remains authoritative when a rep adds items later', () => {
+  const original: InventoryItem[] = [
+    { id: 'sofa', room: 'Living Room', name: 'Sofa', size: '3 seat', qty: 1, included: true, source: 'mls' },
+    { id: 'desk', room: 'Office / Den', name: 'Desk', size: 'standard', qty: 1, included: true, source: 'mls' },
+  ]
+  const keyMap = buildInventoryVerificationChoiceKeyMap(original)
+  const verification: InventoryVerification = {
+    itemChoices: [
+      { itemKey: keyMap.get(0) || '', decision: 'not_going', updatedAt: '2026-08-06T18:20:30.489Z' },
+      { itemKey: keyMap.get(1) || '', decision: 'going', updatedAt: '2026-08-06T18:20:30.489Z' },
+    ],
+  }
+
+  const staleCrmInventory = [
+    ...original,
+    { id: 'manual_grill', room: 'Outdoor', name: 'Natural gas barbecue', qty: 1, included: true, source: 'manual' as const },
+  ]
+  const reconciled = applyInventoryVerificationToInventory(staleCrmInventory, verification)
+
+  assert.equal(reconciled.find(item => item.id === 'sofa')?.included, false)
+  assert.equal(reconciled.find(item => item.id === 'sofa')?.status, 'excluded')
+  assert.equal(reconciled.find(item => item.id === 'desk')?.included, true)
+  assert.equal(reconciled.find(item => item.id === 'manual_grill')?.included, true)
+})
+
 test('inventory verification activity surfaces the latest customer edits with item context', () => {
   const inventory: InventoryItem[] = [
     { id: 'item_1', room: 'Living Room', name: 'Sectional Sofa', qty: 1, included: true, source: 'mls' },

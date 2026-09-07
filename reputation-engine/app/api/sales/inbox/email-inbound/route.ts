@@ -168,7 +168,7 @@ export async function POST(request: Request) {
         createdAt: now,
         notes: `Email received from ${fromName || from}: ${subject || '(no subject)'}`,
       })
-      queueLeadIntelligenceRefresh(leadId, new URL(request.url).origin)
+      await queueLeadIntelligenceRefresh(leadId, new URL(request.url).origin)
     }
 
     return NextResponse.json({ ok: true, matched: !!leadId, leadId })

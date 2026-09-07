@@ -8,6 +8,7 @@ import type {
   LeadQualificationState,
 } from '@/lib/types'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { AUTOMATION_JOB_LOCK_TIMEOUT_MS, MAX_AUTOMATION_JOB_ATTEMPTS } from '@/lib/automation-job-retry'
 
 type ConversationThreadRow = {
   id: string
@@ -466,6 +467,32 @@ export async function queueAutomationJob(input: {
 export async function listDueAutomationJobs(limit = 25): Promise<CRMAutomationJob[]> {
   const { url, headers } = requireSupabaseEnv()
   const now = new Date().toISOString()
+  const staleBefore = new Date(Date.now() - AUTOMATION_JOB_LOCK_TIMEOUT_MS).toISOString()
+
+  // A serverless function can stop after claiming a job. Re-open expired locks
+  // and retryable failures before selecting work so no job remains stranded.
+  await Promise.all([
+    fetch(
+      `${url}/rest/v1/crm_automation_jobs?status=eq.running&locked_at=lt.${encodeURIComponent(staleBefore)}&attempts=lt.${MAX_AUTOMATION_JOB_ATTEMPTS}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: 'pending', locked_at: null, due_at: now, updated_at: now }),
+      }
+    ),
+    fetch(
+      `${url}/rest/v1/crm_automation_jobs?status=eq.failed&attempts=lt.${MAX_AUTOMATION_JOB_ATTEMPTS}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: 'pending', locked_at: null, due_at: now, updated_at: now }),
+      }
+    ),
+  ]).then(async responses => {
+    const failed = responses.find(response => !response.ok)
+    if (failed) throw new Error(`Failed to recover automation jobs: ${await readError(failed)}`)
+  })
+
   const response = await fetch(
     `${url}/rest/v1/crm_automation_jobs?status=eq.pending&due_at=lte.${encodeURIComponent(now)}&select=${encodeURIComponent(JOB_SELECT)}&order=due_at.asc&limit=${limit}`,
     { headers, cache: 'no-store' }

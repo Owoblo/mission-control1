@@ -7,6 +7,7 @@ import { processQuoteSendJob } from '@/lib/server/quote-send-worker'
 import { normalizeQuoteSendRecipient } from '@/lib/quote-send-jobs'
 import type { QuoteSendJobChannel } from '@/lib/quote-send-jobs'
 import { hasDeliverableQuotePricing } from '@/lib/quote-pricing-safety'
+import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
 
 type EnqueuePayload = {
   quoteId?: string
@@ -20,6 +21,7 @@ type EnqueuePayload = {
     htmlBody?: string
     notes?: string
   }>
+  intelligenceOverride?: boolean
 }
 
 export const maxDuration = 60
@@ -62,6 +64,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'You do not have permission to send messages for this lead.' }, { status: 403 })
     }
 
+    const intelligenceSafety = evaluateQuoteIntelligenceSafety(lead, quote)
+    const canOverrideIntelligence = session?.role === 'owner' || session?.role === 'manager'
+    const intelligenceOverride = !intelligenceSafety.allowed && canOverrideIntelligence
+    if (!intelligenceSafety.allowed && !canOverrideIntelligence) {
+      return NextResponse.json({ error: intelligenceSafety.reason || 'Complete the move-intelligence review before sending this binding quote.' }, { status: 409 })
+    }
+
     const jobs = []
     for (const item of payload.jobs) {
       if (!item.channel || !['email', 'sms'].includes(item.channel)) {
@@ -86,6 +95,13 @@ export async function POST(request: Request) {
         actor: 'human',
         actorUserId: session?.userId,
         actorName: session?.name,
+        result: intelligenceOverride ? {
+          intelligenceOverride: true,
+          intelligenceOverrideByUserId: session?.userId || null,
+          intelligenceOverrideByName: session?.name || null,
+          intelligenceOverrideAt: new Date().toISOString(),
+          intelligenceOverrideReason: intelligenceSafety.reason || null,
+        } : {},
       }))
     }
 

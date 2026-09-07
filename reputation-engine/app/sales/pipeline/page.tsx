@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { deleteSalesLead, fetchSalesOverview, updateSalesLead } from '@/lib/sales-api'
+import { deleteSalesLead, fetchSalesPipeline, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatMoney, getLeadAssignedRepName, getSalesBranchLabel, SALES_BRANCHES, isClosedLeadStage } from '@/lib/sales'
 import { formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -132,8 +132,10 @@ function SalesPipelineContent() {
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ lead: CRMLead; typed: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const refreshSequenceRef = useRef(0)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [visibleLimit, setVisibleLimit] = useState(100)
 
   // ── View & filters ──
   const [viewMode, setViewMode] = useState<'board' | 'list'>('list')
@@ -180,19 +182,29 @@ function SalesPipelineContent() {
   }
 
   async function refresh() {
+    const sequence = ++refreshSequenceRef.current
     try {
       setLoading(true)
-      const data = await fetchSalesOverview()
+      const data = await fetchSalesPipeline()
+      if (sequence !== refreshSequenceRef.current) return
       setLeads(data.leads); setQuotes(data.quotes); setFollowUps(data.followUps); setError(null)
-    } catch (err) { setError((err as Error).message) } finally { setLoading(false) }
+    } catch (err) {
+      if (sequence === refreshSequenceRef.current) setError((err as Error).message)
+    } finally {
+      if (sequence === refreshSequenceRef.current) setLoading(false)
+    }
   }
 
   useEffect(() => {
     void refresh()
     const interval = setInterval(() => {
       if (document.hidden) return
-      fetchSalesOverview().then(data => { setLeads(data.leads); setQuotes(data.quotes); setFollowUps(data.followUps) }).catch(() => {})
-    }, 30_000)
+      const sequence = ++refreshSequenceRef.current
+      fetchSalesPipeline().then(data => {
+        if (sequence !== refreshSequenceRef.current) return
+        setLeads(data.leads); setQuotes(data.quotes); setFollowUps(data.followUps)
+      }).catch(() => {})
+    }, 60_000)
     return () => clearInterval(interval)
   }, [])
 
@@ -417,6 +429,12 @@ function SalesPipelineContent() {
     return applyFilters(leads)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guidanceMap, leads, viewMode, grouped, query, filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, sortMode, ownershipView, workflowFilter, currentUser?.name, currentUser?.userId, quoteMap])
+
+  const renderedLeads = viewMode === 'list' ? visibleLeads.slice(0, visibleLimit) : visibleLeads
+
+  useEffect(() => {
+    setVisibleLimit(100)
+  }, [query, filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, sortMode, ownershipView, workflowFilter, viewMode])
 
   const activeFilterCount = [filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, workflowFilter === 'all' ? '' : workflowFilter].filter(Boolean).length
 
@@ -696,7 +714,7 @@ function SalesPipelineContent() {
               <div>Quote $</div>
             </div>
 
-            {visibleLeads.map(lead => {
+            {renderedLeads.map(lead => {
               const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
               const guidance = guidanceMap.get(lead.id)
               const urgency = getUrgency(lead)
@@ -832,7 +850,7 @@ function SalesPipelineContent() {
 
           {/* ── MOBILE LIST ── */}
           <div className="space-y-3 md:hidden">
-            {visibleLeads.map(lead => {
+            {renderedLeads.map(lead => {
               const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
               const guidance = guidanceMap.get(lead.id)
               const urgency = getUrgency(lead)
@@ -876,6 +894,17 @@ function SalesPipelineContent() {
               </div>
             )}
           </div>
+          {renderedLeads.length < visibleLeads.length ? (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => setVisibleLimit(limit => limit + 100)}
+                className="rounded-[6px] border border-[var(--app-line)] bg-white px-5 py-2 text-sm font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)]"
+              >
+                Load 100 more · {visibleLeads.length - renderedLeads.length} remaining
+              </button>
+            </div>
+          ) : null}
         </>
       ) : (
         /* ── BOARD VIEW ── */

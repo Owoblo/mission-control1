@@ -1,0 +1,12 @@
+.git
+.next
+.tmp-*
+.wrangler
+node_modules
+# React Native is built and shipped independently from the Next.js CRM.
+# Excluding the whole workspace prevents iOS Pods/build products from turning
+# a web deployment into a 300MB+ archive.
+mobile
+deliverables
+docs/audit-evidence
+*.tsbuildinfo

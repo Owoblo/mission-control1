@@ -11,16 +11,19 @@ import { canAccessOperationsWorkspace, canAccessSalesWorkspace, canDeleteLead, c
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSessionUser } from '@/lib/server/session'
 import { validateLeadPatchPayload } from '@/lib/server/sales-validation'
+import { applyInventoryVerificationToInventory } from '@/lib/inventory-verification'
 import {
   deleteSalesLead,
   getSalesClient,
   getSalesLead,
+  getSalesLeadLiveSnapshot,
   getSalesQuote,
   saveSalesClient,
   saveSalesLead,
   saveSalesQuote,
 } from '@/lib/server/sales-repository'
 import { syncLeadPartnerReferral } from '@/lib/server/partner-referral-link'
+import { finishTimedResponse } from '@/lib/server/performance'
 
 function normalizeOptional(value?: string) {
   const trimmed = value?.trim()
@@ -290,7 +293,8 @@ async function sendAppointmentSms(lead: import('@/lib/types').CRMLead) {
   }
 }
 
-export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const startedAt = performance.now()
   const params = await props.params;
   try {
     const session = await getSessionUser()
@@ -298,7 +302,10 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const lead = await getSalesLead(params.id)
+    const liveOnly = new URL(request.url).searchParams.get('view') === 'live'
+    const lead = liveOnly
+      ? await getSalesLeadLiveSnapshot(params.id)
+      : await getSalesLead(params.id)
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
@@ -306,12 +313,14 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    return NextResponse.json(lead)
+    return finishTimedResponse(NextResponse.json(lead), startedAt, 'sales.lead.get', {
+      view: liveOnly ? 'live' : 'full',
+    })
   } catch (error) {
-    return NextResponse.json(
+    return finishTimedResponse(NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load lead' },
       { status: 500 }
-    )
+    ), startedAt, 'sales.lead.get', { status: 500 })
   }
 }
 
@@ -331,6 +340,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean }
     const { sendAppointmentSms: sendApptSmsFlag, ...rawUpdates } = rawBody
     const updates = validateLeadPatchPayload(rawUpdates)
+    if (hasOwn(updates, 'inventory') && Array.isArray(updates.inventory)) {
+      updates.inventory = applyInventoryVerificationToInventory(
+        updates.inventory,
+        updates.inventoryVerification || current.inventoryVerification,
+      )
+    }
     if (
       updates.source === 'partner_referral' &&
       !(updates.partnerReferralContactId || current.partnerReferralContactId)
@@ -528,7 +543,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       Object.prototype.hasOwnProperty.call(updates, 'notes')
 
     if (needsIntelligenceRefresh) {
-      queueLeadIntelligenceRefresh(syncedOpportunityLead.id, new URL(request.url).origin)
+      await queueLeadIntelligenceRefresh(syncedOpportunityLead.id, new URL(request.url).origin)
     }
 
     return NextResponse.json(syncedOpportunityLead)

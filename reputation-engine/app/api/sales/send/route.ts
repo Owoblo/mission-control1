@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import {
   getSalesLead,
@@ -9,9 +9,10 @@ import {
 } from '@/lib/server/sales-repository'
 import { getRequestSessionUser } from '@/lib/server/request-session'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
-import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
 import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
 import { canUseMobilePhoneLine } from '@/lib/server/mobile-phone-access'
+import { finishTimedResponse } from '@/lib/server/performance'
+import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 
 function normalizePhoneNumber(value?: string | null) {
   const digits = String(value || '').replace(/\D/g, '')
@@ -36,17 +37,8 @@ function isPartnershipStandaloneSms(
   return isPartnershipSenderNumber(normalizePhoneNumber(payload.fromNumber), { includeRecovery: true })
 }
 
-function triggerIntelligence(leadId: string) {
-  const base = getAppBaseUrl()
-  const secret = getWorkerSharedSecret()
-  if (!base || !secret || !leadId) return
-  void fetch(`${base}/api/sales/leads/${leadId}/intelligence`, {
-    method: 'POST',
-    headers: { 'x-internal-secret': secret },
-  }).catch(() => {})
-}
-
 export async function POST(request: Request) {
+  const startedAt = performance.now()
   try {
     const session = await getRequestSessionUser(request)
     const payload = (await request.json()) as {
@@ -68,20 +60,20 @@ export async function POST(request: Request) {
 
     const partnershipStandaloneSms = isPartnershipStandaloneSms(session, payload)
     if (!canAccessSalesWorkspace(session) && !partnershipStandaloneSms) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return finishTimedResponse(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), startedAt, 'sales_send')
     }
 
     const body = payload.body || payload.message
 
     if (!payload.channel || !payload.to || !body) {
-      return NextResponse.json({ error: 'channel, to, and body are required' }, { status: 400 })
+      return finishTimedResponse(NextResponse.json({ error: 'channel, to, and body are required' }, { status: 400 }), startedAt, 'sales_send')
     }
     if (
       request.headers.get('authorization') &&
       payload.fromNumber &&
       !canUseMobilePhoneLine(session, normalizePhoneNumber(payload.fromNumber))
     ) {
-      return NextResponse.json({ error: 'You do not have access to this company line.' }, { status: 403 })
+      return finishTimedResponse(NextResponse.json({ error: 'You do not have access to this company line.' }, { status: 403 }), startedAt, 'sales_send')
     }
 
     const targetLeadId =
@@ -90,14 +82,15 @@ export async function POST(request: Request) {
         ? (await getSalesQuote(payload.quoteId))?.leadId
         : undefined)
 
+    let targetLead = null as Awaited<ReturnType<typeof getSalesLead>>
     if (targetLeadId) {
-      const lead = await getSalesLead(targetLeadId)
-      if (!lead) {
-        return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+      targetLead = await getSalesLead(targetLeadId)
+      if (!targetLead) {
+        return finishTimedResponse(NextResponse.json({ error: 'Lead not found' }, { status: 404 }), startedAt, 'sales_send')
       }
 
-      if (!canHandleLeadCommunications(session, lead)) {
-        return NextResponse.json({ error: 'You do not have permission to send messages for this lead.' }, { status: 403 })
+      if (!canHandleLeadCommunications(session, targetLead)) {
+        return finishTimedResponse(NextResponse.json({ error: 'You do not have permission to send messages for this lead.' }, { status: 403 }), startedAt, 'sales_send')
       }
     }
 
@@ -117,44 +110,37 @@ export async function POST(request: Request) {
       actorUserId: session?.userId,
     })
 
-    // Fire intelligence re-analysis in background after every outbound message
     const sentLeadId = targetLeadId || result.lead?.id
-    if (sentLeadId) triggerIntelligence(sentLeadId)
-
     const actorMeta = {
       userId: session?.userId,
       name: session?.name,
     }
 
-    if (payload.actor !== 'automation') {
-      if (sentLeadId) {
-        const channel = payload.channel === 'email' ? 'email' : 'sms'
-        void markLeadInboxChannelActioned(sentLeadId, channel, actorMeta).catch(() => {})
+    // Provider acceptance and core CRM records are complete above. Keep
+    // secondary intelligence/disposition work alive after the response without
+    // making the rep wait for it.
+    after(async () => {
+      const tasks: Promise<unknown>[] = []
+      if (sentLeadId) tasks.push(queueLeadIntelligenceRefresh(sentLeadId))
+      if (payload.actor !== 'automation') {
+        if (sentLeadId) {
+          const channel = payload.channel === 'email' ? 'email' : 'sms'
+          tasks.push(markLeadInboxChannelActioned(sentLeadId, channel, actorMeta))
+        }
+        if (payload.channel === 'email' && payload.replyEmailIds?.length) {
+          tasks.push(...payload.replyEmailIds.map(emailId => markSalesEmailActioned(emailId, actorMeta)))
+        }
+        const inboundId = payload.inboundId || result.lead?.inboundId || targetLead?.inboundId
+        if (inboundId) tasks.push(setInboundLeadHandoff(inboundId, actorMeta))
       }
+      await Promise.allSettled(tasks)
+    })
 
-      if (payload.channel === 'email' && payload.replyEmailIds?.length) {
-        void Promise.all(payload.replyEmailIds.map(emailId => markSalesEmailActioned(emailId, actorMeta).catch(() => {}))).catch(() => {})
-      }
-    }
-
-    // Auto-clear the inbound queue entry when a rep follows up — no more manual "Handled" click needed
-    if (payload.actor !== 'automation') {
-      if (payload.inboundId) {
-        void setInboundLeadHandoff(payload.inboundId, actorMeta).catch(() => {})
-      }
-    }
-    if (sentLeadId && payload.actor !== 'automation') {
-      const sentLead = await getSalesLead(sentLeadId).catch(() => null)
-      if (sentLead?.inboundId) {
-        void setInboundLeadHandoff(sentLead.inboundId, actorMeta).catch(() => {})
-      }
-    }
-
-    return NextResponse.json(result)
+    return finishTimedResponse(NextResponse.json(result), startedAt, 'sales_send', { channel: payload.channel })
   } catch (error) {
-    return NextResponse.json(
+    return finishTimedResponse(NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to send message' },
       { status: 400 }
-    )
+    ), startedAt, 'sales_send')
   }
 }

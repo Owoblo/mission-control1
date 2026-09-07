@@ -5,6 +5,13 @@ import { defaultFollowUpDate, getPipelineBucket, isDateDue, normalizePartnership
 import { activateAffiliatePartner } from '@/lib/server/affiliate-bridge'
 import { partnershipRecordMatchesSession, partnershipScopeFilter, partnershipScopeOrClause } from '@/lib/server/partnership-access'
 
+function normalizePhoneNumber(value: unknown) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  return ''
+}
+
 interface MarketContact {
   id: string
   name: string
@@ -276,6 +283,104 @@ export async function GET(request: Request) {
   })
 
   return NextResponse.json({ contacts: enriched, total })
+}
+
+export async function POST(request: Request) {
+  const session = await getSessionUser()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json() as {
+    name?: string
+    company?: string
+    title?: string
+    email?: string
+    phone?: string
+    address?: string
+    city?: string
+    category?: string
+    industry?: string
+    website?: string
+    preferred_channel?: string
+    notes?: string
+    next_follow_up?: string
+  }
+  const name = String(body.name || '').trim()
+  const city = String(body.city || '').trim()
+  const category = String(body.category || '').trim().toLowerCase()
+  const company = String(body.company || '').trim()
+  const phone = normalizePhoneNumber(body.phone)
+  const email = String(body.email || '').trim().toLowerCase()
+  if (!name || !city || !category) {
+    return NextResponse.json({ error: 'Name, city and category are required.' }, { status: 400 })
+  }
+  if (!phone && !email) {
+    return NextResponse.json({ error: 'Add a phone number or email address.' }, { status: 400 })
+  }
+  if (!partnershipRecordMatchesSession(session, { city })) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { url, headers } = requireSupabaseEnv()
+  const duplicateFilters = [
+    phone ? `phone.eq.${encodeURIComponent(phone)}` : '',
+    email ? `email.ilike.${encodeURIComponent(email)}` : '',
+  ].filter(Boolean)
+  if (duplicateFilters.length) {
+    const duplicateRes = await fetch(
+      `${url}/rest/v1/market_contacts?select=id,name,company,city,phone,email&or=(${duplicateFilters.join(',')})&limit=5`,
+      { headers, cache: 'no-store' }
+    )
+    const duplicates = duplicateRes.ok ? await duplicateRes.json() as MarketContact[] : []
+    if (duplicates.length) {
+      return NextResponse.json({ error: 'A relationship with this phone or email already exists.', duplicate: duplicates[0] }, { status: 409 })
+    }
+  }
+
+  const now = new Date().toISOString()
+  const row = {
+    name,
+    company: company || null,
+    title: String(body.title || '').trim() || null,
+    email: email || null,
+    phone: phone || null,
+    address: String(body.address || '').trim() || null,
+    city,
+    category,
+    industry: String(body.industry || '').trim() || category.replace(/_/g, ' '),
+    website: String(body.website || '').trim() || null,
+    preferred_channel: String(body.preferred_channel || '').trim() || (phone ? 'sms' : 'email'),
+    notes: String(body.notes || '').trim() || null,
+    stage: 'target',
+    relationship_temperature: 'cold',
+    relationship_score: 0,
+    next_follow_up: body.next_follow_up || null,
+    owner_name: session.name || null,
+    owner_email: null,
+    assigned_manager_user_id: session.userId || null,
+    created_at: now,
+  }
+  const createRes = await fetch(`${url}/rest/v1/market_contacts`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'return=representation' },
+    body: JSON.stringify(row),
+  })
+  if (!createRes.ok) {
+    const detail = await createRes.text().catch(() => '')
+    return NextResponse.json({ error: detail || 'Could not create relationship.' }, { status: 500 })
+  }
+  const [contact] = await createRes.json() as MarketContact[]
+  await writePartnerActivityLog({
+    url,
+    headers,
+    contactId: contact.id,
+    companyId: contact.partner_company_id,
+    action: 'contact.created',
+    actorUserId: session.userId,
+    actorName: session.name,
+    nextValue: row,
+    metadata: { source: 'relationship_crm_manual' },
+  })
+  return NextResponse.json({ ok: true, contact }, { status: 201 })
 }
 
 export async function PATCH(request: Request) {

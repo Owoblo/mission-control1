@@ -25,6 +25,14 @@ function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayo
       destination: lead.destAccess || '',
       parking: lead.parkingNotes || '',
     },
+    inventory: (lead.inventory || []).filter(item => item.included !== false).map(item => ({
+      id: item.id,
+      name: item.name || item.item || 'Item',
+      quantity: Number(item.qty || 1),
+      room: item.room || '',
+      notes: item.notes || '',
+      precautions: item.policyReason || (item.handlingProfile?.level && item.handlingProfile.level !== 'standard' ? `${item.handlingProfile.level.replaceAll('_', ' ')} handling` : '') || item.notes || '',
+    })),
     truck: {
       plan: getTruckPlanLabel(lead, quote),
       vendor: lead.truckVendor ? TRUCK_VENDOR_LABELS[lead.truckVendor] : '',
@@ -49,6 +57,7 @@ function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayo
       briefingReady: !!lead.opsChecklist?.jobPacketReady,
       crewBriefing: awardedBrief || '',
       partnerWorkspaceEnabled: !!entry.subcontractorId,
+      billingModel: quote?.billingModel || 'fixed',
     },
   }
 }

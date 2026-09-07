@@ -2,7 +2,7 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type { Subcontractor, SubcontractorOffer, SubcontractorOfferRecipient } from '@/lib/subcontractors'
 
 type Row = Record<string, any>
-const fields = 'id,company_name,contact_name,phone,email,status,branches,service_cities,service_tags,truck_sizes,max_crew_size,insured,insurance_expires_at,availability_notes,notes,completed_jobs,cancelled_jobs,average_rating,created_at,updated_at'
+const fields = 'id,company_name,contact_name,phone,email,status,branches,service_cities,service_tags,truck_access,truck_sizes,max_crew_size,insured,insurance_expires_at,availability_notes,notes,completed_jobs,cancelled_jobs,average_rating,created_at,updated_at'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const { url, headers } = requireSupabaseEnv()
@@ -16,7 +16,7 @@ function contractor(row: Row): Subcontractor {
   return {
     id: row.id, companyName: row.company_name, contactName: row.contact_name, phone: row.phone,
     email: row.email || undefined, status: row.status, branches: row.branches || [], serviceCities: row.service_cities || [],
-    serviceTags: row.service_tags || [], truckSizes: row.truck_sizes || [], maxCrewSize: row.max_crew_size || undefined,
+    serviceTags: row.service_tags || [], truckAccess: row.truck_access || 'rents', truckSizes: row.truck_sizes || [], maxCrewSize: row.max_crew_size || undefined,
     insured: !!row.insured, insuranceExpiresAt: row.insurance_expires_at || undefined, availabilityNotes: row.availability_notes || undefined,
     notes: row.notes || undefined, completedJobs: row.completed_jobs || 0, cancelledJobs: row.cancelled_jobs || 0,
     averageRating: row.average_rating == null ? undefined : Number(row.average_rating), createdAt: row.created_at, updatedAt: row.updated_at,
@@ -56,10 +56,11 @@ export async function listSubcontractors() {
 }
 
 export async function saveSubcontractor(input: Partial<Subcontractor> & Pick<Subcontractor, 'companyName' | 'contactName' | 'phone'>) {
+  const serviceAreas = input.serviceCities || input.branches || []
   const body = {
     ...(input.id ? { id: input.id } : {}), company_name: input.companyName.trim(), contact_name: input.contactName.trim(), phone: input.phone.trim(),
-    email: input.email?.trim() || null, status: input.status || 'active', branches: input.branches || [], service_cities: input.serviceCities || [],
-    service_tags: input.serviceTags || [], truck_sizes: input.truckSizes || [], max_crew_size: input.maxCrewSize || null, insured: !!input.insured,
+    email: input.email?.trim() || null, status: input.status || 'active', branches: serviceAreas, service_cities: serviceAreas,
+    service_tags: input.serviceTags || [], truck_access: input.truckAccess || 'rents', truck_sizes: input.truckAccess === 'labour_only' ? [] : (input.truckSizes || []), max_crew_size: input.maxCrewSize || null, insured: !!input.insured,
     insurance_expires_at: input.insuranceExpiresAt || null, availability_notes: input.availabilityNotes?.trim() || null, notes: input.notes?.trim() || null,
     updated_at: new Date().toISOString(),
   }

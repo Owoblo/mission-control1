@@ -39,6 +39,16 @@ test('partnership managers receive only partnership lines for their market', () 
   assert.ok(lines.every(line => line.workspace === 'partnership'))
 })
 
+test('central sales staff receive every sales line and no partnership lines', () => {
+  for (const role of ['sales_rep', 'manager'] as const) {
+    const lines = listMobilePhoneLines(session(role))
+    assert.ok(lines.length > 1)
+    assert.ok(lines.every(line => line.workspace === 'sales'))
+    assert.ok(lines.some(line => line.branch === 'windsor'))
+    assert.ok(lines.some(line => line.branch === 'ottawa'))
+  }
+})
+
 test('a branch rep cannot select a different market caller ID', () => {
   const windsor = session('sales_rep', 'Windsor')
   const ottawaLine = listMobilePhoneLines(session('owner'))

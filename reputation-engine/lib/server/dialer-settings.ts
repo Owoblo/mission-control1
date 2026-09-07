@@ -37,6 +37,14 @@ export interface DialerSettings {
     notifyCallerIdSms: boolean // ping rep phone when a saved lead calls on Groundwire
   }
   sipUsers: string[]
+  sipUsersByWorkspace?: {
+    sales: string[]
+    partnership: string[]
+  }
+  ringGroups?: {
+    salesUserIds: string[]
+    partnershipUserIds: string[]
+  }
   ringTimeout: number
   blockedCallers: BlockedCaller[]
 }
@@ -73,6 +81,14 @@ export const DEFAULT_SETTINGS: DialerSettings = {
     notifyCallerIdSms: true,
   },
   sipUsers: ['john', 'salesrep1'],
+  sipUsersByWorkspace: {
+    sales: ['john', 'salesrep1'],
+    partnership: ['john'],
+  },
+  ringGroups: {
+    salesUserIds: [],
+    partnershipUserIds: [],
+  },
   ringTimeout: 28,
   blockedCallers: [],
 }

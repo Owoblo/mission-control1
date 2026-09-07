@@ -13,8 +13,10 @@ import type {
 } from './types'
 import type { UserRole } from './auth'
 import type { SalesLeadSearchSnapshot } from './server/sales-repository'
+import type { SalesLeadLiveSnapshot } from './server/sales-repository'
 import type { QuoteSendJob, QuoteSendJobChannel } from './quote-send-jobs'
 import { prepareUploadFile } from './browser-media'
+import type { BranchCapacitySnapshot } from './operations-capacity'
 
 export type DashboardDrilldownMetric =
   | 'active_leads'
@@ -67,6 +69,36 @@ export async function fetchSalesOverview(): Promise<{
   return readJson(response)
 }
 
+export async function fetchSalesDashboard(): Promise<{
+  leads: CRMLead[]
+  quotes: CRMQuote[]
+  followUps: FollowUpLog[]
+  summary: SalesDashboardSummary
+}> {
+  const response = await fetch('/api/sales/overview?mode=dashboard', { cache: 'no-store', credentials: 'include' })
+  return readJson(response)
+}
+
+export async function fetchSalesPipeline(): Promise<{
+  leads: CRMLead[]
+  quotes: CRMQuote[]
+  followUps: FollowUpLog[]
+}> {
+  const response = await fetch('/api/sales/overview?mode=pipeline', { cache: 'no-store', credentials: 'include' })
+  return readJson(response)
+}
+
+export async function fetchSalesBranchCapacity(branch: NonNullable<CRMLead['branch']>, date: string): Promise<BranchCapacitySnapshot> {
+  const query = new URLSearchParams({ branch, date })
+  const response = await fetch(`/api/sales/capacity?${query.toString()}`, { cache: 'no-store', credentials: 'include' })
+  return readJson(response)
+}
+
+export async function fetchSalesQuotesIndex(): Promise<{ leads: CRMLead[]; quotes: CRMQuote[] }> {
+  const response = await fetch('/api/sales/overview?mode=quotes', { cache: 'no-store', credentials: 'include' })
+  return readJson(response)
+}
+
 export async function fetchSalesLeadSearchIndex(): Promise<SalesLeadSearchSnapshot[]> {
   const response = await fetch('/api/sales/overview?mode=search', { cache: 'no-store', credentials: 'include' })
   const payload = await readJson<{ leads?: SalesLeadSearchSnapshot[] }>(response)
@@ -83,6 +115,12 @@ export async function fetchDashboardDrilldown(metric: DashboardDrilldownMetric):
 
 export async function fetchSalesLead(id: string): Promise<CRMLead | null> {
   const response = await fetch(`/api/sales/leads/${id}`, { cache: 'no-store', credentials: 'include' })
+  if (response.status === 404) return null
+  return readJson(response)
+}
+
+export async function fetchSalesLeadLiveSnapshot(id: string): Promise<SalesLeadLiveSnapshot | null> {
+  const response = await fetch(`/api/sales/leads/${id}?view=live`, { cache: 'no-store', credentials: 'include' })
   if (response.status === 404) return null
   return readJson(response)
 }
@@ -308,6 +346,7 @@ export async function enqueueQuoteSendJobs(payload: {
   quoteId: string
   leadId?: string | null
   followUpDate?: string | null
+  intelligenceOverride?: boolean
   jobs: Array<{
     channel: QuoteSendJobChannel
     recipient: string
@@ -365,8 +404,13 @@ export async function verifyPriceOverrideApproval(payload: {
   return readJson(response)
 }
 
-export async function fetchInboundLeads(): Promise<InboundInboxPayload> {
-  const response = await fetch('/api/sales/inbox', { cache: 'no-store', credentials: 'include' })
+export async function fetchInboundLeads(options: { limit?: number; offset?: number; search?: string } = {}): Promise<InboundInboxPayload & { page?: { limit: number; offset: number; returned: number; total: number; hasMore: boolean } }> {
+  const query = new URLSearchParams({
+    limit: String(options.limit || 150),
+    offset: String(options.offset || 0),
+  })
+  if (options.search?.trim()) query.set('search', options.search.trim())
+  const response = await fetch(`/api/sales/inbox?${query.toString()}`, { cache: 'no-store', credentials: 'include' })
   return readJson(response)
 }
 

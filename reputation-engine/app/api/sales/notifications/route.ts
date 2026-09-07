@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { displayEmailSubject } from '@/lib/email-display'
 import { decorateInboundLead, getInboundStatus, parseInboundRawData } from '@/lib/inbound-inbox'
 import {
@@ -11,10 +12,11 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
 import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-state'
 import { getSessionUser } from '@/lib/server/session'
-import { listAllInboundLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots } from '@/lib/server/sales-repository'
+import { listRecentInboundLeads, listRecentSalesAlerts, listRecentSalesEmails, listSalesLeadNotificationSnapshots } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
+import { finishTimedResponse, measureDependency } from '@/lib/server/performance'
 
 export interface NotificationItem {
   id: string
@@ -43,6 +45,22 @@ type NotificationsPayload = {
 const NOTIFICATIONS_CACHE_TTL_MS = 10_000
 const notificationsCache = new Map<string, { expiresAt: number; payload: NotificationsPayload }>()
 const NOTIFICATION_DISPOSITION_TYPE = 'notification_disposition'
+
+async function loadNotificationSources() {
+  const cutoffIso = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+  const [inboundResult, leadsResult, emailsResult, alertsResult, smsResult] = await Promise.all([
+    measureDependency('notifications.inbound_leads', listRecentInboundLeads(cutoffIso).catch(() => [] as Awaited<ReturnType<typeof listRecentInboundLeads>>)),
+    measureDependency('notifications.crm_leads', listSalesLeadNotificationSnapshots().catch(() => [] as Awaited<ReturnType<typeof listSalesLeadNotificationSnapshots>>)),
+    measureDependency('notifications.crm_emails', listRecentSalesEmails(cutoffIso).catch(() => [] as Awaited<ReturnType<typeof listRecentSalesEmails>>)),
+    measureDependency('notifications.sales_alerts', listRecentSalesAlerts(cutoffIso).catch(() => [] as Awaited<ReturnType<typeof listRecentSalesAlerts>>)),
+    measureDependency('notifications.sms_messages', listSmsMessages(undefined, undefined, cutoffIso).catch(() => [])),
+  ])
+  return { cutoffIso, inboundResult, leadsResult, emailsResult, alertsResult, smsResult }
+}
+
+const loadSharedNotificationSources = unstable_cache(loadNotificationSources, ['sales-notification-sources-v1'], {
+  revalidate: NOTIFICATIONS_CACHE_TTL_MS / 1000,
+})
 
 async function listAcknowledgedKeys(userId: string) {
   const { url, headers } = requireSupabaseEnv()
@@ -80,28 +98,38 @@ function formatNotificationPhone(value?: string | null) {
 }
 
 export async function GET() {
+  const startedAt = performance.now()
   const session = await getSessionUser()
   if (!session || !canAccessSalesWorkspace(session)) {
-    return NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } })
+    return finishTimedResponse(
+      NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } }),
+      startedAt,
+      'sales.notifications.get',
+      { authenticated: false },
+    )
   }
 
   const cacheKey = [session?.userId || session?.name || 'user', session?.role || 'role', session?.branch || 'all'].join(':')
   const cached = notificationsCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) {
-    return NextResponse.json(cached.payload)
+    return finishTimedResponse(NextResponse.json(cached.payload), startedAt, 'sales.notifications.get', { cache: 'hit' })
   }
 
-  // Notifications are a current work surface, not an archive counter.
-  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
-
-  const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, acknowledgedKeys] = await Promise.all([
-    listAllInboundLeads().catch(() => [] as Awaited<ReturnType<typeof listAllInboundLeads>>),
-    listSalesLeadInboxSnapshots().catch(() => [] as Awaited<ReturnType<typeof listSalesLeadInboxSnapshots>>),
-    listSalesEmails().catch(() => [] as Awaited<ReturnType<typeof listSalesEmails>>),
-    listFollowUpLogs().catch(() => [] as Awaited<ReturnType<typeof listFollowUpLogs>>),
-    listSmsMessages().catch(() => []),
-    listAcknowledgedKeys(session.userId || session.name || 'unknown').catch(() => new Set<string>()),
+  // Shared source rows are identical for every user. Keep acknowledgement and
+  // branch/ownership filtering request-local so distributed caching cannot
+  // leak one operator's notification state into another operator's response.
+  const [sourcesResult, acknowledgementsResult] = await Promise.all([
+    measureDependency('notifications.shared_sources', loadSharedNotificationSources()),
+    measureDependency('notifications.acknowledgements', listAcknowledgedKeys(session.userId || session.name || 'unknown').catch(() => new Set<string>())),
   ])
+  const { cutoffIso, inboundResult, leadsResult, emailsResult, alertsResult, smsResult } = sourcesResult.value
+  const cutoff = new Date(cutoffIso)
+  const allInboundLeads = inboundResult.value
+  const crmLeads = leadsResult.value
+  const allEmails = emailsResult.value
+  const followUpLogs = alertsResult.value
+  const smsMessages = smsResult.value
+  const acknowledgedKeys = acknowledgementsResult.value
 
   // ── 1. Unclaimed inbound leads ──────────────────────────────────────────
   // Filter out shortcode/OTP senders (e.g. UHaul +84285) — these are never real customers
@@ -282,7 +310,21 @@ export async function GET() {
   }
   notificationsCache.set(cacheKey, { expiresAt: Date.now() + NOTIFICATIONS_CACHE_TTL_MS, payload })
 
-  return NextResponse.json(payload)
+  const response = NextResponse.json(payload)
+  response.headers.set('Server-Timing', [
+    `sources;dur=${sourcesResult.durationMs}`,
+    `inbound;dur=${inboundResult.durationMs}`,
+    `leads;dur=${leadsResult.durationMs}`,
+    `emails;dur=${emailsResult.durationMs}`,
+    `alerts;dur=${alertsResult.durationMs}`,
+    `sms;dur=${smsResult.durationMs}`,
+    `acks;dur=${acknowledgementsResult.durationMs}`,
+  ].join(', '))
+  response.headers.set('X-Dependency-Timing', `sources=${sourcesResult.durationMs}ms,acks=${acknowledgementsResult.durationMs}ms`)
+  return finishTimedResponse(response, startedAt, 'sales.notifications.get', {
+    cache: 'miss',
+    itemCount: payload.totalCount,
+  })
 }
 
 export async function POST(request: Request) {

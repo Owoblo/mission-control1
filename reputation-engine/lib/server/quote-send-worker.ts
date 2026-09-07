@@ -1,7 +1,7 @@
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { normalizeQuote } from '@/lib/sales'
-import { claimQuoteSendJob, listDueQuoteSendJobs, patchQuoteSendJob } from '@/lib/server/quote-send-jobs'
+import { claimQuoteSendJob, listDueQuoteSendJobs, patchQuoteSendJob, recoverStaleQuoteSendJobs } from '@/lib/server/quote-send-jobs'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup } from '@/lib/server/sales-automation'
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import type { QuoteSendJob } from '@/lib/quote-send-jobs'
@@ -59,7 +59,8 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
     const pendingLead = pendingQuote?.leadId ? await getSalesLead(pendingQuote.leadId) : null
     if (pendingQuote?.billingModel === 'binding' && pendingLead) {
       const safety = evaluateQuoteIntelligenceSafety(pendingLead, pendingQuote)
-      if (!safety.allowed) throw new Error(safety.reason || 'Binding quote requires move-intelligence review before sending.')
+      const managerOverride = claimed.result?.intelligenceOverride === true
+      if (!safety.allowed && !managerOverride) throw new Error(safety.reason || 'Binding quote requires move-intelligence review before sending.')
     }
     const result = await sendSalesMessage({
       channel: claimed.channel,
@@ -83,6 +84,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
       completedAt,
       lockedAt: null,
       result: {
+        ...(claimed.result || {}),
         messageResult: result.result || {},
         logId: result.log?.id,
         quoteId: sentState.quote?.id || claimed.quoteId,
@@ -117,6 +119,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
 }
 
 export async function processDueQuoteSendJobs(limit = 10) {
+  await recoverStaleQuoteSendJobs()
   const jobs = await listDueQuoteSendJobs(limit)
   const results: QuoteSendJob[] = []
   for (const job of jobs) {

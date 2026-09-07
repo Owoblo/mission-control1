@@ -73,6 +73,36 @@ function parseRawData(value: InboundLead['raw_data']) {
   return value
 }
 
+function compactInboxRawData(value: InboundLead['raw_data']) {
+  const raw = parseRawData(value) || {}
+  const {
+    transcript: _transcript,
+    smsThread: _smsThread,
+    recordingUrl: _recordingUrl,
+    recUrl: _recUrl,
+    voicemailUrl: _voicemailUrl,
+    cloudflareUrl: _cloudflareUrl,
+    cloudflareObjectKey: _cloudflareObjectKey,
+    body: _body,
+    ...summaryRaw
+  } = raw
+  const ai = raw.aiSummary && typeof raw.aiSummary === 'object'
+    ? raw.aiSummary as Record<string, unknown>
+    : null
+  return {
+    ...summaryRaw,
+    aiSummary: ai ? {
+      summary: typeof ai.summary === 'string' ? ai.summary.slice(0, 240) : undefined,
+      nextAction: typeof ai.nextAction === 'string' ? ai.nextAction.slice(0, 160) : undefined,
+      moveReadiness: ai.moveReadiness,
+      leadConcern: typeof ai.leadConcern === 'string' ? ai.leadConcern.slice(0, 160) : undefined,
+      decisionMaker: ai.decisionMaker,
+      followUpReason: typeof ai.followUpReason === 'string' ? ai.followUpReason.slice(0, 160) : undefined,
+    } : undefined,
+    _summaryOnly: true,
+  }
+}
+
 function buildInboundCallLog(item: InboundLead) {
   const raw = parseRawData(item.raw_data)
   const branchNumber = getSaturnBranchNumberFromRawData(raw)
@@ -228,6 +258,38 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const detailId = new URL(request.url).searchParams.get('id')
+    if (detailId) {
+      const [item, leads] = await Promise.all([
+        getInboundLead(detailId),
+        listSalesLeadInboxSnapshots(),
+      ])
+      if (!item || isInternalHealthProbeInbound(item)) {
+        return NextResponse.json({ error: 'Inbox item not found' }, { status: 404 })
+      }
+      const linkedLead = leads.find(lead => lead.inboundId === item.id || lead.id === item.linkedLeadId)
+      const matchedLead = linkedLead || findMatchingActiveLead(leads, item.phone, item.email)
+      const hydratedItem = decorateInboundLead({
+        ...item,
+        linkedLeadId: linkedLead?.id || item.linkedLeadId,
+        matchedLeadId: matchedLead?.id,
+        matchedLeadName: matchedLead?.name,
+        matchedLeadStage: matchedLead?.stage,
+        name: hasUsableInboundName(item.name)
+          ? item.name
+          : matchedLead?.name || (item.source === 'twilio_call' ? 'New Caller' : item.source === 'twilio_sms' ? 'New Contact' : 'New Lead'),
+        raw_data: mergeInboxRawData(item, matchedLead || linkedLead || undefined),
+      })
+      if (isBranchScopedManager(session)) {
+        if (matchedLead && !leadMatchesSessionBranch(matchedLead as CRMLead, session)) {
+          return NextResponse.json({ error: 'Inbox item not found' }, { status: 404 })
+        }
+        if (!matchedLead && inferLeadBranchFromInbound(hydratedItem) !== session?.branch) {
+          return NextResponse.json({ error: 'Inbox item not found' }, { status: 404 })
+        }
+      }
+      return NextResponse.json({ item: hydratedItem })
+    }
     const [allItems, leads] = await Promise.all([
       listAllInboundLeads(),
       listSalesLeadInboxSnapshots(),
@@ -265,9 +327,20 @@ export async function GET(request: Request) {
       return inferLeadBranchFromInbound(item) === session?.branch
     })
 
+    const searchParams = new URL(request.url).searchParams
+    const limit = Math.min(250, Math.max(1, Number(searchParams.get('limit')) || 150))
+    const offset = Math.max(0, Number(searchParams.get('offset')) || 0)
+    const search = (searchParams.get('search') || '').trim().toLowerCase().slice(0, 80)
+    const matched = search
+      ? hydrated.filter(item => [item.name, item.phone, item.email, item.message, item.matchedLeadName]
+          .filter(Boolean).join(' ').toLowerCase().includes(search))
+      : hydrated
+    const page = matched.slice(offset, offset + limit)
+
     return NextResponse.json({
-      items: hydrated,
+      items: page.map(item => ({ ...item, raw_data: compactInboxRawData(item.raw_data) })),
       summary: buildInboundQueueSummary(hydrated),
+      page: { limit, offset, returned: page.length, total: matched.length, hasMore: offset + page.length < matched.length },
     })
   } catch (error) {
     return NextResponse.json(

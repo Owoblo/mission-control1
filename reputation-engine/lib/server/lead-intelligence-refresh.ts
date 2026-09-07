@@ -1,15 +1,16 @@
-import { getAppBaseUrl, getWorkerSharedSecret } from '@/lib/server/runtime'
+import { queueAutomationJob } from '@/lib/server/sales-automation-repository'
 
-export function queueLeadIntelligenceRefresh(leadId?: string | null, fallbackBaseUrl = '') {
+export async function queueLeadIntelligenceRefresh(leadId?: string | null, _fallbackBaseUrl = '') {
   const normalizedLeadId = (leadId || '').trim()
-  const secret = getWorkerSharedSecret()
-  // Prefer env-configured URL over request origin to avoid Vercel self-call TLS failures
-  const baseUrl = getAppBaseUrl() || getAppBaseUrl(fallbackBaseUrl)
-  if (!normalizedLeadId || !secret || !baseUrl) return
+  if (!normalizedLeadId) return null
 
-  void fetch(`${baseUrl}/api/sales/leads/${normalizedLeadId}/intelligence`, {
-    method: 'POST',
-    headers: { 'x-internal-secret': secret },
-    signal: AbortSignal.timeout(8000),
-  }).catch(() => {})
+  // Coalesce rapid edits/messages while allowing later activity to request a
+  // fresh synthesis. The database unique key makes enqueue idempotent.
+  const bucket = Math.floor(Date.now() / 30_000)
+  return queueAutomationJob({
+    leadId: normalizedLeadId,
+    kind: 'intelligence_refresh',
+    dedupeKey: `intelligence_refresh:${normalizedLeadId}:${bucket}`,
+    payload: { source: 'crm_event' },
+  })
 }

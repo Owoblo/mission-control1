@@ -4,6 +4,7 @@ export type SubcontractorStatus = 'active' | 'paused' | 'blocked'
 export type SubcontractorOfferStatus = 'draft' | 'open' | 'awarded' | 'cancelled' | 'expired'
 export type SubcontractorRecipientStatus = 'pending' | 'sent' | 'viewed' | 'accepted' | 'declined' | 'discussion' | 'not_awarded' | 'send_failed'
 export type SubcontractorAwardPolicy = 'first_acceptance' | 'manual_selection'
+export type SubcontractorTruckAccess = 'owns' | 'rents' | 'labour_only'
 
 export interface Subcontractor {
   id: string
@@ -15,6 +16,7 @@ export interface Subcontractor {
   branches: string[]
   serviceCities: string[]
   serviceTags: string[]
+  truckAccess: SubcontractorTruckAccess
   truckSizes: string[]
   maxCrewSize?: number
   insured: boolean
@@ -95,16 +97,19 @@ function includesNormalized(values: string[], target?: string | null) {
 }
 
 export function evaluateSubcontractorEligibility(
-  contractor: Pick<Subcontractor, 'status' | 'branches' | 'serviceCities' | 'serviceTags' | 'truckSizes' | 'maxCrewSize' | 'insured' | 'insuranceExpiresAt' | 'completedJobs' | 'cancelledJobs' | 'averageRating'>,
+  contractor: Pick<Subcontractor, 'status' | 'branches' | 'serviceCities' | 'serviceTags' | 'truckSizes' | 'maxCrewSize' | 'insured' | 'insuranceExpiresAt' | 'completedJobs' | 'cancelledJobs' | 'averageRating'> & Partial<Pick<Subcontractor, 'truckAccess'>>,
   requirements: { branch?: string; originCity?: string; destinationCity?: string; crewSize?: number; truckSize?: string; serviceTags?: string[]; moveDate?: string }
 ): ContractorEligibility {
   const reasons: string[] = []
   const warnings: string[] = []
+  const truckAccess = contractor.truckAccess || 'rents'
   if (contractor.status !== 'active') reasons.push(`Contractor is ${contractor.status}`)
   if (requirements.branch && contractor.branches.length > 0 && !includesNormalized(contractor.branches, requirements.branch)) reasons.push('Outside assigned branch')
   if (requirements.originCity && contractor.serviceCities.length > 0 && !includesNormalized(contractor.serviceCities, requirements.originCity)) reasons.push('Origin city is outside service area')
   if (requirements.crewSize && contractor.maxCrewSize && contractor.maxCrewSize < requirements.crewSize) reasons.push(`Crew capacity is below ${requirements.crewSize}`)
-  if (requirements.truckSize && contractor.truckSizes.length > 0 && !includesNormalized(contractor.truckSizes, requirements.truckSize)) reasons.push(`Required ${requirements.truckSize} truck is unavailable`)
+  if (requirements.truckSize && truckAccess === 'labour_only') reasons.push('This contractor provides labour only; a truck must be supplied separately')
+  if (requirements.truckSize && truckAccess !== 'labour_only' && contractor.truckSizes.length > 0 && !includesNormalized(contractor.truckSizes, requirements.truckSize)) reasons.push(`Required ${requirements.truckSize} truck is unavailable`)
+  if (requirements.truckSize && truckAccess === 'rents') warnings.push('Truck rental must be confirmed for this job')
   const contractorTags = new Set(contractor.serviceTags.map(clean))
   const missingTags = (requirements.serviceTags || []).filter(tag => !contractorTags.has(clean(tag)))
   if (missingTags.length > 0) reasons.push(`Missing service tags: ${missingTags.join(', ')}`)

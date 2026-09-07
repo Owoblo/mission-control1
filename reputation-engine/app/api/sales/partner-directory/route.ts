@@ -14,11 +14,18 @@ function text(value: unknown) {
 export async function GET(request: Request) {
   const session = await getSessionUser()
   if (!canAccessSalesWorkspace(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const query = normalizePartnerDirectoryQuery(new URL(request.url).searchParams.get('q') || '')
+  const searchParams = new URL(request.url).searchParams
+  const query = normalizePartnerDirectoryQuery(searchParams.get('q') || '')
   if (query.length < 2) return NextResponse.json({ contacts: [] })
 
   const { url, headers } = requireSupabaseEnv()
   const term = encodeURIComponent(query)
+  if (searchParams.get('type') === 'companies') {
+    const companyResponse = await fetch(`${url}/rest/v1/partner_companies?select=id,company_name,city,industry&company_name=ilike.*${term}*&order=company_name.asc&limit=20`, { headers, cache: 'no-store' })
+    if (!companyResponse.ok) return NextResponse.json({ error: 'Could not search brokerages' }, { status: 502 })
+    const companies = (await companyResponse.json() as Array<Record<string, unknown>>).map(row => ({ id: row.id, name: row.company_name, city: row.city, industry: row.industry }))
+    return NextResponse.json({ companies })
+  }
   const response = await fetch(
     `${url}/rest/v1/market_contacts?select=id,name,company,title,email,phone,city,category,industry,stage&or=(name.ilike.*${term}*,company.ilike.*${term}*,email.ilike.*${term}*,phone.ilike.*${term}*,city.ilike.*${term}*)&order=name.asc&limit=20`,
     { headers, cache: 'no-store' }
@@ -46,6 +53,7 @@ export async function POST(request: Request) {
     phone ? `phone.eq.${encodeURIComponent(phone)}` : '',
   ].filter(Boolean).join(',')
   const company = text(body.company)
+  const partnerCompanyId = text(body.partnerCompanyId)
   const duplicateFilter = duplicateTerms
     ? `or=(${duplicateTerms})`
     : `name=ilike.${encodeURIComponent(name)}${company ? `&company=ilike.${encodeURIComponent(company)}` : ''}`
@@ -59,6 +67,7 @@ export async function POST(request: Request) {
   const row = {
     name,
     company: company || null,
+    partner_company_id: partnerCompanyId || null,
     title: text(body.title) || null,
     email: email || null,
     phone: phone || null,

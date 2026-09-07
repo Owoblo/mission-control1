@@ -96,7 +96,7 @@ function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'
     }
   }
 
-  const depositPct = quote ? Math.round((quote.deposit / quote.total) * 100) : 20
+  const depositPct = quote?.total ? Math.round((quote.deposit / quote.total) * 100) : 30
 
   return (
     <form onSubmit={e => void handleSubmit(e)} className="px-6 pb-6 pt-5 space-y-4">
