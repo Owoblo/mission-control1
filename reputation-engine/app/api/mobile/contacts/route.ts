@@ -7,6 +7,11 @@ import { listSalesLeads } from '@/lib/server/sales-repository'
 
 const MAX_CONTACTS = 100
 
+function actionLabel(value?: string) {
+  if (!value) return ''
+  return value.replace(/^rep_/, '').replace(/^await_/, 'Wait for ').replaceAll('_', ' ').replace(/^\w/, letter => letter.toUpperCase())
+}
+
 export async function GET(request: Request) {
   const session = await getRequestSessionUser(request)
   if (!canAccessSalesWorkspace(session)) {
@@ -60,6 +65,12 @@ export async function GET(request: Request) {
       route: [lead.originCity, lead.destCity].filter(Boolean).join(' → '),
       moveDate: lead.moveDate || '',
       assignedRep: getLeadAssignedRepName(lead) || '',
+      quoteStatus: lead.automatedQuoteSentAt
+        ? 'Quote sent'
+        : lead.quoteId
+          ? 'Quote in progress'
+          : 'No quote yet',
+      nextAction: actionLabel(lead.qualificationState?.nextBestAction),
     }))
 
   return NextResponse.json({ contacts })

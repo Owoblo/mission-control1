@@ -296,8 +296,16 @@ export function MessagesScreen({
         )}
       />
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.navy} />
+        <View accessibilityRole="progressbar" accessibilityLabel="Loading conversations" style={styles.loadingList}>
+          {[0, 1, 2, 3, 4].map(item => (
+            <View key={item} style={styles.loadingRow}>
+              <View style={styles.loadingAvatar} />
+              <View style={styles.loadingBody}>
+                <View style={styles.loadingTitle} />
+                <View style={styles.loadingCopy} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -683,6 +691,8 @@ function ThreadScreen({
                   ['Email', profile.email],
                   ['Location', [profile.city, profile.area].filter((item, index, all) => item && all.indexOf(item) === index).join(' · ')],
                   ['Status', profile.status],
+                  ['Estimate', profile.quoteStatus],
+                  ['Next action', profile.nextAction],
                 ].filter(([, value]) => value).map(([label, value]) => (
                   <View key={label} style={styles.profileRow}>
                     <Text style={styles.profileLabel}>{label}</Text>
@@ -764,6 +774,12 @@ const styles = StyleSheet.create({
   clearFilters: {height: 46, marginHorizontal: 20, marginTop: 26, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0F1F3'},
   clearFiltersText: {fontSize: 16, fontWeight: '600', color: '#C43B35'},
   center: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32},
+  loadingList: {flex: 1, paddingTop: 4},
+  loadingRow: {minHeight: 82, paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', backgroundColor: '#FFFFFF'},
+  loadingAvatar: {height: 54, width: 54, borderRadius: 27, backgroundColor: '#ECEEF1', marginRight: 12},
+  loadingBody: {flex: 1, justifyContent: 'center', gap: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E6'},
+  loadingTitle: {height: 14, width: '46%', borderRadius: 7, backgroundColor: '#E6E8EB'},
+  loadingCopy: {height: 11, width: '74%', borderRadius: 6, backgroundColor: '#F0F1F3'},
   emptyTitle: {fontSize: 18, fontWeight: '600', color: colors.navy, marginBottom: 6},
   emptyCopy: {fontSize: 15, lineHeight: 21, textAlign: 'center', color: '#6C7582'},
   retryButton: {marginTop: 16, paddingHorizontal: 18, height: 42, borderRadius: 21, backgroundColor: colors.navy, justifyContent: 'center'},

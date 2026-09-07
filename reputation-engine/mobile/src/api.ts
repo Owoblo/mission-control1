@@ -18,6 +18,8 @@ export type MobileContact = {
   route: string;
   moveDate: string;
   assignedRep: string;
+  quoteStatus: string;
+  nextAction: string;
 };
 
 export type VoiceToken = {
@@ -99,6 +101,8 @@ export type ContactProfile = {
   status: string;
   notes: string;
   details: string[];
+  quoteStatus?: string;
+  nextAction?: string;
 };
 
 type CacheEntry<T> = {

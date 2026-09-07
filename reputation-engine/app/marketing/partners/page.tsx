@@ -1786,8 +1786,8 @@ function NewRelationshipModal({ onClose, onCreated }: { onClose: () => void; onC
   }
   const field = 'w-full rounded-xl border border-[var(--app-line)] bg-white px-3 py-2.5 text-sm text-[#14213d] outline-none focus:border-[#9a762f]'
   return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#071421]/45 p-4" onMouseDown={onClose}>
-    <form onSubmit={submit} onMouseDown={event => event.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-[#fbfaf6] p-6 shadow-2xl">
-      <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-[#14213d]">Add relationship</h2><p className="mt-1 text-sm text-[var(--app-muted)]">Create one structured person record connected to their company and market.</p></div><button type="button" onClick={onClose} className="text-xl text-slate-500">×</button></div>
+    <form role="dialog" aria-modal="true" aria-labelledby="new-relationship-title" onSubmit={submit} onMouseDown={event => event.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-[#fbfaf6] p-6 shadow-2xl">
+      <div className="flex items-start justify-between"><div><h2 id="new-relationship-title" className="text-xl font-semibold text-[#14213d]">Add relationship</h2><p className="mt-1 text-sm text-[var(--app-muted)]">Create one structured person record connected to their company and market.</p></div><button type="button" aria-label="Close add relationship" onClick={onClose} className="flex h-11 w-11 items-center justify-center text-xl text-slate-500">×</button></div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <label className="text-xs font-semibold text-slate-600">Name *<input className={`${field} mt-1`} value={form.name} onChange={e => setForm(v => ({ ...v, name: e.target.value }))} required /></label>
         <label className="text-xs font-semibold text-slate-600">Role / title<input className={`${field} mt-1`} value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} placeholder="Property Manager" /></label>
@@ -6963,23 +6963,33 @@ function PartnershipEngineInner() {
   const [relationshipSummaryLoading, setRelationshipSummaryLoading] = useState(true)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [newRelationshipOpen, setNewRelationshipOpen] = useState(false)
+  const contactsLoadedRef = useRef(false)
 
-  const loadContacts = useCallback(async () => {
+  const loadContacts = useCallback(async (force = false) => {
+    if (contactsLoadedRef.current && !force) return
+    contactsLoadedRef.current = true
     setContactsLoading(true)
     const collected: Contact[] = []
     const pageSize = 500
-    // Load the complete scoped directory. The old 2,000-row ceiling made owner
-    // totals and search silently omit contacts once a market crossed that size.
+    let firstPageLoaded = false
+    // Make the first useful directory page interactive immediately. Remaining
+    // pages hydrate in the background so totals/search still become complete.
     for (let offset = 0; ; offset += pageSize) {
       const r = await fetch(`/api/marketing/contacts?mode=directory&limit=${pageSize}&offset=${offset}`, { credentials: 'include' })
       if (!r.ok) break
       const d = await r.json() as { contacts?: Contact[]; total?: number }
       const page = d.contacts ?? []
       collected.push(...page)
+      if (offset === 0) {
+        firstPageLoaded = true
+        setContacts([...collected])
+        setContactsLoading(false)
+      }
       if (page.length < pageSize || collected.length >= Number(d.total || 0)) break
     }
     setContacts(collected)
     setContactsLoading(false)
+    contactsLoadedRef.current = firstPageLoaded
   }, [])
 
   const loadBatches = useCallback(async () => {
@@ -7011,10 +7021,23 @@ function PartnershipEngineInner() {
       .then(data => setCurrentUser(data as { role?: string; branch?: string | null; name?: string; userId?: string | null } | null))
       .catch(() => setCurrentUser(null))
   }, [])
-  useEffect(() => { void loadContacts() }, [loadContacts])
-  useEffect(() => { void loadBatches() }, [loadBatches])
-  useEffect(() => { void loadLists() }, [loadLists])
-  useEffect(() => { void loadRelationshipSummary() }, [loadRelationshipSummary])
+  // Fetch by task instead of downloading every partnership dataset on every
+  // visit. This keeps the first useful screen responsive while preserving the
+  // existing data contracts for each workspace.
+  useEffect(() => {
+    if (['today', 'command', 'queue', 'overview', 'lists', 'pipeline', 'phone', 'replies', 'partners'].includes(tab)) {
+      void loadContacts()
+    }
+  }, [loadContacts, tab])
+  useEffect(() => {
+    if (['command', 'queue', 'overview', 'phone', 'replies'].includes(tab)) void loadBatches()
+  }, [loadBatches, tab])
+  useEffect(() => {
+    if (['lists', 'phone', 'replies'].includes(tab)) void loadLists()
+  }, [loadLists, tab])
+  useEffect(() => {
+    if (['today', 'pipeline'].includes(tab)) void loadRelationshipSummary()
+  }, [loadRelationshipSummary, tab])
 
   function handleTabChange(t: Tab) {
     setTab(t)
@@ -7075,6 +7098,14 @@ function PartnershipEngineInner() {
   const visibleTabs = useMemo(() => canUseCommandCenter
     ? TABS
     : TABS.filter(t => ['today', 'phone', 'pipeline', 'partners'].includes(t.key)), [canUseCommandCenter])
+  const primaryTabs = useMemo(
+    () => visibleTabs.filter(item => ['today', 'phone', 'pipeline', 'partners'].includes(item.key)),
+    [visibleTabs],
+  )
+  const toolTabs = useMemo(
+    () => visibleTabs.filter(item => !['today', 'phone', 'pipeline', 'partners'].includes(item.key)),
+    [visibleTabs],
+  )
   const needsReplyCount = contacts.filter(c => getInboxStatus(c) === 'needs_reply').length
   const queueCount = needsReplyCount + contacts.filter(c =>
     c.last_touch_at && Math.floor((Date.now() - new Date(c.last_touch_at).getTime()) / 86400000) >= 5
@@ -7109,7 +7140,7 @@ function PartnershipEngineInner() {
         </div>
 
         <div className={`${inboxActive ? 'hidden' : 'flex'} ${inboxActive ? 'mb-2 gap-1 rounded-[14px] p-1' : 'mb-6 gap-1 rounded-[16px] p-1.5'} border border-[var(--app-line)] bg-[var(--app-panel,white)]`}>
-          {visibleTabs.map(t => (
+          {primaryTabs.map(t => (
             <button key={t.key} onClick={() => handleTabChange(t.key)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
               {t.icon && <span>{t.icon}</span>}
@@ -7122,6 +7153,21 @@ function PartnershipEngineInner() {
               )}
             </button>
           ))}
+          {toolTabs.length > 0 && (
+            <label className="relative flex min-w-[128px] flex-1 items-center">
+              <span className="sr-only">Partnership tools</span>
+              <select
+                aria-label="Partnership tools"
+                value={toolTabs.some(item => item.key === tab) ? tab : ''}
+                onChange={event => event.target.value && handleTabChange(event.target.value as Tab)}
+                className={`h-11 w-full appearance-none rounded-[11px] border px-3 pr-8 text-sm font-semibold outline-none transition ${toolTabs.some(item => item.key === tab) ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-transparent bg-transparent text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]'}`}
+              >
+                <option value="">More tools</option>
+                {toolTabs.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
+              </select>
+              <span aria-hidden className="pointer-events-none absolute right-3">⌄</span>
+            </label>
+          )}
           {canUseCommandCenter && (
             <button
               type="button"
@@ -7161,7 +7207,7 @@ function PartnershipEngineInner() {
         )}
         {tab === 'overview' && (
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading}
-            onRefresh={() => { void loadBatches(); void loadContacts() }} onTabChange={handleTabChange} />
+            onRefresh={() => { void loadBatches(); void loadContacts(true) }} onTabChange={handleTabChange} />
         )}
         {tab === 'lists' && (
           <ListsTab contacts={contacts} onSelectContact={setSelectedContact} />
@@ -7188,7 +7234,7 @@ function PartnershipEngineInner() {
             contact={selectedContact}
             lists={lists}
             onClose={() => setSelectedContact(null)}
-            onRefresh={() => { void loadContacts(); void loadBatches() }}
+            onRefresh={() => { void loadContacts(true); void loadBatches() }}
           />
         )}
         {newRelationshipOpen && <NewRelationshipModal onClose={() => setNewRelationshipOpen(false)} onCreated={contact => { handleContactUpdated(contact); setNewRelationshipOpen(false); void loadRelationshipSummary() }} />}
@@ -7200,7 +7246,7 @@ function PartnershipEngineInner() {
           <ScheduledSmsCampaignModal
             initialMarket={scheduledSmsOpen.market}
             onClose={() => setScheduledSmsOpen(null)}
-            onDone={() => { void loadBatches(); void loadContacts() }}
+            onDone={() => { void loadBatches(); void loadContacts(true) }}
           />
         )}
       </div>

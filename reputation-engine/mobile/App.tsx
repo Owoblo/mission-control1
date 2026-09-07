@@ -283,6 +283,7 @@ function PhoneScreen({
   const [wrapUp, setWrapUp] = useState<null | {
     callSid?: string;
     phone: string;
+    displayName?: string;
     direction: 'inbound' | 'outbound';
     durationSeconds: number;
     answered: boolean;
@@ -307,6 +308,7 @@ function PhoneScreen({
   const connectedAtRef = useRef<number | null>(null);
   const callDirectionRef = useRef<'inbound' | 'outbound'>('outbound');
   const internalCallRef = useRef(false);
+  const callDisplayNameRef = useRef('');
   const loggedCallSidsRef = useRef(new Set<string>());
   const registrationPromiseRef = useRef<Promise<void> | null>(null);
   const presenceSessionIdRef = useRef(
@@ -316,6 +318,10 @@ function PhoneScreen({
   useEffect(() => {
     noteRef.current = note;
   }, [note]);
+
+  useEffect(() => {
+    callDisplayNameRef.current = state.displayName;
+  }, [state.displayName]);
 
   useEffect(() => {
     // Voice registration always wins the startup race. Warm secondary tabs
@@ -389,6 +395,7 @@ function PhoneScreen({
         setWrapUp({
           callSid: sid || undefined,
           phone,
+          displayName: callDisplayNameRef.current || undefined,
           direction: callDirectionRef.current,
           durationSeconds,
           answered: Boolean(connectedAt),
@@ -1246,6 +1253,7 @@ function ContactsScreen({
   );
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(!cachedContacts);
+  const [selectedContact, setSelectedContact] = useState<MobileContact | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1274,6 +1282,47 @@ function ContactsScreen({
     };
   }, [query, token]);
 
+  if (selectedContact) {
+    return (
+      <SafeAreaView style={styles.contactsPage}>
+        <View style={styles.contactDetailHeader}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to contacts" onPress={() => setSelectedContact(null)} style={styles.contactDetailBack}>
+            <Icon name="chevron-back" size={24} color={colors.navy} />
+            <Text style={styles.contactDetailBackText}>Contacts</Text>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.contactDetailContent}>
+          <View style={styles.contactDetailAvatar}>
+            <Text style={styles.contactDetailAvatarText}>{selectedContact.name[0]?.toUpperCase()}</Text>
+          </View>
+          <Text style={styles.contactDetailName}>{selectedContact.name}</Text>
+          <Text style={styles.contactDetailStage}>{selectedContact.stage.replaceAll('_', ' ')}</Text>
+          <Pressable accessibilityRole="button" onPress={() => onCall(selectedContact.phone, selectedContact.name)} style={styles.contactDetailCall}>
+            <Icon name="call" size={21} color="white" />
+            <Text style={styles.contactDetailCallText}>Call customer</Text>
+          </Pressable>
+          <View style={styles.contactDetailCard}>
+            {[
+              ['Phone', selectedContact.phone],
+              ['Email', selectedContact.email],
+              ['Move', selectedContact.route],
+              ['Move date', selectedContact.moveDate],
+              ['Estimate', selectedContact.quoteStatus],
+              ['Next action', selectedContact.nextAction],
+              ['Assigned to', selectedContact.assignedRep],
+              ['Market', selectedContact.branch],
+            ].filter(([, value]) => value).map(([label, value]) => (
+              <View key={label} style={styles.contactDetailRow}>
+                <Text style={styles.contactDetailLabel}>{label}</Text>
+                <Text style={styles.contactDetailValue}>{value}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.contactsPage}>
       <View style={styles.contactsHeader}>
@@ -1284,22 +1333,32 @@ function ContactsScreen({
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search"
+          placeholder="Search customers"
           placeholderTextColor="#8E8E93"
           clearButtonMode="while-editing"
           style={styles.contactSearchInput}
         />
       </View>
       {loading ? (
-        <View style={styles.contactsCenter}>
-          <ActivityIndicator color={colors.navy} />
+        <View accessibilityRole="progressbar" accessibilityLabel="Loading contacts">
+          {[0, 1, 2, 3, 4, 5].map(item => (
+            <View key={item} style={styles.contactRow}>
+              <View style={styles.contactSkeletonAvatar} />
+              <View style={styles.flex}>
+                <View style={styles.contactSkeletonTitle} />
+                <View style={styles.contactSkeletonCopy} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : (
         <ScrollView>
           {entries.map(entry => (
             <Pressable
               key={entry.id}
-              onPress={() => onCall(entry.phone, entry.name)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${entry.name}`}
+              onPress={() => setSelectedContact(entry)}
               style={styles.contactRow}
             >
               <View style={styles.contactAvatar}>
@@ -1320,7 +1379,7 @@ function ContactsScreen({
                 </Text>
               </View>
               <View style={styles.contactCall}>
-                <Icon name="call" size={17} color="#007AFF" />
+                <Icon name="chevron-forward" size={18} color="#8E8E93" />
               </View>
             </Pressable>
           ))}
@@ -1338,6 +1397,7 @@ function CallWrapUpScreen({
   call: {
     callSid?: string;
     phone: string;
+    displayName?: string;
     direction: 'inbound' | 'outbound';
     durationSeconds: number;
     answered: boolean;
@@ -1377,7 +1437,8 @@ function CallWrapUpScreen({
       <StatusBar barStyle="dark-content" backgroundColor={colors.ivory} />
       <Text style={styles.eyebrow}>CALL COMPLETE</Text>
       <Text style={styles.wrapTitle}>How did it go?</Text>
-      <Text style={styles.wrapPhone}>{call.phone}</Text>
+      <Text style={styles.wrapPhone}>{call.displayName || call.phone}</Text>
+      {!!call.displayName && <Text style={styles.wrapSecondaryPhone}>{call.phone}</Text>}
       <View style={styles.wrapOptions}>
         {CALL_DISPOSITIONS.map(([key, label]) => (
           <Pressable
@@ -1493,8 +1554,16 @@ function RecentsScreen({
         <Text style={styles.contactsTitle}>Recents</Text>
       </View>
       {loading ? (
-        <View style={styles.contactsCenter}>
-          <ActivityIndicator color={colors.navy} />
+        <View accessibilityRole="progressbar" accessibilityLabel="Loading recent calls">
+          {[0, 1, 2, 3, 4, 5].map(item => (
+            <View key={item} style={styles.contactRow}>
+              <View style={styles.contactSkeletonAvatar} />
+              <View style={styles.flex}>
+                <View style={styles.contactSkeletonTitle} />
+                <View style={styles.contactSkeletonCopy} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : error ? (
         <View style={styles.emptyState}>
@@ -2532,6 +2601,7 @@ const styles = StyleSheet.create({
   wrapPage: { flex: 1, backgroundColor: colors.ivory, padding: 24 },
   wrapTitle: { fontSize: 34, fontWeight: '800', color: colors.ink, marginTop: 8 },
   wrapPhone: { fontSize: 17, color: colors.muted, marginTop: 5, marginBottom: 22 },
+  wrapSecondaryPhone: {fontSize: 14, color: colors.muted, marginTop: -16, marginBottom: 22},
   wrapOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   wrapOption: {
     paddingHorizontal: 16,
@@ -2599,6 +2669,23 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   contactsCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  contactSkeletonAvatar: {width: 42, height: 42, borderRadius: 21, backgroundColor: '#E3E4E8', marginRight: 12},
+  contactSkeletonTitle: {height: 14, width: '48%', borderRadius: 7, backgroundColor: '#DFE1E5'},
+  contactSkeletonCopy: {height: 11, width: '68%', borderRadius: 6, backgroundColor: '#E9EAED', marginTop: 9},
+  contactDetailHeader: {height: 54, justifyContent: 'center', paddingHorizontal: 10, backgroundColor: '#FFFFFF', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#D4D5D8'},
+  contactDetailBack: {minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center'},
+  contactDetailBackText: {fontSize: 17, color: '#007AFF'},
+  contactDetailContent: {alignItems: 'center', padding: 24, paddingBottom: 48},
+  contactDetailAvatar: {height: 88, width: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E3E4E8', marginTop: 12},
+  contactDetailAvatarText: {fontSize: 34, fontWeight: '600', color: colors.navy},
+  contactDetailName: {fontSize: 28, fontWeight: '700', color: colors.navy, marginTop: 16, textAlign: 'center'},
+  contactDetailStage: {fontSize: 15, color: colors.muted, marginTop: 5, textTransform: 'capitalize'},
+  contactDetailCall: {minHeight: 50, minWidth: 190, borderRadius: 25, backgroundColor: colors.navy, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 22},
+  contactDetailCallText: {fontSize: 16, fontWeight: '700', color: '#FFFFFF'},
+  contactDetailCard: {alignSelf: 'stretch', borderRadius: 16, backgroundColor: '#FFFFFF', marginTop: 28, paddingHorizontal: 16},
+  contactDetailRow: {minHeight: 54, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#E1E2E5'},
+  contactDetailLabel: {width: 90, fontSize: 14, color: colors.muted},
+  contactDetailValue: {flex: 1, fontSize: 15, color: colors.navy, textAlign: 'right'},
   contactRow: {
     minHeight: 68,
     flexDirection: 'row',
