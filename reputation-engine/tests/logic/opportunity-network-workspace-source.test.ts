@@ -21,6 +21,6 @@ assert.match(
 
 assert.match(
   source,
-  /\{expanded \? <>\s*<div/,
+  /\{expanded \?\s*\(?\s*<>\s*<div/,
   'The full workspace must only render after the operator expands it',
 )

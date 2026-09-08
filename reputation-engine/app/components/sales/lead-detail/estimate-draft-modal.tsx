@@ -14,6 +14,7 @@ import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
 import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
+import { estimateAdjustmentAmount } from '@/lib/estimate-adjustment'
 import { resolveOntarioPriceOverride, type OntarioPriceOverrideMode } from '@/lib/quote-pricing-safety'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
@@ -27,8 +28,8 @@ import { buildServiceProfitabilityPlan } from '@/lib/service-profitability'
 import { buildContributionPricingPlan, buildProtectionRecommendation } from '@/lib/contribution-pricing'
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import { removeStorageQuoteScope, type QuoteType } from '@/lib/storage-quote-scope'
-import { qualifyMoveAddress } from '@/lib/route-address'
-import { evaluateQuoteReadiness, HIDDEN_INVENTORY_AREAS } from '@/lib/quote-readiness'
+import { isCrossBorderMove, qualifyMoveAddress } from '@/lib/route-address'
+import { coverageResolved, evaluateQuoteReadiness, HIDDEN_INVENTORY_AREAS } from '@/lib/quote-readiness'
 import { buildEstimateWorkflowStages, nextEstimateWorkflowStage, type EstimateWorkflowStageId } from '@/lib/estimate-workflow'
 import { selectedAddressCity } from '@/lib/address-city'
 import type { HiddenInventoryArea, MoveEvidenceState } from '@/lib/types'
@@ -133,6 +134,15 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
       )}
     </div>
   )
+}
+
+function AddressMapLinks({ address }: { address: string }) {
+  if (!address.trim()) return null
+  const query = encodeURIComponent(address.trim())
+  return <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] font-semibold">
+    <a href={`https://www.google.com/maps/search/?api=1&query=${query}`} target="_blank" rel="noreferrer" className="text-[var(--app-accent)] hover:underline">Google Maps ↗</a>
+    <a href={`https://maps.apple.com/?q=${query}`} target="_blank" rel="noreferrer" className="text-[var(--app-accent)] hover:underline">Apple Maps ↗</a>
+  </div>
 }
 
 type RouteResult = {
@@ -446,6 +456,7 @@ export function EstimateDraftModal({
   const currentUser = useCurrentUser()
   const onRecalculateRef = useRef(onRecalculate)
   const routeSectionRef = useRef<HTMLDivElement | null>(null)
+  const stageContentRef = useRef<HTMLDivElement | null>(null)
   const manualKmInputRef = useRef<HTMLInputElement | null>(null)
   const [route, setRoute] = useState<RouteResult | null>(null)
   const [routeBusy, setRouteBusy] = useState(false)
@@ -1192,6 +1203,8 @@ export function EstimateDraftModal({
   const [presetSearch, setPresetSearch] = useState('')
   const [inventoryCopyNotice, setInventoryCopyNotice] = useState<string | null>(null)
   const [priceExplanationNotice, setPriceExplanationNotice] = useState<string | null>(null)
+  const [scopeConfirmationNotice, setScopeConfirmationNotice] = useState<string | null>(null)
+  const [scopeConfirmationBusy, setScopeConfirmationBusy] = useState(false)
   const [sendGuardOpen, setSendGuardOpen] = useState(false)
   const [capacityBusy, setCapacityBusy] = useState(false)
   const [capacitySnapshot, setCapacitySnapshot] = useState<BranchCapacitySnapshot | null>(null)
@@ -1227,6 +1240,7 @@ export function EstimateDraftModal({
   const destFull = (() => {
     return buildRouteAddress(destAddress || lead.destAddress, destCity || lead.destCity)
   })()
+  const crossBorderMove = Boolean(originFull && destFull && isCrossBorderMove(originFull, destFull))
   const selectedBranch = (localBranch || branch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
   const baseQuoteSubtotal = useMemo(
     () => quoteLineItems.reduce((sum, item) => {
@@ -1532,6 +1546,59 @@ export function EstimateDraftModal({
   function setFactor<K extends keyof JobFactors>(key: K, value: JobFactors[K]) {
     const next = { ...jobFactors, [key]: value }
     onJobFactorsChange(next)
+  }
+
+  function setCrossBorderRiskBuffer(amount: number) {
+    const description = 'Cross-Border Capacity & Risk Buffer'
+    const remaining = quoteLineItems.filter(item => item.description !== description)
+    onSetLineItems(amount > 0 ? [...remaining, {
+      description,
+      details: 'Additional international crew availability, border-delay, and execution-risk reserve',
+      amount,
+      pricingSource: 'manual',
+    }] : remaining)
+  }
+
+  async function textCustomerForScopeConfirmation() {
+    if (!lead.phone) {
+      setScopeConfirmationNotice('Add a customer phone number before sending the checklist.')
+      return
+    }
+    const unresolved = HIDDEN_INVENTORY_AREAS.filter(area => {
+      const value = jobFactors.hiddenInventoryCoverage?.[area.key]
+      return !coverageResolved(value)
+    })
+    if (unresolved.length === 0) {
+      setScopeConfirmationNotice('All hidden inventory areas are already confirmed.')
+      return
+    }
+    setScopeConfirmationBusy(true)
+    setScopeConfirmationNotice(null)
+    try {
+      const body = `Hi ${lead.name?.split(' ')[0] || 'there'}, before we finalize your flat-rate move estimate, please confirm what is moving from these areas: ${unresolved.map(area => area.label).join(', ')}. If an area does not exist or is empty, please say so. Reply here with the details — thank you.`
+      const response = await fetch('/api/sales/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ channel: 'sms', to: lead.phone, body, leadId: lead.id, notes: 'Estimate scope confirmation checklist' }),
+      })
+      const result = await response.json()
+      if (!response.ok || result.error) throw new Error(result.error || 'Unable to send the scope checklist.')
+      setScopeConfirmationNotice('Checklist sent. Record each answer below when the customer replies.')
+    } catch (error) {
+      setScopeConfirmationNotice(error instanceof Error ? error.message : 'Unable to send the scope checklist.')
+    } finally {
+      setScopeConfirmationBusy(false)
+    }
+  }
+
+  function callCustomerForScopeConfirmation() {
+    if (!lead.phone) {
+      setScopeConfirmationNotice('Add a customer phone number before calling.')
+      return
+    }
+    window.dispatchEvent(new CustomEvent('crm:open-dialer', { detail: { phone: lead.phone, leadId: lead.id, name: lead.name } }))
+    setScopeConfirmationNotice('Dialer opened. Record each confirmed answer below during the call.')
   }
 
   function setHiddenCoverage(area: HiddenInventoryArea, state: MoveEvidenceState) {
@@ -2170,6 +2237,9 @@ export function EstimateDraftModal({
     ? resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode)
     : { subtotal: 0, hst: 0, total: 0 }, [overrideInput, overrideTaxMode])
   const overrideAmount = overridePricing.subtotal
+  const overrideSliderBase = estimateAdjustmentAmount(baseQuoteSubtotal || quoteModalTotals.subtotal || 100, overrideTaxMode || 'plus_hst', 0)
+  const overrideSliderMin = Math.max(100, Math.floor((overrideSliderBase * 0.75) / 25) * 25)
+  const overrideSliderMax = Math.max(overrideSliderMin + 100, Math.ceil((overrideSliderBase * 1.5) / 25) * 25)
   const overrideIsIncrease = baseQuoteSubtotal > 0 && overrideAmount >= baseQuoteSubtotal
   const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
   const overrideApprovalMatches = useMemo(() => {
@@ -2382,7 +2452,23 @@ export function EstimateDraftModal({
   const activeWorkflowStage = workflowStages[activeStageIndex] || workflowStages[0]
   const goToStage = (stage: EstimateWorkflowStageId) => {
     setActiveStage(stage)
-    requestAnimationFrame(() => document.getElementById('estimate-stage-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    requestAnimationFrame(() => stageContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+  function resolveReadinessItem(item: QuoteReadinessItem) {
+    const hidden = HIDDEN_INVENTORY_AREAS.some(area => area.label === item.label)
+    const stage: EstimateWorkflowStageId = hidden || ['Packing status', 'Boxes asked', 'Item-path intelligence', 'Specialty fulfillment priced'].includes(item.label)
+      ? 'handling'
+      : /destination/i.test(item.label) ? 'destination'
+      : /origin|work location/i.test(item.label) ? 'origin'
+      : ['Customer name', 'Phone', 'Email or SMS available', 'Move date'].includes(item.label) ? 'lead'
+      : item.category === 'inventory' || item.category === 'evidence' ? 'inventory' : 'plan'
+    setEstimateView('guided')
+    setActiveStage(stage)
+    requestAnimationFrame(() => {
+      const target = hidden ? document.getElementById('estimate-hidden-inventory') : stageContentRef.current
+      if (target instanceof HTMLDetailsElement) target.open = true
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
   useEffect(() => {
     if (!workflowStages.some(stage => stage.id === activeStage)) setActiveStage(workflowStages[0]?.id || 'lead')
@@ -2635,12 +2721,13 @@ export function EstimateDraftModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/35 px-0 py-0 md:px-4 md:py-6" onClick={event => { if (event.target === event.currentTarget) onClose() }}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="estimate-draft-title"
         className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:my-4 md:min-h-0 md:rounded-[12px]"
+        onMouseDown={event => event.stopPropagation()}
         onClick={event => event.stopPropagation()}
       >
         {/* Header */}
@@ -2716,7 +2803,7 @@ export function EstimateDraftModal({
           </div></> : <div className="text-xs text-[var(--app-muted)]">Everything is on one page. Review only what matters, then use the readiness summary before sending.</div>}
         </div>
 
-        <div id="estimate-stage-content" className={`scroll-mt-28 grid ${estimateView === 'simple' || activeStage === 'plan' ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+        <div ref={stageContentRef} id="estimate-stage-content" className={`scroll-mt-28 grid ${estimateView === 'simple' || activeStage === 'plan' ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
           {/* Main content */}
           <div className="overflow-y-auto p-4 md:p-6 space-y-6">
             {estimateView === 'guided' ? <style>{`[data-estimate-stage]:not([data-estimate-stage="${activeStage}"]) { display: none !important; }`}</style> : null}
@@ -2912,6 +2999,7 @@ export function EstimateDraftModal({
                         }
                       }}
                     />
+                    <AddressMapLinks address={originFull} />
                   </div>}
                   {!isLaborOnly && (estimateView === 'simple' || activeStage === 'destination') && <div>
                     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
@@ -2929,6 +3017,7 @@ export function EstimateDraftModal({
                         }
                       }}
                     />
+                    <AddressMapLinks address={destFull} />
                   </div>}
                 </div>
                 <div className="mt-4">
@@ -3002,6 +3091,18 @@ export function EstimateDraftModal({
                       </button>
                     </div>
                   )}
+                  {crossBorderMove ? <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div><div className="text-xs font-semibold text-sky-950">Cross-border pricing protection</div><div className="mt-1 text-[10px] leading-4 text-sky-800">The estimate adds a mandatory $500 Cross-Border Logistics Premium when calculated. Add a separate capacity buffer only when crew availability, border timing, or execution risk justifies it.</div></div>
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800">{quoteLineItems.some(item => item.description === 'Cross-Border Logistics Premium' && item.amount === 500) ? '$500 included' : '$500 required at calculation'}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[0, 250, 500, 750].map(amount => {
+                        const selected = Number(quoteLineItems.find(item => item.description === 'Cross-Border Capacity & Risk Buffer')?.amount || 0) === amount
+                        return <button key={amount} type="button" onClick={() => setCrossBorderRiskBuffer(amount)} className={`rounded-[6px] border px-2.5 py-1.5 text-[10px] font-semibold ${selected ? 'border-[#071421] bg-[#071421] text-white' : 'border-sky-200 bg-white text-sky-900'}`}>{amount === 0 ? 'No extra buffer' : `Add ${formatMoney(amount)}`}</button>
+                      })}
+                    </div>
+                  </div> : null}
                 </div>
               </div>
             )}
@@ -5253,11 +5354,17 @@ export function EstimateDraftModal({
                   <div className="text-xs leading-relaxed">{accessAssessment.summary}</div>
                 </div>
 
-                <details open={estimateView === 'guided' ? true : undefined} className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
+                <details id="estimate-hidden-inventory" open={estimateView === 'guided' ? true : undefined} className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
                   <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
                     <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">Hidden Inventory Check</div><p className="mt-1 text-xs text-amber-800">Every area needs its own factual answer. Silence and a general inventory confirmation do not count.</p></div>
                     <div className={`rounded-full px-3 py-1 text-xs font-bold ${blockingReadiness.length === 0 ? 'bg-emerald-600 text-white' : 'bg-white text-amber-900'}`}>{blockingReadiness.length === 0 ? 'QUOTE READY' : `${quoteReadyAssessment.inventoryConfidence}% inventory confidence`}</div>
                   </summary>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[7px] border border-amber-200 bg-white p-3">
+                    <div className="mr-auto min-w-[220px]"><div className="text-xs font-semibold text-[var(--app-ink)]">Confirm directly with the customer</div><div className="mt-0.5 text-[10px] text-[var(--app-muted)]">Send one concise checklist or call, then record each factual answer below.</div></div>
+                    <button type="button" onClick={() => void textCustomerForScopeConfirmation()} disabled={scopeConfirmationBusy || !lead.phone} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{scopeConfirmationBusy ? 'Sending…' : 'Text checklist'}</button>
+                    <button type="button" onClick={callCustomerForScopeConfirmation} disabled={!lead.phone} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] disabled:opacity-40">Call customer</button>
+                    {scopeConfirmationNotice ? <div role="status" className="w-full text-[10px] text-amber-900">{scopeConfirmationNotice}</div> : null}
+                  </div>
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     {HIDDEN_INVENTORY_AREAS.map(area => {
                       const value = jobFactors.hiddenInventoryCoverage?.[area.key]
@@ -5711,7 +5818,7 @@ export function EstimateDraftModal({
                 {blockingReadiness.length > 0 ? (
                   <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 p-3">
                     <div className="text-xs font-semibold text-amber-950">Still needs confirmation</div>
-                    <div className="mt-2 grid gap-1 text-xs text-amber-900 sm:grid-cols-2">{blockingReadiness.map(item => <div key={`${item.label}-${item.detail}`}>• {item.label}</div>)}</div>
+                    <div className="mt-2 grid gap-1 text-xs text-amber-900 sm:grid-cols-2">{blockingReadiness.map(item => <button key={`${item.label}-${item.detail}`} type="button" onClick={() => resolveReadinessItem(item)} className="text-left underline underline-offset-2">{item.label} →</button>)}</div>
                   </div>
                 ) : null}
                 {sendGuardOpen && (blockingReadiness.length > 0 || warningReadiness.length > 0) ? (
@@ -5741,10 +5848,10 @@ export function EstimateDraftModal({
             </div>
 
             {estimateView === 'guided' ? <div className="sticky bottom-0 z-20 flex items-center justify-between gap-3 border-t border-[var(--app-line)] bg-white/95 px-1 py-3 backdrop-blur">
-              <button type="button" disabled={activeStageIndex === 0} onClick={() => goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, -1))} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] disabled:opacity-30">← Back</button>
+              <button type="button" disabled={activeStageIndex === 0} onClick={event => { event.preventDefault(); event.stopPropagation(); goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, -1)) }} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] disabled:opacity-30">← Back</button>
               <div className="hidden text-center text-[10px] text-[var(--app-muted)] sm:block">Changes stay in the same draft. Moving between stages does not duplicate or resend anything.</div>
               {activeStageIndex < workflowStages.length - 1 ? (
-                <button type="button" onClick={() => goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, 1))} className="rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white">Next: {workflowStages[activeStageIndex + 1]?.label} →</button>
+                <button type="button" onClick={event => { event.preventDefault(); event.stopPropagation(); goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, 1)) }} className="rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white">Next: {workflowStages[activeStageIndex + 1]?.label} →</button>
               ) : (
                 <span className="text-xs font-semibold text-[var(--app-muted)]">Final review</span>
               )}
@@ -7002,9 +7109,7 @@ export function EstimateDraftModal({
                             {categoryItems.map(item => (
                               <div key={item.label} className="flex items-start justify-between gap-2 text-[11px]" title={item.ready ? undefined : item.detail}>
                                 <span className={item.ready ? 'text-[var(--app-ink)]' : item.critical ? 'text-rose-700' : 'text-amber-700'}>{item.label}</span>
-                                <span className={`shrink-0 font-semibold ${item.ready ? 'text-emerald-700' : item.critical ? 'text-rose-700' : 'text-amber-700'}`}>
-                                  {item.ready ? '✓' : item.critical ? 'Required' : 'Confirm'}
-                                </span>
+                                {item.ready ? <span className="shrink-0 font-semibold text-emerald-700">✓</span> : <button type="button" onClick={() => resolveReadinessItem(item)} aria-label={`Resolve ${item.label}`} className="shrink-0 rounded border border-amber-300 bg-white px-2 py-0.5 font-semibold text-amber-800 hover:bg-amber-50">Confirm →</button>}
                               </div>
                             ))}
                           </div>
@@ -7402,6 +7507,35 @@ export function EstimateDraftModal({
                       <option value="other">Other</option>
                     </select>
                   </div>
+                  {overrideTaxMode ? <div className="rounded-[7px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                    <div className="flex items-center justify-between gap-3 text-[10px]"><span className="font-semibold text-[var(--app-ink)]">Slide to adjust the price</span><span className="text-[var(--app-muted)]">{formatMoney(overrideSliderMin)}–{formatMoney(overrideSliderMax)}</span></div>
+                    <input
+                      aria-label="Adjusted estimate price"
+                      type="range"
+                      min={overrideSliderMin}
+                      max={overrideSliderMax}
+                      step={25}
+                      value={Math.min(overrideSliderMax, Math.max(overrideSliderMin, Number(overrideInput || overrideSliderBase)))}
+                      onChange={event => {
+                        setOverrideInput(event.target.value)
+                        setOverrideApplied(false)
+                        setApprovedOverrideAmount(null)
+                        setOverrideApprovalNotice(null)
+                        if (!overrideNote.trim()) setOverrideNote('Sales price adjustment from the calculated estimate.')
+                      }}
+                      className="mt-2 w-full accent-[#071421]"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[0, 5, 10, 15].map(percent => <button key={percent} type="button" onClick={() => {
+                        const amount = estimateAdjustmentAmount(baseQuoteSubtotal || quoteModalTotals.subtotal || 100, overrideTaxMode || 'plus_hst', percent)
+                        setOverrideInput(String(amount))
+                        setOverrideApplied(false)
+                        setApprovedOverrideAmount(null)
+                        setOverrideApprovalNotice(null)
+                        if (!overrideNote.trim()) setOverrideNote(percent === 0 ? 'Using the calculated estimate.' : `Sales price adjustment: +${percent}% risk and capacity buffer.`)
+                      }} className="rounded-[5px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">{percent === 0 ? 'Calculated' : `+${percent}%`}</button>)}
+                    </div>
+                  </div> : null}
                   <textarea
                     value={overrideNote}
                     onChange={e => {
@@ -7660,7 +7794,7 @@ export function EstimateDraftModal({
                     </div>
                     <details className="mt-2 rounded-[6px] bg-white/70 px-2.5 py-2">
                       <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide">View missing details</summary>
-                      <div className="mt-2 space-y-1 text-[11px] leading-4">{[...blockingReadiness, ...warningReadiness].slice(0, 6).map(item => <div key={`${item.label}-${item.detail}`}>• {item.label}</div>)}{blockingReadiness.length + warningReadiness.length > 6 ? <div>• +{blockingReadiness.length + warningReadiness.length - 6} more</div> : null}</div>
+                      <div className="mt-2 space-y-1 text-[11px] leading-4">{[...blockingReadiness, ...warningReadiness].slice(0, 6).map(item => <button key={`${item.label}-${item.detail}`} type="button" onClick={() => resolveReadinessItem(item)} className="text-left underline underline-offset-2">{item.label} →</button>)}{blockingReadiness.length + warningReadiness.length > 6 ? <div>• +{blockingReadiness.length + warningReadiness.length - 6} more</div> : null}</div>
                     </details>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button

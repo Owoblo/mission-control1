@@ -23,5 +23,5 @@ test('price override requires an explicit tax meaning', () => {
 test('simple view previews an unresolved estimate as provisional instead of dead-ending the rep', () => {
   assert.match(source, /estimateView === 'simple'[\s\S]*await handleProvisionalSend\(\)/)
   assert.match(source, /Preview provisional estimate/)
-  assert.match(source, /<details open=\{estimateView === 'guided' \? true : undefined\}/)
+  assert.match(source, /<details[^>]* open=\{estimateView === 'guided' \? true : undefined\}/)
 })

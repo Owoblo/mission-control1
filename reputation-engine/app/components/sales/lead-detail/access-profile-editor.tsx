@@ -62,7 +62,7 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopR
       evidenceStatus: profile.evidenceStatus === 'customer_confirmed' ? profile.evidenceStatus : 'customer_estimated',
       evidenceNote: `${PROPERTY_OPTIONS.find(([value]) => value === propertyType)?.[1] || 'Property'} selected during address review.`,
     })
-    setExpanded(current => ({ ...current, [profile.stopId]: true }))
+    setExpanded(current => ({ ...current, [profile.stopId]: !['detached', 'semi_detached'].includes(propertyType) }))
   }
 
   function confirmTypicalHouse(profile: AccessProfile) {
@@ -82,11 +82,12 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopR
     <div className="grid gap-3 xl:grid-cols-2">
       {profiles.map(profile => {
         const result = plan.stops.find(stop => stop.stopId === profile.stopId)
-        const open = expanded[profile.stopId]
         const propertyType = inferredPropertyType(profile)
-        const mapUrl = profile.addressSnapshot ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.addressSnapshot)}` : null
+        const open = expanded[profile.stopId] ?? Boolean(propertyType && !['detached', 'semi_detached'].includes(propertyType) && !profile.standardAccessConfirmed)
+        const googleMapUrl = profile.addressSnapshot ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.addressSnapshot)}` : null
+        const appleMapUrl = profile.addressSnapshot ? `https://maps.apple.com/?q=${encodeURIComponent(profile.addressSnapshot)}` : null
         return <div key={profile.stopId} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-          <div className="flex items-start justify-between gap-3"><div><div className="text-sm font-bold text-[var(--app-ink)]">{profile.label}</div><div className="mt-0.5 text-[10px] text-[var(--app-muted)]">{profile.addressSnapshot || 'Address pending'}</div></div>{mapUrl ? <a href={mapUrl} target="_blank" rel="noreferrer" className="shrink-0 rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[#C99700]">Check map ↗</a> : null}</div>
+          <div className="flex items-start justify-between gap-3"><div><div className="text-sm font-bold text-[var(--app-ink)]">{profile.label}</div><div className="mt-0.5 text-[10px] text-[var(--app-muted)]">{profile.addressSnapshot || 'Address pending'}</div></div>{googleMapUrl ? <div className="flex shrink-0 gap-1.5"><a href={googleMapUrl} target="_blank" rel="noreferrer" className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[#C99700]">Check map · Google ↗</a><a href={appleMapUrl || '#'} target="_blank" rel="noreferrer" className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[#C99700]">Apple Maps ↗</a></div> : null}</div>
           <div className="mt-3">
             <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--app-muted)]">Property type {propertyType ? <span className="normal-case tracking-normal text-[#725700]">· suggested from available address details</span> : null}</div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -96,7 +97,7 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopR
               })}
             </div>
           </div>
-          {propertyType ? <div className="mt-3 flex flex-wrap items-center gap-2">{['detached', 'semi_detached'].includes(propertyType) && !profile.standardAccessConfirmed ? <button type="button" onClick={() => confirmTypicalHouse(profile)} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:bg-[#132537]">Customer confirms easy house access</button> : null}<button type="button" onClick={() => setExpanded(current => ({ ...current, [profile.stopId]: !open }))} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[#C99700]">{open ? 'Hide questions' : 'Review or change access'}</button>{profile.standardAccessConfirmed ? <span className="text-[10px] text-[var(--app-muted)]">Short ground-floor route and nearby legal parking confirmed.</span> : null}</div> : <div className="mt-3 rounded-[6px] border border-[#C99700]/35 bg-[#C99700]/8 px-3 py-2 text-xs text-[#725700]">Choose the closest property type. We will show only the questions that matter for that property.</div>}
+          {propertyType ? <div className="mt-3 flex flex-wrap items-center gap-2">{['detached', 'semi_detached'].includes(propertyType) && !profile.standardAccessConfirmed ? <button aria-label="Customer confirms easy house access" type="button" onClick={() => confirmTypicalHouse(profile)} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:bg-[#132537]">✓ Standard driveway access</button> : null}<button type="button" onClick={() => setExpanded(current => ({ ...current, [profile.stopId]: !open }))} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[#C99700]">{open ? 'Hide details' : 'There is a complication'}</button>{['detached', 'semi_detached'].includes(propertyType) ? <span className="text-[10px] text-[var(--app-muted)]">Confirm with customer: driveway/nearby parking, short ground-floor carry, no unusual access.</span> : null}</div> : <div className="mt-3 rounded-[6px] border border-[#C99700]/35 bg-[#C99700]/8 px-3 py-2 text-xs text-[#725700]">Choose the closest property type. We will show only the questions that matter for that property.</div>}
           {open ? <div className="mt-3 grid gap-3 border-t border-[var(--app-line)] pt-3 sm:grid-cols-2">
             <Select label="Property type" value={profile.propertyType} options={PROPERTY_OPTIONS} onChange={value => patch(profile, { propertyType: value })}/>
             <Select label="Crew entrance" value={profile.entranceLocation} options={([['front', 'Front entrance'], ['rear', 'Rear entrance'], ['side', 'Side entrance'], ['loading_dock', 'Loading dock'], ['other', 'Other entrance']] as Array<[NonNullable<AccessProfile['entranceLocation']>, string]>)} onChange={value => patch(profile, { entranceLocation: value })}/>
