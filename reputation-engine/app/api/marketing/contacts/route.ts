@@ -121,6 +121,8 @@ export async function GET(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
+  const requestedId = searchParams.get('id')
+  if (requestedId && !/^[0-9a-f-]{36}$/i.test(requestedId)) return NextResponse.json({ error: 'Invalid contact ID' }, { status: 400 })
   const stage = searchParams.get('stage')
   const tier = searchParams.get('tier')
   const industry = searchParams.get('industry')
@@ -132,6 +134,7 @@ export async function GET(request: Request) {
   const { url, headers } = requireSupabaseEnv()
 
   let query = `${url}/rest/v1/market_contacts?select=*&order=created_at.desc&limit=${limit}&offset=${offset}`
+  if (requestedId) query += `&id=eq.${requestedId}`
   if (stage) query += `&stage=eq.${encodeURIComponent(stage)}`
   if (tier) query += `&tier=eq.${encodeURIComponent(tier)}`
   if (industry) query += `&industry=eq.${encodeURIComponent(industry)}`

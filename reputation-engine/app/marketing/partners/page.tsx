@@ -3738,6 +3738,9 @@ function PhoneTab({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const selectedFromQuery = searchParams.get('contact')
+  const [deepContact, setDeepContact] = useState<Contact | null>(null)
+  const [deepLinkError, setDeepLinkError] = useState('')
   const requestedMarket = (searchParams.get('market') as PartnershipMarketKey | null)
   const requestedAreaId = requestedMarket ? marketCommandForKey(requestedMarket).areaId : ''
   const [search, setSearch] = useState('')
@@ -3817,6 +3820,21 @@ function PhoneTab({
     setCityFilter('')
   }, [requestedAreaId])
 
+  useEffect(() => {
+    let cancelled = false
+    setDeepContact(null); setDeepLinkError('')
+    if (!selectedFromQuery) return
+    setSelectedId(selectedFromQuery)
+    fetch(`/api/marketing/contacts?mode=directory&id=${encodeURIComponent(selectedFromQuery)}&limit=1`, { credentials: 'include' })
+      .then(async response => {
+        const data = await response.json()
+        if (!response.ok || data.contacts?.[0]?.id !== selectedFromQuery) throw new Error('The requested contact is unavailable. No other conversation has been selected.')
+        if (!cancelled) setDeepContact(data.contacts[0])
+      })
+      .catch(error => { if (!cancelled) setDeepLinkError(error.message) })
+    return () => { cancelled = true }
+  }, [selectedFromQuery])
+
   const inboxContacts = useMemo(() => {
     const byId = new Map<string, Contact>()
     const replyIds = new Set(replyContacts.map(contact => contact.id))
@@ -3825,8 +3843,9 @@ function PhoneTab({
       byId.set(contact.id, contact)
     })
     replyContacts.forEach(contact => byId.set(contact.id, { ...(byId.get(contact.id) || {} as Contact), ...contact }))
+    if (deepContact) byId.set(deepContact.id, { ...deepContact, ...(byId.get(deepContact.id) || {}) })
     return Array.from(byId.values())
-  }, [contacts, replyContacts])
+  }, [contacts, replyContacts, deepContact])
 
   const batchMeta = useMemo(() => {
     const sortedBatches = [...batches].sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -3984,8 +4003,7 @@ function PhoneTab({
     }
   }, [inboxFilter, segmentContacts.length, sorted.length])
 
-  const selected = segmentContacts.find(c => c.id === selectedId) ?? null
-  const selectedFromQuery = searchParams.get('contact')
+  const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedThreadFromNumber = selected
     ? touches.length > 0
       ? threadFromNumber(touches, selected.city)
@@ -4022,9 +4040,9 @@ function PhoneTab({
   }, [])
 
   useEffect(() => {
-    if (selectedFromQuery && segmentContacts.some(c => c.id === selectedFromQuery)) {
-      setSelectedId(curr => curr === selectedFromQuery ? curr : selectedFromQuery)
-    } else if (!selectedId && sorted[0]) {
+    // A deep link must never fall back to an unrelated first inbox contact.
+    if (selectedFromQuery) return
+    if (!selectedId && sorted[0]) {
       setSelectedId(sorted[0].id)
     } else if (selectedId && !segmentContacts.some(c => c.id === selectedId)) {
       setSelectedId(sorted[0]?.id ?? null)
@@ -4957,7 +4975,7 @@ function PhoneTab({
       {/* Detail panel */}
       {!selected ? (
         <div className="flex flex-1 items-center justify-center text-slate-400">
-          <div className="text-center"><div className="text-4xl">📱</div><div className="mt-3 text-sm font-medium">Select a contact</div></div>
+          <div className="text-center"><div className="text-4xl">📱</div><div className="mt-3 text-sm font-medium">{deepLinkError || (selectedFromQuery ? 'Loading the requested contact…' : 'Select a contact')}</div></div>
         </div>
       ) : (
         <>
@@ -7063,10 +7081,10 @@ function PartnershipEngineInner() {
           {canUseCommandCenter && (
             <button
               type="button"
-              onClick={() => router.push('/marketing/recent-sales')}
+              onClick={() => router.push('/marketing/listing-activity')}
               className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]`}
             >
-              <span className="hidden sm:inline">Recent Sales</span>
+              <span>Listing Activity</span>
             </button>
           )}
         </div>
