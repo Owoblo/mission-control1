@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 const MARKET_NAV = [
+  { href: '/marketing/listing-activity', label: 'Listing Activity', match: (p: string) => p.startsWith('/marketing/listing-activity') },
   { href: '/marketing/fulfilment', label: 'Fulfil promises', match: (p: string) => p.startsWith('/marketing/fulfilment') },
   { href: '/marketing/partners?tab=today',    label: 'Today',         match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (!tab || tab === 'today') },
   { href: '/marketing/partners?tab=phone',    label: 'Conversations', match: (p: string, tab: string | null) => p.startsWith('/marketing/partners') && (tab === 'phone' || tab === 'replies') },
