@@ -7038,6 +7038,7 @@ function PartnershipEngineInner() {
         <div className={`${inboxActive ? 'hidden' : 'flex'} mb-6 items-center justify-between`}>
           <div>
             <h1 className="text-2xl font-semibold text-[#14213d]">{isDexaOttawaView ? 'Dexa Relationship CRM' : 'Relationship CRM'}</h1>
+            <a href="/marketing/fulfilment" className="mt-2 inline-block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold">Fulfil promises · email drafts</a>
             <p className="mt-0.5 text-sm text-[var(--app-muted)]">
               {batchesLoading ? '—' : batches.length} batch{batches.length !== 1 ? 'es' : ''} · {contactsLoading ? '—' : contacts.length} contacts
               {needsReplyCount > 0 && <span className="ml-2 rounded-full bg-[var(--app-accent-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">{needsReplyCount} responded</span>}

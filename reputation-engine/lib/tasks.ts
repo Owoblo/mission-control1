@@ -31,6 +31,7 @@ export interface CRMTask {
 }
 
 export function taskHref(task: CRMTask) {
+  if (task.category === 'partner_email_fulfilment') return '/marketing/fulfilment'
   if (task.relatedType === 'lead' || task.relatedType === 'job' || task.relatedType === 'customer' || task.relatedType === 'review') {
     return task.relatedId ? `/sales/leads/${task.relatedId}` : undefined
   }

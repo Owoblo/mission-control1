@@ -3,6 +3,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingIncludes: {
+    '/api/marketing/fulfilment': ['./public/partner-cards/*.pdf'],
     '/api/sales/playbook': ['./docs/pdf/Saturn-Star-CRM-Operating-Playbook.pdf', './docs/pdf/Saturn-Star-CRM-Desk-Reference.pdf'],
   },
 };
