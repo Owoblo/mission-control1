@@ -13,6 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { id } = await params
     const current = await getTask(id)
     if (!current) return NextResponse.json({ error: 'Task not found.' }, { status: 404 })
+    if (current.category === 'partner_email_fulfilment') return NextResponse.json({ error: 'Open Fulfil promises to update this email task and preserve its send status.' }, { status: 409 })
     if (session.branch && current.branch && current.branch !== session.branch) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const body = await request.json() as Partial<CRMTask> & { nextTask?: Partial<CRMTask> }
     if (body.status && !statuses.has(body.status)) return NextResponse.json({ error: 'Invalid status.' }, { status: 400 })

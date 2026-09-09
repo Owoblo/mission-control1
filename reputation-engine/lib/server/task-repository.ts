@@ -11,8 +11,12 @@ type TaskRow = {
 }
 
 function fromRow(row: TaskRow): CRMTask {
+  let fulfilmentDraft: { note?: string } | undefined
+  if (row.category === 'partner_email_fulfilment') {
+    try { fulfilmentDraft = JSON.parse(row.description || '') } catch { /* legacy plain description */ }
+  }
   return {
-    id: row.id, title: row.title, description: row.description || undefined, status: row.status, priority: row.priority,
+    id: row.id, title: row.title, description: fulfilmentDraft?.note || row.description || undefined, status: row.status, priority: row.priority,
     category: row.category, dueAt: row.due_at || undefined, ownerUserId: row.owner_user_id || undefined,
     ownerName: row.owner_name || undefined, branch: row.branch || undefined, relatedType: row.related_type || undefined,
     relatedId: row.related_id || undefined, relatedLabel: row.related_label || undefined, source: row.source,
