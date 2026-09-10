@@ -3,6 +3,9 @@
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
+import { MessageText } from '@/app/components/partnership/message-text'
+import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
+import { appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
 import { sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
@@ -4307,6 +4310,21 @@ function PhoneTab({
     }
   }
 
+  function addCityBusinessCard(card: PartnerBusinessCard) {
+    const reply = businessCardReply(card)
+    if (composeChannel === 'email') {
+      const text = `${reply}\n\n${businessCardUrl(card)}`
+      setEmailSubject(current => current || `${card.business} - ${card.city} digital card`)
+      setEmailBody(current => current.includes(businessCardUrl(card)) ? current : [current.trim(), text].filter(Boolean).join('\n\n'))
+    } else {
+      const attachments = attachBusinessCard(mediaUrls, card)
+      if (attachments.length > 10) { showToast('Remove an attachment before adding your card.'); return }
+      setMediaUrls(attachments)
+      setSmsBody(current => appendBusinessCardReply(current, card))
+    }
+    showToast(`${card.city} card added - review and press Send`)
+  }
+
   async function handleSend() {
     if (!selected) return
     const currentSmsBody = smsDraftRef.current
@@ -5185,7 +5203,7 @@ function PhoneTab({
                         Automated SMS
                       </div>
                     )}
-                    {bubbleText && <div className="whitespace-pre-wrap break-words">{bubbleText}</div>}
+                    {bubbleText && <div className="whitespace-pre-wrap break-words"><MessageText text={bubbleText} /></div>}
                     {touchMedia.length > 0 && (
                       <div className="mt-2 grid gap-2">
                         {touchMedia.map(url => (
@@ -5210,6 +5228,13 @@ function PhoneTab({
 
           {/* Compose */}
           <div className="shrink-0 border-t border-slate-200 bg-white px-3 py-2 pb-[max(0.65rem,calc(env(safe-area-inset-bottom)+0.5rem))] shadow-[0_-6px_18px_rgba(7,20,33,0.04)] sm:px-5">
+            <BusinessCardPicker
+              key={selected.id}
+              city={selected.city || selected.partner_company?.city}
+              disabled={sending || mediaUploading}
+              onAdd={addCityBusinessCard}
+              onNotice={showToast}
+            />
             {appointmentSuggestion && (
               <div className="mb-1.5 flex items-center justify-between gap-2 rounded-lg bg-indigo-50 px-2.5 py-1.5">
                 <div className="min-w-0 truncate text-xs font-medium text-indigo-800">
