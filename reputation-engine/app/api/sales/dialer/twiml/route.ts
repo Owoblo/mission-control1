@@ -1,5 +1,5 @@
 import { getSalesLeadByContact, saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
-import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
+import { notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl, requireSupabaseEnv } from '@/lib/server/runtime'
 import { getHealthyBrowserPresence } from '@/lib/server/telephony-monitoring'
 import { findBlockedCaller, getDialerSettings, isWithinBusinessHoursSettings } from '@/lib/server/dialer-settings'
@@ -369,7 +369,12 @@ export async function POST(request: Request) {
         void (async () => {
           try {
           const now = new Date().toISOString()
-          const partnership = await pausePartnershipSequenceForInbound({
+          // Caller-name lookup has a short UI timeout; resolve ownership again
+          // in this background task before changing partnership state.
+          const customerLead = callerLead || await getSalesLeadByContact(from, null, null, { includeClosed: true })
+          const partnership = customerLead
+            ? (await notifyPartnershipCustomerContact({ channel: 'phone', phone: from, occurredAt: now, metadata: { to: normalizedTo || to } }).catch(() => false), { matched: false as const })
+            : await pausePartnershipSequenceForInbound({
             channel: 'phone',
             phone: from,
             occurredAt: now,

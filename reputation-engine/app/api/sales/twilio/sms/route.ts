@@ -4,7 +4,8 @@ import {
   getSaturnTrackingLabel,
   getSaturnTrackingSource,
 } from '@/lib/sales-phones'
-import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
+import { getSalesSmsReplyLeadId } from '@/lib/server/partnership-message-context'
+import { notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
@@ -193,8 +194,16 @@ export async function POST(request: Request) {
     }
 
     if (from) {
-      const isPartnershipLine = getSaturnTrackingSource(toField) === 'partnership_outreach'
-      const partnership = isPartnershipLine
+      let replyLeadId: string | null
+      try {
+        replyLeadId = await getSalesSmsReplyLeadId(normalized || from, toField)
+      } catch (error) {
+        console.error('[sales-twilio-sms] Reply ownership lookup failed', error)
+        return new Response('Unable to resolve message ownership', { status: 503 })
+      }
+      const salesReply = Boolean(replyLeadId)
+      if (salesReply) await notifyPartnershipCustomerContact({ channel: 'sms', phone: normalized || from, occurredAt: receivedAt, metadata: { to: toField } }).catch(error => console.error('Partner recognition notification failed', error))
+      const partnership = !salesReply
         ? await pausePartnershipSequenceForInbound({
             channel: 'sms',
             phone: normalized || from,
@@ -263,7 +272,7 @@ export async function POST(request: Request) {
           raw: { messageSid, from, to: toField, body, numMedia: media.length, media },
         }).catch(() => null)
 
-        const resolvedLeadId = automation?.lead?.id
+        const resolvedLeadId = automation?.lead?.id || replyLeadId || undefined
         if (resolvedLeadId && media.length > 0 && automation?.lead) {
           void persistInboundMmsToLead({
             lead: automation.lead,
