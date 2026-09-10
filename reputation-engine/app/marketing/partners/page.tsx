@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { MessageText } from '@/app/components/partnership/message-text'
 import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
-import { appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
+import { businessCardFirstName, appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
 import { sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
@@ -4311,7 +4311,8 @@ function PhoneTab({
   }
 
   function addCityBusinessCard(card: PartnerBusinessCard) {
-    const reply = businessCardReply(card)
+    const firstName = businessCardFirstName(selected?.name)
+    const reply = businessCardReply(card, firstName)
     if (composeChannel === 'email') {
       const text = `${reply}\n\n${businessCardUrl(card)}`
       setEmailSubject(current => current || `${card.business} - ${card.city} digital card`)
@@ -4320,7 +4321,7 @@ function PhoneTab({
       const attachments = attachBusinessCard(mediaUrls, card)
       if (attachments.length > 10) { showToast('Remove an attachment before adding your card.'); return }
       setMediaUrls(attachments)
-      setSmsBody(current => appendBusinessCardReply(current, card))
+      setSmsBody(current => appendBusinessCardReply(current, card, firstName))
     }
     showToast(`${card.city} card added - review and press Send`)
   }
