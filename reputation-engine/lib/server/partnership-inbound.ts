@@ -59,68 +59,33 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
   }
 
   if (lastTen) {
-    const phoneRes = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(lastTen)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=50`,
-      { headers, cache: 'no-store' }
-    )
-    if (phoneRes.ok) {
-      const phoneRows = ((await phoneRes.json()) as MarketContactMatch[])
-        .filter(contact => partnershipPhonesMatch(contact.phone, normalizedPhone))
-      if (phoneRows.length > 0) return chooseBestMatch(phoneRows)
-    }
-
     // Phone values in historical imports are not normalized consistently
     // (for example, 905-781-0262). A ten-digit ilike only finds contiguous
     // values, so use the final four digits as a narrow candidate lookup and
     // then require an exact normalized match in memory.
     const suffix = partnershipPhoneLookupSuffix(normalizedPhone)
     if (suffix) {
-      const formattedPhoneRes = await fetch(
-        `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=200`,
-        { headers, cache: 'no-store' }
-      )
-      if (formattedPhoneRes.ok) {
-        const formattedPhoneRows = ((await formattedPhoneRes.json()) as MarketContactMatch[])
-          .filter(contact => partnershipPhonesMatch(contact.phone, normalizedPhone))
-        if (formattedPhoneRows.length > 0) return chooseBestMatch(formattedPhoneRows)
+      const matches: MarketContactMatch[] = []
+      for (let offset = 0; ; offset += 200) {
+        const response = await fetch(
+          `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=id.asc&limit=200&offset=${offset}`,
+          { headers, cache: 'no-store' }
+        )
+        if (!response.ok) return null
+        const rows = await response.json() as MarketContactMatch[]
+        matches.push(...rows.filter(contact => partnershipPhonesMatch(contact.phone, normalizedPhone)))
+        if (matches.length > 1) return null
+        if (rows.length < 200) return chooseBestMatch(matches)
       }
     }
   }
 
-  const response = await fetch(
-    `${url}/rest/v1/market_contacts?select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&batch_id=not.is.null&order=created_at.desc&limit=10000`,
-    { headers, cache: 'no-store' }
-  )
-
-  if (!response.ok) return null
-
-  const contacts = (await response.json()) as MarketContactMatch[]
-  const matches = contacts.filter(contact => (
-    (normalizedEmail && normalizeEmail(contact.email) === normalizedEmail) ||
-    (normalizedPhone && partnershipPhonesMatch(contact.phone, normalizedPhone))
-  ))
-
-  return chooseBestMatch(matches)
+  return null
 }
 
 function chooseBestMatch(matches: MarketContactMatch[]) {
-  if (matches.length === 0) return null
-  matches.sort((left, right) => {
-    const leftStage = normalizePartnershipStage(left.stage)
-    const rightStage = normalizePartnershipStage(right.stage)
-    const leftScore =
-      (left.decision ? 0 : 4) +
-      (left.sequence_paused ? 0 : 2) +
-      (leftStage === 'closed_lost' ? 0 : 1)
-    const rightScore =
-      (right.decision ? 0 : 4) +
-      (right.sequence_paused ? 0 : 2) +
-      (rightStage === 'closed_lost' ? 0 : 1)
-
-    return rightScore - leftScore
-  })
-
-  return matches[0] ?? null
+  // Shared brokerage numbers must not pick an arbitrary person's record.
+  return matches.length === 1 ? matches[0] : null
 }
 
 function metadataMediaUrls(metadata?: Record<string, unknown>) {
@@ -451,4 +416,19 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       recovered: true as const,
     }
   }
+}
+
+// Recognise a partner's customer enquiry without copying it into the
+// relationship timeline or changing their partnership disposition.
+export async function notifyPartnershipCustomerContact(input: PausePartnershipSequenceInput) {
+  const contact = await findPartnershipContactMatch(input)
+  if (!contact) return false
+  await sendRepAlertEmail(
+    `Existing partner — customer ${input.channel}: ${contact.name || contact.company || 'Contact'}`,
+    partnershipInboundNotificationEmail({ contactId: contact.id, contactName: contact.name, company: contact.company,
+      channel: input.channel, occurredAt: input.occurredAt, phone: input.phone,
+      notes: `This contact also has a customer conversation. Continue the moving enquiry in Sales. Received on ${String(input.metadata?.to || 'company line')}.`,
+    }), getPartnershipAlertRecipients(contact.city)
+  )
+  return true
 }

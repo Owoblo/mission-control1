@@ -1,3 +1,4 @@
+import { excludePartnershipMessages } from '@/lib/server/partnership-message-context'
 import { NextResponse } from 'next/server'
 import { buildSmsThreads, listSmsMessages, mergeInboundLeadSmsThreadMessages } from '@/lib/server/sms-threads'
 import { listAllInboundLeads, listInboundLeadsByPhone, listSalesLeads } from '@/lib/server/sales-repository'
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
       const inboundLeads = filterPhone
         ? await listInboundLeadsByPhone(filterPhone).catch(() => [])
         : []
-      return NextResponse.json(mergeInboundLeadSmsThreadMessages(messages, inboundLeads, filterPhone || undefined))
+      return NextResponse.json(await excludePartnershipMessages(mergeInboundLeadSmsThreadMessages(messages, inboundLeads, filterPhone || undefined)))
     }
 
     const [leads, inboundLeads] = await Promise.all([

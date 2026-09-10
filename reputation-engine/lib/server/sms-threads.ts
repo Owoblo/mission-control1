@@ -1,3 +1,4 @@
+import { excludePartnershipMessages, listPartnershipMessageSids } from '@/lib/server/partnership-message-context'
 import {
   DEFAULT_SATURN_BRANCH_NUMBER,
   getSaturnBranchLabel,
@@ -45,16 +46,6 @@ export interface SalesSmsThread {
   lastReadByName?: string
   lastActionAt?: string
   lastActionByName?: string
-}
-
-type SmsThreadSummaryRow = {
-  contact_phone: string
-  business_number: string
-  last_message: string
-  last_at: string
-  last_direction: 'inbound' | 'outbound'
-  latest_lead_id: string | null
-  inbound_times: string[] | null
 }
 
 const HEALTH_PROBE_SMS_DIGITS = '15550001111'
@@ -172,50 +163,59 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
     messages = (await response.json()) as SmsMessageRecord[]
   }
 
-  return messages.filter(message => !isInternalHealthProbeSmsMessage(message))
+  return excludePartnershipMessages(messages.filter(message => !isInternalHealthProbeSmsMessage(message)))
+}
+
+// Cache the shared source, not separate history hydration for every search/page.
+// Ownership filtering happens before grouping, search, ordering and pagination.
+let summarySnapshot: { url: string; expiresAt: number; promise: Promise<SmsMessageRecord[]> } | undefined
+
+async function readSalesSmsSnapshot() {
+  const { url, headers } = requireSupabaseEnv()
+  const messages: SmsMessageRecord[] = []
+  const partnerSids = await listPartnershipMessageSids()
+  for (let offset = 0; ; offset += 1000) {
+    const query = new URLSearchParams({
+      select: 'id,from_number,to_number,body,direction,lead_id,twilio_sid,created_at',
+      order: 'created_at.desc,id.desc', limit: '1000', offset: String(offset),
+    })
+    const response = await fetch(`${url}/rest/v1/sms_messages?${query}`, { headers, cache: 'no-store' })
+    if (!response.ok) throw new Error('Unable to read Sales inbox messages')
+    const rows = await response.json() as SmsMessageRecord[]
+    messages.push(...rows)
+    if (rows.length < 1000) break
+  }
+  return excludePartnershipMessages(messages.filter(message => !isInternalHealthProbeSmsMessage(message)), partnerSids)
+}
+
+export function paginateSalesSmsMessages(messages: SmsMessageRecord[], limit = 150, offset = 0, search = '') {
+  const groups = new Map<string, SmsMessageRecord[]>()
+  for (const message of messages) {
+    const phone = getSmsContactPhone(message)
+    if (!phone || isSaturnBranchPhoneNumber(phone)) continue
+    const group = groups.get(phone) ?? []
+    group.push(message)
+    groups.set(phone, group)
+  }
+  const query = search.trim().toLowerCase()
+  return [...groups.entries()]
+    .map(([phone, rows]) => ({ phone, rows: rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id)) }))
+    .filter(({ phone, rows }) => !query || phone.toLowerCase().includes(query) || (rows[0].body || '').toLowerCase().includes(query))
+    .sort((a, b) => b.rows[0].created_at.localeCompare(a.rows[0].created_at) || a.phone.localeCompare(b.phone))
+    .slice(offset, offset + limit)
+    .flatMap(group => group.rows)
 }
 
 export async function listSmsThreadSummaryMessages(limit = 150, offset = 0, search = ''): Promise<SmsMessageRecord[]> {
-  const { url, headers } = requireSupabaseEnv()
-  const response = await fetch(`${url}/rest/v1/rpc/list_sms_thread_summaries`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ p_limit: limit, p_offset: offset, p_search: search || null }),
-    cache: 'no-store',
-  })
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    // Permit a zero-downtime application deploy before the migration reaches
-    // production, while keeping the historical path available as a fallback.
-    if (response.status === 404 || detail.includes('PGRST202')) return listSmsMessages()
-    throw new Error(`SMS thread summary RPC failed: ${detail || response.status}`)
+  const { url } = requireSupabaseEnv()
+  if (!summarySnapshot || summarySnapshot.url !== url || summarySnapshot.expiresAt <= Date.now()) {
+    const snapshot = { url, expiresAt: Infinity, promise: readSalesSmsSnapshot() }
+    summarySnapshot = snapshot
+    snapshot.promise.then(() => { snapshot.expiresAt = Date.now() + 5000 }, () => {
+      if (summarySnapshot === snapshot) summarySnapshot = undefined
+    })
   }
-  const rows = await response.json() as SmsThreadSummaryRow[]
-  return rows.flatMap((row, rowIndex) => {
-    const inbound = (row.inbound_times || []).map((createdAt, index): SmsMessageRecord => ({
-      id: `summary-in-${rowIndex}-${index}`,
-      from_number: row.contact_phone,
-      to_number: row.business_number,
-      body: row.last_direction === 'inbound' && createdAt === row.last_at ? row.last_message : '',
-      direction: 'inbound',
-      lead_id: row.latest_lead_id,
-      twilio_sid: null,
-      created_at: createdAt,
-    }))
-    if (row.last_direction === 'outbound') {
-      inbound.push({
-        id: `summary-out-${rowIndex}`,
-        from_number: row.business_number,
-        to_number: row.contact_phone,
-        body: row.last_message,
-        direction: 'outbound',
-        lead_id: row.latest_lead_id,
-        twilio_sid: null,
-        created_at: row.last_at,
-      })
-    }
-    return inbound
-  })
+  return paginateSalesSmsMessages(await summarySnapshot.promise, limit, offset, search)
 }
 
 function getLatestInboundAt(messages: SmsMessageRecord[]) {

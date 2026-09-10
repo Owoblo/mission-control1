@@ -1,3 +1,4 @@
+import { excludePartnershipMessages } from '@/lib/server/partnership-message-context'
 import { uid } from '@/lib/sales'
 import type {
   AutomationJobKind,
@@ -495,18 +496,22 @@ export async function listSmsMessagesForContact(phone: string, limit = 12): Prom
     throw new Error(`Failed to read sms_messages: ${detail}`)
   }
 
-  return (await response.json()) as SmsMessageRecord[]
+  return excludePartnershipMessages((await response.json()) as SmsMessageRecord[])
 }
 
 export async function linkSmsMessagesToLead(leadId: string, phone: string) {
   const normalized = normalizePhone(phone)
+  if (!normalized) return
   const { url, headers } = requireSupabaseEnv()
-  await fetch(
-    `${url}/rest/v1/sms_messages?or=${encodeURIComponent(`(from_number.eq.${normalized},to_number.eq.${normalized})`)}&lead_id=is.null`,
-    {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ lead_id: leadId }),
-    }
-  ).catch(() => {})
+  const endpoint = `${url}/rest/v1/sms_messages?or=${encodeURIComponent(`(from_number.eq.${normalized},to_number.eq.${normalized})`)}&lead_id=is.null`
+  const response = await fetch(`${endpoint}&select=id,twilio_sid,lead_id,from_number,to_number,direction`, { headers, cache: 'no-store' })
+  if (!response.ok) throw new Error('Unable to read unassigned SMS messages')
+  const rows = await excludePartnershipMessages(await response.json() as SmsMessageRecord[])
+  for (let start = 0; start < rows.length; start += 100) {
+    const ids = rows.slice(start, start + 100).map(row => row.id)
+    const linked = await fetch(`${url}/rest/v1/sms_messages?id=in.(${ids.join(',')})&lead_id=is.null`, {
+      method: 'PATCH', headers, body: JSON.stringify({ lead_id: leadId }),
+    })
+    if (!linked.ok) throw new Error('Unable to link customer SMS messages')
+  }
 }
