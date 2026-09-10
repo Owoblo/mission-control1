@@ -51,3 +51,10 @@ test('an unauthenticated device has no line access', () => {
   assert.deepEqual(listMobilePhoneLines(null), [])
   assert.equal(canUseMobilePhoneLine(null, '+15195550123'), false)
 })
+
+ test('Ottawa branch manager can reply on Ottawa partnership line without other-market access', () => {
+  const courage = session('manager', 'ottawa')
+  assert.equal(canUseMobilePhoneLine(courage, '+15482908695'), true)
+  assert.equal(canUseMobilePhoneLine(courage, '+12268870667'), false)
+  assert.equal(canUseMobilePhoneLine(session('manager'), '+15482908695'), false)
+})

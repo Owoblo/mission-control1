@@ -88,7 +88,7 @@ async function clientIdentitiesForPartnershipLine(dialedNumber?: string | null) 
     const keys = Array.from(new Set([line.market, ...line.cityKeys].map(normalizePartnershipCityKey).filter(Boolean)))
     const branchFilter = keys.map(key => `branch.ilike.*${encodeURIComponent(key)}*`).join(',')
     const res = await fetch(
-      `${url}/rest/v1/app_users?role=eq.partnership_manager&select=id,branch&or=(${branchFilter})&order=created_at.asc&limit=1`,
+      `${url}/rest/v1/app_users?role=in.(partnership_manager,manager)&select=id,branch&or=(${branchFilter})&order=created_at.asc&limit=1`,
       { headers, cache: 'no-store' }
     )
     const [user] = (res.ok ? await res.json() : []) as Array<{ id?: string }>

@@ -39,3 +39,8 @@ test('owner and unscoped central manager retain company-wide partnership access'
   assert.equal(canSeeAllPartnershipMarkets({ exp: courage.exp, role: 'owner' }), true)
   assert.equal(canSeeAllPartnershipMarkets({ exp: courage.exp, role: 'manager' }), true)
 })
+
+test('Vanier mortgage contacts belong to the Ottawa dashboard', () => {
+  assert.equal(partnershipRecordMatchesSession(courage, { city: 'Vanier' }), true)
+  assert.equal(partnershipRecordMatchesSession(courage, { city: 'Kitchener' }), false)
+})
