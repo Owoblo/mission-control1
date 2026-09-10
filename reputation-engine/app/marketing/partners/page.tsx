@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { RelationshipRecord } from '@/app/components/partnership/RelationshipRecord'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { MessageText } from '@/app/components/partnership/message-text'
 import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
@@ -1365,6 +1366,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
 
           <aside className="crm-record-context border-b border-[var(--app-line)] bg-[#fbfaf6] p-5 lg:border-b-0 xl:border-r xl:p-6">
             <div className="sticky top-0 space-y-6">
+              <RelationshipRecord contactId={contact.id} />
               <section>
                 <div className="crm-eyebrow">Identity & context</div>
                 <dl className="mt-4 space-y-3 text-sm">
@@ -5504,6 +5506,7 @@ function PhoneTab({
             </button>
 
             <div className="mt-5 space-y-3">
+              <RelationshipRecord contactId={selected.id} />
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
                 <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
@@ -5584,7 +5587,7 @@ function PhoneTab({
                 ['Email', selected.email || '—'],
                 ['City', selected.city || '—'],
                 ['Company', partnerCompanyLabel(selected)],
-                ['Service type', selected.industry || 'Realtor'],
+                ['Category', selected.industry || 'Not recorded'],
                 ['Lead stage', PARTNERSHIP_STAGE_META[selected.normalized_stage as keyof typeof PARTNERSHIP_STAGE_META]?.label || selected.normalized_stage || '—'],
                 ['Assigned manager', assignedPartnerOwner(selected)],
                 ['Temperature', partnerTemperatureLabel(selected.relationship_temperature)],
