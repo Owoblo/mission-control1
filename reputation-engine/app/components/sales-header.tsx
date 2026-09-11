@@ -63,6 +63,7 @@ const BASE_NAV = [
   { environment: 'Care', href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
+  { environment: 'Management', href: '/sales/economic-truth', label: 'Economic review', match: (p: string) => p.startsWith('/sales/economic-truth'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/admin/users', label: 'Team', match: (p: string) => p.startsWith('/admin'), roles: ['owner'] },
   { environment: 'Management', href: '/sales/settings', label: 'Settings', match: (p: string) => p.startsWith('/sales/settings'), roles: ['owner'] },
