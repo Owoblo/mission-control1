@@ -1078,6 +1078,8 @@ export interface CrewPayoutEntry {
 }
 
 export interface CRMLead {
+  acquisitionInterview?: import('./acquisition-interview').AcquisitionInterview
+  acquisitionInterviewHistory?: import('./acquisition-interview').AcquisitionInterview[]
   id: string
   name: string
   stage: SalesLeadStage

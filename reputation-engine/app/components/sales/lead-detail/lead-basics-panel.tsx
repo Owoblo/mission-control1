@@ -5,6 +5,7 @@ import { formatListingContextSummary, formatListingPropertySummary, getListingDe
 import { getListingSideContactDisplayName } from '@/lib/realtor-opportunity'
 import { CRM_LEAD_SOURCES, formatDate, getSalesBranchLabel } from '@/lib/sales'
 import { PartnerReferralSelector } from '@/app/components/sales/partner-referral-selector'
+import { AcquisitionInterviewPanel } from '@/app/components/sales/acquisition-interview-panel'
 import type { PartnerDirectoryEntry } from '@/lib/partner-directory'
 import type { CRMLead } from '@/lib/types'
 import { SALES_BRANCHES } from '@/lib/sales'
@@ -721,6 +722,7 @@ export function LeadBasicsPanel({
         </fieldset>
       </div>
 
+      <AcquisitionInterviewPanel key={lead.id} leadId={lead.id} disabled={disabled} />
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="crm-label">Move Details</div>
         <fieldset disabled={disabled} className="mt-4 grid gap-3">
