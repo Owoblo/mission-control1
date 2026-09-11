@@ -76,8 +76,10 @@ export function buildEconomicTrace(input: {
     costs: input.costs.filter(c => c.lead_id === lead.id), completed: ['completed', 'customer_success'].includes(lead.stage) })
   const source = lead.attribution?.originalSource || lead.source || null
   const partnerId = lead.partnerReferralContactId || null
+  const interview = lead.acquisitionInterview || null
   const gaps = [...economics.gaps]
   if (!source) gaps.unshift('Originating source is unknown')
+  if (!interview) gaps.unshift('Ask how they heard about us and where they received the postcard')
   const owner = task ? task.ownerName || task.ownerUserId || null : context?.nextActionOwner || null
   const nextAction = task ? task.title : context?.nextAction || null
   const dueAt = task ? task.dueAt || null : context?.nextActionDueAt || null
@@ -90,6 +92,7 @@ export function buildEconomicTrace(input: {
     source, sourceDetail: lead.sourceDetail || null, sourceLeadId: lead.sourceLeadId || null,
     attributionTouches: (lead.attributionSignals || []).map(s => ({ channel: s.channel, influence: s.influence, confidence: s.confidence })),
     partnerId, partnerName: partnerId ? lead.partnerReferralName || null : null,
+    acquisitionInterview: interview,
     linkedRelationshipId: lead.relationshipContactId || null,
     pursuitReason: context?.summary || null,
     quoteId: quote?.id || null, outcomeRecorded: input.outcomes.some(o => o.lead_id === lead.id),
