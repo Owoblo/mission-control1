@@ -12,6 +12,9 @@
     "deploy": "vercel deploy --prod"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1130.0",
+    "@aws-sdk/client-sns": "^3.1130.0",
+    "@aws-sdk/client-support": "^3.1130.0",
     "@cloudflare/realtimekit": "^2.0.1",
     "@cloudflare/realtimekit-react": "^2.0.1",
     "@cloudflare/realtimekit-react-ui": "^2.0.1",

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
-import { Resend } from 'resend'
+import { sendProviderEmail } from '@/lib/server/email-provider'
+import { emailVerificationAllowsSend, verifyEmailAddress } from '@/lib/server/email-verification'
 import {
   decodeSenderFromTemplateKey,
   ensureSmsOptOutLine,
@@ -27,10 +28,54 @@ const DEFAULT_MAX_ATTEMPTS = 3
 // Keep cron work below the database connection budget shared with the live CRM.
 // A backlog is safer than allowing one worker invocation to fan out hundreds
 // of reads/writes while staff are using the sales workspace.
-const SEQUENCE_JOB_BATCH_SIZE = 10
+const SEQUENCE_JOB_BATCH_SIZE = Math.max(1, Math.min(25, Number(readEnv('PARTNERSHIP_EMAIL_MAX_PER_RUN') || 10) || 10))
 
 const PARTNERSHIP_PHONE = DEFAULT_PARTNERSHIP_FROM_NUMBER
 const PARTNERSHIP_EMAIL = DEFAULT_PARTNERSHIP_EMAIL
+
+function envFlag(name: string, defaultValue = false) {
+  const value = readEnv(name).toLowerCase()
+  if (!value) return defaultValue
+  return ['1', 'true', 'yes', 'on'].includes(value)
+}
+
+function partnershipEmailFromName() {
+  return readEnv('PARTNERSHIP_EMAIL_FROM_NAME') || 'John'
+}
+
+function partnershipEmailSignature(phone?: string | null) {
+  const lines = [
+    partnershipEmailFromName(),
+    'Saturn Star Movers',
+  ]
+  if (phone) lines.push(phone)
+  lines.push(PARTNERSHIP_EMAIL)
+  const website = readEnv('PARTNERSHIP_EMAIL_WEBSITE') || 'https://saturnstarmovers.ca'
+  if (website) lines.push(website)
+  return lines.join('\n')
+}
+
+function firstTouchPlainTextOnly() {
+  return envFlag('PARTNERSHIP_EMAIL_FIRST_TOUCH_PLAIN_TEXT', true)
+}
+
+function unsubscribeUrlForContact(contact: Record<string, unknown>) {
+  const token = String(contact.email_unsubscribe_token || '').trim()
+  if (!token) return null
+  const base = readEnv('PUBLIC_APP_URL') || readEnv('NEXT_PUBLIC_APP_URL') || 'https://go.quote2move.com'
+  const url = new URL('/api/marketing/email-unsubscribe', base)
+  url.searchParams.set('token', token)
+  return url.toString()
+}
+
+function unsubscribeHeaders(contact: Record<string, unknown>) {
+  const unsubscribeUrl = unsubscribeUrlForContact(contact)
+  if (!unsubscribeUrl) return undefined
+  return {
+    'List-Unsubscribe': `<${unsubscribeUrl}>`,
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+  }
+}
 
 function partnershipSenderOrFallback(value: string | null | undefined, market?: string | null) {
   return value && isPartnershipSenderNumber(value)
@@ -43,6 +88,16 @@ function cleanCompanyName(value: string) {
     .replace(/\bBrokerage\s+Brokerage\b/gi, 'Brokerage')
     .replace(/\s{2,}/g, ' ')
     .trim()
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>'"]/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;',
+  })[character]!)
 }
 
 function isRealtorContact(contact: Record<string, unknown>) {
@@ -61,6 +116,13 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
   const industry = (contact.industry as string) ?? 'your field'
   const city = (contact.city as string) ?? 'the area'
   const realtorSpecific = isRealtorContact(contact)
+  const htmlFirstName = escapeHtml(firstName)
+  const htmlCompany = escapeHtml(company)
+  const htmlIndustry = escapeHtml(industry)
+  const htmlCity = escapeHtml(city)
+  const htmlRepName = escapeHtml(repName)
+  const htmlPartnershipPhone = escapeHtml(partnershipPhone)
+  const htmlPartnershipEmail = escapeHtml(PARTNERSHIP_EMAIL)
 
   const subject = realtorSpecific
     ? 'Did you get our letter?'
@@ -88,20 +150,30 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
 
   const html = `
 <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#071421;line-height:1.6">
-  <p>Hi ${firstName},</p>
-  <p>I'm ${repName}, Head of Partnerships at Saturn Star Movers.</p>
+  <p>Hi ${htmlFirstName},</p>
+  <p>I'm ${htmlRepName}, Head of Partnerships at Saturn Star Movers.</p>
   <p>${realtorSpecific
-    ? `We recently sent a letter to <strong>${company}</strong> about working together on client referrals, and I wanted to make sure it reached you.`
-    : `We recently sent a letter to <strong>${company}</strong> about partnering with us, and I wanted to make sure it reached you.`}</p>
+    ? `We recently sent a letter to <strong>${htmlCompany}</strong> about working together on client referrals, and I wanted to make sure it reached you.`
+    : `We recently sent a letter to <strong>${htmlCompany}</strong> about partnering with us, and I wanted to make sure it reached you.`}</p>
   <p>${realtorSpecific
-    ? `We work with agents and brokerages in ${city} who refer clients our way. We take great care of those clients and make the referral process easy.`
-    : `We work with ${industry} professionals in ${city} who refer clients our way. We take great care of those clients and make the referral process easy.`}</p>
-  <p>Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at <strong>${partnershipPhone}</strong>, or scan the QR code from our letter.</p>
+    ? `We work with agents and brokerages in ${htmlCity} who refer clients our way. We take great care of those clients and make the referral process easy.`
+    : `We work with ${htmlIndustry} professionals in ${htmlCity} who refer clients our way. We take great care of those clients and make the referral process easy.`}</p>
+  <p>Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at <strong>${htmlPartnershipPhone}</strong>, or scan the QR code from our letter.</p>
   <br/>
-  <p style="color:#555">${repName}<br/>Head of Partnerships | Saturn Star Movers<br/>${partnershipPhone} | ${PARTNERSHIP_EMAIL}</p>
+  <p style="color:#555">${htmlRepName}<br/>Head of Partnerships | Saturn Star Movers<br/>${htmlPartnershipPhone} | ${htmlPartnershipEmail}</p>
 </div>`
 
-  return { subject, html, text }
+  const lightSignature = partnershipEmailSignature(partnershipPhone)
+  const safeText = text.replace(
+    new RegExp(`${repName}\nHead of Partnerships \| Saturn Star Movers\n${partnershipPhone.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \| ${PARTNERSHIP_EMAIL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+    lightSignature,
+  )
+
+  if (firstTouchPlainTextOnly()) {
+    return { subject, html: undefined, text: safeText }
+  }
+
+  return { subject, html, text: safeText }
 }
 
 function buildSms(contact: Record<string, unknown>, batch: Record<string, unknown>): string {
@@ -473,7 +545,6 @@ async function processSequence(request: Request) {
     }
   }
 
-  const resend = new Resend(readEnv('RESEND_API_KEY'))
   const accountSid = readEnv('TWILIO_ACCOUNT_SID')
   const authToken = readEnv('TWILIO_AUTH_TOKEN')
 
@@ -542,13 +613,68 @@ async function processSequence(request: Request) {
           continue
         }
 
+        const verification = await verifyEmailAddress(String(contact.email))
+        const verificationPatch = {
+          email_status: verification.status === 'valid' ? 'verified' : verification.status,
+          email_verified_at: verification.status === 'valid' ? now : null,
+          email_verification_status: verification.status,
+          email_verification_reason: verification.reason,
+          email_verification_provider: verification.provider,
+          email_verification_checked_at: now,
+        }
+
+        if (!emailVerificationAllowsSend(verification)) {
+          await Promise.all([
+            fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
+              method: 'PATCH', headers,
+              body: JSON.stringify({ status: 'cancelled', error: `Email verification blocked send: ${verification.status}/${verification.reason}` }),
+            }),
+            fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
+              method: 'PATCH', headers,
+              body: JSON.stringify({
+                ...verificationPatch,
+                cross_channel_suppressed_at: verification.status === 'invalid' ? now : contact.cross_channel_suppressed_at || null,
+                cross_channel_suppression_reason: verification.status === 'invalid' ? `email_${verification.reason}` : contact.cross_channel_suppression_reason || null,
+              }),
+            }),
+            fetch(`${url}/rest/v1/market_touches`, {
+              method: 'POST',
+              headers: { ...headers, Prefer: 'return=minimal' },
+              body: JSON.stringify({
+                contact_id: contact.id,
+                channel: 'email',
+                direction: 'system',
+                notes: `Email verification blocked send: ${verification.status}/${verification.reason}`,
+                created_by: 'System',
+                created_at: now,
+                metadata: { verification },
+              }),
+            }),
+          ])
+          skipped++
+          continue
+        }
+
         const { subject, html, text } = buildEmail(contact, batch)
-        await resend.emails.send({
-          from: `Saturn Star Partnerships <${PARTNERSHIP_EMAIL}>`,
+        const unsubscribeUrl = unsubscribeUrlForContact(contact)
+        const deliverabilityText = unsubscribeUrl && !text.includes(unsubscribeUrl)
+          ? `${text}\n\nNo longer useful? Unsubscribe: ${unsubscribeUrl}`
+          : text
+        const emailReceipt = await sendProviderEmail({
+          from: `${partnershipEmailFromName()} <${PARTNERSHIP_EMAIL}>`,
           to: contact.email as string,
           subject,
           html,
-          text,
+          text: deliverabilityText,
+          replyTo: readEnv('PARTNERSHIP_EMAIL_REPLY_TO') || PARTNERSHIP_EMAIL,
+          headers: unsubscribeHeaders(contact),
+          trackingMode: firstTouchPlainTextOnly() ? 'deliverability' : 'engagement',
+          tags: {
+            channel: 'partnership',
+            contact_id: String(contact.id),
+            sequence_job_id: String(job.id),
+            ...(job.batch_id ? { batch_id: String(job.batch_id) } : {}),
+          },
         })
 
         await Promise.all([
@@ -562,6 +688,10 @@ async function processSequence(request: Request) {
               stage: 'attempting_contact',
               sequence_step: 2,
               last_touch_at: now,
+              ...verificationPatch,
+              email_last_sent_at: now,
+              email_provider: emailReceipt.provider,
+              email_provider_message_id: emailReceipt.messageId,
               next_follow_up: typeof contact.sms_scheduled_at === 'string'
                 ? contact.sms_scheduled_at.slice(0, 10)
                 : null,
@@ -577,6 +707,13 @@ async function processSequence(request: Request) {
               notes: `Auto-email sent: "${subject}"`,
               created_by: 'System',
               created_at: now,
+              metadata: {
+                provider: emailReceipt.provider,
+                provider_message_id: emailReceipt.messageId,
+                ...(job.batch_id ? { batch_id: String(job.batch_id) } : {}),
+                sequence_job_id: String(job.id),
+                verification,
+              },
             }),
           }),
         ])
