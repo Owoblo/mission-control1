@@ -5,3 +5,17 @@ node_modules
 .vercel
 .env*.local
 .env.sentry-build-plugin
+
+# Local test/preflight output
+.tmp-logic-tests/
+.tmp-tsconfig-email-preflight.json
+tsconfig.typecheck.tsbuildinfo
+
+# Local Supabase CLI state
+supabase/.temp/
+
+# Operational exports, research captures, and recovery archives. These can contain
+# customer/partner data and should be stored outside source control.
+.estimate-recovery/
+deliverables/
+reports/
