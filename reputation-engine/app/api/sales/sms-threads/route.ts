@@ -1,3 +1,4 @@
+import { excludePartnershipMessages } from '@/lib/server/partnership-message-context'
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { buildSmsThreads, listSmsMessages, listSmsThreadSummaryMessages, mergeInboundLeadSmsThreadMessages } from '@/lib/server/sms-threads'
@@ -30,7 +31,7 @@ async function loadSmsThreadSummaries(limit = 150, offset = 0, search = '') {
   return threads.map(thread => ({ ...thread, messages: [] }))
 }
 
-const loadCachedSmsThreadSummaries = unstable_cache(loadSmsThreadSummaries, ['sales-sms-thread-summaries-v2'], {
+const loadCachedSmsThreadSummaries = unstable_cache(loadSmsThreadSummaries, ['sales-sms-thread-summaries-v3'], {
   revalidate: 5,
 })
 
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
       const inboundLeads = filterPhone
         ? await listInboundLeadsByPhone(filterPhone).catch(() => [])
         : []
-      return NextResponse.json(mergeInboundLeadSmsThreadMessages(messages, inboundLeads, filterPhone || undefined))
+      return NextResponse.json(await excludePartnershipMessages(mergeInboundLeadSmsThreadMessages(messages, inboundLeads, filterPhone || undefined)))
     }
 
     const limit = Math.min(250, Math.max(1, Number(searchParams.get('limit')) || 150))

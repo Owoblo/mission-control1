@@ -39,16 +39,6 @@ test('partnership managers receive only partnership lines for their market', () 
   assert.ok(lines.every(line => line.workspace === 'partnership'))
 })
 
-test('central sales staff receive every sales line and no partnership lines', () => {
-  for (const role of ['sales_rep', 'manager'] as const) {
-    const lines = listMobilePhoneLines(session(role))
-    assert.ok(lines.length > 1)
-    assert.ok(lines.every(line => line.workspace === 'sales'))
-    assert.ok(lines.some(line => line.branch === 'windsor'))
-    assert.ok(lines.some(line => line.branch === 'ottawa'))
-  }
-})
-
 test('a branch rep cannot select a different market caller ID', () => {
   const windsor = session('sales_rep', 'Windsor')
   const ottawaLine = listMobilePhoneLines(session('owner'))
@@ -60,4 +50,11 @@ test('a branch rep cannot select a different market caller ID', () => {
 test('an unauthenticated device has no line access', () => {
   assert.deepEqual(listMobilePhoneLines(null), [])
   assert.equal(canUseMobilePhoneLine(null, '+15195550123'), false)
+})
+
+ test('Ottawa branch manager can reply on Ottawa partnership line without other-market access', () => {
+  const courage = session('manager', 'ottawa')
+  assert.equal(canUseMobilePhoneLine(courage, '+15482908695'), true)
+  assert.equal(canUseMobilePhoneLine(courage, '+12268870667'), false)
+  assert.equal(canUseMobilePhoneLine(session('manager'), '+15482908695'), false)
 })

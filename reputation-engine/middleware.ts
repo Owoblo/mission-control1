@@ -17,6 +17,7 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/stripe/webhook',
   '/api/sales/stripe/webhook/dexa',
   '/api/partners/referral-capture',
+  '/api/marketing/email-events/ses',
 ])
 
 // All Twilio dialer callbacks — Twilio hits these without auth, so the whole prefix is public

@@ -44,7 +44,8 @@ export function listMobilePhoneLines(session?: SessionPayload | null): MobilePho
       // never present another market's number to a customer.
       if (session.role === 'sales_rep') return workspace === 'sales'
       if (session.role === 'partnership_manager') return workspace === 'partnership'
-      if (session.role === 'manager') return workspace === 'sales'
+      // Branch managers oversee sales and partnerships within their own market.
+      if (session.role === 'manager') return true
       return true
     })
     .map(number => ({

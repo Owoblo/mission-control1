@@ -46,16 +46,17 @@ const PARTNERSHIP_MARKET_NOTIFY_TO: Record<string, string[]> = {
   cambridge: ['gui@starmovers.ca'],
   guelph: ['gui@starmovers.ca'],
   kw: ['gui@starmovers.ca'],
-  ottawa: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  kanata: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  nepean: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  orleans: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  gloucester: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  stittsville: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  barrhaven: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  manotick: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  rockland: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
-  carp: ['courage.ottawa@starmovers.ca', 'ekecourage1@gmail.com'],
+  ottawa: ['hello@dexamovers.ca'],
+  vanier: ['hello@dexamovers.ca'],
+  kanata: ['hello@dexamovers.ca'],
+  nepean: ['hello@dexamovers.ca'],
+  orleans: ['hello@dexamovers.ca'],
+  gloucester: ['hello@dexamovers.ca'],
+  stittsville: ['hello@dexamovers.ca'],
+  barrhaven: ['hello@dexamovers.ca'],
+  manotick: ['hello@dexamovers.ca'],
+  rockland: ['hello@dexamovers.ca'],
+  carp: ['hello@dexamovers.ca'],
 }
 
 function uniqueEmails(values: Array<string | null | undefined>) {
@@ -89,7 +90,7 @@ export function getPartnershipAlertRecipients(market?: string | null) {
     ...(PARTNERSHIP_MARKET_NOTIFY_TO[key] || []),
     ...(key.includes('windsor') || key.includes('essex') ? PARTNERSHIP_MARKET_NOTIFY_TO.windsor : []),
     ...(key.includes('waterloo') || key.includes('kitchener') || key.includes('cambridge') || key.includes('guelph') ? PARTNERSHIP_MARKET_NOTIFY_TO.waterloo : []),
-    ...(key.includes('ottawa') || key.includes('kanata') || key.includes('nepean') || key.includes('orleans') || key.includes('gloucester') || key.includes('stittsville') || key.includes('barrhaven') || key.includes('manotick') || key.includes('rockland') || key.includes('carp') ? PARTNERSHIP_MARKET_NOTIFY_TO.ottawa : []),
+    ...(key.includes('ottawa') || key.includes('vanier') || key.includes('kanata') || key.includes('nepean') || key.includes('orleans') || key.includes('gloucester') || key.includes('stittsville') || key.includes('barrhaven') || key.includes('manotick') || key.includes('rockland') || key.includes('carp') ? PARTNERSHIP_MARKET_NOTIFY_TO.ottawa : []),
   ]
   return uniqueEmails([
     ...PARTNERSHIP_DEFAULT_NOTIFY_TO,

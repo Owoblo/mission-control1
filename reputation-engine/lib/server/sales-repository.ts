@@ -318,6 +318,42 @@ type QuoteCapacityRow = {
   truckCount?: string | number | null
 }
 
+type QuoteIndexRow = {
+  id: string
+  clientId?: string | null
+  leadId?: string | null
+  number?: string | null
+  status?: string | null
+  originAddress?: string | null
+  originCity?: string | null
+  destCity?: string | null
+  total?: string | number | null
+  validDays?: string | number | null
+  createdAt?: string | null
+  sentAt?: string | null
+  viewedAt?: string | null
+  acceptedAt?: string | null
+  respondedAt?: string | null
+}
+
+const QUOTE_INDEX_SELECT = [
+  'id',
+  'clientId:data->>clientId',
+  'leadId:data->>leadId',
+  'number:data->>number',
+  'status:data->>status',
+  'originAddress:data->>originAddress',
+  'originCity:data->>originCity',
+  'destCity:data->>destCity',
+  'total:data->>total',
+  'validDays:data->>validDays',
+  'createdAt:data->>createdAt',
+  'sentAt:data->>sentAt',
+  'viewedAt:data->>viewedAt',
+  'acceptedAt:data->>acceptedAt',
+  'respondedAt:data->>respondedAt',
+].join(',')
+
 function isRetryableSupabaseStatus(status: number) {
   return status === 408 ||
     status === 425 ||
@@ -1062,6 +1098,58 @@ export async function listSalesQuotes() {
   }
 
   return [...standaloneQuotes, ...Array.from(latestByLeadId.values())].map(record => normalizeQuote(record.data))
+}
+
+export async function listSalesQuoteIndexSnapshots() {
+  const { url, headers } = requireSupabase()
+  const response = await fetchSupabaseWithRetry(
+    `${url}/rest/v1/crm_quotes?select=${encodeURIComponent(QUOTE_INDEX_SELECT)}&deleted=eq.false&order=updated_at.desc`,
+    { headers, cache: 'no-store' }
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to read projected crm_quotes rows')
+  }
+
+  const rows = await response.json() as QuoteIndexRow[]
+  const latestByLeadId = new Map<string, QuoteIndexRow>()
+  const standaloneQuotes: QuoteIndexRow[] = []
+
+  for (const row of rows) {
+    const leadId = normalizeProjectedText(row.leadId)
+    if (!leadId) {
+      standaloneQuotes.push(row)
+      continue
+    }
+    if (!latestByLeadId.has(leadId)) {
+      latestByLeadId.set(leadId, row)
+    }
+  }
+
+  return [...standaloneQuotes, ...Array.from(latestByLeadId.values())].map(row =>
+    normalizeQuote({
+      id: row.id,
+      clientId: normalizeProjectedText(row.clientId) || '',
+      leadId: normalizeProjectedText(row.leadId),
+      number: normalizeProjectedText(row.number) || row.id,
+      status: (normalizeProjectedText(row.status) || 'draft') as CRMQuote['status'],
+      originAddress: normalizeProjectedText(row.originAddress),
+      originCity: normalizeProjectedText(row.originCity),
+      destCity: normalizeProjectedText(row.destCity),
+      total: normalizeProjectedNumber(row.total) || 0,
+      validDays: normalizeProjectedNumber(row.validDays) || 30,
+      createdAt: normalizeProjectedText(row.createdAt) || new Date(0).toISOString(),
+      sentAt: normalizeProjectedText(row.sentAt),
+      viewedAt: normalizeProjectedText(row.viewedAt),
+      acceptedAt: normalizeProjectedText(row.acceptedAt),
+      respondedAt: normalizeProjectedText(row.respondedAt),
+      lineItems: [],
+      subtotal: 0,
+      hst: 0,
+      deposit: 0,
+      balance: 0,
+    } as CRMQuote)
+  )
 }
 
 export async function getSalesQuote(id: string) {

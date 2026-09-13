@@ -198,6 +198,7 @@ const LONDON_MIDDLESEX_SARNIA_WOODSTOCK_CITIES = [
 
 const OTTAWA_CITIES = [
   'ottawa',
+  'vanier',
   'kanata',
   'nepean',
   'orleans',

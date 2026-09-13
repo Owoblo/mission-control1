@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
-import { getSalesOverview, listSalesLeadSearchSnapshots, listSalesQuotes } from '@/lib/server/sales-repository'
+import { getSalesOverview, listSalesLeadSearchSnapshots, listSalesQuoteIndexSnapshots } from '@/lib/server/sales-repository'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 import { buildSalesSummary } from '@/lib/sales'
@@ -25,7 +25,7 @@ let quotesCache: {
 let quotesRefresh: Promise<Awaited<ReturnType<typeof loadQuotesOverview>>> | null = null
 
 async function loadQuotesOverview() {
-  const [leads, quotes] = await Promise.all([listSalesLeadSearchSnapshots(), listSalesQuotes()])
+  const [leads, quotes] = await Promise.all([listSalesLeadSearchSnapshots(), listSalesQuoteIndexSnapshots()])
   return { leads, quotes }
 }
 
@@ -36,7 +36,7 @@ async function loadCompactSalesOverview() {
 // Vercel can spread one burst across several function instances. The shared
 // data cache prevents each instance from independently rebuilding the same
 // read model; the in-process promises below still coalesce requests per instance.
-const loadSharedQuotesOverview = unstable_cache(loadQuotesOverview, ['sales-quotes-overview-v1'], {
+const loadSharedQuotesOverview = unstable_cache(loadQuotesOverview, ['sales-quotes-overview-v2'], {
   revalidate: QUOTES_CACHE_TTL_MS / 1000,
 })
 const loadSharedSalesOverview = unstable_cache(loadCompactSalesOverview, ['sales-overview-v3'], {
