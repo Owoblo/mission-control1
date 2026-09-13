@@ -19,3 +19,9 @@ supabase/.temp/
 .estimate-recovery/
 deliverables/
 reports/
+
+# Local relationship operations and research captures. These can include
+# partner/customer history, live outcomes, and dated source exports.
+docs/partnership-continuation.md
+docs/self-improving-outreach-loop.md
+market-intelligence/
