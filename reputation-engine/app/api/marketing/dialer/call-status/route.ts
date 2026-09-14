@@ -1,6 +1,11 @@
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { PARTNERSHIP_LINES, isPartnershipSenderNumber, normalizePartnershipCityKey } from '@/lib/partnership-lines'
+import {
+  getPartnershipAlertRecipients,
+  partnershipInboundCallNotificationEmail,
+  sendRepAlertEmail,
+} from '@/lib/server/internal-notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +54,28 @@ export async function POST(request: Request) {
     return twimlCompleteResponse()
   }
 
+  const partnershipLine = partnershipLineForNumber(partnershipNumber)
+  const durationSec = parseInt(callDuration, 10)
+  const connected = callStatus === 'completed' && durationSec > 5
+  const noAnswer = ['no-answer', 'busy', 'failed', 'canceled'].includes(callStatus)
+
+  // This is deliberately independent of CRM matching. A new or differently
+  // formatted partner caller still needs a human email alert; previously only
+  // the phone log survived when no exact market_contacts record was found.
+  if (!isOutbound && partnershipLine) {
+    await sendRepAlertEmail(
+      `${connected ? 'Partner inbound call' : 'Missed partner call'} — ${partnershipLine.label}`,
+      partnershipInboundCallNotificationEmail({
+        caller: contactPhone,
+        lineLabel: partnershipLine.label,
+        market: partnershipLine.market,
+        callStatus,
+        durationSeconds: Number.isFinite(durationSec) ? durationSec : 0,
+      }),
+      getPartnershipAlertRecipients(partnershipLine.market),
+    )
+  }
+
   const { url, headers } = requireSupabaseEnv()
 
   // Find the contact by phone
@@ -62,10 +89,6 @@ export async function POST(request: Request) {
   const contact = exactMatches.length === 1 ? exactMatches[0] : null
 
   if (!contact) return twimlCompleteResponse()
-
-  const durationSec = parseInt(callDuration, 10)
-  const connected = callStatus === 'completed' && durationSec > 5
-  const noAnswer = ['no-answer', 'busy', 'failed', 'canceled'].includes(callStatus)
 
   const notes = connected
     ? `Partnership call — ${durationSec}s · ${isOutbound ? 'Outbound' : 'Inbound'} · ${callSid}`

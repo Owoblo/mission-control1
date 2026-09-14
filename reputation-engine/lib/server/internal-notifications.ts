@@ -202,6 +202,37 @@ export function partnershipInboundNotificationEmail(options: {
 </div>`
 }
 
+export function partnershipInboundCallNotificationEmail(options: {
+  caller: string
+  lineLabel: string
+  market: string
+  callStatus: string
+  durationSeconds: number
+  contactId?: string | null
+}) {
+  const { caller, lineLabel, market, callStatus, durationSeconds, contactId } = options
+  const answered = callStatus === 'completed' && durationSeconds > 0
+  const crmLink = contactId
+    ? `https://go.quote2move.com/marketing/partners?tab=phone&contact=${encodeURIComponent(contactId)}`
+    : 'https://go.quote2move.com/marketing/partners?tab=phone'
+
+  return `
+<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
+  <div style="background:#1a2744;color:#d7f5e6;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
+    ${answered ? 'Partner inbound call' : 'Missed partner call'} — ${escapeHtml(market)}
+  </div>
+  <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;font-size:14px;color:#1a2744;line-height:1.6">
+    <div><strong>Caller:</strong> ${escapeHtml(caller || 'Unknown number')}</div>
+    <div><strong>Line:</strong> ${escapeHtml(lineLabel)}</div>
+    <div><strong>Result:</strong> ${escapeHtml(callStatus || 'completed')}${durationSeconds ? ` · ${durationSeconds}s` : ''}</div>
+    <div style="margin-top:16px">
+      <a href="${crmLink}" style="background:#1a2744;color:#d7f5e6;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open Partner Phone</a>
+    </div>
+    <div style="margin-top:16px;font-size:11px;color:#94a3b8">Saturn Star OS · Partnership phone alert</div>
+  </div>
+</div>`
+}
+
 export function smsNotificationEmail(from: string, body: string, leadId?: string | null) {
   // Link directly to the SMS tab so clicking the email notification opens the thread immediately
   const crmLink = leadId
