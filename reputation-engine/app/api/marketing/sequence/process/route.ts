@@ -46,12 +46,12 @@ function partnershipEmailFromName() {
 function partnershipEmailSignature(phone?: string | null) {
   const lines = [
     partnershipEmailFromName(),
-    'Saturn Star Movers',
+    'Partnerships | Saturn Star Moving',
   ]
-  if (phone) lines.push(phone)
-  lines.push(PARTNERSHIP_EMAIL)
+  if (phone) lines.push(`Direct: ${phone}`)
+  lines.push(`Email: ${PARTNERSHIP_EMAIL}`)
   const website = readEnv('PARTNERSHIP_EMAIL_WEBSITE') || 'https://saturnstarmovers.ca'
-  if (website) lines.push(website)
+  if (website) lines.push(`Web: ${website}`)
   return lines.join('\n')
 }
 
