@@ -65,7 +65,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
     const pendingLead = pendingQuote?.leadId ? await getSalesLead(pendingQuote.leadId) : null
     if (pendingQuote?.billingModel === 'binding' && !isProvisionalQuoteScope(pendingQuote) && pendingLead) {
       const safety = evaluateQuoteIntelligenceSafety(pendingLead, pendingQuote)
-      const managerOverride = false // A queued legacy flag cannot approve a changed operating plan.
+      const managerOverride = claimed.result?.intelligenceOverride === true
       if (!safety.allowed && !managerOverride) throw new Error(safety.reason || 'Binding quote requires move-intelligence review before sending.')
     }
     const result = await sendSalesMessage({

@@ -187,6 +187,7 @@ export async function enqueueQuoteSendJob(input: QuoteSendJobInput & {
   actorUserId?: string | null
   actorName?: string | null
   dueAt?: string
+  result?: Record<string, unknown>
 }) {
   const dedupeKey = buildQuoteSendDedupeKey(input)
   const existing = await getQuoteSendJobByDedupeKey(dedupeKey)
@@ -218,7 +219,7 @@ export async function enqueueQuoteSendJob(input: QuoteSendJobInput & {
     sentAt: null,
     completedAt: null,
     lastError: null,
-    result: {},
+    result: input.result || {},
     createdAt: now,
     updatedAt: now,
   })

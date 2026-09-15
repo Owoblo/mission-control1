@@ -193,3 +193,11 @@ test('excluded confirmed inventory requires a recorded reconciliation', () => {
   assert.ok(plan.reasons.some(reason => /confirmed inventory/.test(reason)))
   assert.ok(plan.reasons.some(reason => /why it is excluded/.test(reason)))
 })
+
+test('routine binding quote can be sent before operations dispatch approval', () => {
+  const l = lead({ inventory: [{ name: 'Boxes', qty: 5, cubicFeet: 3, weightLbs: 10, status: 'confirmed' }],
+    originAddress: '1 Origin St', destAddress: '2 Destination St',
+    jobFactors: { originFloors: 1, destFloors: 1, originHasElevator: false, destHasElevator: false, originParkingOk: true, destParkingOk: true } })
+  assert.equal(buildMoveOperatingPlan(l, quote()).ready, false)
+  assert.equal(evaluateQuoteIntelligenceSafety(l, quote()).allowed, true)
+})

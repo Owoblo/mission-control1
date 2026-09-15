@@ -149,7 +149,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
     if (proposedStatus === 'sent' && current.status !== 'sent' && proposedQuote.billingModel === 'binding' && !isProvisionalQuoteScope(proposedQuote) && currentLead) {
       const safety = evaluateQuoteIntelligenceSafety(currentLead, proposedQuote)
-      if (!safety.allowed) {
+      const canOverrideIntelligence = session?.role === 'owner' || session?.role === 'manager'
+      if (!safety.allowed && !canOverrideIntelligence) {
         return NextResponse.json({ error: safety.reason, moveIntelligence: safety.assessment }, { status: 409 })
       }
     }

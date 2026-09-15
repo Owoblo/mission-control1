@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     const intelligenceSafety = evaluateQuoteIntelligenceSafety(lead, quote)
-    const canOverrideIntelligence = false // Overrides must be recorded against the current operating-plan version.
+    const canOverrideIntelligence = session?.role === 'owner' || session?.role === 'manager'
     const intelligenceOverride = !isProvisionalQuoteScope(quote) && !intelligenceSafety.allowed && canOverrideIntelligence
     if (!isProvisionalQuoteScope(quote) && !intelligenceSafety.allowed && !canOverrideIntelligence) {
       return NextResponse.json({ error: intelligenceSafety.reason || 'Complete the move-intelligence review before sending this binding quote.' }, { status: 409 })
