@@ -2379,12 +2379,12 @@ export default function SalesLeadDetailPage() {
       const preserveCustomerFacingPricing = quoteIsLockedForPricing && !hasExplicitPriceRevision
       const sourceLineItems = preserveCustomerFacingPricing ? (quote.lineItems || []) : quoteLineItems
 
-      // Preserve the explicit discount independently of the agreed base price.
+      // An explicit override is the agreed customer price; existing saved pricing keeps its recorded discount.
       const overrideLineItem = sourceLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
       const hasOverride = Boolean(overrideLineItem)
       const effectiveDiscount = preserveCustomerFacingPricing
         ? Number(quote.discountAmount || 0)
-        : quoteDiscountAmount
+        : hasOverride ? 0 : quoteDiscountAmount
 
       const totals = preserveCustomerFacingPricing
         ? {

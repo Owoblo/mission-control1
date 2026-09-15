@@ -197,7 +197,11 @@ test('excluded confirmed inventory requires a recorded reconciliation', () => {
 test('routine binding quote can be sent before operations dispatch approval', () => {
   const l = lead({ inventory: [{ name: 'Boxes', qty: 5, cubicFeet: 3, weightLbs: 10, status: 'confirmed' }],
     originAddress: '1 Origin St', destAddress: '2 Destination St',
-    jobFactors: { originFloors: 1, destFloors: 1, originHasElevator: false, destHasElevator: false, originParkingOk: true, destParkingOk: true } })
+    jobFactors: { originFloors: 1, destFloors: 1, originHasElevator: false, destHasElevator: false, originParkingOk: true, destParkingOk: true,
+      packingStatus: 'packed', hiddenInventoryCoverage: {
+        basement: { state: 'not_applicable' }, garage: { state: 'not_applicable' }, outdoor: { state: 'not_applicable' },
+        storage: { state: 'customer_confirmed_empty' }, boxes: { state: 'customer_confirmed', note: 'All five packed boxes included.' },
+      } } })
   assert.equal(buildMoveOperatingPlan(l, quote()).ready, false)
   assert.equal(evaluateQuoteIntelligenceSafety(l, quote()).allowed, true)
 })

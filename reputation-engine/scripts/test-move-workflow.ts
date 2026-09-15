@@ -155,6 +155,7 @@ async function main() {
   assert.equal(lead().operationalOutcomeReportingPending, true)
   assert.equal(lead().operationalOutcome?.actualHours, 10)
   assert.equal(lead().operationalOutcomeSummary?.damage_flag, true)
+  assert.equal(lead().operationalOutcomeSummary?.primary_bottleneck, 'damage')
   assert.equal(lead().operationalOutcomeSummary?.review_left, true)
   assert.equal(lead().operationalOutcomeSummary?.notes, 'Existing customer record')
   assert.equal(baseQuote.total, 1017)
@@ -191,6 +192,18 @@ async function main() {
   assert.equal(managerSend.jobs[0].status, 'sent')
   assert.equal(fakeDeliveries.length, 2)
   assert.equal(buildMoveOperatingPlan(lead(), baseQuote).ready, false, 'Sending does not clear dispatch')
+  // Keep master's provisional delivery and declined-quote protection intact.
+  const deliveryQuote = db.get('crm_quotes')![0].data
+  deliveryQuote.status = 'declined'
+  const declinedSend = await status(await call(sendRoute.POST, { ...sendBody, jobs: [{ ...sendBody.jobs[0], body: 'Declined fixture' }] }, 'owner'), 200)
+  assert.notEqual(declinedSend.jobs[0].status, 'sent')
+  assert.match(declinedSend.jobs[0].lastError, /declined/)
+  assert.equal(fakeDeliveries.length, 2)
+  deliveryQuote.status = 'draft'
+  deliveryQuote.scopeStatus = 'provisional'
+  const provisionalSend = await status(await call(sendRoute.POST, { ...sendBody, jobs: [{ ...sendBody.jobs[0], body: 'Provisional fixture' }] }, 'rep'), 200)
+  assert.equal(provisionalSend.jobs[0].status, 'sent')
+  assert.equal(fakeDeliveries.length, 3)
   db.clear(); for (const [key, rows] of savedFixture) db.set(key, rows)
   // Compile the actual editor, then drive it in Chromium against the real handlers.
   const { build } = requireTool('esbuild')

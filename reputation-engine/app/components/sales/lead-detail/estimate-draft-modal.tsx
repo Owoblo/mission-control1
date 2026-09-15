@@ -2721,7 +2721,7 @@ export function EstimateDraftModal({
         onMouseDown={event => event.stopPropagation()}
         onClick={event => event.stopPropagation()}
       >
-        {pricingBreakdown?.planningReviewReasons?.length ? <div role="status" className="border-b border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><strong>Operating plan needs review before a binding quote</strong><ul className="mt-2 list-disc pl-5">{pricingBreakdown.planningReviewReasons.map(reason => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Save the draft, then use Operating plan on the lead to record item evidence and operations review.</p></div> : null}
+        {pricingBreakdown?.planningReviewReasons?.length ? <div role="status" className="border-b border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><strong>Operating plan needs review before dispatch</strong><ul className="mt-2 list-disc pl-5">{pricingBreakdown.planningReviewReasons.map(reason => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Save the draft, then use Operating plan on the lead to record item evidence and operations review.</p></div> : null}
         {/* Header */}
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>

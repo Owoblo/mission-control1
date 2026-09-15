@@ -19,7 +19,6 @@ import {
   getSalesClient,
   getSalesLead,
   getSalesLeadForUpdate,
-  getSalesLeadLiveSnapshot,
   getSalesQuote,
   saveSalesClient,
   saveSalesLead,

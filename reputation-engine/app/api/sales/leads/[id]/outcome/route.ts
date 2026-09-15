@@ -93,6 +93,12 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     const savedQuote = quote
     const stageChangedToCompleted = lead.stage === 'booked' && !!operational.actualHours && !!operational.actualCrew
 
+    const existing = await fetch(`${url}/rest/v1/job_outcomes?lead_id=eq.${params.id}&limit=1`, { headers })
+    if (!existing.ok) throw new Error('Could not read existing outcome; nothing was overwritten.')
+    const existingRows = await existing.json()
+    const previousSummary = lead.operationalOutcomeSummary || existingRows[0]
+    const customerOutcome = customerOutcomeFields(body, previousSummary)
+
     // Get job costs
     const costsRes = await fetch(`${url}/rest/v1/job_costs?lead_id=eq.${params.id}`, { headers })
     if (!costsRes.ok) throw new Error('Could not read job costs; outcome was not saved.')
@@ -104,8 +110,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       actuals: {
         actualHours: operational.actualHours,
         actualCrew: operational.actualCrew,
-        damageFlag: body.damage_flag,
-        varianceReason: body.notes,
+        damageFlag: customerOutcome.damage_flag === true,
+        varianceReason: typeof customerOutcome.notes === 'string' ? customerOutcome.notes : undefined,
       },
     })
     const revenueCents = Math.round(telemetry.revenue * 100)
@@ -144,11 +150,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     }
 
     // Upsert by lead_id
-    const existing = await fetch(`${url}/rest/v1/job_outcomes?lead_id=eq.${params.id}&limit=1`, { headers })
-    if (!existing.ok) throw new Error('Could not read existing outcome; nothing was overwritten.')
-    const existingRows = await existing.json()
-    const previousSummary = lead.operationalOutcomeSummary || existingRows[0]
-    const preservedOutcome = { ...outcome, ...customerOutcomeFields(body, previousSummary),
+    const preservedOutcome = { ...outcome, ...customerOutcome,
       id: previousSummary?.id || outcome.id, created_at: previousSummary?.created_at || outcome.created_at }
     // Canonical actuals and the reporting summary commit together on the lead.
     // The legacy reporting table is a retryable projection, never the only copy.

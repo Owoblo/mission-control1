@@ -90,6 +90,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
       completedAt,
       lockedAt: null,
       result: {
+        ...(claimed.result || {}),
         messageResult: result.result || {},
         logId: result.log?.id,
         quoteId: sentState.quote?.id || claimed.quoteId,
