@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteSalesLead, fetchSalesOverview, saveSalesFollowUp, updateSalesLead } from '@/lib/sales-api'
-import { FOLLOW_UP_STATUSES, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
+import { deriveLeadFollowUpStatus, FOLLOW_UP_STATUSES, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, LeadFollowUpStatus } from '@/lib/types'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -37,6 +37,18 @@ function urgencyScore(lead: CRMLead): number {
   if (contact >= 7) return contact       // gone silent
   if (contact >= 3) return contact + 50
   return fu + 100
+}
+
+function hasLiveFollowUp(lead: CRMLead) {
+  if (isClosedLeadStage(lead.stage) || lead.stage === 'booked') return false
+
+  // A lead belongs on the Follow-Up Wall only when it has an explicit next
+  // touch or a workflow status that still requires one. Previously this view
+  // included every non-closed sales lead, which made the actual follow-up work
+  // disappear inside the general active pipeline.
+  if (lead.followUpDate) return true
+  const status = lead.followUpStatus || deriveLeadFollowUpStatus(lead)
+  return status === 'pending' || status === 'following_up' || status === 'no_response'
 }
 
 function stageColor(stage: string) {
@@ -517,13 +529,10 @@ export default function FollowUpWallPage() {
 
   useEffect(() => { void load() }, [])
 
-  // Only active leads that need follow-up (not booked/lost/completed)
+  // The Follow-Up Wall is intentionally narrower than the active pipeline.
+  // It should never be used as an alternate "all active leads" screen.
   const actionableLeads = useMemo(() => {
-    return leads.filter(lead => {
-      if (isClosedLeadStage(lead.stage)) return false
-      if (lead.stage === 'booked') return false
-      return true
-    })
+    return leads.filter(hasLiveFollowUp)
   }, [leads])
 
   const filtered = useMemo(() => {
@@ -630,7 +639,7 @@ export default function FollowUpWallPage() {
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
         {([
-          { id: 'all', label: 'All Active', count: counts.all },
+          { id: 'all', label: 'All Follow-ups', count: counts.all },
           { id: 'overdue', label: 'Overdue', count: counts.overdue },
           { id: 'today', label: 'Due Today', count: counts.today },
           { id: 'week', label: 'This Week', count: counts.week },
