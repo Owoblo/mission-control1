@@ -19,7 +19,7 @@ type DispatchJob = {
   }
   crew: { workerName: string; role: string; expectedHours: number | null; status: string }
   inventory: Array<{ id?: string; name: string; quantity: number; room: string; notes: string; precautions: string }>
-  job: { crewSize: number | null; truckCount: number | null; estimatedHours: number | null; crewNote: string; equipmentReady: boolean; briefingReady: boolean; crewBriefing: string; partnerWorkspaceEnabled: boolean; billingModel: string }
+  job: { planFingerprint?: string; crewSize: number | null; truckCount: number | null; estimatedHours: number | null; crewNote: string; equipmentReady: boolean; briefingReady: boolean; crewBriefing: string; partnerWorkspaceEnabled: boolean; billingModel: string }
 }
 
 type PartnerWorkspace = { messages: Array<{ id: string; direction: string; body: string; senderName?: string; urgent: boolean; createdAt: string }>; reports: Array<{ id: string; reportType: string; severity: string; status: string; summary: string; createdAt: string }>; events: Array<{ event_type: string }>; changeOrders: Array<{ id: string; change_type: string; description: string; customer_delta: number; partner_delta: number; status: string }>; operationsPhone: string }
@@ -98,7 +98,7 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
     const response = await fetch(`/api/crew/dispatch/${params.token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, planFingerprint: job?.job.planFingerprint }),
     })
     const payload = await response.json()
     if (response.ok) {

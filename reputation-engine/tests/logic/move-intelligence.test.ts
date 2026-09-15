@@ -1,3 +1,4 @@
+import { buildMoveOperatingPlan } from '../../lib/move-operating-plan'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
@@ -172,6 +173,8 @@ test('binding send safety blocks unresolved specialty scope but hourly remains s
   } as CRMQuote
   assert.equal(evaluateQuoteIntelligenceSafety(lead, { ...quote, billingModel: 'binding' }).allowed, false)
   assert.equal(evaluateQuoteIntelligenceSafety(lead, { ...quote, billingModel: 'hourly_actuals' }).allowed, true)
-  const approvedLead = { ...lead, jobFactors: { ...lead.jobFactors, moveIntelligenceApprovedAt: '2026-01-02T12:00:00.000Z' } }
-  assert.equal(evaluateQuoteIntelligenceSafety(approvedLead, { ...quote, billingModel: 'binding' }).allowed, true)
+  const approvedLead: CRMLead = { ...lead, truckSize: '26ft', jobFactors: { ...lead.jobFactors, moveIntelligenceApprovedAt: '2026-01-02T12:00:00.000Z' } }
+  const bindingQuote: CRMQuote = { ...quote, billingModel: 'binding' }
+  approvedLead.operatingReview = { fingerprint: buildMoveOperatingPlan(approvedLead, bindingQuote).fingerprint, reviewedAt: '2026-01-02', reviewedBy: 'Operations', rationale: 'Safe handling and truck fit reviewed', plannedHours: 4 }
+  assert.equal(evaluateQuoteIntelligenceSafety(approvedLead, bindingQuote).allowed, true)
 })

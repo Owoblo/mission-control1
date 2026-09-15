@@ -1,5 +1,6 @@
 'use client'
 
+import { OperatingPlanPanel } from '@/app/components/sales/lead-detail/operating-plan-panel'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -2392,12 +2393,12 @@ export default function SalesLeadDetailPage() {
         quotePricingInputsMatchSaved(quote, quoteLineItems, quoteDiscountAmount, quoteDiscountLabel)
       const sourceLineItems = preserveCustomerFacingPricing ? (quote.lineItems || []) : quoteLineItems
 
-      // When an override is active, bypass any existing discount — the override IS the final pre-tax price
+      // Preserve the explicit discount independently of the agreed base price.
       const overrideLineItem = sourceLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
       const hasOverride = Boolean(overrideLineItem)
       const effectiveDiscount = preserveCustomerFacingPricing
         ? Number(quote.discountAmount || 0)
-        : hasOverride ? 0 : quoteDiscountAmount
+        : quoteDiscountAmount
 
       const totals = preserveCustomerFacingPricing
         ? {
@@ -2420,6 +2421,8 @@ export default function SalesLeadDetailPage() {
           ? 'standard'
           : selectedQuoteType
       const result = await updateSalesQuote(quote.id, {
+        revision: quote.revision || 0,
+        truckSize: lead?.truckSize || quote.truckSize,
         moveType: effectiveQuoteMoveType,
         quoteType: effectiveQuoteType,
         customerScope: overrides?.customerScope || quote.customerScope,
@@ -2457,7 +2460,7 @@ export default function SalesLeadDetailPage() {
         conditionalClause: overrides?.conditionalClause !== undefined ? (overrides.conditionalClause || undefined) : quote.conditionalClause,
         priceOverrideTotal: preserveCustomerFacingPricing
           ? quote.priceOverrideTotal
-          : overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : undefined,
+          : overrideLineItem ? Math.round(Number(overrideLineItem.amount || 0) * 100) / 100 : 0,
         priceOverrideReason: preserveCustomerFacingPricing
           ? quote.priceOverrideReason
           : overrideLineItem?.details || undefined,
@@ -2851,6 +2854,7 @@ export default function SalesLeadDetailPage() {
         credentials: 'include',
         body: JSON.stringify({
           actual_hours: outcomeActualHours ? Number(outcomeActualHours) : undefined,
+          expectedRevision: lead.operationalOutcome?.revision || 0,
           actual_crew: outcomeActualCrew ? Number(outcomeActualCrew) : undefined,
           damage_flag: outcomeDamage,
           customer_rating: outcomeRating || undefined,
@@ -2859,11 +2863,12 @@ export default function SalesLeadDetailPage() {
           notes: outcomeNotes.trim() || undefined,
         }),
       })
-      const payload = await response.json() as { error?: string; lead?: CRMLead; quote?: CRMQuote | null }
+      const payload = await response.json() as { error?: string; warning?: string; lead?: CRMLead; quote?: CRMQuote | null }
       if (!response.ok) throw new Error(payload.error || 'Failed to save outcome')
       if (payload.lead) setLead(payload.lead)
       if (payload.quote !== undefined) setQuote(payload.quote)
       setOutcomeSaved(true)
+      if (payload.warning) setError(payload.warning)
       setOutcomeOpen(false)
     } catch (err) {
       setError((err as Error).message)
@@ -5379,6 +5384,17 @@ export default function SalesLeadDetailPage() {
                   ))}
                 </div>
               )}
+              <OperatingPlanPanel lead={lead} quote={quote} onSaved={next => {
+                inventoryPersistRevisionRef.current += 1
+                if (inventoryPersistTimerRef.current) clearTimeout(inventoryPersistTimerRef.current)
+                setLead(next)
+                setInventory(next.inventory || [])
+                setJobFactors(next.jobFactors || {})
+                setOriginAccess(next.originAccess || '')
+                setDestAccess(next.destAccess || '')
+                setParkingNotes(next.parkingNotes || '')
+                setQuoteMoveTime(next.moveTime || quote?.moveTime || '')
+              }} />
               <InventoryVerificationPanel
                 lead={lead}
                 canEditCurrentLead={canEditCurrentLead}

@@ -1,3 +1,5 @@
+import { buildCurrentCrewBrief, buildMoveOperatingPlan } from '@/lib/move-operating-plan'
+import { preserveInventoryHandlingEvidence } from '@/lib/assembly-planning'
 import { NextResponse } from 'next/server'
 import { deriveOpsChecklist, getQuotedTruckCount, isTruckReservationComplete, normalizeCrewHours, normalizeCrewPayouts } from '@/lib/operations'
 import { calculateLeadScore, getLeadAssignedRepName, isClosedLeadStage, normalizeLead, syncLeadFromQuoteStatus } from '@/lib/sales'
@@ -16,6 +18,7 @@ import {
   deleteSalesLead,
   getSalesClient,
   getSalesLead,
+  getSalesLeadForUpdate,
   getSalesLeadLiveSnapshot,
   getSalesQuote,
   saveSalesClient,
@@ -109,7 +112,7 @@ function applyOperationalDefaults(
   const stagedCrewPayouts = applyCrewPayoutWorkflowMetadata(current.crewPayouts, nextLead.crewPayouts, actorName)
   const quotedTruckCount = getQuotedTruckCount(nextLead, quote)
   const truckReservationStatus = quotedTruckCount
-    ? (nextLead.truckReservationStatus || current.truckReservationStatus || 'needs_booking')
+    ? (nextLead.truckReservationStatus === 'not_needed' ? 'needs_booking' : nextLead.truckReservationStatus || current.truckReservationStatus || 'needs_booking')
     : 'not_needed'
   const truckReservationBookedAt = isTruckReservationComplete(truckReservationStatus)
     ? (current.truckReservationBookedAt || nextLead.truckReservationBookedAt || new Date().toISOString())
@@ -329,7 +332,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   try {
     const session = await getSessionUser()
 
-    const current = await getSalesLead(params.id)
+    const record = await getSalesLeadForUpdate(params.id)
+    const current = record?.lead
     if (!current) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
@@ -341,10 +345,10 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const { sendAppointmentSms: sendApptSmsFlag, ...rawUpdates } = rawBody
     const updates = validateLeadPatchPayload(rawUpdates)
     if (hasOwn(updates, 'inventory') && Array.isArray(updates.inventory)) {
-      updates.inventory = applyInventoryVerificationToInventory(
+      updates.inventory = preserveInventoryHandlingEvidence(current.inventory || [], applyInventoryVerificationToInventory(
         updates.inventory,
         updates.inventoryVerification || current.inventoryVerification,
-      )
+      ))
     }
     if (
       updates.source === 'partner_referral' &&
@@ -439,7 +443,24 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       }
     }
 
-    const saved = await saveSalesLead(nextLead)
+    const operationalPlan = buildMoveOperatingPlan(nextLead, quote)
+    const attemptedDispatch = (updates.crewPayouts || []).some(entry =>
+      ['sent', 'confirmed'].includes(entry.dispatchStatus || '') &&
+      current.crewPayouts?.find(old => old.id === entry.id)?.dispatchStatus !== entry.dispatchStatus)
+    if (attemptedDispatch && !operationalPlan.ready) return NextResponse.json({ error: 'Review the current operating plan before dispatching the crew.', reasons: operationalPlan.reasons }, { status: 409 })
+    nextLead.crewPayouts = nextLead.crewPayouts?.map(entry => {
+      const previous = current.crewPayouts?.find(old => old.id === entry.id)
+      const confirming = entry.dispatchStatus === 'confirmed' && previous?.dispatchStatus !== 'confirmed'
+      return { ...entry,
+        dispatchPlanFingerprint: confirming ? operationalPlan.fingerprint : previous?.dispatchPlanFingerprint,
+        dispatchAcknowledgements: confirming
+          ? [...(previous?.dispatchAcknowledgements || []), { fingerprint: operationalPlan.fingerprint, acknowledgedAt: new Date().toISOString(), actor: session?.name || 'Operations' }]
+          : previous?.dispatchAcknowledgements,
+      }
+    })
+    if (!operationalPlan.reviewCurrent) nextLead.opsChecklist = { ...nextLead.opsChecklist, jobPacketReady: false }
+    if (['booked', 'completed'].includes(nextLead.stage)) nextLead.crewNote = buildCurrentCrewBrief(nextLead, quote)
+    const saved = await saveSalesLead(nextLead, record!.updatedAt)
     if (
       saved.source === 'partner_referral' ||
       current.source === 'partner_referral' ||

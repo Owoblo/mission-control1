@@ -89,7 +89,7 @@ export function recalculateQuoteFromActuals(
   const minimumAdjustedSubtotal = roundMoney(hourlyRate * minimumBilledHours)
 
   let nextSubtotal = roundMoney(quote.subtotal || 0)
-  let adjustmentMode: 'none' | 'non_binding_actuals' | 'hourly_minimum' | 'binding_override' = 'none'
+  let adjustmentMode: 'none' | 'non_binding_actuals' | 'hourly_minimum' = 'none'
 
   if (billingModel === 'hourly_minimum') {
     nextSubtotal = Math.max(minimumHoursSubtotal, minimumAdjustedSubtotal)
@@ -97,21 +97,10 @@ export function recalculateQuoteFromActuals(
   } else if (billingModel === 'hourly_actuals') {
     nextSubtotal = actualSubtotal
     adjustmentMode = 'non_binding_actuals'
-  } else if (actualSubtotal > nextSubtotal) {
-    if (!justification) {
-      return {
-        requiresJustification: true as const,
-        hourlyRate,
-        actualSubtotal,
-        nonBinding,
-      }
-    }
-    nextSubtotal = actualSubtotal
-    adjustmentMode = 'binding_override'
   }
 
-  const hst = roundMoney(nextSubtotal * 0.13)
-  const total = roundMoney(nextSubtotal + hst)
+  const hst = nonBinding ? roundMoney(nextSubtotal * 0.13) : quote.hst
+  const total = nonBinding ? roundMoney(nextSubtotal + hst) : quote.total
   const paid = getQuotePaidSoFar(quote, input.lead)
   const balance = Math.max(0, roundMoney(total - paid.totalPaid))
 
@@ -119,9 +108,7 @@ export function recalculateQuoteFromActuals(
     ? `Actuals synced from completed move. ${minimumBillableHours}h minimum applied.`
     : nonBinding
       ? 'Actuals synced from completed move.'
-    : adjustmentMode === 'binding_override'
-      ? 'Binding estimate override approved from completed move.'
-      : 'Actuals recorded for completed move.'
+    : 'Actuals recorded for completed move.'
 
   const hoursNote = adjustmentMode === 'hourly_minimum' && minimumBilledHours !== actualHours
     ? `${actualHours}h worked, billed ${minimumBilledHours}h`
@@ -130,13 +117,13 @@ export function recalculateQuoteFromActuals(
 
   const updatedQuote: CRMQuote = {
     ...quote,
-    crewSize: input.actualCrew || quote.crewSize,
+    crewSize: quote.crewSize,
     subtotal: nextSubtotal,
     hst,
     total,
     balance,
-    priceOverrideTotal: adjustmentMode === 'binding_override' ? total : quote.priceOverrideTotal,
-    priceOverrideReason: adjustmentMode === 'binding_override' ? justification : quote.priceOverrideReason,
+    priceOverrideTotal: quote.priceOverrideTotal,
+    priceOverrideReason: quote.priceOverrideReason,
     internalNotes: appendInternalNote(quote.internalNotes, note),
   }
 

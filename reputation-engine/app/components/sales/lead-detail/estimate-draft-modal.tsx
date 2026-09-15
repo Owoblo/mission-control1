@@ -488,7 +488,7 @@ export function EstimateDraftModal({
   const [distanceKm, setDistanceKm] = useState<number>(0)
   const [bookTodayActive, setBookTodayActive] = useState(false)
   const [tenPctActive, setTenPctActive] = useState(false)
-  const [excludedDisassemblyItems, setExcludedDisassemblyItems] = useState<Set<string>>(new Set())
+  const excludedDisassemblyItems = useMemo(() => new Set((inventory || []).filter(item => item.assembly?.responsibility === 'customer' && item.assembly.evidence?.trim()).map(item => item.name || item.item || '')), [inventory])
   const [overrideInput, setOverrideInput] = useState('')
   const [overrideReason, setOverrideReason] = useState('relationship')
   const [overrideNote, setOverrideNote] = useState('')
@@ -1530,17 +1530,8 @@ export function EstimateDraftModal({
     window.setTimeout(() => onRecalculate({ quoteType, distanceKm: distanceKm || route?.distanceKm || undefined, routeContext }), 100)
   }
 
-  function toggleDisassemblyItem(itemName: string) {
-    const next = new Set(excludedDisassemblyItems)
-    if (next.has(itemName)) {
-      next.delete(itemName)
-    } else {
-      next.add(itemName)
-    }
-    setExcludedDisassemblyItems(next)
-    const totalItems = pricingBreakdown?.disassemblyItems.length ?? 0
-    const newCount = Math.max(0, totalItems - next.size)
-    onJobFactorsChange({ ...jobFactors, disassemblyItemCount: newCount === 0 && next.size > 0 ? 0 : newCount })
+  function toggleDisassemblyItem(_itemName: string) {
+    window.alert('Record customer-handled assembly in Operating plan on the lead, with the customer confirmation as evidence. This keeps the price, scope and crew instructions consistent.')
   }
 
   // Auto-populate long-distance U-Haul estimate — runs after pricingBreakdown is available
@@ -1549,7 +1540,7 @@ export function EstimateDraftModal({
     if (uhaulInputPerTruck && !uhaulInputIsEstimate) return
     const distKm = route.distanceKm || 0
     if (!distKm) return
-    const size = truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)
+    const size = (lead.truckSize || pricingBreakdown?.truckPlan?.trucks[0]?.size || truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0))
     const est = calcLongDistanceUHaul(distKm, size, 1)
     setUhaulInputPerTruck(String(est.oneWayEstimate))
     setUhaulInputIsEstimate(true)
@@ -2004,11 +1995,11 @@ export function EstimateDraftModal({
   }, [liveMarginSummary, quoteModalTotals.subtotal, tenPctActive, tenPctDiscountAmount])
   const overrideProjectedMargin = useMemo(() => {
     if (!liveMarginSummary) return null
-    const overrideAmount = Math.round(Number(overrideInput || 0) * 100) / 100
+    const overrideAmount = Math.max(0, Math.round(Number(overrideInput || 0) * 100) / 100 - Number(quoteDiscountAmount || 0))
     if (overrideAmount <= 0) return null
     return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
-  }, [liveMarginSummary, overrideInput])
-  const overrideAmount = useMemo(() => Math.round(Number(overrideInput || 0) * 100) / 100, [overrideInput])
+  }, [liveMarginSummary, overrideInput, quoteDiscountAmount])
+  const overrideAmount = useMemo(() => Math.max(0, Math.round(Number(overrideInput || 0) * 100) / 100 - quoteDiscountAmount), [overrideInput, quoteDiscountAmount])
   const overrideIsIncrease = baseQuoteSubtotal > 0 && overrideAmount >= baseQuoteSubtotal
   const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
   const overrideApprovalMatches = useMemo(() => {
@@ -2412,6 +2403,7 @@ export function EstimateDraftModal({
         className="mx-auto flex min-h-screen w-full max-w-6xl flex-col overflow-hidden rounded-none border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:my-4 md:min-h-0 md:rounded-[12px]"
         onClick={event => event.stopPropagation()}
       >
+        {pricingBreakdown?.planningReviewReasons?.length ? <div role="status" className="border-b border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><strong>Operating plan needs review before a binding quote</strong><ul className="mt-2 list-disc pl-5">{pricingBreakdown.planningReviewReasons.map(reason => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Save the draft, then use Operating plan on the lead to record item evidence and operations review.</p></div> : null}
         {/* Header */}
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
@@ -5774,7 +5766,7 @@ export function EstimateDraftModal({
               const truckCount = pricingBreakdown.truckCount || 1
               const tripStrategy = (pricingBreakdown.tripStrategy || 'single_truck') as TripStrategy
               const totalCubicFeet = pricingBreakdown.totalCubicFeet || effectiveInventoryMetrics.totalCubicFeet || 0
-              const truckSize = truckSizeFromCubicFeet(totalCubicFeet)
+              const truckSize = lead.truckSize || pricingBreakdown?.truckPlan?.trucks[0]?.size || truckSizeFromCubicFeet(totalCubicFeet)
               const defaultBlankets = DEFAULT_BLANKET_BAGS[truckSize] ?? 6
               const blanketBags = uhaulBlankets ?? (defaultBlankets * truckCount)
               // Hours depend on strategy — 1 truck 2 trips takes longer than 2 trucks 1 trip
@@ -6210,8 +6202,8 @@ export function EstimateDraftModal({
                       ? (conjointMetrics.totalCubicFeet || pricingBreakdown?.totalCubicFeet || 0)
                       : (pricingBreakdown?.totalCubicFeet || 0)
                     const legTruckAmt = isLDLeg
-                      ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(effectiveCostCubicFeet), pricingBreakdown?.truckCount || 1).internalCost
-                      : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(effectiveCostCubicFeet)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                      ? calcLongDistanceUHaul(legKm, (lead.truckSize || pricingBreakdown?.truckPlan?.trucks[0]?.size || truckSizeFromCubicFeet(effectiveCostCubicFeet)), pricingBreakdown?.truckCount || 1).internalCost
+                      : Math.round((UHAUL_DAILY_RATES[(lead.truckSize || pricingBreakdown?.truckPlan?.trucks[0]?.size || truckSizeFromCubicFeet(effectiveCostCubicFeet))] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
                     const legTotal  = Math.round((legTruckAmt + legLabor + 15) * 100) / 100
                     const typeTag   = leg.type === 'storage' ? 'House→Storage' : leg.type === 'storage_delivery' ? 'Storage→Dest' : isLDLeg ? 'Long-distance' : 'Local'
                     return (
@@ -6252,7 +6244,7 @@ export function EstimateDraftModal({
                       const effectiveCostCubicFeet = conjointMode
                         ? (conjointMetrics.totalCubicFeet || pricingBreakdown?.totalCubicFeet || 0)
                         : (pricingBreakdown?.totalCubicFeet || 0)
-                      const legTruckAmt = isLDLeg ? calcLongDistanceUHaul(legKm, truckSizeFromCubicFeet(effectiveCostCubicFeet), pricingBreakdown?.truckCount || 1).internalCost : Math.round((UHAUL_DAILY_RATES[truckSizeFromCubicFeet(effectiveCostCubicFeet)] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
+                      const legTruckAmt = isLDLeg ? calcLongDistanceUHaul(legKm, (lead.truckSize || pricingBreakdown?.truckPlan?.trucks[0]?.size || truckSizeFromCubicFeet(effectiveCostCubicFeet)), pricingBreakdown?.truckCount || 1).internalCost : Math.round((UHAUL_DAILY_RATES[(lead.truckSize || pricingBreakdown?.truckPlan?.trucks[0]?.size || truckSizeFromCubicFeet(effectiveCostCubicFeet))] ?? 49.99) * (pricingBreakdown?.truckCount || 1) * 100) / 100
                       return sum + legTruckAmt + legLabor + 15
                     }, 0))}</span>
                   </div>
@@ -6708,7 +6700,7 @@ export function EstimateDraftModal({
                 const uhaulPerTruck = Math.round(Number(uhaulInputPerTruck || 0) * 100) / 100
                 const ldTruckCount = pricingBreakdown?.truckCount || 1
                 const ldDistKm = route?.distanceKm || 0
-                const ldTruckSize = truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0)
+                const ldTruckSize = (lead.truckSize || pricingBreakdown?.truckPlan?.trucks[0]?.size || truckSizeFromCubicFeet(pricingBreakdown?.totalCubicFeet || 0))
                 const fuelPer100km = UHAUL_FUEL_L_PER_100KM[ldTruckSize] ?? 23.5
                 // One-way drive: use originToDestination (actual route), NOT pricingBreakdown.driveHours which is round-trip
                 const ldDriveOneWay   = route?.originToDestination?.driveHours

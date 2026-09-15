@@ -191,14 +191,8 @@ export default function SalesQuoteDetailPage() {
         setCrewSize(freshCrew)
         setEstimatedHours(freshHours)
         setTruckCount(freshTrucks)
-        // If metadata was stale, silently update DB so customer preview iframe shows correct values
-        if (freshCrew !== savedCrew || freshTrucks !== savedTrucks || freshHours !== savedHours) {
-          updateSalesQuote(data.quote.id, {
-            crewSize: freshCrew,
-            estimatedHours: freshHours,
-            truckCount: freshTrucks,
-          }).catch(() => {})
-        }
+        // Keep recalculation in the draft; saving is explicit and revision checked.
+
       } else {
         setCrewSize(savedCrew)
         setEstimatedHours(savedHours)
@@ -449,6 +443,7 @@ ${brand.fullName}`
 
   function buildQuotePricingUpdates(extra: Partial<CRMQuote> = {}): Partial<CRMQuote> {
     return {
+      revision: quote?.revision || 0,
       lineItems: quoteTotals.lineItems,
       subtotal: quoteTotals.subtotal,
       hst: quoteTotals.hst,
@@ -993,7 +988,7 @@ ${brand.fullName}`
                     onChange={e => setQuote(q => q ? { ...q, moveDescription: e.target.value } : q)}
                     onBlur={() => {
                       if (!quote) return
-                      void updateSalesQuote(quote.id, { moveDescription: quote.moveDescription || undefined }).catch(() => {})
+                      void updateSalesQuote(quote.id, { moveDescription: quote.moveDescription || undefined }).then(result => setQuote(result.quote)).catch(err => setError(err.message))
                     }}
                     className="crm-input w-full resize-none text-sm"
                     placeholder={`e.g. 3-bedroom house from ${quote.originCity || 'Windsor'} to ${quote.destCity || 'destination'}`}
@@ -1007,7 +1002,7 @@ ${brand.fullName}`
                     onChange={e => setQuote(q => q ? { ...q, internalNotes: e.target.value } : q)}
                     onBlur={() => {
                       if (!quote) return
-                      void updateSalesQuote(quote.id, { internalNotes: quote.internalNotes || undefined }).catch(() => {})
+                      void updateSalesQuote(quote.id, { internalNotes: quote.internalNotes || undefined }).then(result => setQuote(result.quote)).catch(err => setError(err.message))
                     }}
                     className="crm-input w-full resize-none text-sm"
                     placeholder="Crew notes: tight staircase, piano needs 4 people..."

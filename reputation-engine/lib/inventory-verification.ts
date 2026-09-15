@@ -250,7 +250,7 @@ export function applyInventoryVerificationToInventory(
         status: 'excluded' as const,
         exclusionReason: 'Customer marked this as staying behind.',
         confirmReason: note || 'Customer marked this as staying behind.',
-        notes: note || item.notes,
+        notes: Array.from(new Set([item.notes, note].filter(Boolean))).join(' — ') || undefined,
       }
     }
 
@@ -260,7 +260,7 @@ export function applyInventoryVerificationToInventory(
         included: true,
         status: 'needs_confirmation' as const,
         confirmReason: note || 'Customer was unsure whether this is moving.',
-        notes: note || item.notes,
+        notes: Array.from(new Set([item.notes, note].filter(Boolean))).join(' — ') || undefined,
       }
     }
 
@@ -269,7 +269,8 @@ export function applyInventoryVerificationToInventory(
       included: true,
       status: 'confirmed' as const,
       confirmReason: note || 'Customer confirmed this item is moving.',
-      notes: note || item.notes,
+      ...(item.policyCategory === 'default_exclude' ? { policyOverride: 'include' as const } : {}),
+      notes: Array.from(new Set([item.notes, note].filter(Boolean))).join(' — ') || undefined,
     }
   })
 

@@ -876,7 +876,27 @@ export async function listSalesOpportunityLeadsBySourceLeadId(sourceLeadId: stri
     .map(record => normalizeLead(record.data))
 }
 
-export async function saveSalesLead(lead: CRMLead) {
+export async function getSalesLeadForUpdate(id: string) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(`${url}/rest/v1/crm_leads?id=eq.${encodeURIComponent(id)}&deleted=eq.false&select=data,updated_at&limit=1`, { headers, cache: 'no-store' })
+  if (!response.ok) throw new Error('Could not read the current lead version.')
+  const [row] = await response.json() as Array<{ data: CRMLead; updated_at: string }>
+  return row ? { lead: normalizeLead(row.data), updatedAt: row.updated_at } : null
+}
+
+export async function saveSalesLead(lead: CRMLead, expectedUpdatedAt?: string) {
+  if (expectedUpdatedAt) {
+    const { url, headers } = requireSupabase()
+    const data = normalizeLead(lead)
+    const updatedAt = new Date(Math.max(Date.now(), Date.parse(expectedUpdatedAt) + 1)).toISOString()
+    const response = await fetch(`${url}/rest/v1/crm_leads?id=eq.${encodeURIComponent(lead.id)}&deleted=eq.false&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}&select=data`, {
+      method: 'PATCH', headers: { ...headers, Prefer: 'return=representation' }, body: JSON.stringify({ data, updated_at: updatedAt }),
+    })
+    if (!response.ok) throw new Error('Could not save the operating plan.')
+    const rows = await response.json() as Array<{ data: CRMLead }>
+    if (!rows[0]) throw new Error('The lead changed while saving. Reload and review the latest plan.')
+    return normalizeLead(rows[0].data)
+  }
   return normalizeLead(await upsert<CRMLead>('crm_leads', normalizeLead(lead)))
 }
 
@@ -1174,7 +1194,27 @@ export async function getLatestSalesQuoteByLeadId(leadId: string) {
 }
 
 export async function saveSalesQuote(quote: CRMQuote) {
-  return normalizeQuote(await upsert<CRMQuote>('crm_quotes', normalizeQuote(quote)))
+  const { url, headers } = requireSupabase()
+  const revision = quote.revision || 0
+  const data = normalizeQuote({ ...quote, revision: revision + 1 })
+  const versionFilter = revision === 0 ? 'or=(data->>revision.is.null,data->>revision.eq.0)' : `data->>revision=eq.${revision}`
+  const response = await fetch(`${url}/rest/v1/crm_quotes?id=eq.${encodeURIComponent(quote.id)}&deleted=eq.false&${versionFilter}&select=data`, {
+    method: 'PATCH', headers: { ...headers, Prefer: 'return=representation' },
+    body: JSON.stringify({ data, updated_at: new Date().toISOString() }),
+  })
+  if (!response.ok) throw new Error('Failed to save quote.')
+  const rows = await response.json() as Array<{ data: CRMQuote }>
+  if (rows[0]) return normalizeQuote(rows[0].data)
+  // A failed compare-and-swap must never fall back to overwriting the winner.
+  const existing = await selectRecordById<CRMQuote>('crm_quotes', quote.id)
+  if (existing) throw new Error('Quote changed in another session. Reload before saving.')
+  const created = await fetch(`${url}/rest/v1/crm_quotes?select=data`, {
+    method: 'POST', headers: { ...headers, Prefer: 'return=representation' },
+    body: JSON.stringify({ id: quote.id, data, deleted: false, updated_at: new Date().toISOString() }),
+  })
+  if (!created.ok) throw new Error('Quote was created elsewhere or could not be saved. Reload before retrying.')
+  const inserted = await created.json() as Array<{ data: CRMQuote }>
+  return normalizeQuote(inserted[0].data)
 }
 
 export async function deleteSalesQuote(id: string) {

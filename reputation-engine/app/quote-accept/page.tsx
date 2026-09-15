@@ -528,7 +528,7 @@ function RecommendationReasoning({ quote, inventory, listingSummary, crewSize, t
   trucks: number
 }) {
   const cubicFeet = inventory.reduce((sum, item) => sum + Number(item.cubicFeet || 0) * Math.max(1, Number(item.qty || 1)), 0)
-  const truckPlan = recommendTruckLoadPlan({ totalCubicFeet: cubicFeet, totalWeightLbs: quote.estimatedWeightLbs, truckCount: trucks })
+  const truckPlan = recommendTruckLoadPlan({ totalCubicFeet: cubicFeet, totalWeightLbs: quote.estimatedWeightLbs, truckCount: trucks, committedSize: quote.truckSize, inventory })
   const itemUnits = inventory.reduce((sum, item) => sum + Math.max(1, Number(item.qty || 1)), 0)
   const accessReasons = [
     quote.jobFactors?.originHasElevator ? 'origin elevator' : null,

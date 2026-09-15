@@ -167,7 +167,7 @@ export async function POST(request: Request) {
               crewNote: mergeCrewBrief(lead.crewNote, [autoCrewBrief, protectionCrewBrief].filter(Boolean).join('\n\n')),
               truckCountConfirmed: quotedTruckCount || lead.truckCountConfirmed,
               truckSize: quotedTruckCount ? (lead.truckSize || '26ft') : lead.truckSize,
-              truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus || 'needs_booking') : lead.truckReservationStatus,
+              truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus === 'not_needed' ? 'needs_booking' : lead.truckReservationStatus || 'needs_booking') : lead.truckReservationStatus,
               opsChecklist: deriveOpsChecklist({ ...lead, assignedCrew: autoAssignedCrew.length > 0 ? autoAssignedCrew : lead.assignedCrew }),
             })
 

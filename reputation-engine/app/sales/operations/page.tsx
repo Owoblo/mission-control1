@@ -1,5 +1,8 @@
 'use client'
 
+import { OperatingPlanPanel } from '@/app/components/sales/lead-detail/operating-plan-panel'
+import { buildMoveOperatingPlan, crewAcknowledgedPlan } from '@/lib/move-operating-plan'
+import { outcomeReviewReasons } from '@/lib/move-outcome'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -139,7 +142,7 @@ function hasCrewRolePlan(job: Job) {
 function hasCrewConfirmed(job: Job) {
   const roster = getCrewRoster(job)
   if (roster.length === 0) return false
-  return roster.every(entry => entry.dispatchStatus === 'confirmed')
+  return roster.every(entry => crewAcknowledgedPlan(entry, buildMoveOperatingPlan(job.lead, job.quote).fingerprint))
 }
 
 function requiresTruck(job: Job) {
@@ -190,7 +193,7 @@ function deriveDispatchReadiness(job: Job, operationalDate?: string): { level: D
     )
   }
   if (!checklist.toolsReady) reasons.push('Equipment not confirmed')
-  if (!checklist.jobPacketReady) reasons.push('Crew briefing not ready')
+  if (!buildMoveOperatingPlan(job.lead, job.quote).ready) reasons.push('Current operating plan needs review')
 
   if (reasons.length === 0) return { level: 'ready', label: 'Ready', reasons: ['Dispatch checklist is ready'] }
   const level: DispatchReadinessLevel = days !== null && days <= 1 ? 'urgent' : 'attention'
@@ -206,7 +209,7 @@ function matchesOperationsFilter(job: Job, filter: OperationsFilterKey) {
   if (filter === 'tomorrow') return hasOperationsOccurrenceOnDate(job.lead, job.quote, tomorrowISO())
   if (filter === 'needs_confirmation') return !hasCustomerConfirmation(job)
   if (filter === 'needs_equipment') return !checklist.toolsReady
-  if (filter === 'needs_briefing') return !checklist.jobPacketReady
+  if (filter === 'needs_briefing') return !buildMoveOperatingPlan(job.lead, job.quote).ready
   return true
 }
 
@@ -352,6 +355,8 @@ function buildCrewPayoutDraft(member?: CrewMember, existing?: Partial<CrewPayout
     dispatchToken: existing?.dispatchToken || uid('crew'),
     dispatchSentAt: existing?.dispatchSentAt,
     dispatchConfirmedAt: existing?.dispatchConfirmedAt,
+    dispatchPlanFingerprint: existing?.dispatchPlanFingerprint,
+    dispatchAcknowledgements: existing?.dispatchAcknowledgements,
     dispatchDeclinedAt: existing?.dispatchDeclinedAt,
     submittedAt: existing?.submittedAt,
     approvedAt: existing?.approvedAt,
@@ -485,7 +490,7 @@ export default function OperationsPage() {
   const readyCount = upcomingJobs.filter(job => deriveDispatchReadiness(job).level === 'ready').length
   const missingTruckCount = upcomingJobs.filter(job => requiresTruck(job) && !hasTruckAssigned(job)).length
   const missingCrewCount = upcomingJobs.filter(job => !hasCrewRolePlan(job)).length
-  const missingBriefingCount = upcomingJobs.filter(job => !deriveOpsChecklist(job.lead).jobPacketReady).length
+  const missingBriefingCount = upcomingJobs.filter(job => !buildMoveOperatingPlan(job.lead, job.quote).ready).length
 
   function toggleFilter(filter: OperationsFilterKey) {
     setActiveFilters(current =>
@@ -529,6 +534,8 @@ export default function OperationsPage() {
           <div className="flex flex-col items-end gap-1">
             <PaymentBadge lead={lead} />
             <TruckReservationBadge lead={lead} quote={quote} />
+            {!buildMoveOperatingPlan(lead, quote).ready && <span className="rounded bg-amber-100 px-2 text-xs text-amber-900">Operating review required</span>}
+            {['completed', 'customer_success'].includes(lead.stage) && lead.operationalOutcome?.reviewStatus !== 'reviewed' && <span className="rounded bg-rose-100 px-2 text-xs text-rose-900">Actuals / learning pending</span>}
             <OpsProgressBadge lead={lead} />
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${readinessBadgeClasses(readiness.level)}`}>
               {sharedReadiness.label} · {sharedReadiness.percent}%
@@ -547,7 +554,7 @@ export default function OperationsPage() {
         {(crewSize || truckCount || estHours) ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
             {crewSize ? <span>{crewSize} mover{crewSize > 1 ? 's' : ''}</span> : null}
-            {truckCount ? <span>{truckCount === 1 ? '26ft truck' : `${truckCount} trucks`}</span> : null}
+            {truckCount ? <span>{getTruckPlanLabel(lead, quote)}</span> : null}
             {estHours ? <span>~{estHours}h estimated</span> : null}
           </div>
         ) : null}
@@ -903,12 +910,14 @@ function JobsCalendar({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           actual_hours: actualHours ? Number(actualHours) : undefined,
+          expectedRevision: selectedJob.lead.operationalOutcome?.revision || 0,
           actual_crew: actualCrew ? Number(actualCrew) : undefined,
           notes: actualNotes.trim() || undefined,
         }),
       })
       const payload = await response.json() as {
         error?: string
+        warning?: string
         lead?: CRMLead
         quote?: CRMQuote | null
       }
@@ -918,7 +927,7 @@ function JobsCalendar({
         const nextQuote = payload.quote === undefined ? selectedJob.quote : payload.quote
         onJobUpdate(payload.lead, nextQuote)
         setSelectedJob({ lead: payload.lead, quote: nextQuote || null })
-        setActualsMessage(nextQuote ? `Actuals saved. Balance due is now ${formatMoney(nextQuote.balance)}.` : 'Actuals saved.')
+        setActualsMessage(payload.warning || 'Actuals saved. Customer pricing is unchanged.')
       } else {
         setActualsMessage('Actuals saved.')
       }
@@ -1166,6 +1175,7 @@ function JobsCalendar({
             </button>
           </div>
 
+          <OperatingPlanPanel lead={selectedJob.lead} quote={selectedJob.quote} onSaved={lead => { onJobUpdate(lead, selectedJob.quote); setSelectedJob({ ...selectedJob, lead }) }} />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-3">
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
@@ -1878,18 +1888,19 @@ function CrewAssignModal({
                   )}
                   {payoutEntries.map((entry, index) => {
                     const { totalPay } = computeCrewPayoutAmounts(entry)
+                    const acknowledgementStale = entry.dispatchStatus === 'confirmed' && !crewAcknowledgedPlan(entry, buildMoveOperatingPlan(job.lead, job.quote).fingerprint)
                     return (
                       <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-3 space-y-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-xs font-semibold text-[#071421]">{entry.workerName || `Worker ${index + 1}`}</div>
                           <div className="flex items-center gap-2">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                              entry.dispatchStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                              entry.dispatchStatus === 'confirmed' && !acknowledgementStale ? 'bg-emerald-100 text-emerald-700' :
                               entry.dispatchStatus === 'declined' ? 'bg-rose-100 text-rose-700' :
                               entry.dispatchStatus === 'sent' ? 'bg-sky-100 text-sky-700' :
                               'bg-amber-100 text-amber-800'
                             }`}>
-                              {CREW_DISPATCH_STATUS_LABELS[entry.dispatchStatus || 'pending']}
+                              {acknowledgementStale ? 'Reconfirmation required' : CREW_DISPATCH_STATUS_LABELS[entry.dispatchStatus || 'pending']}
                             </span>
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                               {CREW_PAYOUT_STATUS_LABELS[entry.payoutStatus || 'submitted']}

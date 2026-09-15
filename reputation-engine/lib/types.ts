@@ -375,6 +375,7 @@ export interface CallLogEntry {
 export type MovePolicyCategory = 'blocked' | 'hazardous' | 'manual_review' | 'specialty_fee' | 'default_exclude'
 
 export interface InventoryItem {
+  assembly?: import('./assembly-planning').AssemblyInstructions
   id?: string
   room?: string
   name?: string
@@ -615,6 +616,9 @@ export interface EstimateRouteContext {
 }
 
 export interface PricingBreakdown {
+  assemblyPlan?: ReturnType<typeof import('./assembly-planning').buildAssemblyPlan>
+  truckPlan?: import('./truck-planning').TruckLoadPlan
+  planningReviewReasons?: string[]
   loadHours: number       // wrap + disassemble + carry out + load truck
   driveHours: number      // customer-facing billable drive time
   operationalDriveHours: number
@@ -764,6 +768,7 @@ export interface JobFactors {
   // Specialty items
   hasPiano?: boolean
   hasSafe?: boolean
+  operationalHoursBudget?: number // Operations planning floor, independent of any selling-price override
   disassemblyItemCount?: number
   // Controls what dis/reassembly service is included for flagged items
   // 'both' = full service (default), 'disassemble_only' = dis at origin only, 'reassemble_only' = re at dest only
@@ -949,6 +954,8 @@ export interface CrewPayoutEntry {
   dispatchToken?: string
   dispatchSentAt?: string
   dispatchConfirmedAt?: string
+  dispatchPlanFingerprint?: string
+  dispatchAcknowledgements?: Array<{ fingerprint: string; acknowledgedAt: string; actor: string }>
   dispatchDeclinedAt?: string
   submittedAt?: string
   approvedAt?: string
@@ -962,6 +969,12 @@ export interface CrewPayoutEntry {
 }
 
 export interface CRMLead {
+  operatingReview?: import('./move-operating-plan').OperatingReview
+  operatingReviewHistory?: import('./move-operating-plan').OperatingReview[]
+  operationalOutcome?: import('./move-outcome').OperationalOutcome
+  operationalOutcomeSummary?: Record<string, unknown>
+  operationalOutcomeReportingPending?: boolean
+  moveTime?: string
   id: string
   name: string
   stage: SalesLeadStage
@@ -1244,6 +1257,8 @@ export interface CustomerQuoteScope {
 }
 
 export interface CRMQuote {
+  revision?: number
+  truckSize?: string
   id: string
   number: string
   clientId: string
@@ -1317,7 +1332,7 @@ export interface CRMQuote {
   // Overridable fields
   moveDescription?: string  // shown on the quote document
   internalNotes?: string    // crew / internal only, not on quote
-  priceOverrideTotal?: number  // if set, this overrides the computed total (incl. HST)
+  priceOverrideTotal?: number  // agreed pre-tax base price; explicit discounts remain separate
   priceOverrideReason?: string
   priceOverrideApprovalCode?: string
   priceOverrideApprovalId?: string

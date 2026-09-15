@@ -88,12 +88,12 @@ export function isOneWayTruckPlan(
 
 export function getTruckPlanLabel(
   lead?: Pick<CRMLead, 'moveType' | 'truckCountConfirmed' | 'truckSize'> | null,
-  quote?: Pick<CRMQuote, 'moveType' | 'quoteType' | 'truckCount'> | null
+  quote?: Pick<CRMQuote, 'moveType' | 'quoteType' | 'truckCount' | 'truckSize'> | null
 ) {
   const truckCount = getQuotedTruckCount(lead, quote)
   if (!truckCount) return 'No quoted truck requirement yet'
 
-  const truckSize = lead?.truckSize || '26ft'
+  const truckSize = lead?.truckSize || quote?.truckSize || 'size pending review'
   const tripType = isOneWayTruckPlan(lead, quote) ? 'One-way' : 'Local return'
   return `${truckCount} x ${truckSize} truck${truckCount === 1 ? '' : 's'} · ${tripType}`
 }
@@ -179,6 +179,8 @@ export function normalizeCrewPayouts(entries?: CrewPayoutEntry[]) {
       payoutDestination: normalizeOptionalText(entry.payoutDestination),
       payoutStatus: entry.payoutStatus || 'submitted',
       dispatchStatus: entry.dispatchStatus || 'pending',
+      dispatchPlanFingerprint: entry.dispatchPlanFingerprint,
+      dispatchAcknowledgements: entry.dispatchAcknowledgements,
       dispatchToken: normalizeOptionalText(entry.dispatchToken),
       dispatchSentAt: normalizeOptionalText(entry.dispatchSentAt),
       dispatchConfirmedAt: normalizeOptionalText(entry.dispatchConfirmedAt),
@@ -210,7 +212,7 @@ export function deriveOpsChecklist(
   return {
     crewAssigned: (lead.assignedCrew?.length ?? 0) > 0 || (lead.crewPayouts?.some(entry => !!entry.workerName) ?? false),
     truckReserved: isTruckReservationComplete(lead.truckReservationStatus),
-    accessConfirmed: existing.accessConfirmed ?? Boolean(lead.originAccess || lead.destAccess),
+    accessConfirmed: existing.accessConfirmed ?? Boolean(lead.originAccess && lead.destAccess),
     parkingConfirmed: existing.parkingConfirmed ?? Boolean(lead.parkingNotes),
     toolsReady: existing.toolsReady ?? false,
     jobPacketReady: existing.jobPacketReady ?? false,

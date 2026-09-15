@@ -232,6 +232,7 @@ const OPTIONAL_TEXT_FIELDS = [
   'lastTouchedAt',
   'crewNote',
   'truckSize',
+  'moveTime',
   'truckPickupLocation',
   'truckPickupTime',
   'truckReturnLocation',
