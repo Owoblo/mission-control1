@@ -1,3 +1,6 @@
+import { quoteEditConflict, finalQuoteMargin } from '@/lib/quote-pricing-safety'
+import { buildMoveOperatingPlan, buildCurrentCrewBrief } from '@/lib/move-operating-plan'
+import { estimateLeadQuote } from '@/lib/sales'
 import { NextResponse } from 'next/server'
 import { dateStamp, isClosedLeadStage, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { getAcceptedQuoteLockedFieldChanges, ACCEPTED_QUOTE_LOCKED_KEYS, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
@@ -81,6 +84,20 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const requestBody = (await request.json()) as Partial<typeof current> & { pricingRevisionReason?: string; reactivateDeclinedQuote?: boolean }
     const { pricingRevisionReason, reactivateDeclinedQuote, ...updates } = requestBody
     const currentLead = current.leadId ? await getSalesLead(current.leadId) : null
+    if (currentLead && !leadMatchesSessionBranch(currentLead, session)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const conflict = quoteEditConflict(current, updates)
+    if (conflict) return NextResponse.json({ error: conflict }, { status: 409 })
+    // Server-owned financial evidence: margin text supplied by the browser is not a cost calculation.
+    if (currentLead && session?.role === 'sales_rep' && ['lineItems', 'discountAmount', 'priceOverrideTotal'].some(key => Object.hasOwn(updates, key))) {
+      const proposed = { ...current, ...updates }
+      const estimated = estimateLeadQuote(currentLead, { crewSize: proposed.crewSize, truckCount: proposed.truckCount }, currentLead.jobFactors)
+      const final = finalQuoteMargin(proposed, estimated.pricingBreakdown.internalCostEstimate.totalCost)
+      const approvedNet = Number(current.priceOverrideApprovalAmount || 0)
+      if (final.marginPct < 55 && !(current.priceOverrideApprovalStatus === 'approved' && Math.abs(approvedNet - final.revenue) < 0.01)) {
+        return NextResponse.json({ error: `Final margin after all discounts is ${final.marginPct.toFixed(1)}%. Owner/manager approval must cover the final net service price.` }, { status: 403 })
+      }
+    }
+
     if (!canReviseExistingQuote(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
@@ -244,7 +261,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
           quoteId: nextPrimaryQuoteId,
           quoteIds: allQuoteIds,
         }
-        lead = await saveSalesLead(nextLead)
+        lead = await saveSalesLead({ ...nextLead, crewNote: buildCurrentCrewBrief(nextLead, savedQuote),
+          opsChecklist: { ...nextLead.opsChecklist, jobPacketReady: buildMoveOperatingPlan(nextLead, savedQuote).ready } })
       }
     }
 

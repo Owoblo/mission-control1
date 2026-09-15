@@ -107,8 +107,8 @@ export async function POST(
       if (preset && preset.item.cubicFeet) {
         return {
           id: uid('inv'),
-          name: preset.label.split(' · ')[0],
-          item: preset.label.split(' · ')[0],
+          name: parsed.name,
+          item: parsed.name,
           qty,
           cubicFeet: preset.item.cubicFeet,
           weightLbs: preset.item.weightLbs || Math.round(preset.item.cubicFeet * 7),

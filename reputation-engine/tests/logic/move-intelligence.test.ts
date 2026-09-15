@@ -1,3 +1,4 @@
+import { buildMoveOperatingPlan } from '../../lib/move-operating-plan'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 

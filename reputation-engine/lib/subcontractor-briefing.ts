@@ -1,3 +1,4 @@
+import { buildCurrentCrewBrief, buildMoveOperatingPlan } from './move-operating-plan'
 import { isBookedLikeStage } from './sales'
 import type { CRMLead, CRMQuote } from './types'
 
@@ -44,25 +45,11 @@ export function buildSanitizedPartnerBrief(lead: CRMLead, quote: CRMQuote | null
     `Service: ${lead.moveType || 'residential moving'}`,
     `Access: origin ${lead.originAccess || 'not confirmed'}; destination ${lead.destAccess || 'not confirmed'}; parking ${lead.parkingNotes || 'not confirmed'}`,
     `Inventory: ${inventory.length} line items${highlights.length ? `. Notable: ${highlights.map(item => item.name || item.item).join(', ')}` : ''}`,
-    lead.crewNote ? `Operational note: ${lead.crewNote}` : '',
+    `Operating review: ${buildMoveOperatingPlan(lead, quote).ready ? 'current' : 'required before dispatch'}`,
     'Customer name, phone, email, exact addresses, quoted price, payment data, margin, and private sales notes are withheld until award.',
   ].filter(Boolean).join('\n')
 }
 
 export function buildAwardedCrewBrief(lead: CRMLead, quote: CRMQuote | null) {
-  const inventory = includedInventory(lead)
-  return [
-    `SATURN STAR CREW BRIEF · ${lead.id}`,
-    `Date: ${lead.moveDate || quote?.moveDate || 'TBD'}`,
-    `Customer: ${lead.name || 'TBD'} · ${lead.phone || 'phone unavailable'}`,
-    `Origin: ${[lead.originAddress, lead.originCity].filter(Boolean).join(', ') || 'TBD'}`,
-    `Destination: ${[lead.destAddress, lead.destCity].filter(Boolean).join(', ') || 'TBD'}`,
-    `Plan: ${quote?.crewSize || '?'} crew · ${quote?.truckCount || '?'} truck(s) · ${quote?.estimatedHours || '?'}h`,
-    `Access: ${lead.originAccess || 'origin not confirmed'} → ${lead.destAccess || 'destination not confirmed'}; parking: ${lead.parkingNotes || 'not confirmed'}`,
-    `Equipment/truck: ${lead.truckSize || 'see dispatch plan'}${lead.truckPickupLocation ? ` · pickup ${lead.truckPickupLocation}` : ''}`,
-    `Inventory (${inventory.length}): ${inventory.slice(0, 40).map(item => `${item.qty && item.qty > 1 ? `${item.qty}× ` : ''}${item.name || item.item}`).join(', ') || 'complete walkthrough required'}`,
-    lead.crewNote ? `Instructions: ${lead.crewNote}` : '',
-    'Pricing rule: do not negotiate price or additional work with the customer. Report changes to Operations and wait for authorization.',
-    'Arrival: review inventory/access, document pre-existing damage, install protection, and report discrepancies before loading.',
-  ].filter(Boolean).join('\n')
+  return buildCurrentCrewBrief(lead, quote)
 }

@@ -1,3 +1,5 @@
+import { buildMoveOperatingPlan } from './move-operating-plan'
+import { buildAssemblyPlan, needsItemAssembly } from './assembly-planning'
 import type {
   LeadKind,
   CRMLead,
@@ -440,6 +442,7 @@ export function normalizeClient(client: CRMClient): CRMClient {
 export function normalizeQuote(quote: CRMQuote): CRMQuote {
   return {
     ...quote,
+    revision: quote.revision || 0,
     status: quote.status || 'draft',
     lineItems: Array.isArray(quote.lineItems) ? quote.lineItems : [],
     crewSize: Number(quote.crewSize || 0) || undefined,
@@ -865,43 +868,8 @@ const TRUCK_OPS_COST_PER_KM = 1.1   // fuel + wear at ~$1.10 CAD/km per truck
 export const UHAUL_RATE_PER_KM = 1   // quick rental estimate used for long-distance quoting
 const PACKING_SUPPLIES_COST_PER_BOX = 3.50  // avg cost per box (box + tape + paper)
 
-// Items that almost always require disassembly/reassembly — auto-detected from inventory scan
-const DISASSEMBLY_KEYWORDS = [
-  // Beds — match any bed frame/base, not just ones labeled "bed frame"
-  'bed frame', 'bunk bed', 'crib', 'daybed',
-  'platform bed', 'sleigh bed', 'canopy bed', 'murphy bed',
-  'queen bed', 'king bed', 'twin bed', 'double bed', 'full bed',
-  'queen size bed', 'king size bed', 'twin size bed',
-  'queen platform', 'king platform',
-  // Tables
-  'dining table', 'kitchen table', 'office table', 'conference table',
-  // Desks
-  'executive desk', 'corner desk', 'l-shaped desk', 'standing desk',
-  'desk frame', 'workstation desk', 'computer desk', 'office desk',
-  // Storage / shelving with assembly
-  'china cabinet', 'hutch', 'bookcase', 'bookshelf',
-  // Other
-  'trampoline',
-  'mirror dresser', 'dresser with mirror', 'mirrored dresser', 'dresser mirror',
-]
-
-// Names that contain a keyword but should NOT be flagged for disassembly
-const DISASSEMBLY_EXCLUSIONS = [
-  'desk chair',   // "office desk chair", "ergonomic desk chair" — chairs, not desks
-  'patio set',
-  'patio table',
-  'bar stool',    // bar stools don't disassemble
-  'coffee table', // coffee tables rarely need disassembly
-  'end table',
-  'side table',
-  'night table',
-  'nightstand',
-]
-
 export function needsDisassembly(name: string): boolean {
-  const lower = name.toLowerCase()
-  if (DISASSEMBLY_EXCLUSIONS.some(ex => lower.includes(ex))) return false
-  return DISASSEMBLY_KEYWORDS.some(kw => lower.includes(kw))
+  return needsItemAssembly({ name })
 }
 
 function getTruckRateMultiplier(truckCount: number) {
@@ -919,7 +887,7 @@ function estimateRequiredTrucks(totalCubicFeet: number, totalWeightLbs: number) 
 export function suggestDisassemblyCount(inventory: InventoryItem[]): number {
   return inventory.reduce((count, item) => {
     if (item.included === false) return count
-    return needsDisassembly(item.name || item.item || '')
+    return needsItemAssembly(item)
       ? count + Math.max(1, Number(item.qty || 1))
       : count
   }, 0)
@@ -1147,7 +1115,7 @@ function estimateSingleLeadQuote(
     .filter(item => item.included !== false)
     .flatMap(item => {
       const name = (item.name || item.item || '').toLowerCase()
-      if (!needsDisassembly(name)) return []
+      if (!needsItemAssembly(item)) return []
       const qty = Math.max(1, Number(item.qty || 1))
       const displayName = item.name || item.item || ''
       return qty > 1 ? [`${qty}× ${displayName}`] : [displayName]
@@ -1163,7 +1131,7 @@ function estimateSingleLeadQuote(
     ? {
         ...rawFactors,
         // Only auto-fill disassemblyItemCount if rep hasn't set it explicitly
-        disassemblyItemCount: rawFactors.disassemblyItemCount ?? autoDisassemblyCount,
+        disassemblyItemCount: Math.max(rawFactors.disassemblyItemCount || 0, autoDisassemblyCount),
       }
     : autoDisassemblyCount > 0
       ? { disassemblyItemCount: autoDisassemblyCount }
@@ -1171,7 +1139,16 @@ function estimateSingleLeadQuote(
   const { penalties, extraHours: penaltyHoursFromFactors, extraCubicFeet } = activeFactors
     ? computeJobPenalties(activeFactors)
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
-  let extraHours = penaltyHoursFromFactors
+  const assemblyPlan = buildAssemblyPlan(lead.inventory || [], activeFactors?.disassemblyMode)
+  const legacyAssemblyHours = penalties.filter(penalty => penalty.category === 'disassembly').reduce((sum, penalty) => sum + penalty.hours, 0)
+  // Preserve allowances for additional manually counted items, without counting detected items twice.
+  const unlistedCount = Math.max(0, (activeFactors?.disassemblyItemCount || 0) - autoDisassemblyCount)
+  const unlistedHours = computeJobPenalties({ disassemblyItemCount: unlistedCount, disassemblyMode: activeFactors?.disassemblyMode }).extraHours
+  for (let i = penalties.length - 1; i >= 0; i--) if (penalties[i].category === 'disassembly') penalties.splice(i, 1)
+  if (assemblyPlan.hours + unlistedHours > 0) penalties.push({ label: 'Item-specific disassembly and reassembly', category: 'disassembly',
+    hours: assemblyPlan.hours + unlistedHours,
+    details: assemblyPlan.tasks.map(task => `${task.itemLabel}: ${task.end} ${task.minutes} min, ${task.workers} worker(s)${task.provisional ? ' — provisional' : ''}`) })
+  let extraHours = penaltyHoursFromFactors - legacyAssemblyHours + assemblyPlan.hours + unlistedHours
   const moveIntelligence = assessMoveIntelligence({
     inventory: lead.inventory || [],
     jobFactors: activeFactors,
@@ -1222,9 +1199,9 @@ function estimateSingleLeadQuote(
     })
   }
 
-  const baseCubicFeet = lead.totalCubicFeet || metrics.totalCubicFeet
+  const baseCubicFeet = metrics.includedInventory.length ? metrics.totalCubicFeet : lead.totalCubicFeet || 0
   const totalCubicFeet = baseCubicFeet + extraCubicFeet
-  const totalWeightLbs = Number(overrides?.estimatedWeightLbs || lead.totalWeightLbs || metrics.totalWeightLbs)
+  const totalWeightLbs = Number(overrides?.estimatedWeightLbs || (metrics.includedInventory.length ? metrics.totalWeightLbs : lead.totalWeightLbs) || 0)
   const suggestedCrew = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
   const suggestedTruckCount = suggestTruckCount(totalCubicFeet, totalWeightLbs, isLongDistance ? 'long-distance' : lead.moveType)
   const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
@@ -1339,9 +1316,9 @@ function estimateSingleLeadQuote(
   // Long-distance: no buffer — it's a planned full-day job, experienced crew, no padding needed
   const loadUnloadBufferHours = routeCategory === 'long-distance' ? 0 : roundQuarterHour((rawLaborHours + secondTripHandlingHours + extraHours) * 0.06)
   const bufferHours = roundQuarterHour(driveBufferHours + loadUnloadBufferHours)
-  const estimatedHours = Math.max(3, Number(overrides?.estimatedHours || roundQuarterHour(preBufferHours + bufferHours)))
+  const estimatedHours = Math.max(3, Number(activeFactors?.operationalHoursBudget || 0), Number(overrides?.estimatedHours || roundQuarterHour(preBufferHours + bufferHours)))
   const operationalPreBufferHours = roundQuarterHour(rawLaborHours + secondTripHandlingHours + effectiveOperationalDriveHours + extraHours)
-  const operationalHours = roundQuarterHour(operationalPreBufferHours + loadUnloadBufferHours + (routeCategory === 'long-distance' ? 0 : driveBufferHours))
+  const operationalHours = Math.max(Number(overrides?.estimatedHours || 0), Number(activeFactors?.operationalHoursBudget || 0), roundQuarterHour(operationalPreBufferHours + loadUnloadBufferHours + (routeCategory === 'long-distance' ? 0 : driveBufferHours)))
   const laborAmount = roundCurrency(estimatedHours * crewRate)
   const hourlySmallService = !isLongDistance && !isPacking && resolvedQuoteType !== 'storage' && lead.moveType !== 'commercial' && laborAmount < 3000
   const smallMoveBaseFee = hourlySmallService ? 100 : 0
@@ -1630,7 +1607,12 @@ function estimateSingleLeadQuote(
     })
   }
 
+  const truckPlan = !isLaborOnly && !isPacking ? recommendTruckLoadPlan({ totalCubicFeet, totalWeightLbs, truckCount, inventory: lead.inventory, committedSize: lead.truckSize }) : undefined
+  const planningReviewReasons = Array.from(new Set([...assemblyPlan.reviewReasons, ...(truckPlan?.reviewReasons || []), ...buildMoveOperatingPlan(lead, { crewSize, truckCount, estimatedHours, quoteType: resolvedQuoteType } as CRMQuote).reasons]))
+  if (assemblyPlan.tasks.some(task => task.workers > crewSize)) planningReviewReasons.push('Assembly requires more workers than the selected crew.')
+  if (overrides?.estimatedHours && overrides.estimatedHours < operationalHours) planningReviewReasons.push('Manual hours are below the calculated operational budget; reconcile before committing.')
   const pricingBreakdown: PricingBreakdown = {
+    assemblyPlan, truckPlan, planningReviewReasons,
     loadHours: roundQuarterHour(loadHours),
     driveHours: effectiveBillableDriveHours,
     operationalDriveHours: effectiveOperationalDriveHours,
@@ -1780,6 +1762,7 @@ function buildLegRouteContext(
 
 function buildLegFactors(baseFactors: JobFactors | undefined, leg: QuoteLeg): JobFactors | undefined {
   const next: JobFactors = { ...(baseFactors || {}) }
+  delete next.operationalHoursBudget
   let touched = Object.keys(next).length > 0
   const apply = <K extends keyof JobFactors>(key: K, value: JobFactors[K]) => {
     next[key] = value
@@ -1809,6 +1792,7 @@ function buildLegFactors(baseFactors: JobFactors | undefined, leg: QuoteLeg): Jo
 function buildConjointLegFactors(baseFactors: JobFactors | undefined, legIndex: number): JobFactors | undefined {
   if (!baseFactors) return undefined
   const next: JobFactors = { ...baseFactors, conjointMove: false }
+  delete next.operationalHoursBudget
 
   if (legIndex === 0) {
     next.destFloors = 1
@@ -2367,7 +2351,8 @@ function buildMultiLegEstimate(
         ? 'medium'
         : baseEstimate.pricingBreakdown.routeCategory
   const pricingStatus: PricingBreakdown['pricingStatus'] = missingDestination ? 'provisional' : 'ready'
-  const totalHours = roundQuarterHour(totalLoadHours + totalUnloadHours + totalDriveHours + totalPenaltyHours + totalDriveBufferHours + totalLoadUnloadBufferHours)
+  const totalHours = Math.max(Number(lead.jobFactors?.operationalHoursBudget || 0), roundQuarterHour(totalLoadHours + totalUnloadHours + totalDriveHours + totalPenaltyHours + totalDriveBufferHours + totalLoadUnloadBufferHours))
+  totalOperationalHours = Math.max(totalOperationalHours, Number(lead.jobFactors?.operationalHoursBudget || 0))
   const distinctDays = new Set(legs.map(leg => leg.scheduledDate).filter(Boolean)).size || 1
   const laborCost = roundCurrency(baseEstimate.crewSize * totalOperationalHours * LABOR_COST_PER_MOVER_HOUR)
   const truckDailyCost = roundCurrency(baseEstimate.truckCount * TRUCK_DAILY_COST * distinctDays)
