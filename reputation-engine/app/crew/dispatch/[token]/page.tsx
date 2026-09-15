@@ -18,7 +18,7 @@ type DispatchJob = {
     notes: string
   }
   crew: { workerName: string; role: string; expectedHours: number | null; status: string }
-  job: { crewSize: number | null; truckCount: number | null; estimatedHours: number | null; crewNote: string; equipmentReady: boolean; briefingReady: boolean; crewBriefing: string; partnerWorkspaceEnabled: boolean }
+  job: { planFingerprint?: string; crewSize: number | null; truckCount: number | null; estimatedHours: number | null; crewNote: string; equipmentReady: boolean; briefingReady: boolean; crewBriefing: string; partnerWorkspaceEnabled: boolean }
   briefing: {
     generatedAt: string
     sourceUpdatedAt: string
@@ -137,7 +137,7 @@ export default function CrewDispatchPage(props: { params: Promise<{ token: strin
     const response = await fetch(`/api/crew/dispatch/${params.token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, planFingerprint: job?.job.planFingerprint }),
     })
     const payload = await response.json()
     if (response.ok) {

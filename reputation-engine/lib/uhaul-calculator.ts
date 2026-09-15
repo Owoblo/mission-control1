@@ -1,3 +1,4 @@
+import { recommendTruckLoadPlan } from './truck-planning'
 // Canadian U-Haul rates — Ontario in-town (local) moves
 // Daily rates confirmed for Ontario market
 export const UHAUL_DAILY_RATES: Record<string, number> = {
@@ -165,10 +166,7 @@ export function compareStrategies(
 
 // Derive truck size from total cubic feet
 export function truckSizeFromCubicFeet(cubicFeet: number): string {
-  if (cubicFeet <= 250) return '10ft'
-  if (cubicFeet <= 600) return '15ft'
-  if (cubicFeet <= 900) return '20ft'
-  return '26ft'
+  return recommendTruckLoadPlan({ totalCubicFeet: cubicFeet, truckCount: 1 }).trucks[0].size
 }
 
 /**

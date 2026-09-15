@@ -2,8 +2,8 @@
 
 Keep this beside the CRM during live work.
 
-Version: 1.1
-Effective date: July 26, 2026
+Version: 1.2
+Effective date: September 15, 2026
 Owner: Mission Control operations
 
 ## The governing standard
@@ -162,6 +162,15 @@ Do not let MLS, AI, photos, or a phone list act as the complete source of truth 
 - Tentative hold converted
 - Operations handoff initialized
 
+## Complex furniture and the operating plan
+
+- Preserve pullout, trundle and storage mechanisms when consolidating inventory. Resolve exclusions against the customer's instructions and record the evidence.
+- Verify loaded dimensions, weight and access for awkward furniture. Assembly instructions alone do not verify truck fit.
+- Plan disassembly and reassembly separately: minutes, workers, tools and instructions. Provisional allowances need operations review; extra movers do not automatically shorten a dependent task.
+- Reconcile one truck size/count and reservation. A truck move cannot be cleared while marked “no truck needed.”
+- Operations records the current plan and rationale. Changes to inventory, date/time, truck, access, crew or price require renewed review and crew acknowledgement.
+- Discounts change revenue, not the resources required. Check the final margin after all discounts; reload if another editor changed the quote.
+
 ## Warm handoff
 
 - Introduce the operations owner by name the same staffed day.
@@ -182,6 +191,8 @@ Do not let MLS, AI, photos, or a phone list act as the complete source of truth 
 - Storage/key/elevator timing confirmed
 
 ## After move
+
+Record actual working hours, crew, start/finish, breaks, truck swaps and item-specific assembly work. Record causes and corrective actions after overruns or handling surprises. Customer satisfaction and payment do not close operational review. Saving these actuals does not authorize a billing change. If reporting sync is pending, the actuals remain saved; retry the reporting update.
 
 - Priority furniture and large items placed
 - Immediate missed item/instruction check

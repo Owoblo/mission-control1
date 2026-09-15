@@ -1,7 +1,7 @@
 # Saturn Star CRM Operating Playbook
 
-Version: 1.1
-Effective date: July 26, 2026
+Version: 1.2
+Effective date: September 15, 2026
 Applies to: Saturn Star Moving, Dexa Moving, sales representatives, managers, operations leads, and customer-care staff
 Document owner: Mission Control operations
 
@@ -428,6 +428,34 @@ Say:
 > “No problem—we’ll keep it visible in the plan for now. If you sell or donate it, let us know and we’ll update the inventory and explain whether that changes the price.”
 
 Never promise a lower price merely because one item may disappear. Recalculate the complete plan first; under a package or capacity band, the price may reasonably remain unchanged.
+
+### Complex furniture, truck reconciliation, and post-move learning
+
+Added September 15, 2026 following the [Ryan Burton move audit](audits/2026-09-15-ryan-burton-move-audit.md). Sales preserves the confirmed scope; operations owns the truck, assembly, access and time plan, and records its approval before dispatch.
+
+**A complete item list is the start of the work plan.** A move consisting mainly of large furniture can need substantial truck space, protection, carrying, disassembly, and reassembly even when the customer handles all boxes and light items.
+
+Before committing a price and schedule:
+
+1. **Preserve important item details.** Record pullout/trundle/storage mechanisms, materials, model, approximate dimensions, component count, and whether mattresses or attachments are included. When merging duplicate items, retain these details on the surviving item. Do not delete a mechanism because it belongs to a larger assembly.
+2. **Verify complex pieces visually.** For a heavy or mechanism-equipped daybed, sleeper, sectional, large BBQ, or similarly awkward item, obtain suitable photos/video, a model reference, or an operations inspection. Expand vague entries such as “patio furniture” into a confirmed set of pieces. Mark estimated dimensions and weights as estimated.
+3. **Plan assembly at each end.** Operations records disassembly and reassembly separately, required workers, tools, instructions, hardware storage, and a duration range with its evidence. Identify tasks that prevent those workers from loading or unloading at the same time. Use item-specific evidence; a generic combined allowance is insufficient for complex furniture. Customer-handled assembly requires explicit scope confirmation.
+4. **Confirm each carrying route.** Record origin and destination floor, stairs/elevator or walkout, doors/turns, parking and carry distance for significant items. Unknown access is unresolved, not confirmed zero. A basement room prompts a route check; it does not automatically prove stairs.
+5. **Reconcile the truck plan.** Operations signs off on one truck size/count and trip plan after reviewing volume, payload, geometry, stackability, protection space, and measurement confidence. Resolve disagreement between CRM recommendations, quote messages, lead fields, and rental booking before dispatch. If uncertainty could change the truck class, verify the load or document a conservative operational choice. A nearby destination does not by itself authorize unbudgeted repeat trips.
+6. **Separate price from resources.** Discounts and relationship overrides do not reduce required crew, hours, or truck size. Review profitability after all discounts using the agreed operational plan and uncertainty allowance. Preserve who approved the exception and its scope. Resolve conflicting price edits before resending a quote.
+
+Before dispatch, the operations lead checks one current packet against the accepted terms and subsequent agreed changes: date/time, truck size/count, crew, billing model, actual recorded deposit, included/excluded inventory, item-specific assembly tasks, tools, access, and duration range. Regenerate and acknowledge the packet after changes. Do not dispatch from stale notes or a “no truck needed” reservation status on a truck move. Missing preparation checkmarks require verification; do not treat them as evidence of completed preparation.
+
+Within one working day after a truck swap, material time overrun, or unexpected handling difficulty, operations records:
+
+- planned versus actual crew and truck, start/end times and breaks;
+- truck exchange or repeat-trip time and affected workers;
+- complex-item disassembly and reassembly time, workers, model/components and access;
+- actual inventory changes with customer evidence, distinguished from known items that were underestimated;
+- direct job costs and final approved revenue, with any fee discrepancy reconciled;
+- the cause, corrective owner, and specific estimate/catalog/dispatch rule needing review.
+
+Record both elapsed crew-clock time and labor person-hours, accounting for simultaneous work. A positive customer review does not close the operational audit. Keep learning records separate from customer billing changes; an estimating error within confirmed scope is not itself evidence of an authorized scope increase. Calibrate handling ranges from comparable observed jobs, and label interim assumptions until validated.
 
 ## Stage 4A — Use the Estimate Readiness Workspace
 

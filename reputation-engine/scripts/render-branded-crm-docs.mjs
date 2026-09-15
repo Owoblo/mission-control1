@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { chromium } from 'playwright'
+import { createRequire } from 'node:module'
+const { chromium } = createRequire(import.meta.url)('playwright')
 
 const root = process.cwd()
 const outputDir = path.join(root, 'docs', 'pdf')
@@ -13,7 +14,7 @@ const documents = [
     title: 'CRM Operating Playbook',
     eyebrow: 'SATURN STAR MOVING',
     subtitle: 'The complete Saturn Star experience and operating standard—from first inquiry through final care.',
-    edition: 'Version 1.1 · July 2026',
+    edition: 'Version 1.2 · September 2026',
     toc: true,
     compact: false,
   },
@@ -23,7 +24,7 @@ const documents = [
     title: 'CRM Desk Reference',
     eyebrow: 'SATURN STAR MOVING',
     subtitle: 'A practical live-work guide for calm conversations, clear recommendations, responsible estimates, and continuity of care.',
-    edition: 'Version 1.1 · July 2026',
+    edition: 'Version 1.2 · September 2026',
     toc: false,
     compact: true,
   },

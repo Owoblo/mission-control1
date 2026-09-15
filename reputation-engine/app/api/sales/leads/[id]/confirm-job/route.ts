@@ -106,11 +106,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       crewNote: mergeCrewBrief(lead.crewNote, autoCrewBrief),
       truckCountConfirmed: quotedTruckCount,
       truckSize: quotedTruckCount ? lead.truckSize || '26ft' : undefined,
-      truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus || 'needs_booking') : 'not_needed',
+      truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus === 'not_needed' ? 'needs_booking' : lead.truckReservationStatus || 'needs_booking') : 'not_needed',
       opsChecklist: deriveOpsChecklist({
         ...lead,
         assignedCrew: autoAssignedCrew.length > 0 ? autoAssignedCrew : lead.assignedCrew,
-        truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus || 'needs_booking') : 'not_needed',
+        truckReservationStatus: quotedTruckCount ? (lead.truckReservationStatus === 'not_needed' ? 'needs_booking' : lead.truckReservationStatus || 'needs_booking') : 'not_needed',
       }),
     })
 

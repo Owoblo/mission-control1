@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { NextResponse } from 'next/server'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, canAccessOperationsWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +19,7 @@ const DOCUMENTS = {
 
 export async function GET(request: Request) {
   const session = await getSessionUser()
-  if (!session || !canAccessSalesWorkspace(session)) {
+  if (!session || (!canAccessSalesWorkspace(session) && !canAccessOperationsWorkspace(session))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

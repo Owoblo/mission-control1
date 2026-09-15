@@ -99,15 +99,8 @@ export function canReviseExistingQuote(session: SessionPayload | null | undefine
 }
 
 function deriveSubtotal(quote: CRMQuote, updates: Partial<CRMQuote>) {
-  if (typeof updates.subtotal === 'number' && Number.isFinite(updates.subtotal)) {
-    return updates.subtotal
-  }
-
-  if (Array.isArray(updates.lineItems)) {
-    return updates.lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0)
-  }
-
-  return Number(quote.subtotal || 0)
+  // Percentage discounts are measured against the pre-discount line-item total.
+  return (updates.lineItems || quote.lineItems || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
 }
 
 export function validateQuotePricingPermissions(
@@ -134,7 +127,7 @@ export function validateQuotePricingPermissions(
     const hasApproval =
       current.priceOverrideApprovalStatus === 'approved' &&
       approvedAmount > 0 &&
-      approvedAmount === overrideAmount
+      approvedAmount === Math.max(0, overrideAmount - Number(updates.discountAmount ?? current.discountAmount ?? 0))
     const hasMeaningfulNote = details.replace(/Projected margin:.*$/i, '').trim().length >= 12
     if (!hasMeaningfulNote) {
       return 'Sales reps must add a quick note explaining every manual price override.'

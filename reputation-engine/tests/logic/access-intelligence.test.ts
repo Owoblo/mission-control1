@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { deriveAccessComplexityAssessment } from '../../lib/access-intelligence'
 
-test('access intelligence auto-clears simple house-style access', () => {
+test('access intelligence clears documented simple routes', () => {
     const assessment = deriveAccessComplexityAssessment({
+      originAccess: 'Ground level, direct doorway', destAccess: 'Ground level, direct doorway', parkingNotes: 'Driveway at each address',
       jobFactors: {
         originFloors: 1,
         originHasElevator: false,
@@ -70,4 +71,11 @@ test('access intelligence keeps unknown access from being treated as ready', () 
   assert.equal(assessment.status, 'unknown')
   assert.equal(assessment.accessAutoClear, false)
   assert.equal(assessment.parkingAutoClear, false)
+})
+
+ test('inferred single-floor defaults cannot establish confirmed access', () => {
+  const result = deriveAccessComplexityAssessment({ jobFactors: { originFloors: 1, destFloors: 1, originParkingOk: true, destParkingOk: true } })
+  assert.equal(result.status, 'unknown')
+  assert.equal(result.accessAutoClear, false)
+  assert.equal(result.parkingAutoClear, false)
 })

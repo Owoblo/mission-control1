@@ -1,3 +1,5 @@
+import { evaluateQuoteIntelligenceSafety } from '@/lib/move-intelligence'
+import { isProvisionalQuoteScope } from '@/lib/quote-scope-status'
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
@@ -62,6 +64,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'You do not have permission to send messages for this lead.' }, { status: 403 })
     }
 
+    const intelligenceSafety = evaluateQuoteIntelligenceSafety(lead, quote)
+    const canOverrideIntelligence = session?.role === 'owner' || session?.role === 'manager'
+    const intelligenceOverride = !isProvisionalQuoteScope(quote) && !intelligenceSafety.allowed && canOverrideIntelligence
+    if (!isProvisionalQuoteScope(quote) && !intelligenceSafety.allowed && !canOverrideIntelligence) {
+      return NextResponse.json({ error: intelligenceSafety.reason || 'Complete the move-intelligence review before sending this binding quote.' }, { status: 409 })
+    }
+
     const jobs = []
     for (const item of payload.jobs) {
       if (!item.channel || !['email', 'sms'].includes(item.channel)) {
@@ -86,6 +95,7 @@ export async function POST(request: Request) {
         actor: 'human',
         actorUserId: session?.userId,
         actorName: session?.name,
+        result: intelligenceOverride ? { intelligenceOverride: true, intelligenceOverrideBy: session?.name, intelligenceOverrideReason: intelligenceSafety.reason } : undefined,
       }))
     }
 

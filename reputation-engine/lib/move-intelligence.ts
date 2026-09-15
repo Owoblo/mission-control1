@@ -1,3 +1,4 @@
+import { buildMoveOperatingPlan } from './move-operating-plan'
 import type {
   CRMLead,
   CRMQuote,
@@ -13,15 +14,15 @@ import type {
 } from './types'
 import { evaluateQuoteReadiness } from './quote-readiness'
 
-const HIGH_IMPACT = /\b(safe|piano|treadmill|elliptical|armoire|wardrobe|sectional|sleeper|sofa bed|pool table|hot tub|gun safe)\b/i
-const DISASSEMBLY = /\b(bed|bed frame|bunk|crib|table|desk|wardrobe|armoire|sectional|treadmill|trampoline)\b/i
+const HIGH_IMPACT = /\b(day[ -]?bed|trundle|safe|piano|treadmill|elliptical|armoire|wardrobe|sectional|sleeper|sofa bed|pool table|hot tub|gun safe)\b/i
+const DISASSEMBLY = /\b(day[ -]?bed|trundle|pull[ -]?out|bed|bed frame|bunk|crib|table|desk|wardrobe|armoire|sectional|treadmill|trampoline)\b/i
 const FRAGILE = /\b(glass|mirror|marble|stone|granite|tv|television|artwork|china|aquarium)\b/i
 const VERY_FRAGILE = /\b(glass table|marble|granite|aquarium|grandfather clock|chandelier)\b/i
 const FLEXIBLE = /\b(mattress|rug|bag|blanket)\b/i
-const BULKY = /\b(sofa|couch|sectional|mattress|bed|armoire|wardrobe|dresser|refrigerator|fridge|freezer|treadmill|piano)\b/i
+const BULKY = /\b(day[ -]?bed|trundle|sofa|couch|sectional|mattress|bed|armoire|wardrobe|dresser|refrigerator|fridge|freezer|treadmill|piano)\b/i
 const OVERSIZED = /\b(king|california king|85["” ]|90["” ]|oversized|grand piano|hot tub|pool table|large sectional)\b/i
 const SPECIALTY = /\b(safe|piano|hot tub|pool table|aquarium|grandfather clock)\b/i
-const SLEEPER = /\b(sleeper|sofa bed|pull[- ]?out|hide[- ]?a[- ]?bed)\b/i
+const SLEEPER = /\b(trundle|sleeper|sofa bed|pull[- ]?out|hide[- ]?a[- ]?bed)\b/i
 
 function clamp(value: number, min = 0, max = 100) {
   return Math.min(max, Math.max(min, value))
@@ -401,12 +402,13 @@ export function evaluateQuoteIntelligenceSafety(lead: CRMLead, quote: CRMQuote) 
     singleLocation: quote.quoteType === 'labor_only' || lead.quoteType === 'labor_only' || lead.moveType === 'labor-only',
   })
   const binding = quote.billingModel === 'binding'
+  const operating = buildMoveOperatingPlan(lead, quote)
   const quoteReadiness = evaluateQuoteReadiness(lead, quote)
   return {
     assessment,
     quoteReadiness,
-    allowed: !binding || (assessment.fixedPriceReadiness === 'ready' && quoteReadiness.quoteReady),
-    reason: !binding || (assessment.fixedPriceReadiness === 'ready' && quoteReadiness.quoteReady)
+    allowed: !binding || ((assessment.fixedPriceReadiness === 'ready' || operating.reviewCurrent) && quoteReadiness.quoteReady),
+    reason: !binding || ((assessment.fixedPriceReadiness === 'ready' || operating.reviewCurrent) && quoteReadiness.quoteReady)
       ? undefined
       : `Move is not QUOTE READY: ${[...quoteReadiness.blockers, ...assessment.readinessReasons].join(' ') || assessment.questions.map(question => question.question).join(' ')}`,
   }
