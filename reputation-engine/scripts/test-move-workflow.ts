@@ -65,6 +65,7 @@ async function main() {
   const dispatch = await import('../app/api/crew/dispatch/[token]/route')
   const quotesRoute = await import('../app/api/sales/quotes/[id]/route')
   const leadsRoute = await import('../app/api/sales/leads/[id]/route')
+  const playbookRoute = await import('../app/api/sales/playbook/route')
   const baseLead: CRMLead = normalizeLead({ id: 'fixture-lead', name: 'Fixture Furniture Move', stage: 'booked', createdAt: '2026-09-15',
     branch: 'ottawa', assignedRep: 'Fixture Rep', assignedRepUserId: 'rep', quoteId: 'fixture-quote', moveDate: '2026-10-01', moveTime: '10:00',
     moveType: 'residential', truckSize: '26ft', truckReservationStatus: 'reserved', originAccess: 'Ground floor', destAccess: 'Ground floor',
@@ -87,6 +88,11 @@ async function main() {
     const allowed = await middleware(new NextRequest(`http://fixture${path}`, { method: 'POST', headers: { cookie: `mc_session=${tokens.ops}` } }))
     assert.equal(allowed.headers.get('x-middleware-next'), '1', 'Operations must reach its authorized handlers')
   }
+  const playbookGate = await middleware(new NextRequest('http://fixture/api/sales/playbook', { headers: { cookie: `mc_session=${tokens.ops}` } }))
+  assert.equal(playbookGate.headers.get('x-middleware-next'), '1')
+  const playbook = await context.run(tokens.ops, () => playbookRoute.GET(new Request('http://fixture/api/sales/playbook')))
+  assert.equal(playbook.status, 200)
+  assert.equal(playbook.headers.get('content-type'), 'application/pdf')
   const restricted = await middleware(new NextRequest('http://fixture/api/sales/quotes/fixture-quote', { method: 'POST', headers: { cookie: `mc_session=${tokens.ops}` } }))
   assert.equal(restricted.status, 403)
   const call = async (handler: any, body: any, role = 'owner', token = false) => context.run(tokens[role] || '', () => handler(new Request('http://fixture/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), { params: Promise.resolve(token ? { token: 'fixture-token' } : { id: baseLead.id }) }))
