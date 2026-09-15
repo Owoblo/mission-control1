@@ -330,12 +330,14 @@ export function evaluateQuoteIntelligenceSafety(lead: CRMLead, quote: CRMQuote) 
   })
   const binding = quote.billingModel === 'binding'
   const operating = buildMoveOperatingPlan(lead, quote)
-  const ready = operating.ready && (assessment.fixedPriceReadiness === 'ready' || operating.reviewCurrent)
+  // Dispatch clearance is a later workflow. A normal quote must not require a
+  // truck reservation or crew packet approval before it can reach the customer.
+  const ready = assessment.fixedPriceReadiness === 'ready' || operating.reviewCurrent
   return {
     assessment,
     allowed: !binding || ready,
     reason: !binding || ready
       ? undefined
-      : `Binding quote needs operations review: ${operating.reasons.join(' ')} ${assessment.readinessReasons.join(' ') || assessment.questions.map(question => question.question).join(' ')}`,
+      : `Binding quote needs scope review: ${assessment.readinessReasons.join(' ') || assessment.questions.map(question => question.question).join(' ')}`,
   }
 }

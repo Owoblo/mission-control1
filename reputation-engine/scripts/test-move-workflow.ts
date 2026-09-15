@@ -10,8 +10,10 @@ import type { CRMLead, CRMQuote } from '../lib/types'
 const requireTool = createRequire(__filename)
 const Module = requireTool('node:module')
 const context = new AsyncLocalStorage<string>()
+const fakeDeliveries: unknown[] = []
 const originalLoad = Module._load
 Module._load = function (id: string, ...args: any[]) {
+  if (id.endsWith('/sales-messaging')) return { sendSalesMessage: async (message: unknown) => { fakeDeliveries.push(message); return { provider: 'fixture', id: 'fixture-message' } } }
   if (id === 'next/headers') return { cookies: async () => ({ get: () => ({ value: context.getStore() }) }) }
   return originalLoad.call(this, id, ...args)
 }
@@ -47,6 +49,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
     return json(updated)
   }
   if (method === 'POST') {
+    if (Array.isArray(data)) { rows.push(...structuredClone(data)); db.set(table, rows); mutations += data.length; return json(data) }
     if (rows.some(row => row.id === data.id)) return json({ error: 'duplicate' }, 409)
     rows.push(structuredClone(data)); db.set(table, rows); mutations++
     return json([data])
@@ -60,6 +63,7 @@ async function main() {
   const { createSessionToken } = await import('../lib/auth')
   const { middleware } = await import('../middleware')
   const { NextRequest } = await import('next/server')
+  const sendRoute = await import('../app/api/sales/quote-send-jobs/route')
   const planning = await import('../app/api/sales/leads/[id]/planning/route')
   const outcome = await import('../app/api/sales/leads/[id]/outcome/route')
   const dispatch = await import('../app/api/crew/dispatch/[token]/route')
@@ -81,7 +85,7 @@ async function main() {
   const lead = () => db.get('crm_leads')![0].data as CRMLead
   const plan = () => buildMoveOperatingPlan(lead(), baseQuote)
   const tokens: Record<string, string> = {}
-  for (const [key, options] of Object.entries({ owner: { role: 'owner' }, rep: { role: 'sales_rep', userId: 'rep' }, other: { role: 'sales_rep', userId: 'other' }, ops: { role: 'operations_lead', branch: 'ottawa' }, wrongBranch: { role: 'manager', branch: 'london' }, wrongOps: { role: 'operations_lead', branch: 'london' } })) {
+  for (const [key, options] of Object.entries({ owner: { role: 'owner' }, manager: { role: 'manager', branch: 'ottawa' }, rep: { role: 'sales_rep', userId: 'rep' }, other: { role: 'sales_rep', userId: 'other' }, ops: { role: 'operations_lead', branch: 'ottawa' }, wrongBranch: { role: 'manager', branch: 'london' }, wrongOps: { role: 'operations_lead', branch: 'london' } })) {
     tokens[key] = await createSessionToken({ ...options, name: `Fixture ${key}` } as any)
   }
   for (const path of ['/api/sales/leads/fixture-lead/planning', '/api/sales/leads/fixture-lead/outcome']) {
@@ -99,8 +103,8 @@ async function main() {
   const approve = () => ({ fingerprint: plan().fingerprint, approve: true, plannedHours: 9, rationale: 'Operations inspected the load and allowed sequential assembly time.' })
   let checks = 0
   const status = async (response: Response, expected: number) => { const data = await response.json(); assert.equal(response.status, expected, JSON.stringify(data)); checks++; return data }
-  const quoteCall = (body: unknown) => context.run(tokens.owner, () => quotesRoute.PATCH(new Request('http://fixture/api', { method: 'PATCH', body: JSON.stringify(body) }), { params: Promise.resolve({ id: baseQuote.id }) }))
-  await status(await quoteCall({ status: 'sent' }), 409)
+  const quoteCall = (body: unknown, role = 'owner') => context.run(tokens[role], () => quotesRoute.PATCH(new Request('http://fixture/api', { method: 'PATCH', body: JSON.stringify(body) }), { params: Promise.resolve({ id: baseQuote.id }) }))
+  await status(await quoteCall({ status: 'sent' }, 'rep'), 409)
   await status(await quoteCall({ revision: 99, discountAmount: 500 }), 409)
   await status(await call(leadsRoute.PATCH, { operatingReview: { fingerprint: plan().fingerprint } }), 400)
   await status(await call(planning.POST, approve(), 'anonymous'), 401)
@@ -167,6 +171,27 @@ async function main() {
   const concurrent = await Promise.all([call(outcome.POST, simultaneousBody), call(outcome.POST, simultaneousBody)])
   assert.deepEqual(concurrent.map(r => r.status).sort(), [200, 409])
   assert.equal(db.get('crm_quotes')![0].data.total, 1017)
+  const savedFixture = structuredClone([...db.entries()])
+  lead().email = 'fixture@example.invalid'
+  lead().operatingReview = undefined
+  db.get('crm_quotes')![0].data.status = 'draft'
+  lead().stage = 'pricing'
+  await status(await quoteCall({ status: 'sent' }), 200)
+  db.get('crm_quotes')![0].data.status = 'draft'
+  const sendBody = { quoteId: baseQuote.id, leadId: baseLead.id, jobs: [{ channel: 'email', recipient: 'fixture@example.invalid', subject: 'Fixture quote', body: 'Fixture-only quote delivery' }] }
+  await status(await call(sendRoute.POST, sendBody, 'rep'), 409)
+  assert.equal(fakeDeliveries.length, 0)
+  const ownerSend = await status(await call(sendRoute.POST, sendBody, 'owner'), 200)
+  assert.equal(ownerSend.jobs[0].status, 'sent', JSON.stringify(ownerSend.jobs[0]))
+  assert.equal(ownerSend.jobs[0].result.intelligenceOverride, true)
+  assert.equal(fakeDeliveries.length, 1)
+  await status(await call(sendRoute.POST, sendBody, 'owner'), 200)
+  assert.equal(fakeDeliveries.length, 1, 'Retrying the same send must not duplicate delivery')
+  const managerSend = await status(await call(sendRoute.POST, { ...sendBody, jobs: [{ ...sendBody.jobs[0], body: 'Second fixture quote' }] }, 'manager'), 200)
+  assert.equal(managerSend.jobs[0].status, 'sent')
+  assert.equal(fakeDeliveries.length, 2)
+  assert.equal(buildMoveOperatingPlan(lead(), baseQuote).ready, false, 'Sending does not clear dispatch')
+  db.clear(); for (const [key, rows] of savedFixture) db.set(key, rows)
   // Compile the actual editor, then drive it in Chromium against the real handlers.
   const { build } = requireTool('esbuild')
   const { chromium } = requireTool('playwright')
@@ -208,7 +233,7 @@ async function main() {
     assert.equal(lead().operationalOutcome?.actualHours, 11)
     assert.deepEqual(errors, [])
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'Editor must fit mobile width')
-    console.log(`PASS: ${checks} real-handler status checks; immutable review snapshots; stale crew acknowledgements; failed-write isolation; canonical actuals and reporting retry; Chromium editor saves and evidence validation at mobile width. No real services contacted.`)
+    console.log(`PASS: ${checks} real-handler status checks; owner/manager send delivery and deduplication; immutable review snapshots; stale crew acknowledgements; failed-write isolation; canonical actuals and reporting retry; Chromium editor saves and evidence validation at mobile width. No real services contacted.`)
   } finally { await browser?.close(); server.close() }
   assert.equal(rejectedNetwork, 0, 'No unexpected external requests should have been attempted')
 }

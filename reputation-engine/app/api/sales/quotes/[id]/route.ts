@@ -116,10 +116,9 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       )
     }
     if (proposedStatus === 'sent' && current.status !== 'sent' && proposedQuote.billingModel === 'binding' && currentLead) {
-      const operatingPlan = buildMoveOperatingPlan(currentLead, proposedQuote)
-      if (!operatingPlan.ready) return NextResponse.json({ error: 'Operations must review the current truck, assembly, access and hours plan before sending a binding quote.', reasons: operatingPlan.reasons }, { status: 409 })
       const safety = evaluateQuoteIntelligenceSafety(currentLead, proposedQuote)
-      if (!safety.allowed) {
+      const canOverrideIntelligence = session?.role === 'owner' || session?.role === 'manager'
+      if (!safety.allowed && !canOverrideIntelligence) {
         return NextResponse.json({ error: safety.reason, moveIntelligence: safety.assessment }, { status: 409 })
       }
     }
