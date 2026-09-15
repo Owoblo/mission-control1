@@ -136,7 +136,7 @@ export async function middleware(request: NextRequest) {
   // Sales workspace is only for sales-capable roles.
   if (pathname.startsWith('/sales') || pathname.startsWith('/api/sales')) {
     const operationsPath = pathname.startsWith('/sales/operations') || pathname.startsWith('/api/sales/operations') || pathname.startsWith('/sales/contractors') || pathname.startsWith('/api/sales/subcontractors') || pathname.startsWith('/api/sales/subcontractor-offers') || pathname.startsWith('/sales/partner-operations') || pathname.startsWith('/api/sales/partner-operations') || pathname.startsWith('/sales/partner-simulations') || pathname.startsWith('/api/sales/partner-pilots')
-    const operationsLeadMutation = /^\/api\/sales\/leads\/[^/]+\/(planning|outcome)$/.test(pathname) ||
+    const operationsLeadMutation = pathname === '/api/sales/playbook' || /^\/api\/sales\/leads\/[^/]+\/(planning|outcome)$/.test(pathname) ||
       (request.method === 'PATCH' && /^\/api\/sales\/leads\/[^/]+$/.test(pathname))
     const canAccessSales = role === 'owner' || role === 'manager' || role === 'sales_rep' || (role === 'operations_lead' && (operationsPath || operationsLeadMutation))
     if (!canAccessSales) {
