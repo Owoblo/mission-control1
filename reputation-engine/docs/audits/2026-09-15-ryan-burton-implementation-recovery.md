@@ -32,7 +32,7 @@ The [original audit](2026-09-15-ryan-burton-move-audit.md) describes behavior re
 - `npx tsx scripts/test-move-audit-persistence.ts` — passed; fake database transport only. Covers competing quote writes, stale retries, fresh revisions, creation and conditional lead saves.
 - `git diff --check` — passed.
 
-These are local checks. This recovery did not deploy, mutate production records, send messages, or perform a browser acceptance test.
+These initial recovery checks were local. The subsequent hardening and production rollout are recorded below.
 
 ## Hardening completed after recovery
 
@@ -54,8 +54,20 @@ These are local checks. This recovery did not deploy, mutate production records,
 - Offline persistence test: passed. No real customer records, messages or payments were used by the mutation tests.
 - Type checking: passed after the final nullable-record guard fix.
 - Test tooling is isolated from application dependencies. To rerun the workflow harness: install `playwright` and `tsx` into a temporary npm prefix, then run `scripts/test-move-workflow.ts` with that prefix's `tsx` and `NODE_PATH` set to its `node_modules`. Chromium must be installed for Playwright.
-- Release is staged from an isolated source copy that excludes unrelated uncommitted partnership work and local recovery/environment files. Production promotion is tracked below after verification.
+- Release is staged from an isolated source copy that excludes unrelated uncommitted partnership work and local recovery/environment files. Production promotion and live verification are recorded below.
 
 ## Ryan's audit remains open
 
 The missing facts are listed in the original audit: actual crew/start/finish/breaks, initial truck and swap time, daybed and BBQ work, carrying routes, final inventory and direct costs. Payment time does not establish finish time. The $149.40 payment/quote difference still needs receipt and rescheduling-fee reconciliation. No actuals were invented during recovery.
+
+## Production rollout completed
+
+- Implementation commit: `dff1dd6`.
+- Updated playbook/PDF and operations-download commit: `6207eec`.
+- Deployment: `dpl_DgeYXQPxbRKQcoftU4226ZSKnHT4`, promoted September 15, 2026.
+- Deployment URL: https://mission-control1-reputation-engine-2j3iym7lr.vercel.app
+- Live URL: https://mission-control1-reputation-engine.vercel.app
+- Vercel production build: Ready. Isolated release source matched the committed source, excluding unrelated uncommitted partnership work.
+- Authenticated Chromium checks passed on both staged and live domains: Ryan's lead loaded, selected truck was 26ft, six assembly editors rendered, PDF download succeeded, and there were zero browser runtime errors. Browser write requests (dialer telemetry/address enrichment) were blocked during these checks.
+- The live downloaded operating playbook matched the verified v1.2 PDF byte for byte (SHA-256 `0ec9fd401c6b6d312a8d3b469dd6f24caf240c69edd92ac8bcde8da635717a22`). Both the 40-page full guide and 9-page desk reference were text-checked and visually inspected at the new rules.
+- No customer communications, payment changes, or invented job actuals were part of testing. Existing jobs whose plans have not been reviewed will require operations review and current crew acknowledgement under the new safeguards.
