@@ -31,7 +31,8 @@ const DEFAULT_MAX_ATTEMPTS = 3
 const SEQUENCE_JOB_BATCH_SIZE = Math.max(1, Math.min(25, Number(readEnv('PARTNERSHIP_EMAIL_MAX_PER_RUN') || 10) || 10))
 
 const PARTNERSHIP_PHONE = DEFAULT_PARTNERSHIP_FROM_NUMBER
-const PARTNERSHIP_EMAIL = DEFAULT_PARTNERSHIP_EMAIL
+const PARTNERSHIP_SENDER_EMAIL = readEnv('PARTNERSHIP_EMAIL') || DEFAULT_PARTNERSHIP_EMAIL
+const PARTNERSHIP_EMAIL = readEnv('PARTNERSHIP_EMAIL_REPLY_TO') || PARTNERSHIP_SENDER_EMAIL
 
 function envFlag(name: string, defaultValue = false) {
   const value = readEnv(name).toLowerCase()
@@ -661,7 +662,7 @@ async function processSequence(request: Request) {
           ? `${text}\n\nNo longer useful? Unsubscribe: ${unsubscribeUrl}`
           : text
         const emailReceipt = await sendProviderEmail({
-          from: `${partnershipEmailFromName()} <${PARTNERSHIP_EMAIL}>`,
+          from: `${partnershipEmailFromName()} <${PARTNERSHIP_SENDER_EMAIL}>`,
           to: contact.email as string,
           subject,
           html,
