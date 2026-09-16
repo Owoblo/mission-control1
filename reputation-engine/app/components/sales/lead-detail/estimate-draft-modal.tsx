@@ -523,6 +523,7 @@ export function EstimateDraftModal({
   const [intakeOpen, setIntakeOpen] = useState(false)
   const [intakeText, setIntakeText] = useState('')
   const [intakeBusy, setIntakeBusy] = useState(false)
+  const [intakeError, setIntakeError] = useState<string | null>(null)
   const [intakeResult, setIntakeResult] = useState<import('@/app/api/sales/smart-intake/route').SmartIntakeResult | null>(null)
   const [intakeApplied, setIntakeApplied] = useState(false)
   const [legsEnabled, setLegsEnabled] = useState(() => (legsProp?.length ?? 0) > 0)
@@ -871,6 +872,7 @@ export function EstimateDraftModal({
     if (!intakeText.trim()) return
     setIntakeBusy(true)
     setIntakeResult(null)
+    setIntakeError(null)
     try {
       const res = await fetch('/api/sales/smart-intake', {
         method: 'POST',
@@ -899,8 +901,12 @@ export function EstimateDraftModal({
       const data = await res.json() as { ok?: boolean; result?: import('@/app/api/sales/smart-intake/route').SmartIntakeResult; error?: string }
       if (data.ok && data.result) {
         setIntakeResult(data.result)
+      } else {
+        setIntakeError(data.error || 'AI could not parse this move. Try again or add the details manually.')
       }
-    } catch { /* non-fatal */ }
+    } catch (error) {
+      setIntakeError(error instanceof Error ? error.message : 'AI could not parse this move. Try again or add the details manually.')
+    }
     finally { setIntakeBusy(false) }
   }
 
@@ -1193,6 +1199,7 @@ export function EstimateDraftModal({
   const [quickWeightLbs, setQuickWeightLbs] = useState('')
   const [quickLookupLoading, setQuickLookupLoading] = useState(false)
   const [quickLookupNote, setQuickLookupNote] = useState<string | null>(null)
+  const [quickLookupError, setQuickLookupError] = useState<string | null>(null)
   // Paste-list import
   const [inventoryTab, setInventoryTab] = useState<'quick' | 'paste'>('quick')
   const [pasteText, setPasteText] = useState('')
@@ -2017,9 +2024,13 @@ export function EstimateDraftModal({
     if (!name.trim() || quickCuFt) return
     setQuickLookupLoading(true)
     setQuickLookupNote(null)
+    setQuickLookupError(null)
     try {
       const res = await fetch(`/api/sales/items/lookup?item=${encodeURIComponent(name.trim())}`, { credentials: 'include' })
-      if (!res.ok) return
+      if (!res.ok) {
+        setQuickLookupError(res.status === 401 ? 'Your session expired. Refresh the CRM and try again.' : 'No size estimate found — enter cu ft manually.')
+        return
+      }
       const data = await res.json() as { cubicFeet?: number; weightLbs?: number; notes?: string; confidence?: string; source?: string }
       if (data.cubicFeet && !quickCuFt) {
         setQuickCuFt(String(data.cubicFeet))
@@ -2027,12 +2038,14 @@ export function EstimateDraftModal({
         const src = data.source === 'preset' ? 'preset' : `AI · ${data.confidence || 'medium'} confidence`
         setQuickLookupNote(`${data.cubicFeet} cu ft · ${data.weightLbs ? `${data.weightLbs} lbs` : ''} (${src})${data.notes ? ` — ${data.notes}` : ''}`)
       }
-    } catch { /* non-fatal */ }
+    } catch { setQuickLookupError('Size lookup is unavailable — enter cu ft manually.') }
     finally { setQuickLookupLoading(false) }
   }
 
-  function addQuickItem() {
+  async function addQuickItem() {
     if (!quickItem.trim()) return
+    // Tapping Add on mobile can skip the input blur that used to trigger AI lookup.
+    if (!quickCuFt) await lookupItemDimensions(quickItem)
     const qty = Math.max(1, Number(quickQty) || 1)
     const cf = Number(quickCuFt) || 0
     const weightLbs = Number(quickWeightLbs) || Math.round(cf * 4)
@@ -2051,6 +2064,7 @@ export function EstimateDraftModal({
     setQuickCuFt('')
     setQuickWeightLbs('')
     setQuickLookupNote(null)
+    setQuickLookupError(null)
   }
 
   function addConjointPresetItem(presetId: string, owner: 'person_a' | 'person_b') {
@@ -2850,6 +2864,7 @@ export function EstimateDraftModal({
                       </button>
                     )}
                   </div>
+                  {intakeError && <p role="alert" className="text-xs text-rose-600">{intakeError}</p>}
 
                   {intakeResult && (
                     <div className="space-y-3">
@@ -4891,7 +4906,7 @@ export function EstimateDraftModal({
                             value={quickItem}
                             onChange={e => { setQuickItem(e.target.value); setQuickLookupNote(null) }}
                             onBlur={e => void lookupItemDimensions(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addQuickItem()}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addQuickItem() } }}
                             className="crm-input py-1 text-xs"
                             placeholder="Item name (e.g. Pet Étagère)"
                           />
@@ -4905,8 +4920,8 @@ export function EstimateDraftModal({
                           />
                           <button
                             type="button"
-                            onClick={addQuickItem}
-                            disabled={!quickItem.trim()}
+                            onClick={() => void addQuickItem()}
+                            disabled={!quickItem.trim() || quickLookupLoading}
                             className="crm-button-dark text-xs px-3 disabled:opacity-40"
                           >
                             Add
@@ -4914,6 +4929,8 @@ export function EstimateDraftModal({
                         </div>
                         {quickLookupNote ? (
                           <p className="text-[10px] text-emerald-700">✓ {quickLookupNote}</p>
+                        ) : quickLookupError ? (
+                          <p className="text-[10px] text-amber-700">{quickLookupError}</p>
                         ) : (
                           <p className="text-[10px] text-[var(--app-muted)]">{quickLookupLoading ? '🔍 Looking up dimensions…' : 'Type any item — AI will estimate cu ft if not in our library.'}</p>
                         )}
