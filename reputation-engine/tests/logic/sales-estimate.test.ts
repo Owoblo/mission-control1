@@ -39,6 +39,13 @@ test('deposit policy uses 30% locally, 50% long-distance, and invoices commercia
   assert.equal(getDefaultDepositRate('commercial'), 0)
 })
 
+test('labour-only estimates omit truck requirements from the quote', () => {
+  const result = estimateLeadQuote(makeLead({ moveType: 'labor-only' }), { quoteType: 'labor_only' })
+  assert.equal(result.truckCount, 0)
+  assert.equal(result.lineItems[0]?.description, 'Labor-Only Moving Crew')
+  assert.doesNotMatch(result.lineItems[0]?.details || '', /truck/i)
+})
+
 test('quote line-item reconciliation is stable when the estimate is unchanged', () => {
   const current = [
     { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
