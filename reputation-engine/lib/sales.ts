@@ -1,3 +1,4 @@
+import { bookingDecision } from './booking-policy'
 import { buildMoveOperatingPlan } from './move-operating-plan'
 import { buildAssemblyPlan, needsItemAssembly } from './assembly-planning'
 import type {
@@ -1051,13 +1052,13 @@ export function normalizeFollowUp(log: FollowUpLog): FollowUpLog {
 export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead {
   const nextStage =
     quote.status === 'accepted' || quote.status === 'invoiced'
-      ? 'booked'
+      ? isBookedLikeStage(lead.stage) ? lead.stage : bookingDecision(lead, quote).confirmed ? 'booked' : 'tentative'
       : quote.status === 'declined'
         ? isBookedLikeStage(lead.stage)
           ? lead.stage
           : 'lost'
         : quote.status === 'sent' || quote.status === 'viewed'
-          ? 'quoted'
+          ? isBookedLikeStage(lead.stage) ? lead.stage : 'quoted'
           : quote.status === 'draft'
             ? isBookedLikeStage(lead.stage)
               ? lead.stage
@@ -1204,7 +1205,8 @@ function estimateSingleLeadQuote(
   const totalWeightLbs = Number(overrides?.estimatedWeightLbs || (metrics.includedInventory.length ? metrics.totalWeightLbs : lead.totalWeightLbs) || 0)
   const suggestedCrew = Number(overrides?.crewSize || suggestCrewSize(totalWeightLbs, totalCubicFeet, metrics.includedInventory))
   const suggestedTruckCount = suggestTruckCount(totalCubicFeet, totalWeightLbs, isLongDistance ? 'long-distance' : lead.moveType)
-  const truckCount = Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
+  // Labour-only work uses customer/site-provided transport.
+  const truckCount = isLaborOnly ? 0 : Number(overrides?.truckCount || activeFactors?.truckCountOverride || suggestedTruckCount)
 
   // Multi-truck coordination overhead: each additional truck adds ~30 min for
   // parallel loading logistics, crew briefing, and staging at origin.
@@ -1501,7 +1503,7 @@ function estimateSingleLeadQuote(
 
   const inclusions: string[] = []
   inclusions.push(`${crewSize} professional mover${crewSize > 1 ? 's' : ''}`)
-  inclusions.push(`${truckCount} truck${truckCount > 1 ? 's' : ''}`)
+  if (truckCount > 0) inclusions.push(`${truckCount} truck${truckCount > 1 ? 's' : ''}`)
   if (!isLaborOnly && !isPacking) {
     inclusions.push('furniture wrapping & padding')
     inclusions.push('disassembly & reassembly')
