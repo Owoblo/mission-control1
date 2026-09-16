@@ -1198,6 +1198,7 @@ export function EstimateDraftModal({
   const [quickCuFt, setQuickCuFt] = useState('')
   const [quickWeightLbs, setQuickWeightLbs] = useState('')
   const [quickLookupLoading, setQuickLookupLoading] = useState(false)
+  const quickAddInFlight = useRef(false)
   const [quickLookupNote, setQuickLookupNote] = useState<string | null>(null)
   const [quickLookupError, setQuickLookupError] = useState<string | null>(null)
   // Paste-list import
@@ -2032,39 +2033,47 @@ export function EstimateDraftModal({
         return
       }
       const data = await res.json() as { cubicFeet?: number; weightLbs?: number; notes?: string; confidence?: string; source?: string }
-      if (data.cubicFeet && !quickCuFt) {
+      if (Number.isFinite(data.cubicFeet) && Number(data.cubicFeet) > 0 && !quickCuFt) {
         setQuickCuFt(String(data.cubicFeet))
         if (data.weightLbs) setQuickWeightLbs(String(data.weightLbs))
         const src = data.source === 'preset' ? 'preset' : `AI · ${data.confidence || 'medium'} confidence`
         setQuickLookupNote(`${data.cubicFeet} cu ft · ${data.weightLbs ? `${data.weightLbs} lbs` : ''} (${src})${data.notes ? ` — ${data.notes}` : ''}`)
+        return data
       }
+      setQuickLookupError('No size estimate found — enter cu ft manually.')
     } catch { setQuickLookupError('Size lookup is unavailable — enter cu ft manually.') }
     finally { setQuickLookupLoading(false) }
   }
 
   async function addQuickItem() {
-    if (!quickItem.trim()) return
-    // Tapping Add on mobile can skip the input blur that used to trigger AI lookup.
-    if (!quickCuFt) await lookupItemDimensions(quickItem)
-    const qty = Math.max(1, Number(quickQty) || 1)
-    const cf = Number(quickCuFt) || 0
-    const weightLbs = Number(quickWeightLbs) || Math.round(cf * 4)
-    onAddInventoryItems([{
-      id: `manual-${Date.now()}`,
-      room: quickRoom,
-      name: quickItem.trim(),
-      item: quickItem.trim(),
-      qty,
-      cubicFeet: cf,
-      weightLbs,
-      included: true,
-    }])
-    setQuickItem('')
-    setQuickQty('1')
-    setQuickCuFt('')
-    setQuickWeightLbs('')
-    setQuickLookupNote(null)
-    setQuickLookupError(null)
+    if (!quickItem.trim() || quickAddInFlight.current) return
+    quickAddInFlight.current = true
+    try {
+      // Use the response directly: state setters do not update this async closure.
+      const dimensions = !quickCuFt ? await lookupItemDimensions(quickItem) : undefined
+      if (!quickCuFt && !dimensions) return
+      const qty = Math.max(1, Number(quickQty) || 1)
+      const cf = Number(quickCuFt) || Number(dimensions?.cubicFeet) || 0
+      const weightLbs = Number(quickWeightLbs) || Number(dimensions?.weightLbs) || Math.round(cf * 4)
+      onAddInventoryItems([{
+        id: `manual-${Date.now()}`,
+        room: quickRoom,
+        name: quickItem.trim(),
+        item: quickItem.trim(),
+        qty,
+        cubicFeet: cf,
+        weightLbs,
+        included: true,
+      }])
+      setQuickItem('')
+      setQuickQty('1')
+      setQuickCuFt('')
+      setQuickWeightLbs('')
+      setQuickLookupNote(null)
+      setQuickLookupError(null)
+    } finally {
+      quickAddInFlight.current = false
+    }
   }
 
   function addConjointPresetItem(presetId: string, owner: 'person_a' | 'person_b') {
@@ -4905,7 +4914,6 @@ export function EstimateDraftModal({
                           <input
                             value={quickItem}
                             onChange={e => { setQuickItem(e.target.value); setQuickLookupNote(null) }}
-                            onBlur={e => void lookupItemDimensions(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addQuickItem() } }}
                             className="crm-input py-1 text-xs"
                             placeholder="Item name (e.g. Pet Étagère)"
