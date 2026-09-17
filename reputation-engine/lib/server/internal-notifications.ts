@@ -1,5 +1,7 @@
 import { getTwilioCredentials, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
+import { sendProviderEmail } from '@/lib/server/email-provider'
 
 // Per-caller cooldown so reps don't get spammed on repeat calls
 const _callerIdCooldown = new Map<string, number>()
@@ -34,7 +36,7 @@ export async function sendCallerIdSms(
   ))
 }
 
-const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
+const NOTIFY_FROM = 'Saturn Star OS <notifications@saturnstarmovers.ca>'
 const NOTIFY_TO = ['business@starmovers.ca', 'thelma.ufot@starmovers.ca']
 const PARTNERSHIP_DEFAULT_NOTIFY_TO = ['business@starmovers.ca']
 const PARTNERSHIP_MARKET_NOTIFY_TO: Record<string, string[]> = {
@@ -87,6 +89,7 @@ function marketKey(value?: string | null) {
 export function getPartnershipAlertRecipients(market?: string | null) {
   const key = marketKey(market)
   const marketRecipients = [
+    ...(isOttawa(market) ? PARTNERSHIP_MARKET_NOTIFY_TO.ottawa : []),
     ...(PARTNERSHIP_MARKET_NOTIFY_TO[key] || []),
     ...(key.includes('windsor') || key.includes('essex') ? PARTNERSHIP_MARKET_NOTIFY_TO.windsor : []),
     ...(key.includes('waterloo') || key.includes('kitchener') || key.includes('cambridge') || key.includes('guelph') ? PARTNERSHIP_MARKET_NOTIFY_TO.waterloo : []),
@@ -126,20 +129,16 @@ export async function sendInternalAlertSms(to: string, body: string, from: strin
 }
 
 export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients = NOTIFY_TO) {
-  const resendKey = readEnv('RESEND_API_KEY')
   const to = uniqueEmails(recipients)
-  if (!resendKey || !to.length) return
-
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: NOTIFY_FROM,
-      to,
-      subject,
-      html: htmlBody,
-    }),
-  }).catch(() => {})
+  if (!to.length) return
+  await Promise.all(to.map(recipient => sendProviderEmail({
+    from: NOTIFY_FROM,
+    to: recipient,
+    subject,
+    html: htmlBody,
+    replyTo: 'business@starmovers.ca',
+    trackingMode: 'deliverability',
+  }).catch(() => null)))
 }
 
 export function partnershipInboundNotificationEmail(options: {
@@ -152,6 +151,8 @@ export function partnershipInboundNotificationEmail(options: {
   phone?: string | null
   email?: string | null
   mediaUrls?: string[]
+  eventLabel?: string
+  subject?: string
 }) {
   const {
     contactId,
@@ -172,6 +173,7 @@ export function partnershipInboundNotificationEmail(options: {
     ? new Date(occurredAt).toLocaleString('en-US', {
         dateStyle: 'medium',
         timeStyle: 'short',
+        timeZone: 'America/Toronto',
       })
     : 'Just now'
   const crmLink = `https://go.quote2move.com/marketing/partners?tab=phone&contact=${encodeURIComponent(contactId)}`
@@ -182,7 +184,7 @@ export function partnershipInboundNotificationEmail(options: {
   return `
 <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
   <div style="background:#1a2744;color:#d7f5e6;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
-    Partner inbound ${escapeHtml(channel.toUpperCase())} — ${contactLabel}
+    ${escapeHtml(options.eventLabel || `Partner inbound ${channel.toUpperCase()}`)} — ${contactLabel}
   </div>
   <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px">
     <div style="font-size:14px;color:#1a2744;line-height:1.6">
@@ -190,7 +192,8 @@ export function partnershipInboundNotificationEmail(options: {
       ${companyLabel ? `<div><strong>Company:</strong> ${companyLabel}</div>` : ''}
       ${phone ? `<div><strong>Phone:</strong> ${escapeHtml(phone)}</div>` : ''}
       ${email ? `<div><strong>Email:</strong> ${escapeHtml(email)}</div>` : ''}
-      <div><strong>Received:</strong> ${escapeHtml(occurredLabel)}</div>
+      ${options.subject ? `<div><strong>Subject:</strong> ${escapeHtml(options.subject)}</div>` : ''}
+      <div><strong>Received (Eastern Time):</strong> ${escapeHtml(occurredLabel)}</div>
     </div>
     <div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${detail}</div>
     ${mediaLinks ? `<div style="margin-top:12px;font-size:13px;color:#1a2744"><strong>Media attached:</strong><ul style="margin:8px 0 0 18px;padding:0">${mediaLinks}</ul></div>` : ''}

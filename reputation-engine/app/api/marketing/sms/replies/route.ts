@@ -5,6 +5,7 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { suggestPartnershipReply, type PartnershipAssistantContact, type PartnershipAssistantTouch } from '@/lib/server/partnership-reply-assistant'
 import { partnershipScopeFilter } from '@/lib/server/partnership-access'
 import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
+import { detectPartnershipLeadSignal } from '@/lib/server/partnership-lead-detection'
 
 const CONTEXT_CLARIFICATION_RE = /\b(who is this|who'?s this|what is this|what'?s this|what is this for|what'?s this for|what is this about|what'?s this about|don'?t see (?:an |the )?earlier text|missing.*conversation|missing.*part|part of a conversation|not sure what this is|what conversation|remind me|sorry.*missing)\b/i
 
@@ -79,6 +80,11 @@ function touchPartnershipSender(touch: { channel?: string | null; direction?: st
   return !!normalized && isPartnershipSenderNumber(normalized)
 }
 
+function isProviderEventTouch(touch: { channel?: string | null; notes?: string | null }) {
+  const note = String(touch.notes || '').trim().toLowerCase()
+  return String(touch.channel || '').toLowerCase() === 'email' && /^(ses event:|ses bounced event|ses complaint event|ses delivery event|ses rejected event)/i.test(note)
+}
+
 function classifyReply(touch: MarketTouch, contact?: MarketContact | null) {
   const outcome = String(touch.outcome_code || '').toLowerCase()
   if (outcome === 'sms_unavailable') return 'closed'
@@ -108,6 +114,9 @@ function classifyReply(touch: MarketTouch, contact?: MarketContact | null) {
   }
   if (/(call|meeting|appointment|come by|drop by|talk|connect|available|interested)/i.test(note)) {
     return 'appointment'
+  }
+  if (/^(?:inbound sms:\s*)?(?:thanks|thank you|cheers|great|perfect|wonderful|no worries|np|you're welcome|you are welcome|ok|okay|absolutely|will do|sounds good|👍|🙏|😊|☺️|👌|😉|\W)+[!. ]*$/i.test(note)) {
+    return 'review'
   }
   return contact?.sequence_paused && !contact?.decision ? 'needs_reply' : 'review'
 }
@@ -177,6 +186,7 @@ export async function GET(request: Request) {
   }
 
   const inboundTouches = ((await inboundRes.json()) as MarketTouch[]).filter(touchPartnershipSender)
+    .filter(touch => !isProviderEventTouch(touch))
   const latestInboundByContact = new Map<string, MarketTouch>()
   for (const touch of inboundTouches) {
     if (!touch.contact_id) continue
@@ -206,6 +216,7 @@ export async function GET(request: Request) {
   )
   const history = ((historyRes.ok ? await historyRes.json() : []) as Array<PartnershipAssistantTouch & MarketTouch & { contact_id?: string }>)
     .filter(touchPartnershipSender)
+    .filter(touch => !isProviderEventTouch(touch))
   const latestByContact = new Map<string, MarketTouch>()
   let touchHistoryByContact = new Map<string, PartnershipAssistantTouch[]>()
   touchHistoryByContact = history.reduce((map, touch) => {
@@ -224,6 +235,7 @@ export async function GET(request: Request) {
       const contact = contactsById.get(id)
       const payload = toContact(contact, latest, latestInbound)
       if (!payload) return null
+      const leadSignal = detectPartnershipLeadSignal(latestInbound?.notes)
       const playbook = includeSuggestions && contact && latestInbound
         ? await suggestPartnershipReply({
             contact: {
@@ -250,6 +262,8 @@ export async function GET(request: Request) {
         latest_touch: latest,
         bucket: classifyReply(latest, contact),
         needs_response: Boolean(latest.direction === 'inbound' && contact?.sequence_paused && !contact?.decision),
+        lead_signal: leadSignal,
+        needs_sales_follow_up: leadSignal.is_lead,
         ...(playbook ? { playbook } : {}),
       }
     }))

@@ -1,0 +1,43 @@
+import { NextResponse } from 'next/server'
+import { detectPartnershipLeadSignal } from '@/lib/server/partnership-lead-detection'
+import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
+import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
+import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
+
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+type Touch = { id: string; contact_id: string; notes: string | null; created_at: string; metadata?: Record<string, unknown> | null }
+type Contact = { id: string; name: string | null; company: string | null; title: string | null; email: string | null; phone: string | null; city: string | null; category: string | null; industry: string | null }
+const enc = (value: unknown) => encodeURIComponent(String(value))
+function phone(value: unknown) { const digits = String(value || '').replace(/\D/g, ''); return digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : String(value || '').trim() }
+function isPartnershipTouch(touch: Touch) { return isPartnershipSenderNumber(phone(touch.metadata?.to || touch.metadata?.To || touch.metadata?.to_number || touch.metadata?.toNumber)) }
+function branchFor(city: string | null) { const value = String(city || '').toLowerCase(); if (/ottawa|kanata|orleans|nepean/.test(value)) return 'ottawa'; if (/london|woodstock|guelph|kitchener|waterloo|cambridge|sarnia|chatham/.test(value)) return 'kitchener'; return 'windsor' }
+function displayName(contact: Contact) { const name = String(contact.name || '').trim(); return name && !/^unknown contact$/i.test(name) && !/^\+?\d[\d ()-]+$/.test(name) ? name : String(contact.company || name || 'Partner referral').trim() }
+async function readJson<T>(url: string, headers: Record<string, string>): Promise<T> { const response = await fetch(url, { headers, cache: 'no-store' }); if (!response.ok) throw new Error(`Supabase read failed (${response.status})`); return response.json() as Promise<T> }
+async function mutate(url: string, headers: Record<string, string>, body: unknown, method = 'POST') { const response = await fetch(url, { method, headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase write failed (${response.status})`) }
+
+export async function GET(request: Request) {
+  if (!isAuthorizedCronRequest(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { url, headers } = requireSupabaseEnv(); const now = new Date().toISOString()
+  try {
+    const touches = await readJson<Touch[]>(`${url}/rest/v1/market_touches?direction=eq.inbound&channel=eq.sms&select=id,contact_id,notes,created_at,metadata&order=created_at.desc&limit=5000`, headers)
+    const latest = new Map<string, Touch>()
+    for (const touch of touches.filter(isPartnershipTouch)) if (detectPartnershipLeadSignal(touch.notes).is_lead && !latest.has(touch.contact_id)) latest.set(touch.contact_id, touch)
+    const ids = [...latest.keys()]; if (!ids.length) return NextResponse.json({ ok: true, scanned: touches.length, detected: 0, created: 0 })
+    const contacts = await readJson<Contact[]>(`${url}/rest/v1/market_contacts?id=in.(${ids.map(enc).join(',')})&select=id,name,company,title,email,phone,city,category,industry`, headers)
+    const byId = new Map<string, Contact>(contacts.map(contact => [contact.id, contact])); const existing = await readJson<Array<{ id: string; data?: Record<string, unknown> }>>(`${url}/rest/v1/crm_leads?select=id,data&limit=10000`, headers); const existingByContact = new Map<string, { id: string; data?: Record<string, unknown> }>(); for (const row of existing) { const contactId = String(row.data?.partnerReferralContactId || ''); if (contactId) existingByContact.set(contactId, row) }; let created = 0; const createdHandoffs: string[] = []
+    for (const [contactId, touch] of latest) {
+      const contact = byId.get(contactId); if (!contact) continue; const signal = detectPartnershipLeadSignal(touch.notes); const city = String(contact.city || '').trim(); const person = displayName(contact); const old = existingByContact.get(contact.id); const leadId = `partner-handoff-${contact.id}`
+      const data: Record<string, unknown> = { id: leadId, name: person, company: contact.company || undefined, title: contact.title || undefined, stage: 'new', leadKind: 'partner_opportunity', primaryContactRole: 'partner', source: 'partner_referral', sourceDetail: 'partnership_sms_live_lead', partnerReferralContactId: contact.id, partnerReferralName: person, partnerReferralCompany: contact.company || undefined, partnerReferralCategory: contact.category || contact.industry || undefined, partnerReferralEmail: contact.email || undefined, partnerReferralPhone: contact.phone || undefined, partnerReferralLinkedAt: now, phone: contact.phone || undefined, email: contact.email || undefined, branch: branchFor(contact.city), originCity: city || undefined, inboundMessage: touch.notes || '', partnerLeadSignal: signal.kind, partnerLeadPriority: signal.priority, partnerLeadSummary: 'Partner reported a potential customer job. Call the partner first to collect the customer details and scope.', notes: ['Partner-sourced sales handoff.', 'John from Partnerships identified this potential job.', 'Call the partner first, introduce yourself as calling from Saturn Star Movers because John asked you to follow up, and collect the referred customer details.', 'Collect client name and phone, move or staging date, origin, destination, inventory, access and parking details, timing, and quote requirements.', 'The partner is the referrer, not necessarily the customer. Do not quote until the job scope and route are confirmed.', city ? `Partner location recorded as ${city}. Confirm service coverage and exact route with the partner.` : 'Partner city is not recorded. Confirm location during the call.', `Priority: ${signal.priority}.`, `Latest partner reply: ${String(touch.notes || '').trim()}`].join('\n'), assignedRep: 'Thelma Ufot', assignedRepName: 'Thelma Ufot', leadOwnerStatus: 'assigned', followUpDate: now.slice(0, 10), followUpNote: 'Call partner for referred customer details', lastInboundAt: touch.created_at, createdAt: old?.data?.createdAt || now, updatedAt: now }
+      for (const key of Object.keys(data)) if (data[key] === undefined) delete data[key]
+      if (old) await mutate(`${url}/rest/v1/crm_leads?id=eq.${enc(old.id)}`, headers, { data, deleted: false, updated_at: now }, 'PATCH'); else { await mutate(`${url}/rest/v1/crm_leads`, headers, { id: leadId, data, deleted: false, updated_at: now }); created++; createdHandoffs.push(`${person}${contact.company ? ` (${contact.company})` : ''} · ${city || 'city not recorded'} · ${signal.priority}`) }
+      await mutate(`${url}/rest/v1/market_contacts?id=eq.${enc(contact.id)}`, headers, { priority: signal.priority, sequence_paused: true, sequence_paused_reason: 'live_sales_lead_detected' }, 'PATCH')
+    }
+    if (createdHandoffs.length) {
+      const rows = createdHandoffs.map(item => `<li>${item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')
+      await sendRepAlertEmail(`Partner lead handoff: ${createdHandoffs.length} new sales lead${createdHandoffs.length === 1 ? '' : 's'}`, `<div style="font-family:Arial,sans-serif"><h2>New partner-sourced sales handoff${createdHandoffs.length === 1 ? '' : 's'}</h2><p>The CRM has been updated and Thelma can call the referring partner for the customer details.</p><ul>${rows}</ul><p>Open the sales CRM to review the full inbound reply and call checklist.</p></div>`, ['business@starmovers.ca', 'thelma.ufot@starmovers.ca'])
+    }
+    return NextResponse.json({ ok: true, scanned: touches.length, detected: latest.size, created })
+  } catch (error) { console.error('Partner lead handoff processor:', error); return NextResponse.json({ error: error instanceof Error ? error.message : 'Lead handoff processing failed' }, { status: 500 }) }
+}

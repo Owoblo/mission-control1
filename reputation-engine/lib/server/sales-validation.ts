@@ -34,11 +34,13 @@ const SALES_LEAD_STAGES = new Set<NonNullable<CRMLead['stage']>>([
 const LEAD_KINDS = new Set<NonNullable<CRMLead['leadKind']>>([
   'customer',
   'realtor_opportunity',
+  'partner_opportunity',
 ])
 
 const LEAD_CONTACT_ROLES = new Set<NonNullable<CRMLead['primaryContactRole']>>([
   'customer',
   'realtor',
+  'partner',
 ])
 
 const QUOTE_TYPES = new Set<NonNullable<CRMLead['quoteType']>>([

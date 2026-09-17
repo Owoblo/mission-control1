@@ -388,7 +388,7 @@ export function normalizeLead(lead: CRMLead): CRMLead {
   const normalizedLead: CRMLead = {
     ...lead,
     leadKind,
-    primaryContactRole: lead.primaryContactRole || (leadKind === 'realtor_opportunity' ? 'realtor' : 'customer'),
+    primaryContactRole: lead.primaryContactRole || (leadKind === 'realtor_opportunity' ? 'realtor' : leadKind === 'partner_opportunity' ? 'partner' : 'customer'),
     stage: lead.stage || 'new',
     source: normalizeLeadSource(lead.source),
     phone: normalizedPhone,

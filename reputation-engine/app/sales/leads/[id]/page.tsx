@@ -1,4 +1,5 @@
 'use client'
+import PaymentRecoveryPanel from '@/app/components/payment-recovery-panel'
 
 import { OperatingPlanPanel } from '@/app/components/sales/lead-detail/operating-plan-panel'
 import Link from 'next/link'
@@ -2590,11 +2591,14 @@ export default function SalesLeadDetailPage() {
 
     try {
       setChargeDepositBusy(true)
+      const operationStorageKey = `ssm:charge-deposit:${quote.id}`
+      const operationId = sessionStorage.getItem(operationStorageKey) || crypto.randomUUID()
+      sessionStorage.setItem(operationStorageKey, operationId)
       const response = await fetch('/api/sales/stripe/charge-deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ leadId: lead.id, quoteId: quote.id }),
+        body: JSON.stringify({ leadId: lead.id, quoteId: quote.id, operationId }),
       })
       const payload = await response.json() as {
         ok?: boolean
@@ -2607,19 +2611,11 @@ export default function SalesLeadDetailPage() {
         throw new Error(payload.error || 'Deposit charge failed')
       }
 
+      sessionStorage.removeItem(operationStorageKey)
       setLead(payload.lead)
       setQuote(payload.quote)
       setError(null)
 
-      if (payload.lead.email) {
-        const paymentId = payload.quote.paymentRecords?.at(-1)?.id
-        if (paymentId) void fetch(`/api/sales/quotes/${payload.quote.id}/payments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ paymentId, email: payload.lead.email, sendEmail: true, sendSms: true }),
-        }).catch(() => null)
-      }
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -2772,14 +2768,18 @@ export default function SalesLeadDetailPage() {
     if (!await showConfirm('Charge balance?', `Charge ${formatMoney(chargeAmt)} to the card on file?`, { confirmLabel: 'Charge', destructive: true })) return
     try {
       setChargeBalanceBusy(true)
+      const operationStorageKey = `ssm:charge-balance:${quote.id}`
+      const operationId = sessionStorage.getItem(operationStorageKey) || crypto.randomUUID()
+      sessionStorage.setItem(operationStorageKey, operationId)
       const r = await fetch('/api/sales/stripe/charge-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ leadId: lead.id, quoteId: quote.id, amountOverride: amountOverride !== undefined && amountOverride > 0 ? amountOverride : undefined }),
+        body: JSON.stringify({ leadId: lead.id, quoteId: quote.id, operationId, amountOverride: amountOverride !== undefined && amountOverride > 0 ? amountOverride : undefined }),
       })
       const payload = await r.json() as { ok?: boolean; error?: string; balance?: number; amount?: number; cardLast4?: string; lead?: CRMLead; quote?: CRMQuote }
       if (!r.ok || !payload.ok || !payload.lead || !payload.quote) throw new Error(payload.error || 'Charge failed')
+      sessionStorage.removeItem(operationStorageKey)
       setLead(payload.lead)
       setQuote(payload.quote)
       setBalanceOverrideAmount('')
@@ -4382,6 +4382,11 @@ export default function SalesLeadDetailPage() {
               Listing Opportunity
             </span>
           ) : null}
+          {lead.leadKind === 'partner_opportunity' ? (
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-semibold text-sky-700">
+              Partner Sales Handoff
+            </span>
+          ) : null}
           {lead.branch ? (
             <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-[10px] font-semibold text-stone-700">
               {getSalesBranchLabel(lead.branch)}
@@ -4406,6 +4411,14 @@ export default function SalesLeadDetailPage() {
             <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
               View only
             </span>
+          ) : null}
+          {lead.leadKind === 'partner_opportunity' ? (
+            <div className="mt-3 w-full rounded-[12px] border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+              <div className="font-semibold">This is a partner event, not a normal customer intake</div>
+              <p className="mt-1">{lead.partnerLeadSummary || 'Call the referring partner first, review the source conversation, and collect the referred customer details before estimating.'}</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium"><span>Partner: {lead.partnerReferralName || lead.name}</span>{lead.partnerReferralCompany ? <span>Business: {lead.partnerReferralCompany}</span> : null}{lead.originCity ? <span>City: {lead.originCity}</span> : null}{lead.partnerLeadPriority ? <span>Priority: {lead.partnerLeadPriority}</span> : null}</div>
+              {lead.inboundMessage ? <blockquote className="mt-3 border-l-2 border-sky-300 pl-3 text-xs italic">{lead.inboundMessage}</blockquote> : null}
+            </div>
           ) : null}
           {lead.stage === 'estimate_scheduled' && lead.estimateDate ? (
             <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700">
@@ -5047,6 +5060,7 @@ export default function SalesLeadDetailPage() {
                             💳 Take Card By Phone
                           </button>
                         ) : null}
+                        <PaymentRecoveryPanel quoteId={quote.id} onReconciled={(nextLead, nextQuote) => { setLead(nextLead); setQuote(nextQuote) }} />
                         {/* Balance override input */}
                         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
                           <div className="text-xs font-semibold text-[var(--app-ink)]">Adjust &amp; charge balance</div>
