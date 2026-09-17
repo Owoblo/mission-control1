@@ -9,6 +9,7 @@ export interface Reviews {
 }
 
 export interface Job {
+  reviewAccessVersion?: number
   id: string
   customerName: string
   customerEmail: string
@@ -180,8 +181,8 @@ export type QuotePaymentTerms =
 export type LeadFollowUpStatus = 'pending' | 'following_up' | 'followed_up' | 'no_response'
 export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
 export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa'
-export type LeadKind = 'customer' | 'realtor_opportunity'
-export type LeadContactRole = 'customer' | 'realtor'
+export type LeadKind = 'customer' | 'realtor_opportunity' | 'partner_opportunity'
+export type LeadContactRole = 'customer' | 'realtor' | 'partner'
 export type RealtorLookupStatus = 'not_checked' | 'matched' | 'partial' | 'missing'
 export type DestinationOpportunityStatus = 'outside_area' | 'no_match' | 'generated' | 'linked_existing'
 export type RealtorWarmth = 'warm' | 'cold' | 'unknown'
@@ -1103,6 +1104,10 @@ export interface CRMLead {
   inboundMessage?: string
   source?: string
   sourceDetail?: string
+  partnerLeadSignal?: string
+  partnerLeadPriority?: 'normal' | 'high' | 'urgent'
+  partnerLeadSummary?: string
+  partnerLeadFeedback?: string
   opportunityContext?: LeadOpportunityContext
   attributionSignals?: LeadAttributionSignal[]
   moveRelationships?: MoveRelationship[]

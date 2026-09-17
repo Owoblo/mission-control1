@@ -917,6 +917,7 @@ function SalesPipelineContent() {
                                 {lead.moveDateFlexible && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Pending close</span>}
                                 {lead.branch && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700">{getSalesBranchLabel(lead.branch)}</span>}
                                 {lead.leadKind === 'realtor_opportunity' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Realtor Lead</span>}
+                                {lead.leadKind === 'partner_opportunity' && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">Partner Sales Handoff</span>}
                               </div>
                             </div>
                             <span className="mr-5 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">{guidance?.heat.score || lead.leadScore || 0}</span>
@@ -926,6 +927,7 @@ function SalesPipelineContent() {
                             <span>{quote ? formatMoney(quote.total) : 'Est. pending'}</span>
                           </div>
                           {lead.opportunityContext?.summary ? <div className="mt-3 border-l-2 border-[#C99700] pl-2 text-[11px] leading-4 text-[#344054]">{lead.opportunityContext.summary}</div> : null}
+                          {lead.leadKind === 'partner_opportunity' ? <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-900"><div className="font-semibold">Partner event</div><div>{lead.partnerLeadSummary || 'Call the referring partner first and collect the referred customer details.'}</div>{lead.partnerLeadSignal ? <div className="mt-1 text-[10px] font-medium uppercase tracking-wide">Signal: {lead.partnerLeadSignal} · Priority: {lead.partnerLeadPriority || 'normal'}</div> : null}</div> : null}
                           <div className="mt-2 text-[11px] text-[var(--app-ink)]">
                             <span className="font-semibold">Next:</span> {lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.intelligence?.nextAction || 'Review lead'}
                           </div>

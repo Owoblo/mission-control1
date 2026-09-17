@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/marketing/partnership-discovery/process",
+      "schedule": "0 12 * * *"
+    },
+    {
       "path": "/api/ops/lead-flow-health",
       "schedule": "0 */12 * * *"
     },
@@ -39,6 +43,18 @@
     {
       "path": "/api/ops/video-survey-analysis",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/marketing/email-replies/process",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/marketing/partnership-digest",
+      "schedule": "0 12,13 * * *"
+    },
+    {
+      "path": "/api/marketing/lead-handoffs/process",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
