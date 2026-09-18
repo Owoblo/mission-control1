@@ -93,8 +93,13 @@ function recipients(message: SesMessage) {
   return message.mail?.destination || []
 }
 
-async function requireSupabaseWrite(request: Promise<Response>, operation: string) {
+async function requireSupabaseWrite(
+  request: Promise<Response>,
+  operation: string,
+  options: { ignoreConflict?: boolean } = {},
+) {
   const response = await request
+  if (response.status === 409 && options.ignoreConflict) return
   if (!response.ok) {
     throw new Error(`${operation} failed with ${response.status}`)
   }
@@ -124,7 +129,7 @@ async function handleSesEvent(message: SesMessage, raw: unknown) {
       occurred_at: occurredAt,
       payload: raw,
     }),
-  }), 'Saving SES provider event')
+  }), 'Saving SES provider event', { ignoreConflict: true })
 
   if (messageId && recipientEmail) {
     await fetch(`${url}/rest/v1/email_events`, {
