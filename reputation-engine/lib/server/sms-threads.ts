@@ -46,6 +46,9 @@ export interface SalesSmsThread {
   lastReadByName?: string
   lastActionAt?: string
   lastActionByName?: string
+  partnerOpportunity?: boolean
+  partnerLeadSummary?: string
+  partnerHandoffStatus?: string
 }
 
 const HEALTH_PROBE_SMS_DIGITS = '15550001111'
@@ -80,6 +83,21 @@ function isInternalHealthProbeSmsMessage(message: SmsMessageRecord) {
   if (body.includes('lead flow health sms probe')) return true
 
   return fromDigits === HEALTH_PROBE_SMS_DIGITS || toDigits === HEALTH_PROBE_SMS_DIGITS
+}
+
+async function isPartnerHandoffPhone(phone: string) {
+  if (!phone) return false
+  const { url, headers } = requireSupabaseEnv()
+  const query = new URLSearchParams({
+    select: 'data',
+    'data->>leadKind': 'eq.partner_opportunity',
+    limit: '10000',
+  })
+  const response = await fetch(`${url}/rest/v1/crm_leads?${query}`, { headers, cache: 'no-store' })
+  if (!response.ok) return false
+  const normalized = normalizePhone(phone)
+  const rows = await response.json() as Array<{ data?: Record<string, unknown> }>
+  return rows.some(row => [row.data?.partnerReferralPhone, row.data?.phone].some(value => normalizePhone(typeof value === 'string' ? value : '') === normalized))
 }
 
 function sortLeadMatches(leads: CRMLead[]) {
@@ -163,7 +181,12 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
     messages = (await response.json()) as SmsMessageRecord[]
   }
 
-  return excludePartnershipMessages(messages.filter(message => !isInternalHealthProbeSmsMessage(message)))
+  const usable = messages.filter(message => !isInternalHealthProbeSmsMessage(message))
+  const filtered = await excludePartnershipMessages(usable)
+  if (normalizedPhone && await isPartnerHandoffPhone(normalizedPhone)) {
+    return Array.from(new Map([...filtered, ...usable].map(message => [message.id, message])).values())
+  }
+  return filtered
 }
 
 // Cache the shared source, not separate history hydration for every search/page.
@@ -185,7 +208,23 @@ async function readSalesSmsSnapshot() {
     messages.push(...rows)
     if (rows.length < 1000) break
   }
-  return excludePartnershipMessages(messages.filter(message => !isInternalHealthProbeSmsMessage(message)), partnerSids)
+  const partnerLeadResponse = await fetch(`${url}/rest/v1/crm_leads?select=data&data-%3E%3EleadKind=eq.partner_opportunity&limit=10000`, { headers, cache: 'no-store' })
+  const partnerPhones = new Set<string>()
+  if (partnerLeadResponse.ok) {
+    for (const row of await partnerLeadResponse.json() as Array<{ data?: Record<string, unknown> }>) {
+      for (const value of [row.data?.partnerReferralPhone, row.data?.phone]) {
+        const normalized = normalizePhone(typeof value === 'string' ? value : '')
+        if (normalized) partnerPhones.add(normalized)
+      }
+    }
+  }
+  const usable = messages.filter(message => !isInternalHealthProbeSmsMessage(message))
+  const filtered = await excludePartnershipMessages(usable, partnerSids)
+  const retainedPartner = usable.filter(message => {
+    if (!partnerPhones.has(normalizePhone(getSmsContactPhone(message)))) return false
+    return Boolean(message.twilio_sid && partnerSids.has(message.twilio_sid))
+  })
+  return Array.from(new Map([...filtered, ...retainedPartner].map(message => [message.id, message])).values())
 }
 
 export function paginateSalesSmsMessages(messages: SmsMessageRecord[], limit = 150, offset = 0, search = '') {
@@ -369,6 +408,11 @@ export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[], 
     thread.inboundLeadId = inboundLead?.id || null
     thread.leadName = resolvedLead?.name || usableInboundContactName(inboundLead?.name)
     thread.leadStage = resolvedLead?.stage
+    if (resolvedLead?.leadKind === 'partner_opportunity') {
+      thread.partnerOpportunity = true
+      thread.partnerLeadSummary = resolvedLead.partnerLeadSummary
+      thread.partnerHandoffStatus = typeof resolvedLead.handoffStatus === 'string' ? resolvedLead.handoffStatus : undefined
+    }
     thread.lastMessage = last?.body || ''
     thread.lastAt = last?.created_at || thread.lastAt
     thread.lastDirection = last?.direction || 'outbound'

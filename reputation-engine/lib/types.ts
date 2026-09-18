@@ -1107,6 +1107,8 @@ export interface CRMLead {
   partnerLeadSignal?: string
   partnerLeadPriority?: 'normal' | 'high' | 'urgent'
   partnerLeadSummary?: string
+  handoffStatus?: 'new' | 'in_progress' | 'completed' | 'needs_partner_follow_up' | string
+  handoffAt?: string
   partnerLeadFeedback?: string
   opportunityContext?: LeadOpportunityContext
   attributionSignals?: LeadAttributionSignal[]
