@@ -5,3 +5,12 @@ node_modules
 .vercel
 .env*.local
 .env.sentry-build-plugin
+
+# Generated validation and build state
+.tmp-logic-tests/
+test-results/
+supabase/.temp/
+*.tsbuildinfo
+
+# Local generated exports
+output/

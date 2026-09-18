@@ -1,0 +1,52 @@
+name: Reputation Engine Validate
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "reputation-engine/**"
+      - ".github/workflows/reputation-engine-validate.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "reputation-engine/**"
+      - ".github/workflows/reputation-engine-validate.yml"
+
+concurrency:
+  group: reputation-engine-validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reputation-engine
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: reputation-engine/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run logic tests
+        run: npm run test:logic
+
+      - name: Build application
+        run: npm run build
