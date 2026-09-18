@@ -5,6 +5,8 @@ import { getPartnershipAlertRecipients, partnershipInboundNotificationEmail, sen
 import { partnershipDispositionFromSuggestion, suggestPartnershipReply, type PartnershipAssistantContact } from '@/lib/server/partnership-reply-assistant'
 import { isOptOutText } from '@/lib/server/partnership-sms'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { queueRequestedOttawaCard } from '@/lib/server/partnership-card-fulfillment'
+import { appendLocalityEvidence, extractPartnerLocality } from '@/lib/server/partnership-locality'
 
 type InboundChannel = 'email' | 'phone' | 'sms'
 
@@ -32,6 +34,7 @@ interface MarketContactMatch {
   pipeline_phase: string | null
   affiliate_partner_id?: string | null
   tracking_code?: string | null
+  notes?: string | null
 }
 
 function normalizeEmail(value?: string | null) {
@@ -49,7 +52,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
   if (normalizedEmail) {
     const emailRes = await fetch(
-      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=created_at.desc&limit=20`,
+      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code,notes&order=created_at.desc&limit=20`,
       { headers, cache: 'no-store' }
     )
     if (emailRes.ok) {
@@ -68,7 +71,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
       const matches: MarketContactMatch[] = []
       for (let offset = 0; ; offset += 200) {
         const response = await fetch(
-          `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code&order=id.asc&limit=200&offset=${offset}`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code,notes&order=id.asc&limit=200&offset=${offset}`,
           { headers, cache: 'no-store' }
         )
         if (!response.ok) return null
@@ -86,6 +89,25 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 function chooseBestMatch(matches: MarketContactMatch[]) {
   // Shared brokerage numbers must not pick an arbitrary person's record.
   return matches.length === 1 ? matches[0] : null
+}
+
+function extractExplicitPersonName(notes?: string | null) {
+  const text = String(notes || '').replace(/^Inbound SMS:\s*/i, '').replace(/\s+/g, ' ').trim()
+  if (!text) return null
+  const named = text.match(/\b(?:my name is|i am|i'm|this is)\s+([A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+){1,3})\b/u)
+  if (named?.[1]) return named[1].trim()
+  const leading = text.match(/^([A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+){1,3})(?=\s*(?:[./,-]|$))/u)
+  if (leading?.[1] && !/^(Hi|Hello|Thanks|Thank You|Sure|Yes|No|Okay|Absolutely|Unfortunately)\b/i.test(leading[1])) return leading[1].trim()
+  return null
+}
+
+function shouldCapturePersonName(contact: MarketContactMatch, candidate: string) {
+  const current = String(contact.name || '').trim().toLowerCase()
+  const company = String(contact.company || '').trim().toLowerCase()
+  const normalizedCandidate = candidate.toLowerCase()
+  if (!candidate || normalizedCandidate === current || normalizedCandidate === company) return false
+  if (current && current !== company && !/\b(mortgage|realty|real estate|interior|design|staging|team|group|company|inc|ltd|brokerage|architects?)\b/i.test(current)) return false
+  return candidate.split(/\s+/).length >= 2
 }
 
 function metadataMediaUrls(metadata?: Record<string, unknown>) {
@@ -182,6 +204,31 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   const occurredAt = input.occurredAt || new Date().toISOString()
   try {
   const { url, headers } = requireSupabaseEnv()
+  const explicitPersonName = extractExplicitPersonName(input.notes)
+  if (explicitPersonName && shouldCapturePersonName(contact, explicitPersonName)) {
+    await fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ name: explicitPersonName }),
+    })
+    contact.name = explicitPersonName
+  }
+  const locality = extractPartnerLocality(input.notes)
+  if (locality && locality.city.toLowerCase() !== String(contact.city || '').trim().toLowerCase()) {
+    const correctedNotes = appendLocalityEvidence(contact.notes, locality.city, locality.evidence)
+    await fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, { method: 'PATCH', headers, body: JSON.stringify({ city: locality.city, notes: correctedNotes }) })
+    contact.city = locality.city
+    contact.notes = correctedNotes
+  }
+  const inboundSid = String(input.metadata?.messageSid || '')
+  if (input.channel === 'sms' && /^(SM|MM)[0-9a-f]{32}$/i.test(inboundSid)) {
+    const prior = await fetch(`${url}/rest/v1/market_touches?${new URLSearchParams({contact_id:'eq.'+contact.id,direction:'eq.inbound','metadata->>messageSid':'eq.'+inboundSid,select:'id',limit:'1'})}`, {headers,cache:'no-store'})
+    if (!prior.ok) throw new Error('Inbound replay lookup failed')
+    if ((await prior.json()).length) {
+      await queueRequestedOttawaCard(contact.id,inboundSid)
+      return {matched:true as const,contactId:contact.id,contactName:contact.name,duplicate:true}
+    }
+  }
   if (isAutomatedSmsUnavailableReply(input.channel, input.notes)) {
     const nextChannel = contact.email ? 'email' : 'phone'
     const touchNotes = input.notes?.trim() || 'This number does not accept SMS messages.'
@@ -341,11 +388,11 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     getPartnershipAlertRecipients(contact.city)
   )
 
-  return {
-    matched: true as const,
-    contactId: contact.id,
-    contactName: contact.name,
+  if (input.channel === 'sms' && !optedOut) {
+    await queueRequestedOttawaCard(contact.id, String(input.metadata?.messageSid || ''))
+      .catch(error => console.error('Requested Dexa card needs review', { contactId: contact.id, error: String(error) }))
   }
+  return { matched: true as const, contactId: contact.id, contactName: contact.name }
   } catch (error) {
     // Once identity has matched a relationship contact, never reinterpret a
     // processing failure as a new Sales lead. Persist a minimal recovery touch
