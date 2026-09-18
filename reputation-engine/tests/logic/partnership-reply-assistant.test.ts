@@ -72,6 +72,29 @@ test('partnership assistant separates a polite decline from an explicit telecom 
   assert.equal(partnershipDispositionFromSuggestion(explicit).outcome_code, 'opt_out')
 })
 
+test('partnership assistant strips inbound prefixes and never greets a directory title as a person', async () => {
+  delete process.env.OPENAI_API_KEY
+  const stop = await suggestPartnershipReply({
+    contact: { ...contact, name: 'iSO Design & Interiors', company: 'iSO Design & Interiors' },
+    touches: inbound('Inbound SMS: Stop'),
+  })
+  assert.equal(stop.intent, 'stop_opt_out')
+
+  const business = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Tailored Rooms Home Staging', company: 'Tailored Rooms Home Staging' },
+    touches: inbound('Inbound SMS: Sure sounds good'),
+  })
+  assert.doesNotMatch(business.draft_sms, /Hi Tailored|Thanks Tailored|Of course Tailored/i)
+  assert.doesNotMatch(business.draft_sms, /what is your name/i)
+
+  const person = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Alan J. Nicholas - Mortgage Broker London', company: 'Alan J. Nicholas - Mortgage Broker London' },
+    touches: inbound('Inbound SMS: It would be ok'),
+  })
+  assert.match(person.draft_sms, /Alan/i)
+  assert.doesNotMatch(person.draft_sms, /what is your name/i)
+})
+
 test('partnership assistant treats client email info requests as package-forwarding requests', async () => {
   process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL = 'https://starmovers.ca/partner/mak-cole-windsor'
   process.env.PARTNERSHIP_RATE_CARD_URL = 'https://starmovers.ca/partner/flyers/windsor.pdf'
@@ -453,4 +476,39 @@ test('partnership assistant treats referred lead updates as dispositions', async
   assert.match(result.draft_sms, /Thanks for the update, Ken/i)
   assert.match(result.draft_sms, /no worries at all/i)
   assert.doesNotMatch(result.draft_sms, /What address and time|drop it off/i)
+})
+
+test('partnership assistant routes a concrete client job to sales and captures missing partner identity', async () => {
+  delete process.env.OPENAI_API_KEY
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'H2M Staging', company: 'H2M Staging' },
+    touches: inbound('I have a client who needs movers next week. Can you quote it?'),
+    skipAi: true,
+  })
+
+  assert.equal(result.intent, 'partner_lead_received')
+  assert.equal(result.recommended_action, 'human_review')
+  assert.equal(result.quick_action, 'needs_follow_up')
+  assert.match(result.draft_sms, /sales team follow up/i)
+  assert.match(result.draft_sms, /What name should I save this number under/i)
+  assert.match(partnershipDispositionFromSuggestion(result).next_step, /sales/i)
+})
+
+
+test('location questions use configured local coverage without a package pitch', async () => {
+  for (const [city, expected] of [['Kanata', 'We cover Kanata, Ottawa and surrounding areas.'], ['Ottawa', 'We cover Ottawa and surrounding areas.'], ['Windsor', 'We cover Windsor and surrounding areas.']]) {
+    const result = await suggestPartnershipReply({contact: {...contact, city}, touches: inbound('Where you located?')})
+    assert.equal(result.draft_sms, expected)
+    assert.deepEqual(result.suggested_media_urls, [])
+  }
+})
+
+test('physical addresses and unknown service areas require evidence; opt-outs win', async () => {
+  for (const [city, message] of [['Kanata', 'What is your office address?'], ['Unknown City', 'Where are you based?']]) {
+    const result = await suggestPartnershipReply({contact: {...contact, city}, touches: inbound(message), skipAi: true})
+    assert.equal(result.recommended_action, 'human_review')
+    assert.equal(result.draft_sms, '')
+  }
+  const stopped = await suggestPartnershipReply({contact: {...contact, decision: 'opted_out'}, touches: inbound('Where are you located?'), skipAi: true})
+  assert.equal(stopped.intent, 'stop_opt_out')
 })
