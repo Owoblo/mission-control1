@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { EconomicTrace } from '@/lib/economic-truth'
+import { ResponsiveTable } from '@/app/components/sales/responsive-table'
 
 const money = (cents: number | null) => cents === null ? 'Unknown' : new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(cents / 100)
 
@@ -79,8 +80,20 @@ export default function EconomicTruthPage() {
       <p className="text-xs text-slate-600">{filtered.length} matching records. Snapshot {new Date(checkedAt).toLocaleString()}. Counts describe CRM records, not total market coverage.</p>
       <details className="rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Connector tracking · {connectorRows.length} linked contacts</summary>
         <p className="mt-2 text-xs text-slate-600">Referring partners and customer-reported connectors. A lead is counted once per connector; several connectors may assist the same job. These are associated outcomes, not exclusive credit or confirmed profit. Uses all records in the selected branch.</p>
-        <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{['Connector', 'Linked leads', 'Quote linked', 'Booked or completed', 'Completed'].map(label => <th className="p-2" key={label}>{label}</th>)}</tr></thead><tbody>{connectorRows.map(c => <tr key={c.id} className="border-t"><td className="p-2">{c.name}</td><td className="p-2">{c.leads}</td><td className="p-2">{c.quoted}</td><td className="p-2">{c.booked}</td><td className="p-2">{c.completed}</td></tr>)}</tbody></table></div>
-        {!connectorRows.length && <p className="mt-3 text-sm">No explicit connector links recorded in these leads yet.</p>}
+        <div className="mt-3">
+          <ResponsiveTable
+            columns={[
+              { key: 'connector', header: 'Connector', render: c => c.name },
+              { key: 'leads', header: 'Linked leads', align: 'right', render: c => c.leads },
+              { key: 'quoted', header: 'Quote linked', align: 'right', render: c => c.quoted },
+              { key: 'booked', header: 'Booked or completed', align: 'right', render: c => c.booked },
+              { key: 'completed', header: 'Completed', align: 'right', render: c => c.completed },
+            ]}
+            rows={connectorRows}
+            rowKey={c => c.id}
+            emptyMessage="No explicit connector links recorded in these leads yet."
+          />
+        </div>
       </details>
       {filtered.length === 0 ? <p>No records match this review.</p> : <div className="space-y-4">{visible.map(row =>
         <article key={row.id} className="rounded-xl border bg-white p-5">

@@ -10,6 +10,12 @@ import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDel
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 import { ConfirmDialog } from '@/app/components/confirm-dialog'
+import { UrgencyBadge, heatToTone, URGENCY_TONE_CLASSES, type UrgencyTone } from '@/app/components/sales/urgency-badge'
+
+// One urgency language: lead heat -> shared tone.
+function heatTone(tone: ReturnType<typeof getLeadGuidance>['heat']['tone']): UrgencyTone {
+  return heatToTone(tone)
+}
 
 type LeadViewMode = 'focus' | 'booked' | 'all' | 'realtor' | 'deleted'
 type DeletedLeadRow = CRMLead & { _deletedAt?: string }
@@ -46,14 +52,6 @@ function matchesLeadQuery(lead: CRMLead, query: string) {
     .join(' ')
     .toLowerCase()
   return haystack.includes(query)
-}
-
-function heatBadgeClasses(tone: ReturnType<typeof getLeadGuidance>['heat']['tone']) {
-  if (tone === 'risk') return 'border-rose-200 bg-rose-50 text-rose-700'
-  if (tone === 'hot') return 'border-orange-200 bg-orange-50 text-orange-700'
-  if (tone === 'warm') return 'border-amber-200 bg-amber-50 text-amber-700'
-  if (tone === 'dormant') return 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
-  return 'border-slate-200 bg-slate-50 text-slate-600'
 }
 
 function stageClasses(stage: CRMLead['stage']) {
@@ -377,7 +375,7 @@ function SalesLeadsIndexContent() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {(lead.followUpDate || '') < today && (
-                      <span className="h-2 w-2 rounded-full bg-rose-500" />
+                      <span className={`h-2 w-2 rounded-full ${URGENCY_TONE_CLASSES.critical.dot}`} />
                     )}
                     <span className="font-medium text-[var(--app-ink)]">{lead.name || 'Unnamed'}</span>
                     <span className="text-xs text-[var(--app-muted)]">{(lead.followUpDate || '') < today ? `Overdue since ${lead.followUpDate}` : 'Due today'}</span>
@@ -463,9 +461,7 @@ function SalesLeadsIndexContent() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="truncate font-medium text-[var(--app-ink)]">{lead.name}</div>
-                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${heatBadgeClasses(guidance.heat.tone)}`}>
-                          {guidance.heat.label} · {guidance.heat.score}
-                        </span>
+                        <UrgencyBadge tone={heatTone(guidance.heat.tone)} label={`${guidance.heat.label} · ${guidance.heat.score}`} />
                       </div>
                       <div className="mt-1 text-xs text-[var(--app-muted)]">
                         {guidance.stageLabel} · {guidance.branchLabel} · Owner {guidance.ownerLabel}
@@ -543,7 +539,7 @@ function SalesLeadsIndexContent() {
                           {guidance.stageLabel}
                         </span>
                         {guidance.action.priority >= 80 && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700"><Zap size={11} />Urgent</span>
+                          <UrgencyBadge tone="critical" label="Urgent" icon={Zap} className="font-bold" />
                         )}
                       </div>
                       <div className="mt-0.5 text-xs text-[var(--app-muted)]">
@@ -554,9 +550,7 @@ function SalesLeadsIndexContent() {
                       </div>
                     </Link>
                     <div className="self-start">
-                      <div className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${heatBadgeClasses(guidance.heat.tone)}`}>
-                        {guidance.heat.label} · {guidance.heat.score}
-                      </div>
+                      <UrgencyBadge tone={heatTone(guidance.heat.tone)} label={`${guidance.heat.label} · ${guidance.heat.score}`} />
                       <div className="mt-2 text-xs text-[var(--app-muted)]">{guidance.heat.reasons[0] || 'No heat signal'}</div>
                     </div>
                     <Link href={`/sales/leads/${lead.id}`} className="min-w-0 hover:opacity-80">

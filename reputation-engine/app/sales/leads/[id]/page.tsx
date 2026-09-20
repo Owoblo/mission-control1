@@ -71,6 +71,7 @@ const PaymentReceiptCenter = dynamic(
   { ssr: false }
 )
 import { LeadBasicsPanel } from '@/app/components/sales/lead-detail/lead-basics-panel'
+import { UrgencyBadge, nudgeToTone, heatToTone, readinessToTone, URGENCY_TONE_CLASSES } from '@/app/components/sales/urgency-badge'
 import { ListingMatchPicker } from '@/app/components/sales/listing-match-picker'
 import { CRMRecordContext, CRMRecordLayout, CRMRecordMain, CRMRecordWidget } from '@/app/components/crm-layout'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -4073,7 +4074,7 @@ export default function SalesLeadDetailPage() {
               <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Environment</div><div className="mt-1 text-sm font-semibold text-[#071421]">{operatingStageMeta.environment}</div></div>
               <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Last meaningful contact</div><div className="mt-1 text-sm font-semibold text-[#071421]">{leadGuidance?.latestActivity.at ? formatRelativeTime(leadGuidance.latestActivity.at) : 'No activity recorded'}</div></div>
               <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Source</div><div className="mt-1 text-sm font-semibold text-[#071421]">{lead.source || 'Not recorded'}</div></div>
-              <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Risk</div><div className={`mt-1 text-sm font-semibold ${operatingExceptions.some(item => item.severity === 'urgent') ? 'text-rose-700' : operatingExceptions.length ? 'text-amber-700' : 'text-emerald-700'}`}>{operatingExceptions.some(item => item.severity === 'urgent') ? 'Intervention required' : operatingExceptions.length ? `${operatingExceptions.length} exception${operatingExceptions.length === 1 ? '' : 's'}` : 'No clear exception'}</div></div>
+              <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Risk</div><div className={`mt-1 text-sm font-semibold ${URGENCY_TONE_CLASSES[operatingExceptions.some(item => item.severity === 'urgent') ? 'critical' : operatingExceptions.length ? 'warning' : 'positive'].text}`}>{operatingExceptions.some(item => item.severity === 'urgent') ? 'Intervention required' : operatingExceptions.length ? `${operatingExceptions.length} exception${operatingExceptions.length === 1 ? '' : 's'}` : 'No clear exception'}</div></div>
             </div>
           </div>
 
@@ -4093,7 +4094,7 @@ export default function SalesLeadDetailPage() {
                 </div>
               </details>
             </div> : null}
-            {showJobReadiness && <div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold text-[#071421]">Job readiness</span><span className={`text-xs font-semibold ${jobReadiness.status === 'fully_ready' ? 'text-emerald-700' : jobReadiness.status === 'at_risk' ? 'text-rose-700' : 'text-amber-700'}`}>{jobReadiness.label}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"><div className={`h-full ${jobReadiness.status === 'fully_ready' ? 'bg-emerald-600' : jobReadiness.status === 'at_risk' ? 'bg-rose-600' : 'bg-amber-500'}`} style={{ width: `${jobReadiness.percent}%` }} /></div><div className="mt-2 text-xs text-[var(--app-muted)]">{jobReadiness.completed} of {jobReadiness.total} requirements complete</div></div>}
+            {showJobReadiness && <div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold text-[#071421]">Job readiness</span><span className={`text-xs font-semibold ${URGENCY_TONE_CLASSES[readinessToTone(jobReadiness.status)].text}`}>{jobReadiness.label}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"><div className={`h-full ${URGENCY_TONE_CLASSES[readinessToTone(jobReadiness.status)].stripe}`} style={{ width: `${jobReadiness.percent}%` }} /></div><div className="mt-2 text-xs text-[var(--app-muted)]">{jobReadiness.completed} of {jobReadiness.total} requirements complete</div></div>}
           </aside>
         </div>
       </section>
@@ -4235,18 +4236,10 @@ export default function SalesLeadDetailPage() {
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{leadGuidance.stageLabel}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-muted)]">{leadGuidance.branchLabel}</span>
                   <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-muted)]">Owner: {leadGuidance.ownerLabel}</span>
-                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-                    leadGuidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' :
-                    leadGuidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' :
-                    leadGuidance.heat.tone === 'warm' ? 'border-amber-200 bg-amber-50 text-amber-700' :
-                    leadGuidance.heat.tone === 'dormant' ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700' :
-                    'border-slate-200 bg-slate-50 text-slate-600'
-                  }`}>
-                    {leadGuidance.heat.label} · {leadGuidance.heat.score}
-                  </span>
+                  <UrgencyBadge tone={heatToTone(leadGuidance.heat.tone)} label={`${leadGuidance.heat.label} · ${leadGuidance.heat.score}`} />
                   <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${autoSaveMeta.tone}`}>{autoSaveMeta.label}</span>
                   {leadGuidance.action.goldenMoment ? (
-                    <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
+                    <UrgencyBadge tone="warning" label="QUOTE VIEWED NOW" className="font-bold" />
                   ) : null}
                   {leadCommandBarCompact && leadGuidance.ownerLabel === 'Unassigned' ? (
                     <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">No owner</span>
@@ -5522,12 +5515,13 @@ export default function SalesLeadDetailPage() {
               </div>
               <div className="mt-4 space-y-3 text-sm">
                 {aiNudge ? (
-                  <div className={`rounded-lg border px-3 py-3 ${aiNudge.urgency === 'high' ? 'border-amber-200 bg-amber-50' : aiNudge.urgency === 'medium' ? 'border-sky-200 bg-sky-50' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
-                    <div className={`flex items-start gap-2 text-sm font-medium ${aiNudge.urgency === 'high' ? 'text-amber-800' : aiNudge.urgency === 'medium' ? 'text-sky-800' : 'text-[var(--app-ink)]'}`}>
-                      <aiNudge.icon size={15} className="mt-0.5 shrink-0" />
+                  // One urgency language: AI nudge urgency -> shared tone (high=critical, medium=warning, low=neutral).
+                  <div className={`rounded-lg border px-3 py-3 ${URGENCY_TONE_CLASSES[nudgeToTone(aiNudge.urgency)].softBg}`}>
+                    <div className={`flex items-start gap-2 text-sm font-medium ${URGENCY_TONE_CLASSES[nudgeToTone(aiNudge.urgency)].text}`}>
+                      <UrgencyBadge tone={nudgeToTone(aiNudge.urgency)} label={aiNudge.urgency === 'high' ? 'High' : aiNudge.urgency === 'medium' ? 'Medium' : 'Low'} icon={aiNudge.icon} className="mt-0.5 shrink-0" />
                       <span>{aiNudge.text}</span>
                     </div>
-                    <div className={`mt-1.5 text-xs ${aiNudge.urgency === 'high' ? 'text-amber-700' : aiNudge.urgency === 'medium' ? 'text-sky-700' : 'text-[var(--app-muted)]'}`}>
+                    <div className={`mt-1.5 text-xs ${URGENCY_TONE_CLASSES[nudgeToTone(aiNudge.urgency)].text}`}>
                       {aiNudge.action}
                     </div>
                     {(aiNudge.urgency === 'high' || aiNudge.urgency === 'medium') && (lead.phone || lead.email) ? (

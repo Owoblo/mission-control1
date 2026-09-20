@@ -8,6 +8,7 @@ import { sendSalesMessage, updateSalesLead } from '@/lib/sales-api'
 import { dateStamp, formatDate, formatMoney, getLeadAssignedRepName, isBookedLikeStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 import { deriveJobReadiness } from '@/lib/job-spine'
+import { UrgencyBadge, readinessToTone, URGENCY_TONE_CLASSES } from '@/app/components/sales/urgency-badge'
 
 const SATURN_PHONE = '226-773-2993'
 
@@ -160,11 +161,12 @@ export default function BookedJobsPage() {
     return `In ${days} days`
   }
 
+  // One urgency language: days-until-move is an SLA signal -> shared tone.
   function urgencyClass(days: number | null) {
     if (days === null) return 'text-[var(--app-muted)]'
-    if (days <= 0) return 'text-rose-700 font-bold'
-    if (days === 1) return 'text-amber-700 font-bold'
-    if (days <= 3) return 'text-amber-600 font-semibold'
+    if (days <= 0) return `${URGENCY_TONE_CLASSES.critical.text} font-bold`
+    if (days === 1) return `${URGENCY_TONE_CLASSES.warning.text} font-bold`
+    if (days <= 3) return `${URGENCY_TONE_CLASSES.warning.text} font-semibold`
     return 'text-[var(--app-accent)] font-medium'
   }
 
@@ -217,7 +219,7 @@ export default function BookedJobsPage() {
                   return (
                     <div
                       key={lead.id}
-                      className={`rounded-xl border bg-[var(--app-panel)] p-5 ${needsOpsAttention ? 'border-rose-200 bg-rose-50/30' : days !== null && days <= 1 ? 'border-amber-200' : 'border-[var(--app-line)]'}`}
+                      className={`rounded-xl border bg-[var(--app-panel)] p-5 ${needsOpsAttention ? `border-[#B42318]/25 ${URGENCY_TONE_CLASSES.critical.softBg}/30` : days !== null && days <= 1 ? `border-[#92400E]/30` : 'border-[var(--app-line)]'}`}
                     >
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="flex-1 min-w-0">
@@ -241,7 +243,7 @@ export default function BookedJobsPage() {
                             {lead.phone ? <span>{lead.phone}</span> : null}
                             <span>Rep: {assignedRep}</span>
                           </div>
-                          <div className="mt-3 flex items-center gap-3 text-xs"><span className={`font-semibold ${readiness.status === 'fully_ready' ? 'text-emerald-700' : readiness.status === 'at_risk' ? 'text-rose-700' : 'text-amber-700'}`}>{readiness.label} · {readiness.percent}%</span>{readiness.status !== 'fully_ready' && <span className="truncate text-[var(--app-muted)]">{readiness.dimensions.flatMap(item => item.missing).slice(0, 3).join(' · ')}</span>}</div>
+                          <div className="mt-3 flex items-center gap-3 text-xs"><UrgencyBadge tone={readinessToTone(readiness.status)} label={`${readiness.label} · ${readiness.percent}%`} />{readiness.status !== 'fully_ready' && <span className="truncate text-[var(--app-muted)]">{readiness.dimensions.flatMap(item => item.missing).slice(0, 3).join(' · ')}</span>}</div>
                           {lead.contextFlag ? (
                             <div className="mt-2 text-xs text-amber-700">{lead.contextFlag}</div>
                           ) : null}

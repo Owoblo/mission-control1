@@ -78,6 +78,13 @@ export interface SendSalesMessageInput {
   quoteId?: string
   notes?: string
   fromNumber?: string
+  /**
+   * Deliberate sender override for purpose-built numbers that are NOT Saturn
+   * branch numbers (e.g. the operations line +12267746581). Bypasses branch
+   * resolution entirely — the caller explicitly names the sender, so nothing
+   * is silently swapped for a branch number.
+   */
+  fromNumberOverride?: string
   mediaUrls?: string[]
   actor?: 'human' | 'automation'
   actorName?: string
@@ -173,6 +180,10 @@ export async function outboundSmsRecentlySent(input: {
 }
 
 async function resolveSmsFromNumber(input: SendSalesMessageInput) {
+  // Deliberate override (operations line, etc.): never silently swapped.
+  if (input.fromNumberOverride) {
+    return normalizePhone(input.fromNumberOverride) || input.fromNumberOverride
+  }
   const resolution = await resolveVoiceCallerId({
     leadId: input.leadId,
     phone: input.to,
@@ -330,8 +341,10 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
       throw new Error(String(smsResult?.message || smsResult?.error || `${isWhatsApp ? 'WhatsApp' : 'SMS'} send failed`))
     }
     result = { ok: true, sid: smsResult.sid, fromNumber: rawFrom, branchLabel: getSaturnBranchLabel(rawFrom) }
-    // Log to sms_messages — WhatsApp SIDs start with WA, SMS with SM (detectable later)
-    void recordOutboundSmsToSupabase(rawFrom, rawTo, input.body, input.leadId, String(smsResult.sid || ''))
+    // Log to sms_messages — WhatsApp SIDs start with WA, SMS with SM (detectable later).
+    // Media attachments are noted in the record, never appended to the sent body.
+    const recordedBody = input.mediaUrls?.length ? `${input.body}\n[MMS: ${input.mediaUrls.join(', ')}]` : input.body
+    void recordOutboundSmsToSupabase(rawFrom, rawTo, recordedBody, input.leadId, String(smsResult.sid || ''))
   }
 
   const now = new Date().toISOString()

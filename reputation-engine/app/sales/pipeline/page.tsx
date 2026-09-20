@@ -8,6 +8,7 @@ import { deleteSalesLead, fetchSalesOverview, updateSalesLead } from '@/lib/sale
 import { formatDate, formatMoney, getLeadAssignedRepName, getSalesBranchLabel, SALES_BRANCHES, isClosedLeadStage } from '@/lib/sales'
 import { formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
+import { UrgencyBadge, heatToTone, URGENCY_TONE_CLASSES } from '@/app/components/sales/urgency-badge'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 
 const COLUMN_ORDER: CRMLead['stage'][] = ['new', 'contacted', 'estimate_scheduled', 'estimate_completed', 'pricing', 'quoted', 'tentative', 'nurture', 'booked', 'completed', 'customer_success', 'lost']
@@ -27,17 +28,8 @@ const COLUMN_HEADER_ACCENT: Partial<Record<CRMLead['stage'], string>> = {
 }
 
 function HeatTag({ label, score, tone }: { label: string; score: number; tone: 'hot' | 'warm' | 'cold' | 'dormant' | 'risk' }) {
-  const classes =
-    tone === 'risk'
-      ? 'border-rose-200 bg-rose-50 text-rose-700'
-      : tone === 'hot'
-        ? 'border-orange-200 bg-orange-50 text-orange-700'
-        : tone === 'warm'
-          ? 'border-amber-200 bg-amber-50 text-amber-700'
-          : tone === 'dormant'
-            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
-            : 'border-slate-200 bg-slate-50 text-slate-600'
-  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${classes}`}>{label} {score}</span>
+  // One urgency language: lead heat -> shared tone.
+  return <UrgencyBadge tone={heatToTone(tone)} label={`${label} ${score}`} />
 }
 
 const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
@@ -427,13 +419,13 @@ function SalesPipelineContent() {
     setWorkflowFilter('all')
   }
 
-  // ── Urgency helpers for list view ──
-  function getUrgency(lead: CRMLead): 'overdue' | 'cold' | 'ok' {
+  // ── Urgency helpers for list view — one language: SLA state -> shared tone ──
+  function getUrgency(lead: CRMLead): { tone: 'critical' | 'warning' | 'neutral'; label: string } {
     const t = today()
-    if (lead.followUpDate && dayStart(new Date(lead.followUpDate)) < t && !isClosedLeadStage(lead.stage)) return 'overdue'
+    if (lead.followUpDate && dayStart(new Date(lead.followUpDate)) < t && !isClosedLeadStage(lead.stage)) return { tone: 'critical', label: 'Overdue' }
     const last = lead.lastTouchedAt || lead.createdAt
-    if (last && new Date(last) < daysAgo(7) && !isClosedLeadStage(lead.stage)) return 'cold'
-    return 'ok'
+    if (last && new Date(last) < daysAgo(7) && !isClosedLeadStage(lead.stage)) return { tone: 'warning', label: 'Gone cold' }
+    return { tone: 'neutral', label: '' }
   }
 
   async function handleQuickAction(event: MouseEvent, lead: CRMLead, action: 'call' | 'sms' | 'open' | 'snooze', quote?: CRMQuote | null) {
@@ -547,10 +539,10 @@ function SalesPipelineContent() {
       <section className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Needs Attention:</span>
         {([
-          ['overdue', 'bg-red-500', 'Overdue Follow-up', attentionCounts.overdue],
-          ['cold',    'bg-amber-400', 'Gone Cold 7d+',    attentionCounts.cold],
-          ['no_quote','bg-orange-500', 'No Quote Sent',    attentionCounts.no_quote],
-          ['new_today','bg-sky-500','New Today',        attentionCounts.new_today],
+          ['overdue', URGENCY_TONE_CLASSES.critical.dot, 'Overdue Follow-up', attentionCounts.overdue],
+          ['cold',    URGENCY_TONE_CLASSES.warning.dot, 'Gone Cold 7d+',    attentionCounts.cold],
+          ['no_quote',URGENCY_TONE_CLASSES.warning.dot, 'No Quote Sent',    attentionCounts.no_quote],
+          ['new_today',URGENCY_TONE_CLASSES.info.dot,'New Today',        attentionCounts.new_today],
         ] as [AttentionFilter, string, string, number][]).map(([key, dotClass, label, count]) => (
           <button
             key={key}
@@ -709,15 +701,15 @@ function SalesPipelineContent() {
                 <div
                   key={lead.id}
                   className={`group relative grid grid-cols-[28px_minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] px-5 py-3.5 text-sm transition cursor-pointer
-                    ${isSelected ? 'bg-[var(--app-accent-soft)]' : guidance?.action.goldenMoment ? 'bg-orange-50/80 shadow-[inset_0_0_0_1px_rgba(201,151,0,0.2)] hover:bg-orange-50' : urgency === 'overdue' ? 'bg-red-50/40 hover:bg-red-50' : urgency === 'cold' ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-[var(--app-bg)]'}`}
+                    ${isSelected ? 'bg-[var(--app-accent-soft)]' : guidance?.action.goldenMoment ? `${URGENCY_TONE_CLASSES.warning.softBg}/80 hover:${URGENCY_TONE_CLASSES.warning.softBg}` : urgency.tone !== 'neutral' ? `${URGENCY_TONE_CLASSES[urgency.tone].softBg}/40 hover:${URGENCY_TONE_CLASSES[urgency.tone].softBg}` : 'hover:bg-[var(--app-bg)]'}`}
                   onClick={() => router.push(`/sales/leads/${lead.id}`)}
                 >
                   <div className="flex items-center" onClick={e => { e.stopPropagation(); setSelectedIds(prev => { const n = new Set(prev); n.has(lead.id) ? n.delete(lead.id) : n.add(lead.id); return n }) }}>
                     <input type="checkbox" checked={isSelected} onChange={() => {}} className="h-4 w-4 rounded accent-[var(--app-accent)] cursor-pointer" />
                   </div>
-                  {/* Urgency stripe */}
-                  {(urgency !== 'ok' || guidance?.action.goldenMoment) && (
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${guidance?.action.goldenMoment ? 'bg-orange-500' : urgency === 'overdue' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                  {/* Urgency stripe — one language */}
+                  {(urgency.tone !== 'neutral' || guidance?.action.goldenMoment) && (
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${guidance?.action.goldenMoment ? URGENCY_TONE_CLASSES.warning.stripe : URGENCY_TONE_CLASSES[urgency.tone].stripe}`} />
                   )}
 
                   {/* Lead name + info */}
@@ -726,7 +718,7 @@ function SalesPipelineContent() {
                       <span className="font-semibold text-[var(--app-ink)] truncate min-w-0">{lead.name}</span>
                       {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                       {guidance?.action.goldenMoment ? (
-                        <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
+                        <UrgencyBadge tone="warning" label="QUOTE VIEWED NOW" className="font-bold" />
                       ) : null}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--app-muted)]">
@@ -837,9 +829,11 @@ function SalesPipelineContent() {
               const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
               const guidance = guidanceMap.get(lead.id)
               const urgency = getUrgency(lead)
+              // One urgency language: golden moment reads as time-sensitive (warning)
+              const cardTone = guidance?.action.goldenMoment ? 'warning' as const : urgency.tone
               return (
-                <div key={lead.id} className={`relative rounded-lg border bg-[var(--app-panel)] transition
-                  ${guidance?.action.goldenMoment ? 'border-orange-300 bg-orange-50/40' : urgency === 'overdue' ? 'border-red-300 bg-red-50/30' : urgency === 'cold' ? 'border-amber-200 bg-amber-50/20' : 'border-[var(--app-line)]'}`}>
+                <div key={lead.id} className={`relative rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] transition
+                  ${cardTone !== 'neutral' ? `${URGENCY_TONE_CLASSES[cardTone].softBg}/40 border-l-4 ${URGENCY_TONE_CLASSES[cardTone].stripe.replace('bg-', 'border-l-')}` : ''}`}>
                   <button onClick={e => void removeLead(e, lead)} className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700">
                     {deleteBusyId === lead.id ? '…' : <X size={13} />}
                   </button>
@@ -907,10 +901,10 @@ function SalesPipelineContent() {
                                 <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
                                 {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                                 {lead.stage === 'tentative' && lead.followUpDate && new Date(lead.followUpDate) <= new Date() && (
-                                  <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[11px] font-bold text-white">CALL TODAY</span>
+                                  <UrgencyBadge tone="critical" label="CALL TODAY" className="font-bold" />
                                 )}
                                 {guidance?.action.goldenMoment ? (
-                                  <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-bold text-orange-800">HOT: CUSTOMER IS REVIEWING QUOTE</span>
+                                  <UrgencyBadge tone="warning" label="HOT: CUSTOMER IS REVIEWING QUOTE" className="font-bold" />
                                 ) : null}
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--app-muted)]">

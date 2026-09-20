@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteSalesLead, fetchSalesOverview, saveSalesFollowUp, updateSalesLead } from '@/lib/sales-api'
+import { UrgencyBadge, URGENCY_TONE_CLASSES, type UrgencyTone } from '@/app/components/sales/urgency-badge'
 import { deriveLeadFollowUpStatus, FOLLOW_UP_STATUSES, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, LeadFollowUpStatus } from '@/lib/types'
 
@@ -129,45 +130,17 @@ function followUpStatusMeta(status?: LeadFollowUpStatus | '') {
   }
 }
 
-function urgencyTone(lead: CRMLead) {
+// One urgency language: SLA state -> shared tone. Label carries the meaning.
+function urgencyTone(lead: CRMLead): { tone: UrgencyTone; label: string } {
   const fuDays = daysUntil(lead.followUpDate)
   const overdue = Boolean(lead.followUpDate && fuDays < 0)
   const dueToday = Boolean(lead.followUpDate && fuDays === 0)
   const quietForDays = daysSince(lastContactDate(lead))
 
-  if (overdue) {
-    return {
-      card: 'border-red-200 bg-red-50/40',
-      bar: 'bg-[#8a6800]',
-      flag: 'border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] text-[#8a6800]',
-      label: 'Past due',
-    }
-  }
-
-  if (dueToday) {
-    return {
-      card: 'border-amber-200 bg-amber-50/40',
-      bar: 'bg-[#c99700]',
-      flag: 'border border-[rgba(201,151,0,0.12)] bg-[#f7f4ed] text-[#8a6800]',
-      label: 'Due today',
-    }
-  }
-
-  if (quietForDays >= 5) {
-    return {
-      card: 'border-[var(--app-line)] bg-white',
-      bar: 'bg-[rgba(15,106,83,0.35)]',
-      flag: 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]',
-      label: 'Re-engage',
-    }
-  }
-
-  return {
-    card: 'border-[var(--app-line)] bg-white',
-    bar: 'bg-[var(--app-line)]',
-    flag: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#667085]',
-    label: 'Active',
-  }
+  if (overdue) return { tone: 'critical', label: 'Overdue' }
+  if (dueToday) return { tone: 'warning', label: 'Due today' }
+  if (quietForDays >= 5) return { tone: 'info', label: 'Re-engage' }
+  return { tone: 'neutral', label: 'Active' }
 }
 
 // ─── NoteModal ────────────────────────────────────────────────────────────────
@@ -354,8 +327,8 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
   }
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${tone.card}`}>
-      <div className={`mb-4 h-1 rounded-full ${tone.bar}`} />
+    <div className={`rounded-2xl border border-[var(--app-line)] bg-white p-4 shadow-sm transition hover:shadow-md ${tone.tone === "neutral" ? "" : URGENCY_TONE_CLASSES[tone.tone].softBg}`}>
+      <div className={`mb-4 h-1 rounded-full ${URGENCY_TONE_CLASSES[tone.tone].stripe}`} />
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -370,9 +343,7 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
               {statusMeta.label}
             </span>
             {(overdue || dueToday) && (
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${tone.flag}`}>
-                {tone.label}
-              </span>
+              <UrgencyBadge tone={tone.tone} label={tone.label} className="font-bold uppercase tracking-wide" />
             )}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[var(--app-muted)]">

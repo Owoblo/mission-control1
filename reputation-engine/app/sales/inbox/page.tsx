@@ -21,6 +21,7 @@ import {
 import { getSaturnBranchLabel, getSaturnBranchNumberFromRawData, getSaturnTrackingLabel } from '@/lib/sales-phones'
 import { claimInboundLead, fetchInboundLeads, markInboxRead, markInboundLeadDisposition, markInboundLeadHandled, restoreInboundLead, sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
+import { UrgencyBadge, speedToLeadToTone, URGENCY_TONE_CLASSES } from '@/app/components/sales/urgency-badge'
 import { displayEmailSubject, replyEmailSubject } from '@/lib/email-display'
 import type { CRMEmail, InboundClosedFilter, InboundInboxPayload, InboundLead, InboundLeadFocusFilter } from '@/lib/types'
 
@@ -1512,16 +1513,15 @@ function SalesInboxPageInner() {
                         const { branchLabel, trackingLabel } = getInboundBranchMeta(item)
                         const trackingBadgeLabel = qrLead ? 'QR / Direct Mail' : trackingLabel
 
-                        // Speed-to-lead urgency
+                        // Speed-to-lead urgency — one language: tier -> shared tone
                         const secs = status === 'needs_action' ? secondsSince(item.created_at) : Infinity
                         const tier = urgencyTier(secs)
+                        const tierTone = speedToLeadToTone(tier)
 
                         const urgencyBorder = ''
 
                         const urgencyBg =
-                          !selectedState && tier === 'live' ? 'bg-emerald-50/60' :
-                          !selectedState && tier === 'warning' ? 'bg-amber-50/60' :
-                          !selectedState && (tier === 'urgent' || tier === 'overdue') ? 'bg-rose-50/60' : ''
+                          !selectedState && tierTone ? URGENCY_TONE_CLASSES[tierTone].softBg + '/60' : ''
 
                         return (
                           <button
@@ -1532,13 +1532,9 @@ function SalesInboxPageInner() {
                             {selectedState ? <div className="absolute inset-x-0 top-0 h-[2px] bg-[var(--app-accent)]" /> : null}
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex min-w-0 items-center gap-1.5">
-                                {tier === 'live' && !selectedState
-                                  ? <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
-                                  : tier === 'warning' && !selectedState
-                                    ? <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" /></span>
-                                    : (tier === 'urgent' || tier === 'overdue') && !selectedState
-                                      ? <span className="relative flex h-2 w-2 shrink-0"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" /></span>
-                                      : status === 'needs_action' && unread && !selectedState
+                                {tierTone && !selectedState
+                                  ? <span className="relative flex h-2 w-2 shrink-0"><span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${URGENCY_TONE_CLASSES[tierTone].dot}`} /><span className={`relative inline-flex h-2 w-2 rounded-full ${URGENCY_TONE_CLASSES[tierTone].dot}`} /></span>
+                                  : status === 'needs_action' && unread && !selectedState
                                         ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--app-accent)]" />
                                         : null}
                                 <span className={`truncate text-sm font-semibold ${status === 'needs_action' && unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{displayLeadName(item)}</span>
@@ -1549,15 +1545,14 @@ function SalesInboxPageInner() {
                                   </span>
                                 ) : null}
                               </div>
-                              {/* Live urgency timer or regular timestamp */}
-                              {tier === 'live' && !selectedState ? (
-                                <span className="shrink-0 rounded bg-emerald-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">LIVE · {liveTimer(secs)}</span>
-                              ) : tier === 'warning' && !selectedState ? (
-                                <span className="inline-flex shrink-0 items-center rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide"><AlertTriangle size={11} className="mr-1" />{liveTimer(secs)}</span>
-                              ) : tier === 'urgent' && !selectedState ? (
-                                <span className="inline-flex shrink-0 items-center rounded bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide"><AlertTriangle size={11} className="mr-1" />URGENT · {liveTimer(secs)}</span>
-                              ) : tier === 'overdue' && !selectedState ? (
-                                <span className="shrink-0 rounded bg-rose-700 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">OVERDUE · {liveTimer(secs)}</span>
+                              {/* Live urgency timer or regular timestamp — one badge language */}
+                              {tierTone && !selectedState ? (
+                                <UrgencyBadge
+                                  tone={tierTone}
+                                  label={tier === 'live' ? `LIVE · ${liveTimer(secs)}` : tier === 'warning' ? liveTimer(secs) : tier === 'urgent' ? `URGENT · ${liveTimer(secs)}` : `OVERDUE · ${liveTimer(secs)}`}
+                                  icon={tier === 'warning' || tier === 'urgent' ? AlertTriangle : undefined}
+                                  className="shrink-0 font-bold uppercase tracking-wide"
+                                />
                               ) : (
                                 <span className="shrink-0 text-[11px] text-[var(--app-muted)]">{timeAgo(getInboundActionTimestamp(item, raw))}</span>
                               )}

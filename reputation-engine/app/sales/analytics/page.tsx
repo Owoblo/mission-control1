@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { formatMoney } from '@/lib/sales'
+import { ResponsiveTable, toneValue } from '@/app/components/sales/responsive-table'
 
 type AnalyticsOption = {
   id: string
@@ -332,29 +333,21 @@ export default function AnalyticsPage() {
         <div className="crm-panel p-6">
           <h2 className="font-semibold text-[#071421]">Leads by City / Branch</h2>
           <p className="mt-1 text-xs text-[var(--app-muted)]">Received, booked, and lost in the selected window.</p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--app-line)]">
-                  <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Branch</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Leads</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Booked</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Lost</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Conv.</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--app-line)]">
-                {data.branchBreakdown.map(row => (
-                  <tr key={row.branch}>
-                    <td className="py-2.5 font-medium text-[var(--app-ink)]">{row.label}</td>
-                    <td className="py-2.5 text-right text-[var(--app-ink)]">{row.received}</td>
-                    <td className="py-2.5 text-right text-emerald-700 font-medium">{row.booked}</td>
-                    <td className="py-2.5 text-right text-rose-600">{row.lost}</td>
-                    <td className={`py-2.5 text-right font-semibold ${row.conversionRate >= 30 ? 'text-emerald-700' : row.conversionRate >= 15 ? 'text-amber-700' : 'text-rose-600'}`}>{row.conversionRate}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-4">
+            <ResponsiveTable
+              columns={[
+                { key: 'branch', header: 'Branch', render: row => <span className="font-medium">{row.label}</span> },
+                { key: 'leads', header: 'Leads', align: 'right', render: row => row.received },
+                { key: 'booked', header: 'Booked', align: 'right', render: row => <span className={toneValue('positive', true)}>{row.booked}</span> },
+                { key: 'lost', header: 'Lost', align: 'right', render: row => <span className={toneValue('negative')}>{row.lost}</span> },
+                {
+                  key: 'conv', header: 'Conv.', align: 'right', mobileLabel: 'Conversion',
+                  render: row => <span className={toneValue(row.conversionRate >= 30 ? 'positive' : row.conversionRate >= 15 ? 'warning' : 'negative', true)}>{row.conversionRate}%</span>,
+                },
+              ]}
+              rows={data.branchBreakdown}
+              rowKey={row => row.branch}
+            />
           </div>
         </div>
       )}
@@ -366,30 +359,21 @@ export default function AnalyticsPage() {
           {data.serviceBreakdown.length === 0 ? (
             <div className="text-sm text-[var(--app-muted)]">No quote service data in this window.</div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--app-line)]">
-                  <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Service</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Quoted</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Booked</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Quoted value</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Booked value</th>
-                  <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Conversion</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--app-line)]">
-                {data.serviceBreakdown.map(row => (
-                  <tr key={row.category}>
-                    <td className="py-2.5 font-medium text-[var(--app-ink)]">{row.label}</td>
-                    <td className="py-2.5 text-right">{row.quoteCount}</td>
-                    <td className="py-2.5 text-right">{row.bookedCount}</td>
-                    <td className="py-2.5 text-right">{formatMoney(row.quotedRevenue)}</td>
-                    <td className="py-2.5 text-right font-medium text-emerald-700">{formatMoney(row.bookedRevenue)}</td>
-                    <td className={`py-2.5 text-right font-semibold ${row.conversionRate >= 30 ? 'text-emerald-700' : row.conversionRate >= 15 ? 'text-amber-700' : 'text-rose-600'}`}>{row.conversionRate}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ResponsiveTable
+              columns={[
+                { key: 'service', header: 'Service', render: row => <span className="font-medium">{row.label}</span> },
+                { key: 'quoted', header: 'Quoted', align: 'right', render: row => row.quoteCount },
+                { key: 'booked', header: 'Booked', align: 'right', render: row => row.bookedCount },
+                { key: 'qval', header: 'Quoted value', align: 'right', mobileLabel: 'Quoted value', render: row => formatMoney(row.quotedRevenue) },
+                { key: 'bval', header: 'Booked value', align: 'right', mobileLabel: 'Booked value', render: row => <span className={toneValue('positive', true)}>{formatMoney(row.bookedRevenue)}</span> },
+                {
+                  key: 'conv', header: 'Conversion', align: 'right',
+                  render: row => <span className={toneValue(row.conversionRate >= 30 ? 'positive' : row.conversionRate >= 15 ? 'warning' : 'negative', true)}>{row.conversionRate}%</span>,
+                },
+              ]}
+              rows={data.serviceBreakdown}
+              rowKey={row => row.category}
+            />
           )}
         </div>
       </div>
