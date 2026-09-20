@@ -142,7 +142,7 @@ export default function RepresentativeVideoSurveyPage() {
             ? 'bg-red-500 text-white'
             : ['uploading', 'uploaded', 'verified', 'transcribed'].includes(String(recording?.status || ''))
               ? 'bg-emerald-500 text-white'
-              : 'bg-[#e1ad01] text-[#071421]'
+              : 'bg-[#c99700] text-[#071421]'
         }`}>
           {String(recording?.status || '') === 'recording'
             ? '● Recording automatically'
@@ -206,7 +206,7 @@ export default function RepresentativeVideoSurveyPage() {
                   <h3 className="text-sm font-semibold">Walkthrough processing</h3>
                   <p className="mt-0.5 text-[11px] text-slate-500">Updates automatically after the call ends.</p>
                 </div>
-                {analysis && <span className="text-xs font-semibold text-[#0b7055]">{Math.round(Number(analysis.progress || 0))}%</span>}
+                {analysis && <span className="text-xs font-semibold text-[#0f6a53]">{Math.round(Number(analysis.progress || 0))}%</span>}
               </div>
               <div className="mt-3 space-y-2">
                 {processingStages.map(stage => (
@@ -241,7 +241,7 @@ export default function RepresentativeVideoSurveyPage() {
           <select value={room} onChange={event => setRoom(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm">
             {ROOMS.map(item => <option key={item}>{item}</option>)}
           </select>
-          <button onClick={() => void addMarker('room', room)} className="mt-2 w-full rounded-xl bg-[#0b7055] px-3 py-3 text-sm font-semibold text-white">Mark room start</button>
+          <button onClick={() => void addMarker('room', room)} className="mt-2 w-full rounded-xl bg-[#0f6a53] px-3 py-3 text-sm font-semibold text-white">Mark room start</button>
 
           <div className="mt-5 grid grid-cols-2 gap-2">
             {FLAGS.map(flag => (

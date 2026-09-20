@@ -63,7 +63,7 @@ function timeAgo(iso: string): string {
 
 function StatCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
-    <div className={`rounded-[10px] border px-4 py-3 text-center ${highlight && value > 0 ? 'border-[var(--app-accent)] bg-[rgba(15,106,83,0.06)]' : 'border-[var(--app-line)] bg-[var(--app-panel)]'}`}>
+    <div className={`rounded-xl border px-4 py-3 text-center ${highlight && value > 0 ? 'border-[var(--app-accent)] bg-[rgba(15,106,83,0.06)]' : 'border-[var(--app-line)] bg-[var(--app-panel)]'}`}>
       <div className={`text-2xl font-bold ${highlight && value > 0 ? 'text-[var(--app-accent)]' : 'text-[var(--app-ink)]'}`}>{value}</div>
       <div className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--app-muted)]">{label}</div>
     </div>
@@ -130,7 +130,7 @@ function ActivityFeedContent() {
       {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Live Activity Feed</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--app-ink)]">Live Activity Feed</h1>
           <p className="mt-1 text-sm text-[var(--app-muted)]">Customer and sales milestones—deduplicated and refreshed while this page is visible.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ function ActivityFeedContent() {
               <button
                 key={id}
                 onClick={() => setFilterRep(filterRep === id ? '' : id)}
-                className={`flex items-center gap-3 rounded-[10px] border px-4 py-3 text-left transition ${filterRep === id ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-panel)] hover:border-[var(--app-ink)]'}`}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${filterRep === id ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-panel)] hover:border-[var(--app-ink)]'}`}
               >
                 <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${filterRep === id ? 'bg-white/20 text-white' : 'bg-[var(--app-wash)] text-[var(--app-ink)]'}`}>
                   {rep.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
@@ -189,9 +189,9 @@ function ActivityFeedContent() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
           {([1, 7, 30] as DaysFilter[]).map(d => (
-            <button key={d} onClick={() => setDays(d)} className={`rounded-[6px] px-3 py-1.5 text-xs font-semibold ${days === d ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>
+            <button key={d} onClick={() => setDays(d)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${days === d ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>
               {d === 1 ? 'Today' : d === 7 ? '7 Days' : '30 Days'}
             </button>
           ))}
@@ -219,20 +219,20 @@ function ActivityFeedContent() {
 
       {/* New items banner */}
       {newCount > 0 && (
-        <button onClick={scrollTop} className="w-full rounded-[8px] border border-emerald-300 bg-emerald-50 py-2 text-center text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+        <button onClick={scrollTop} className="w-full rounded-lg border border-emerald-300 bg-emerald-50 py-2 text-center text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
           ↑ {newCount} new action{newCount !== 1 ? 's' : ''} — click to scroll up
         </button>
       )}
 
       {/* Feed */}
       {loading ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading activity…</div>
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading activity…</div>
       ) : items.length === 0 ? (
-        <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">
+        <div className="rounded-lg border border-dashed border-[var(--app-line)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">
           No activity yet for this time range. Actions will appear here as your team works.
         </div>
       ) : (
-        <div ref={listRef} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] divide-y divide-[var(--app-line)] overflow-hidden max-h-[calc(100vh-420px)] overflow-y-auto">
+        <div ref={listRef} className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] divide-y divide-[var(--app-line)] overflow-hidden max-h-[calc(100vh-420px)] overflow-y-auto">
           {items.map((item, idx) => {
             const isBig = BIG_EVENTS.has(item.type)
             const showDateDivider = idx === 0 ||

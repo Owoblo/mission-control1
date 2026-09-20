@@ -4060,10 +4060,10 @@ export default function SalesLeadDetailPage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Link href={`/sales/tasks?relatedId=${encodeURIComponent(lead.id)}&relatedLabel=${encodeURIComponent(displayLeadName)}`} className="rounded-full border border-[#d9c36a] bg-[#fff9df] px-3 py-1 text-xs font-semibold text-[#725600] hover:bg-[#fff3bd]">View tasks</Link>
+                <Link href={`/sales/tasks?relatedId=${encodeURIComponent(lead.id)}&relatedLabel=${encodeURIComponent(displayLeadName)}`} className="rounded-full border border-[#c99700] bg-[#f7f4ed] px-3 py-1 text-xs font-semibold text-[#8a6800] hover:bg-[#f7f4ed]">View tasks</Link>
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">{operatingStageMeta.label}</span>
-                <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-semibold text-[#344054]">Owner: {leadOwnerName}</span>
-                {quote && <span className="rounded-full border border-[var(--app-line)] bg-white px-3 py-1 text-xs font-semibold tabular-nums text-[#344054]">{formatMoney(quote.total)}</span>}
+                <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-semibold text-[#071421]">Owner: {leadOwnerName}</span>
+                {quote && <span className="rounded-full border border-[var(--app-line)] bg-white px-3 py-1 text-xs font-semibold tabular-nums text-[#071421]">{formatMoney(quote.total)}</span>}
                 <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${lead.paymentStatus === 'paid_in_full' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : lead.paymentStatus === 'deposit_received' || quote?.depositPaidAt ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{lead.paymentStatus === 'paid_in_full' ? 'Paid in full' : lead.paymentStatus === 'deposit_received' || quote?.depositPaidAt ? 'Deposit received' : 'Payment pending'}</span>
               </div>
             </div>
@@ -4076,7 +4076,7 @@ export default function SalesLeadDetailPage() {
             </div>
           </div>
 
-          <aside className="border-t border-[var(--app-line)] bg-[#fbfaf6] p-5 xl:border-l xl:border-t-0">
+          <aside className="border-t border-[var(--app-line)] bg-[#f7f4ed] p-5 xl:border-l xl:border-t-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a6800]">What must happen next</div>
             <div className="mt-3 text-base font-semibold leading-6 text-[#071421]">{operatingExceptions[0]?.action || leadGuidance?.action.nextAction || 'Keep the operational record current'}</div>
             <p className="mt-2 text-sm leading-5 text-[var(--app-muted)]">{operatingExceptions[0]?.detail || leadGuidance?.salesLanguage || 'No blocking exception is visible from the current record.'}</p>
@@ -4084,7 +4084,7 @@ export default function SalesLeadDetailPage() {
               <button type="button" onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)} className="crm-button-dark w-full">{leadGuidance.action.primaryCta.label}</button>
               {leadGuidance.ownerLabel === 'Unassigned' ? <button type="button" onClick={() => void handleLeadCommandAction('assign_to_me')} className="crm-button w-full border-amber-300 bg-amber-50 text-amber-900">Assign to me</button> : null}
               <details className="pt-1">
-                <summary className="min-h-11 cursor-pointer rounded-[4px] px-3 py-3 text-center text-sm font-medium text-[var(--app-muted)] hover:bg-white">More actions</summary>
+                <summary className="min-h-11 cursor-pointer rounded px-3 py-3 text-center text-sm font-medium text-[var(--app-muted)] hover:bg-white">More actions</summary>
                 <div className="mt-2 grid gap-2">
                   {leadGuidance.action.secondaryCtas.slice(0, 2).map(cta => <button type="button" key={cta.key} onClick={() => void handleLeadCommandAction(cta.key)} className="crm-button w-full">{cta.label}</button>)}
                   <button type="button" onClick={() => void handleLeadCommandAction('mark_lost')} className="crm-button w-full border-rose-200 text-rose-700">Mark lost</button>
@@ -4092,7 +4092,7 @@ export default function SalesLeadDetailPage() {
                 </div>
               </details>
             </div> : null}
-            {showJobReadiness && <div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold text-[#344054]">Job readiness</span><span className={`text-xs font-semibold ${jobReadiness.status === 'fully_ready' ? 'text-emerald-700' : jobReadiness.status === 'at_risk' ? 'text-rose-700' : 'text-amber-700'}`}>{jobReadiness.label}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"><div className={`h-full ${jobReadiness.status === 'fully_ready' ? 'bg-emerald-600' : jobReadiness.status === 'at_risk' ? 'bg-rose-600' : 'bg-amber-500'}`} style={{ width: `${jobReadiness.percent}%` }} /></div><div className="mt-2 text-xs text-[var(--app-muted)]">{jobReadiness.completed} of {jobReadiness.total} requirements complete</div></div>}
+            {showJobReadiness && <div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold text-[#071421]">Job readiness</span><span className={`text-xs font-semibold ${jobReadiness.status === 'fully_ready' ? 'text-emerald-700' : jobReadiness.status === 'at_risk' ? 'text-rose-700' : 'text-amber-700'}`}>{jobReadiness.label}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"><div className={`h-full ${jobReadiness.status === 'fully_ready' ? 'bg-emerald-600' : jobReadiness.status === 'at_risk' ? 'bg-rose-600' : 'bg-amber-500'}`} style={{ width: `${jobReadiness.percent}%` }} /></div><div className="mt-2 text-xs text-[var(--app-muted)]">{jobReadiness.completed} of {jobReadiness.total} requirements complete</div></div>}
           </aside>
         </div>
       </section>
@@ -4134,7 +4134,7 @@ export default function SalesLeadDetailPage() {
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 hidden overflow-x-auto border-y border-[var(--app-line)] bg-[var(--app-panel-strong)] px-3 md:block">
         <div className="flex items-center gap-1 py-2">
-          <button type="button" onClick={handleBackNavigation} className="mr-2 min-h-11 shrink-0 rounded-[4px] border border-[var(--app-line)] bg-white px-3 text-xs font-semibold text-[var(--app-ink)]">← Back</button>
+          <button type="button" onClick={handleBackNavigation} className="mr-2 min-h-11 shrink-0 rounded border border-[var(--app-line)] bg-white px-3 text-xs font-semibold text-[var(--app-ink)]">← Back</button>
           {[
             { label: 'Opportunity & network', id: 'section-opportunity-network' },
             { label: 'Details', id: 'section-details' },
@@ -4170,9 +4170,9 @@ export default function SalesLeadDetailPage() {
         </div>
       ) : null}
 
-      {error && <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{typeof error === 'string' ? error : JSON.stringify(error)}</div>}
+      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{typeof error === 'string' ? error : JSON.stringify(error)}</div>}
       {scanProgress && (
-        <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-5 py-3">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-emerald-800">📷 Scanning photos…</span>
             <span className="text-xs text-emerald-700">
@@ -4189,7 +4189,7 @@ export default function SalesLeadDetailPage() {
         </div>
       )}
       {scanResult && !scanProgress && (
-        <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-5 py-3">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-emerald-800">✅ Scan complete — {scanResult.totalItems} items</span>
             <span className="text-xs font-semibold text-emerald-700">🚛 {scanResult.truckLabel} ({scanResult.cubicFeet} cu ft +10% buffer)</span>
@@ -4202,12 +4202,12 @@ export default function SalesLeadDetailPage() {
         </div>
       )}
       {opportunityNotice ? (
-        <div className="rounded-[8px] border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-800">
+        <div className="rounded-lg border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-800">
           {opportunityNotice}
         </div>
       ) : null}
       {leadReadOnlyReason ? (
-        <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
           {leadReadOnlyReason}
         </div>
       ) : null}
@@ -4224,7 +4224,7 @@ export default function SalesLeadDetailPage() {
                   {spamSignal.isSpam && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold shrink-0 text-amber-700" title={spamSignal.reason}>Possible Spam</span>}
                   <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold shrink-0 ${autoSaveMeta.tone}`}>{autoSaveMeta.label}</span>
                 </div>
-                <button onClick={toggleGuidancePanel} className="shrink-0 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]">▼ Expand</button>
+                <button onClick={toggleGuidancePanel} className="shrink-0 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]">▼ Expand</button>
               </div>
             ) : (
             <div className={`flex flex-col ${leadCommandBarCompact ? 'gap-2 xl:flex-row xl:items-center xl:justify-between' : 'gap-3 xl:flex-row xl:items-start xl:justify-between'}`}>
@@ -4277,7 +4277,7 @@ export default function SalesLeadDetailPage() {
                   </div>
                 ) : null}
 
-                <div className={`rounded-[10px] bg-[#071421]/5 ${leadCommandBarCompact ? 'mt-2 px-3 py-2' : 'mt-3 px-4 py-3'}`}>
+                <div className={`rounded-xl bg-[#071421]/5 ${leadCommandBarCompact ? 'mt-2 px-3 py-2' : 'mt-3 px-4 py-3'}`}>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#071421]/60">Next Action</div>
                   <div className={`mt-1 font-semibold text-[#071421] ${leadCommandBarCompact ? 'text-xs' : 'text-sm'}`}>{leadGuidance.action.nextAction}</div>
                   {!leadCommandBarCompact ? (
@@ -4286,7 +4286,7 @@ export default function SalesLeadDetailPage() {
                 </div>
 
                 {!leadCommandBarCompact && leadGuidance.ownerLabel === 'Unassigned' ? (
-                  <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                     No owner assigned. This lead may be missed.
                   </div>
                 ) : null}
@@ -4296,13 +4296,13 @@ export default function SalesLeadDetailPage() {
                 <button
                   onClick={toggleGuidancePanel}
                   title={guidancePanelCollapsed ? 'Expand guidance panel' : 'Collapse guidance panel'}
-                  className={`rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] ${leadCommandBarCompact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
+                  className={`rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] ${leadCommandBarCompact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
                 >
                   {guidancePanelCollapsed ? '▼ Expand' : '▲ Collapse'}
                 </button>
                 <button
                   onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)}
-                  className={`rounded-[8px] bg-[var(--app-ink)] font-semibold text-white hover:bg-[#071421] ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                  className={`rounded-lg bg-[var(--app-ink)] font-semibold text-white hover:bg-[#071421] ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
                 >
                   {leadGuidance.action.primaryCta.label}
                 </button>
@@ -4310,7 +4310,7 @@ export default function SalesLeadDetailPage() {
                   <button
                     key={cta.key}
                     onClick={() => void handleLeadCommandAction(cta.key)}
-                    className={`rounded-[8px] border border-[var(--app-line)] bg-white font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                    className={`rounded-lg border border-[var(--app-line)] bg-white font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
                   >
                     {cta.label}
                   </button>
@@ -4318,14 +4318,14 @@ export default function SalesLeadDetailPage() {
                 {leadGuidance.ownerLabel === 'Unassigned' ? (
                   <button
                     onClick={() => void handleLeadCommandAction('assign_to_me')}
-                    className={`rounded-[8px] border border-amber-300 bg-amber-50 font-semibold text-amber-800 hover:bg-amber-100 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                    className={`rounded-lg border border-amber-300 bg-amber-50 font-semibold text-amber-800 hover:bg-amber-100 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
                   >
                     Assign to me
                   </button>
                 ) : null}
                 <button
                   onClick={() => void handleLeadCommandAction('mark_lost')}
-                  className={`rounded-[8px] border border-rose-200 bg-rose-50 font-semibold text-rose-700 hover:bg-rose-100 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                  className={`rounded-lg border border-rose-200 bg-rose-50 font-semibold text-rose-700 hover:bg-rose-100 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
                 >
                   Mark Lost
                 </button>
@@ -4333,7 +4333,7 @@ export default function SalesLeadDetailPage() {
                   <button
                     onClick={() => void removeLead()}
                     disabled={deleteBusy}
-                    className={`rounded-[8px] border border-rose-200 bg-white font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
+                    className={`rounded-lg border border-rose-200 bg-white font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60 ${leadCommandBarCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
                   >
                     {deleteBusy ? 'Deleting...' : 'Delete Lead'}
                   </button>
@@ -4345,13 +4345,13 @@ export default function SalesLeadDetailPage() {
         </section>
       ) : null}
 
-      <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+      <div className="overflow-hidden rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
         {/* Lead header bar */}
         <div className="flex flex-wrap items-center gap-3 border-b border-[var(--app-line)] bg-white px-5 py-3 md:hidden">
           <button
             type="button"
             onClick={handleBackNavigation}
-            className="inline-flex items-center gap-1 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
           >
             ← Back
           </button>
@@ -4396,7 +4396,7 @@ export default function SalesLeadDetailPage() {
           <button
             type="button"
             onClick={toggleSimpleLeadView}
-            className="ml-auto rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
+            className="ml-auto rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
           >
             {simpleLeadView ? 'Show Advanced' : 'Simple View'}
           </button>
@@ -4409,7 +4409,7 @@ export default function SalesLeadDetailPage() {
             </span>
           ) : null}
           {lead.leadKind === 'partner_opportunity' ? (
-            <div className="mt-3 w-full rounded-[12px] border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+            <div className="mt-3 w-full rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
               <div className="font-semibold">This is a partner event, not a normal customer intake</div>
               <p className="mt-1">{lead.partnerLeadSummary || 'Call the referring partner first, review the source conversation, and collect the referred customer details before estimating.'}</p>
               <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium"><span>Partner: {lead.partnerReferralName || lead.name}</span>{lead.partnerReferralCompany ? <span>Business: {lead.partnerReferralCompany}</span> : null}{lead.originCity ? <span>City: {lead.originCity}</span> : null}{lead.partnerLeadPriority ? <span>Priority: {lead.partnerLeadPriority}</span> : null}</div>
@@ -4426,7 +4426,7 @@ export default function SalesLeadDetailPage() {
 
         {/* Pre-visit brief — shows when consultation is booked */}
         {lead.consultationPreVisitBrief && lead.stage === 'estimate_scheduled' && (
-          <div className="mx-3 mb-3 rounded-[12px] border border-violet-200 bg-violet-50 md:mx-8">
+          <div className="mx-3 mb-3 rounded-xl border border-violet-200 bg-violet-50 md:mx-8">
             <div className="flex items-center justify-between px-4 py-3 border-b border-violet-200">
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-violet-700">🏠 In-Home Move Consultation</div>
@@ -4444,7 +4444,7 @@ export default function SalesLeadDetailPage() {
                   setError(null) // clear any previous error, use toast pattern
                   void showConfirm('Alert sent ✅', 'Live estimate request sent to the office.', { confirmLabel: 'OK' })
                 }}
-                className="rounded-[8px] bg-[#C99700] px-3 py-1.5 text-xs font-bold text-[#071421] hover:bg-[#e09420] transition-colors"
+                className="rounded-lg bg-[#C99700] px-3 py-1.5 text-xs font-bold text-[#071421] hover:bg-[#c99700] transition-colors"
                 title="Alert central sales — manager is onsite and ready for live handoff"
               >
                 📞 Request Live Estimate
@@ -4459,7 +4459,7 @@ export default function SalesLeadDetailPage() {
               )}
               <details>
                 <summary className="cursor-pointer text-xs font-semibold text-violet-700 hover:text-violet-900">View Pre-Visit Brief ▾</summary>
-                <pre className="mt-2 whitespace-pre-wrap rounded-[8px] bg-white border border-violet-200 px-3 py-2 text-[11px] text-slate-700 font-mono">{lead.consultationPreVisitBrief}</pre>
+                <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-white border border-violet-200 px-3 py-2 text-[11px] text-slate-700 font-mono">{lead.consultationPreVisitBrief}</pre>
               </details>
             </div>
           </div>
@@ -4603,7 +4603,7 @@ export default function SalesLeadDetailPage() {
             {lead.leadKind === 'realtor_opportunity' ? (
               <div className="border-b border-[var(--app-line)] p-5">
                 <div className="crm-label">Listing Opportunity</div>
-                <div className="mt-3 rounded-[10px] border border-amber-200 bg-amber-50/70 p-4">
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
                   <div className="text-sm font-semibold text-amber-900">
                     {lead.opportunityAddress || lead.originAddress || 'Address pending'}
                   </div>
@@ -4680,14 +4680,14 @@ export default function SalesLeadDetailPage() {
                         finally { setSaving(false) }
                       })()}
                       disabled={saving}
-                      className="mt-3 w-full rounded-[6px] border border-amber-300 bg-amber-100 px-3 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-200 disabled:opacity-60"
+                      className="mt-3 w-full rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-200 disabled:opacity-60"
                     >
                       {saving ? '🔍 Searching…' : '🔍 Search Listing Contact'}
                     </button>
                   )}
                   {/* Outreach status */}
                   {lead.realtorOutreachStartedAt && (
-                    <div className="mt-2 flex items-center gap-2 rounded-[6px] border border-emerald-200 bg-emerald-50 px-2.5 py-2">
+                    <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
                       <div className="text-[11px] text-emerald-800">
                         <span className="font-semibold">Pitched</span>
@@ -4700,7 +4700,7 @@ export default function SalesLeadDetailPage() {
                   {canHandleCurrentLeadCommunication && lead.primaryContactRole === 'realtor' && lead.realtorPhone && (
                     <button
                       onClick={() => openRealtorPitchSms()}
-                      className="mt-2 w-full rounded-[6px] border border-amber-400 bg-amber-200 px-3 py-1.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-300 transition-colors"
+                      className="mt-2 w-full rounded-lg border border-amber-400 bg-amber-200 px-3 py-1.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-300 transition-colors"
                     >
                       {lead.realtorOutreachStartedAt ? '📱 Follow Up — Send SMS' : `📱 Pitch ${getListingSideContactRoleLabel(lead.realtorContactKind)} — Send SMS`}
                     </button>
@@ -4708,7 +4708,7 @@ export default function SalesLeadDetailPage() {
                 </div>
 
                 {lead.primaryContactRole === 'realtor' ? (
-                  <div className="mt-4 space-y-3 rounded-[10px] border border-[var(--app-line)] bg-white p-4">
+                  <div className="mt-4 space-y-3 rounded-xl border border-[var(--app-line)] bg-white p-4">
                     <div>
                       <div className="text-sm font-semibold text-[var(--app-ink)]">Client Handoff</div>
                       <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">
@@ -4742,7 +4742,7 @@ export default function SalesLeadDetailPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-4 rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-800">
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-800">
                     Client contact is now active on this lead. Realtor details stay here for reference and follow-up.
                   </div>
                 )}
@@ -4751,7 +4751,7 @@ export default function SalesLeadDetailPage() {
               (lead.destinationOpportunityStatus || lead.destinationOpportunityLeadId) ? (
                 <div className="border-b border-[var(--app-line)] p-5">
                   <div className="crm-label">Destination Opportunity</div>
-                  <div className="mt-3 rounded-[10px] border border-sky-200 bg-sky-50/70 p-4">
+                  <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/70 p-4">
                     <div className="text-sm font-semibold text-sky-900">
                       {getDestinationOpportunityStatusLabel(lead)}
                     </div>
@@ -4774,12 +4774,12 @@ export default function SalesLeadDetailPage() {
 
             {/* Confirm Job CTA — prominent when lead has a quote and isn't booked yet */}
             {quote && !isClosedLeadStage(lead.stage) && !(lead.leadKind === 'realtor_opportunity' && lead.primaryContactRole === 'realtor') ? (
-              <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5">
+              <div className="border-b border-[var(--app-line)] bg-[#ecfdf3] p-5">
                 <div className="crm-label text-[var(--app-accent)]">Ready to close?</div>
                 <button
                   onClick={() => openConfirmJobModal()}
                   disabled={!canEditCurrentLead}
-                  className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--app-accent)] text-sm font-semibold text-white transition hover:bg-[#0a5b47]"
+                  className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--app-accent)] text-sm font-semibold text-white transition hover:bg-[#0f6a53]"
                 >
                   Confirm Job + Send Booking
                 </button>
@@ -4792,7 +4792,7 @@ export default function SalesLeadDetailPage() {
                 </div>
               </div>
             ) : isBookedLikeStage(lead.stage) ? (
-              <div className="border-b border-[var(--app-line)] bg-[#f0faf5] p-5 space-y-3">
+              <div className="border-b border-[var(--app-line)] bg-[#ecfdf3] p-5 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                     lead.stage === 'customer_success'
@@ -4814,15 +4814,15 @@ export default function SalesLeadDetailPage() {
                 {/* On-site change flag */}
                 <button
                   onClick={() => setOnsiteChangeOpen(o => !o)}
-                  className="w-full rounded-[8px] bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-700 transition-colors"
+                  className="w-full rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-700 transition-colors"
                 >
                   Report Scope Change
                 </button>
                 {onsiteChangeOpen && (
-                  <div className="rounded-[10px] border border-rose-200 bg-rose-50 p-4 space-y-3">
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 space-y-3">
                     <div className="crm-label text-rose-800">Change Order</div>
                     {quote?.billingModel === 'binding' && (
-                      <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
                         The accepted flat rate stays in force. Record the additional scope and proposed flat-rate adjustment; do not perform extra work until the customer approves it.
                       </div>
                     )}
@@ -4865,7 +4865,7 @@ export default function SalesLeadDetailPage() {
                     <button
                       onClick={() => void submitOnsiteChange()}
                       disabled={onsiteBusy || !onsiteReason.trim()}
-                      className="w-full rounded-[6px] bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
+                      className="w-full rounded-lg bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
                     >
                       {onsiteDone ? '✓ Change Order Recorded' : onsiteBusy ? 'Recording…' : 'Create Pending Change Order'}
                     </button>
@@ -4874,7 +4874,7 @@ export default function SalesLeadDetailPage() {
 
                 {/* Change log */}
                 {quote?.changeLog && quote.changeLog.length > 0 && (
-                  <div className="rounded-[10px] border border-amber-200 bg-amber-50 p-3 space-y-2">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Quote Revisions ({quote.changeLog.length})</div>
                     {quote.changeLog.map(entry => (
                       <div key={entry.id} className="text-[11px] text-amber-900 border-t border-amber-200 pt-1.5">
@@ -4903,7 +4903,7 @@ export default function SalesLeadDetailPage() {
                 <button
                   onClick={() => void generateDispatchBrief()}
                   disabled={dispatchBriefBusy}
-                  className="w-full rounded-[8px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                  className="w-full rounded-lg bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                 >
                   {dispatchBriefBusy ? '⏳ Generating…' : '📋 Generate Crew Briefing'}
                 </button>
@@ -4912,7 +4912,7 @@ export default function SalesLeadDetailPage() {
                   <button
                     onClick={() => void openReviewRequestPreview()}
                     disabled={!canEditCurrentLead || reviewSentBusy || reviewPreviewBusy}
-                    className="w-full rounded-[8px] bg-[#C99700] px-3 py-2 text-xs font-semibold text-[#071421] hover:opacity-90 disabled:opacity-60"
+                    className="w-full rounded-lg bg-[#C99700] px-3 py-2 text-xs font-semibold text-[#071421] hover:opacity-90 disabled:opacity-60"
                   >
                     {reviewSentBusy || reviewPreviewBusy ? 'Preparing...' : (reviewSent || lead.reviewSentAt) ? '⭐ Preview / Send Again' : '⭐ Preview Review Request'}
                   </button>
@@ -4920,12 +4920,12 @@ export default function SalesLeadDetailPage() {
                 <button
                   onClick={() => setOutcomeOpen(o => !o)}
                   disabled={!canEditCurrentLead}
-                  className="w-full rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-medium text-[var(--app-ink)] hover:border-[var(--app-ink)]"
+                  className="w-full rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-medium text-[var(--app-ink)] hover:border-[var(--app-ink)]"
                 >
                   {outcomeSaved ? '✓ Outcome Logged' : '📋 Log Job Outcome'}
                 </button>
                 {outcomeOpen && (
-                  <div className="space-y-3 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                  <div className="space-y-3 rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                     <div className="crm-label">Post-Job Outcome</div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -4960,7 +4960,7 @@ export default function SalesLeadDetailPage() {
                       </label>
                     </div>
                     <textarea value={outcomeNotes} onChange={e => setOutcomeNotes(e.target.value)} disabled={!canEditCurrentLead} className="crm-input w-full resize-none text-xs" rows={2} placeholder="Any notes about the job..." />
-                    <button onClick={() => void saveOutcome()} disabled={!canEditCurrentLead || outcomeBusy} className="w-full rounded-[8px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">
+                    <button onClick={() => void saveOutcome()} disabled={!canEditCurrentLead || outcomeBusy} className="w-full rounded-lg bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">
                       {outcomeBusy ? 'Saving...' : 'Save Outcome'}
                     </button>
                   </div>
@@ -4981,22 +4981,22 @@ export default function SalesLeadDetailPage() {
 
                 {/* DEPOSIT STATUS */}
                 {lead.paymentStatus === 'paid_in_full' ? (
-                  <div className="rounded-[8px] bg-emerald-600 px-3 py-2.5 text-center text-xs font-bold text-white">
+                  <div className="rounded-lg bg-emerald-600 px-3 py-2.5 text-center text-xs font-bold text-white">
                     ✓ Paid in Full
                   </div>
                 ) : lead.paymentStatus === 'deposit_received' ? (
                   <div className="space-y-2">
-                    <div className="rounded-[8px] border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                    <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
                       ✓ Deposit Received — {lead.depositMethod || 'On file'}
                     </div>
                     {/(debit|prepaid)/i.test(lead.depositMethod || '') && (
-                      <div className="rounded-[8px] border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                      <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
                         ⚠ Internal payment review — booking accepted; verify the final-balance collection plan before move day.
                       </div>
                     )}
                     {quote && (
                       <div className="space-y-2">
-                        <div className="rounded-[8px] border border-emerald-200 bg-white p-3 text-xs">
+                        <div className="rounded-lg border border-emerald-200 bg-white p-3 text-xs">
                           <div className="mb-2 font-semibold text-[var(--app-ink)]">Deposit receipt</div>
                           <input
                             type="email"
@@ -5006,7 +5006,7 @@ export default function SalesLeadDetailPage() {
                             className="crm-input w-full text-xs"
                             placeholder="customer@email.com"
                           />
-                          <label className="mt-2 flex items-center gap-2 rounded-[8px] border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] font-semibold text-[var(--app-ink)]">
+                          <label className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] font-semibold text-[var(--app-ink)]">
                             <input
                               type="checkbox"
                               checked={receiptSendSms}
@@ -5022,17 +5022,17 @@ export default function SalesLeadDetailPage() {
                             type="button"
                             onClick={() => void resendDepositReceipt()}
                             disabled={!canEditCurrentLead || receiptBusy || !receiptEmail.trim()}
-                            className="mt-2 w-full rounded-[8px] bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                            className="mt-2 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
                           >
                             {receiptBusy ? 'Sending...' : 'Resend Deposit Receipt'}
                           </button>
                           {receiptNotice ? (
-                            <div className="mt-2 rounded-[6px] bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                            <div className="mt-2 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
                               {receiptNotice}
                             </div>
                           ) : null}
                         </div>
-                        <div className={`rounded-[8px] border px-3 py-2 text-xs ${
+                        <div className={`rounded-lg border px-3 py-2 text-xs ${
                           hasStoredPaymentCard
                             ? 'border-slate-200 bg-slate-50 text-[var(--app-ink)]'
                             : 'border-amber-200 bg-amber-50 text-amber-800'
@@ -5050,14 +5050,14 @@ export default function SalesLeadDetailPage() {
                           <button
                             onClick={() => setCollectCardOpen(true)}
                             disabled={!canHandleCurrentLeadPayments}
-                            className="w-full rounded-[8px] bg-[#C99700] px-3 py-2 text-xs font-bold text-[#071421] hover:opacity-90 disabled:opacity-60"
+                            className="w-full rounded-lg bg-[#C99700] px-3 py-2 text-xs font-bold text-[#071421] hover:opacity-90 disabled:opacity-60"
                           >
                             💳 Take Card By Phone
                           </button>
                         ) : null}
                         <PaymentRecoveryPanel quoteId={quote.id} onReconciled={(nextLead, nextQuote) => { setLead(nextLead); setQuote(nextQuote) }} />
                         {/* Balance override input */}
-                        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
+                        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
                           <div className="text-xs font-semibold text-[var(--app-ink)]">Adjust &amp; charge balance</div>
 
                           {/* Charged-so-far summary */}
@@ -5069,7 +5069,7 @@ export default function SalesLeadDetailPage() {
                             })()
                             if (totalPaid <= 0) return null
                             return (
-                              <div className="rounded-[6px] bg-slate-50 border border-slate-200 px-3 py-2 text-[11px] space-y-0.5">
+                              <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[11px] space-y-0.5">
                                 <div className="flex justify-between text-[var(--app-muted)]">
                                   <span>Deposit charged</span>
                                   <span className="font-semibold text-[var(--app-ink)]">{formatMoney(depositPaid)}</span>
@@ -5094,7 +5094,7 @@ export default function SalesLeadDetailPage() {
 
                           {/* Success flash */}
                           {chargeBalanceFlash && (
-                            <div className="rounded-[6px] bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800">
+                            <div className="rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800">
                               ✓ Charged {formatMoney(chargeBalanceFlash.amount)}.{' '}
                               {chargeBalanceFlash.remaining > 0
                                 ? `Remaining balance: ${formatMoney(chargeBalanceFlash.remaining)}`
@@ -5124,14 +5124,14 @@ export default function SalesLeadDetailPage() {
                             <button
                               onClick={() => void chargeBalance(Number(balanceOverrideAmount) || quote.balance)}
                               disabled={!canHandleCurrentLeadPayments || chargeBalanceBusy || !hasStoredPaymentCard || !!chargeBalanceFlash}
-                              className="flex-1 rounded-[8px] bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                              className="flex-1 rounded-lg bg-[var(--app-accent)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                             >
                               {chargeBalanceBusy ? 'Charging...' : `Charge Card — ${formatMoney(Number(balanceOverrideAmount) || quote.balance)}`}
                             </button>
                             <button
                               onClick={() => void sendBalanceInvoice()}
                               disabled={!canHandleCurrentLeadPayments || sendInvoiceBusy || !lead.email}
-                              className="flex-1 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-60"
+                              className="flex-1 rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-60"
                             >
                               {sendInvoiceBusy ? '...' : 'Send Invoice'}
                             </button>
@@ -5144,7 +5144,7 @@ export default function SalesLeadDetailPage() {
                           <button
                             onClick={() => void clearManualDepositMark()}
                             disabled={!canEditCurrentLead || logDepositBusy}
-                            className="w-full rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                            className="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
                           >
                             {logDepositBusy ? 'Clearing...' : 'Clear Deposit Mark'}
                           </button>
@@ -5154,7 +5154,7 @@ export default function SalesLeadDetailPage() {
                   </div>
                 ) : (
                   /* No deposit yet — collection required */
-                  <div className="rounded-[8px] border border-[#071421]/20 bg-[#071421]/5 p-3 space-y-2">
+                  <div className="rounded-lg border border-[#071421]/20 bg-[#071421]/5 p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-widest text-[#071421]">Deposit Required</span>
                       {quote && <span className="text-xs font-semibold text-[#071421]">{formatMoney(quote.deposit)}</span>}
@@ -5163,7 +5163,7 @@ export default function SalesLeadDetailPage() {
                     {quote && (
                       <>
                         {hasStoredPaymentCard ? (
-                          <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                             <div className="font-semibold">Saved card on file — {storedPaymentCardLabel}</div>
                             <div className="mt-1 text-[11px] text-emerald-700">You can charge the deposit now without sending the customer back to the payment link.</div>
                           </div>
@@ -5171,7 +5171,7 @@ export default function SalesLeadDetailPage() {
                         <button
                           onClick={() => setCollectCardOpen(true)}
                           disabled={!canHandleCurrentLeadPayments}
-                          className="w-full rounded-[8px] bg-[#C99700] px-3 py-2 text-xs font-bold text-[#071421] hover:opacity-90 disabled:opacity-60"
+                          className="w-full rounded-lg bg-[#C99700] px-3 py-2 text-xs font-bold text-[#071421] hover:opacity-90 disabled:opacity-60"
                         >
                           💳 Take Card By Phone
                         </button>
@@ -5179,7 +5179,7 @@ export default function SalesLeadDetailPage() {
                           <button
                             onClick={() => void chargeSavedDeposit()}
                             disabled={!canHandleCurrentLeadPayments || chargeDepositBusy}
-                            className="w-full rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
+                            className="w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-60"
                           >
                             {chargeDepositBusy ? 'Charging deposit...' : `Charge Saved Deposit — ${formatMoney(quote.deposit)}`}
                           </button>
@@ -5187,7 +5187,7 @@ export default function SalesLeadDetailPage() {
                         <button
                           onClick={() => void sendDepositLink()}
                           disabled={!canHandleCurrentLeadPayments || depositLinkBusy}
-                          className="w-full rounded-[8px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                          className="w-full rounded-lg bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
                           {depositLinkBusy ? 'Sending...' : '🔗 Send Payment Link'}
                         </button>
@@ -5196,7 +5196,7 @@ export default function SalesLeadDetailPage() {
                     <button
                       onClick={() => { setLogDepositOpen(open => !open); setLogDepositAmount('') }}
                       disabled={!canEditCurrentLead}
-                      className="w-full rounded-[8px] border border-[#071421]/20 bg-white px-3 py-2 text-xs font-medium text-[#071421] hover:bg-[#071421]/5"
+                      className="w-full rounded-lg border border-[#071421]/20 bg-white px-3 py-2 text-xs font-medium text-[#071421] hover:bg-[#071421]/5"
                     >
                       Log Cash / E-Transfer / Cheque
                     </button>
@@ -5229,7 +5229,7 @@ export default function SalesLeadDetailPage() {
                         <button
                           onClick={() => void logManualDeposit()}
                           disabled={!canEditCurrentLead || logDepositBusy || !Number.isFinite(Number(logDepositAmount)) || Number(logDepositAmount) <= 0}
-                          className="w-full rounded-[8px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                          className="w-full rounded-lg bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
                           {logDepositBusy ? 'Saving...' : Number(logDepositAmount) > 0 ? `Record ${formatMoney(Number(logDepositAmount))} Received` : 'Enter Actual Amount Received'}
                         </button>
@@ -5247,7 +5247,7 @@ export default function SalesLeadDetailPage() {
                 {lead.email ? <button onClick={() => openComposer('email')} disabled={!canHandleCurrentLeadCommunication} className="crm-button justify-center px-2 disabled:opacity-60">Email</button> : <div />}
               </div>
               {!quote ? (
-                <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead || creatingQuote} className="crm-button w-full justify-center border-[rgba(34,72,56,0.2)] bg-[rgba(34,72,56,0.08)] text-[var(--app-accent)] disabled:opacity-60">
+                <button onClick={() => void openQuoteBuilder()} disabled={!canEditCurrentLead || creatingQuote} className="crm-button w-full justify-center border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] text-[var(--app-accent)] disabled:opacity-60">
                   {creatingQuote ? 'Building...' : 'Build Estimate'}
                 </button>
               ) : null}
@@ -5257,7 +5257,7 @@ export default function SalesLeadDetailPage() {
                 </summary>
                 <div className="space-y-2 border-t border-[var(--app-line)] p-3">
                   {!isClosedLeadStage(lead.stage) && (
-                    <details className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
+                    <details className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)]">
                       <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-[var(--app-ink)]">
                         <span className="flex items-center justify-between">
                           {lead.tentativeReservationStatus === 'active' ? 'Tentative reservation active' : 'Create tentative reservation'}
@@ -5294,7 +5294,7 @@ export default function SalesLeadDetailPage() {
                     {consultationActive ? `Recording • ${formatSeconds(consultationSeconds)}` : consultationSaving ? 'Saving Consultation...' : 'Record Consultation'}
                   </button>
                   {lead.phone ? (
-                    <details className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
+                    <details className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)]">
                       <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-[var(--app-muted)]">
                         Safety &amp; abuse controls
                       </summary>
@@ -5341,7 +5341,7 @@ export default function SalesLeadDetailPage() {
                   ) : null}
               {/* Add a second job for the same contact (e.g. residential + commercial) */}
               {quote && (
-                <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                   <button
                     onClick={() => void createQuote(true)}
                     disabled={!canEditCurrentLead || creatingQuote}
@@ -5359,10 +5359,10 @@ export default function SalesLeadDetailPage() {
               </details>
               {/* Linked jobs panel */}
               {additionalQuotes.length > 0 && (
-                <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-1.5">
+                <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-1.5">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">All Linked Jobs</div>
                   {quote && (
-                    <Link href={`/sales/quotes/${quote.id}`} className="flex items-center justify-between rounded-[6px] bg-white px-3 py-2 text-xs hover:bg-[var(--app-panel)]">
+                    <Link href={`/sales/quotes/${quote.id}`} className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs hover:bg-[var(--app-panel)]">
                       <span className="min-w-0 font-medium text-[var(--app-ink)]">
                         <span className="block truncate">{getQuoteOptionLabel(quote)}</span>
                         <span className="block text-[11px] text-[var(--app-muted)]">{quote.number}</span>
@@ -5371,7 +5371,7 @@ export default function SalesLeadDetailPage() {
                     </Link>
                   )}
                   {additionalQuotes.map(aq => (
-                    <div key={aq.id} className="flex items-center gap-2 rounded-[6px] bg-white px-3 py-2 text-xs">
+                    <div key={aq.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs">
                       <Link href={`/sales/quotes/${aq.id}`} className="min-w-0 flex-1 hover:underline">
                         <span className="block truncate font-medium text-[var(--app-ink)]">{getQuoteOptionLabel(aq)}</span>
                         <span className="block text-[11px] text-[var(--app-muted)] capitalize">{aq.number} · {aq.moveType || 'residential'} · {aq.status}</span>
@@ -5381,13 +5381,13 @@ export default function SalesLeadDetailPage() {
                           type="button"
                           onClick={() => void removeLinkedQuote(aq)}
                           disabled={!canEditCurrentLead || creatingQuote}
-                          className="rounded-[6px] bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 disabled:opacity-50"
+                          className="rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 disabled:opacity-50"
                           title="Remove this unused draft linked job"
                         >
                           Remove
                         </button>
                       ) : (
-                        <span className="rounded-[6px] bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">Locked</span>
+                        <span className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">Locked</span>
                       )}
                     </div>
                   ))}
@@ -5418,7 +5418,7 @@ export default function SalesLeadDetailPage() {
                 onRemoveMedia={handleRemoveMedia}
               />
               </div>
-              <details id="section-media" className="group scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
+              <details id="section-media" className="group scroll-mt-16 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)]">
                 <summary className="cursor-pointer list-none p-3">
                   <div className="flex items-center justify-between gap-3">
                   <div>
@@ -5491,12 +5491,12 @@ export default function SalesLeadDetailPage() {
                       : mediaUploadPurpose === 'receipt' ? 'Upload Receipt Files' : 'Upload And Scan Inventory'}
                   </button>
                   {mediaUploadPurpose === 'receipt' ? (
-                    <div className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[11px] text-[var(--app-muted)]">
+                    <div className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-[11px] text-[var(--app-muted)]">
                       Store fuel receipts, truck invoices, dump tickets, or any move expense directly on the lead so ops and finance can trace the job without leaving the CRM.
                     </div>
                   ) : null}
                   {mediaUploadNotice ? (
-                    <div className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[11px] text-[var(--app-muted)]">
+                    <div className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-[11px] text-[var(--app-muted)]">
                       {mediaUploadNotice}
                     </div>
                   ) : null}
@@ -5511,7 +5511,7 @@ export default function SalesLeadDetailPage() {
               </div>
               <div className="mt-4 space-y-3 text-sm">
                 {aiNudge ? (
-                  <div className={`rounded-[8px] border px-3 py-3 ${aiNudge.urgency === 'high' ? 'border-amber-200 bg-amber-50' : aiNudge.urgency === 'medium' ? 'border-sky-200 bg-sky-50' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
+                  <div className={`rounded-lg border px-3 py-3 ${aiNudge.urgency === 'high' ? 'border-amber-200 bg-amber-50' : aiNudge.urgency === 'medium' ? 'border-sky-200 bg-sky-50' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
                     <div className={`flex items-start gap-2 text-sm font-medium ${aiNudge.urgency === 'high' ? 'text-amber-800' : aiNudge.urgency === 'medium' ? 'text-sky-800' : 'text-[var(--app-ink)]'}`}>
                       <span>{aiNudge.icon}</span>
                       <span>{aiNudge.text}</span>
@@ -5521,13 +5521,13 @@ export default function SalesLeadDetailPage() {
                     </div>
                     {(aiNudge.urgency === 'high' || aiNudge.urgency === 'medium') && (lead.phone || lead.email) ? (
                       <div className="mt-3 flex gap-2">
-                        {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canHandleCurrentLeadCommunication} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Send SMS</button> : null}
-                        {lead.email ? <button onClick={() => { setActiveTab('emails'); setComposerChannel('email') }} disabled={!canHandleCurrentLeadCommunication} className="rounded-[6px] bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Email</button> : null}
+                        {lead.phone ? <button onClick={() => openComposer('sms')} disabled={!canHandleCurrentLeadCommunication} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Send SMS</button> : null}
+                        {lead.email ? <button onClick={() => { setActiveTab('emails'); setComposerChannel('email') }} disabled={!canHandleCurrentLeadCommunication} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-[var(--app-ink)] shadow-sm ring-1 ring-inset ring-[var(--app-line)] hover:bg-[var(--app-bg)] disabled:opacity-60">Email</button> : null}
                       </div>
                     ) : null}
                   </div>
                 ) : (
-                  <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
+                  <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
                     <div className="text-sm font-medium text-[var(--app-ink)]">
                       {coreWorkflowNote || (quote ? 'Follow up on the open estimate.' : 'No active task yet')}
                     </div>
@@ -5538,7 +5538,7 @@ export default function SalesLeadDetailPage() {
                 )}
 
                 {!simpleLeadView ? (
-                <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
+                <div className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Auto-Nudges</div>
@@ -5578,7 +5578,7 @@ export default function SalesLeadDetailPage() {
                       const disabled = !canControlLeadAutomation || automationSavingKey === item.key
 
                       return (
-                        <div key={item.key} className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5">
+                        <div key={item.key} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5">
                           <div>
                             <div className="text-sm font-medium text-[var(--app-ink)]">{item.label}</div>
                             <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">{item.detail}</div>
@@ -5603,7 +5603,7 @@ export default function SalesLeadDetailPage() {
                   </div>
 
                   {!canControlLeadAutomation ? (
-                    <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
                       Assign this lead to yourself or ask a manager to take ownership before changing auto-nudge rules.
                     </div>
                   ) : null}
@@ -5613,7 +5613,7 @@ export default function SalesLeadDetailPage() {
                     <div className="space-y-2">
                       {automationJobs.length > 0 ? (
                         automationJobs.map(job => (
-                          <div key={job.id} className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2.5">
+                          <div key={job.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--app-line)] bg-white px-3 py-2.5">
                             <div>
                               <div className="text-sm font-medium text-[var(--app-ink)]">{automationJobLabel(job)}</div>
                               <div className="mt-1 text-[11px] leading-5 text-[var(--app-muted)]">
@@ -5624,14 +5624,14 @@ export default function SalesLeadDetailPage() {
                               type="button"
                               disabled={!canControlLeadAutomation || automationSavingKey === job.id}
                               onClick={() => void cancelLeadAutomationJob(job.id)}
-                              className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                              className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
                             >
                               {automationSavingKey === job.id ? 'Cancelling…' : 'Cancel'}
                             </button>
                           </div>
                         ))
                       ) : (
-                        <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-[11px] text-[var(--app-muted)]">
+                        <div className="rounded-lg border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-[11px] text-[var(--app-muted)]">
                           {automationLoading ? 'Loading scheduled nudges…' : 'No nudges are scheduled on this lead right now.'}
                         </div>
                       )}
@@ -5641,7 +5641,7 @@ export default function SalesLeadDetailPage() {
                 ) : null}
 
                 {/* Follow-up date quick setter */}
-                <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
+                <div className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-3">
                   <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                     Follow-up {followUpDate ? `— ${formatDate(followUpDate)}` : '— not set'}
                   </div>
@@ -5659,7 +5659,7 @@ export default function SalesLeadDetailPage() {
                           setFollowUpDate(d.toISOString().slice(0, 10))
                           if (!followUpStatus) setFollowUpStatus('pending')
                         }}
-                        className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-medium text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] disabled:opacity-50"
+                        className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-medium text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] disabled:opacity-50"
                       >
                         {label}
                       </button>
@@ -5671,7 +5671,7 @@ export default function SalesLeadDetailPage() {
                           setFollowUpDate('')
                           if (followUpStatus === 'pending') setFollowUpStatus('')
                         }}
-                        className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-100 disabled:opacity-50"
                       >
                         Clear
                       </button>
@@ -5689,7 +5689,7 @@ export default function SalesLeadDetailPage() {
                   />
                 </div>
                 {simpleLeadView ? (
-                  <div className="rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-3 text-[11px] leading-5 text-slate-600">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-[11px] leading-5 text-slate-600">
                     Advanced automation, assignment, and incident controls are hidden in simple view. Use <span className="font-semibold text-slate-800">Show Advanced</span> only when you need them.
                   </div>
                 ) : null}
@@ -5699,10 +5699,10 @@ export default function SalesLeadDetailPage() {
             {!simpleLeadView ? (
             <div className="border-b border-[var(--app-line)] p-5">
               <div className="crm-label">Estimate Engagement</div>
-              <div className="relative mt-5 pl-4 before:absolute before:bottom-0 before:left-[7px] before:top-1 before:w-px before:border-l before:border-dashed before:border-[rgba(228,226,220,1)]">
+              <div className="relative mt-5 pl-4 before:absolute before:bottom-0 before:left-[7px] before:top-1 before:w-px before:border-l before:border-dashed before:border-[rgba(247,244,237,1)]">
                 {quoteEngagement.map((item, index) => (
                   <div key={item.label} className={`relative pl-4 text-sm ${index < quoteEngagement.length - 1 ? 'mb-5' : ''}`}>
-                    <div className={`absolute left-[-3px] top-1 h-2 w-2 rounded-full ring-4 ring-white ${item.complete ? 'bg-[var(--app-accent)]' : 'bg-[rgba(228,226,220,1)]'}`} />
+                    <div className={`absolute left-[-3px] top-1 h-2 w-2 rounded-full ring-4 ring-white ${item.complete ? 'bg-[var(--app-accent)]' : 'bg-[rgba(247,244,237,1)]'}`} />
                     <div className="font-medium text-[var(--app-ink)]">{item.label}</div>
                     <div className="mt-1 text-[var(--app-muted)]">{item.value}</div>
                   </div>
@@ -5805,7 +5805,7 @@ export default function SalesLeadDetailPage() {
 
                 {/* Deposit section — visible when booked */}
                 {isBookedLikeStage(lead.stage) && (
-                  <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
+                  <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
                     <span className="crm-label">Payment Status</span>
                     <div className="mt-2 text-sm font-semibold text-[var(--app-ink)]">
                       {lead.paymentStatus === 'paid_in_full'
@@ -5823,7 +5823,7 @@ export default function SalesLeadDetailPage() {
                 )}
               </fieldset>
 
-              <div className={`rounded-[10px] border px-3 py-3 ${autoSaveMeta.tone}`}>
+              <div className={`rounded-xl border px-3 py-3 ${autoSaveMeta.tone}`}>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em]">Lead Sync</div>
                 <div className="mt-1 text-sm font-semibold">{autoSaveMeta.label}</div>
                 <div className="mt-1 text-[11px] leading-5">{autoSaveMeta.detail}</div>
@@ -5930,7 +5930,7 @@ export default function SalesLeadDetailPage() {
 
       {showUnsavedLeaveModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--app-line)] bg-white p-6 shadow-none">
             <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Leave before changes finish syncing?</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
               <strong className="text-[var(--app-ink)]">{lead?.name || 'This lead'}</strong> still has edits waiting to sync. Save once now, or leave without the latest changes.
@@ -5964,7 +5964,7 @@ export default function SalesLeadDetailPage() {
 
       {reviewPreviewOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[var(--app-line)] bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Preview review request</h2>
@@ -5976,20 +5976,20 @@ export default function SalesLeadDetailPage() {
               <div className="py-12 text-center text-sm text-[var(--app-muted)]">Matching the origin address to the closest Google profile…</div>
             ) : reviewPreview ? (
               <div className="mt-5 space-y-4">
-                <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
                   <div className="font-semibold">Closest profile: {reviewPreview.profileLabel}</div>
                   <div className="mt-1 text-xs text-emerald-800">Based on {reviewPreview.originAddress} · Sending as {reviewPreview.brandName}</div>
                 </div>
                 {lead?.phone ? (
                   <div>
                     <div className="crm-label mb-2">SMS to {lead.phone}</div>
-                    <div className="whitespace-pre-wrap rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">{reviewPreview.smsBody}</div>
+                    <div className="whitespace-pre-wrap rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">{reviewPreview.smsBody}</div>
                   </div>
                 ) : null}
                 {lead?.email ? (
                   <div>
                     <div className="crm-label mb-2">Email to {lead.email}</div>
-                    <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                    <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                       <div className="border-b border-[var(--app-line)] pb-2 text-sm font-semibold text-[var(--app-ink)]">{reviewPreview.emailSubject}</div>
                       <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--app-ink)]">{reviewPreview.emailBody}</div>
                     </div>
@@ -6010,7 +6010,7 @@ export default function SalesLeadDetailPage() {
       {/* ── Lost Reason Modal ────────────────────────────────────── */}
       {showLostModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--app-line)] bg-white p-6 shadow-none">
             <div className="flex items-start justify-between gap-3">
               <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Why was this lead lost?</h2>
               {aiLossLoading && <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-500 animate-pulse">AI reading…</span>}
@@ -6023,7 +6023,7 @@ export default function SalesLeadDetailPage() {
                 <button
                   key={reason.id}
                   onClick={() => { setLostReason(reason.id); setAiLossSuggested(false) }}
-                  className={`rounded-[10px] border px-3 py-2.5 text-sm font-medium text-left transition ${lostReason === reason.id ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-rose-300'}`}
+                  className={`rounded-xl border px-3 py-2.5 text-sm font-medium text-left transition ${lostReason === reason.id ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-rose-300'}`}
                 >
                   {reason.label}
                 </button>
@@ -6032,7 +6032,7 @@ export default function SalesLeadDetailPage() {
             <textarea
               value={lostNotes}
               onChange={e => setLostNotes(e.target.value)}
-              className="mt-3 min-h-[72px] w-full resize-none rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none"
+              className="mt-3 min-h-[72px] w-full resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none"
               placeholder="Optional notes (what they said, what we could improve)..."
             />
             <div className="mt-4 flex items-center justify-end gap-3">
@@ -6063,12 +6063,12 @@ export default function SalesLeadDetailPage() {
 
       {/* ── Undo toast for media removal ─────────────────────────── */}
       {removedMediaUndo && (
-        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 flex items-center gap-3 rounded-[10px] bg-[#071421] px-4 py-3 text-sm text-white shadow-none">
+        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 flex items-center gap-3 rounded-xl bg-[#071421] px-4 py-3 text-sm text-white shadow-none">
           <span>Removed <span className="font-semibold">{removedMediaUndo.label}</span></span>
           <button
             type="button"
             onClick={handleUndoRemoveMedia}
-            className="rounded-[6px] border border-white/30 px-2.5 py-1 text-xs font-semibold hover:bg-white/10 transition"
+            className="rounded-lg border border-white/30 px-2.5 py-1 text-xs font-semibold hover:bg-white/10 transition"
           >
             Undo
           </button>
@@ -6092,7 +6092,7 @@ export default function SalesLeadDetailPage() {
       {/* ── Dispatch Brief Modal ───────────────────────────────────── */}
       {dispatchBriefOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="flex w-full max-w-2xl flex-col rounded-[16px] border border-[var(--app-line)] bg-white shadow-none" style={{ maxHeight: '85vh' }}>
+          <div className="flex w-full max-w-2xl flex-col rounded-2xl border border-[var(--app-line)] bg-white shadow-none" style={{ maxHeight: '85vh' }}>
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
                 <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">📋 Crew Briefing</h2>
@@ -6136,7 +6136,7 @@ export default function SalesLeadDetailPage() {
 
       {showApptSmsModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--app-line)] bg-white p-6 shadow-none">
             <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">Send appointment confirmation SMS?</h2>
             <p className="mt-2 text-sm text-[var(--app-muted)]">
               {`"Hi ${lead?.name?.split(' ')[0] || 'there'}! This is Saturn Star Moving — just confirming your in-home estimate${lead?.estimateDate ? ` for ${new Date(lead.estimateDate + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}` : ''}. We'll take a look at your items and put together your personalized quote on the spot. Any questions, call or text us at 226-773-2993. See you soon! 🌟"`}
@@ -6151,7 +6151,7 @@ export default function SalesLeadDetailPage() {
 
       {/* ── Confirm Job Modal ─────────────────────────────────────── */}
       {showConfirmJobModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(7,20,33,0.55)', backdropFilter: 'blur(2px)' }}>
           <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-none">
             {/* Navy header */}
             <div className="relative bg-[#071421] px-6 py-5">
@@ -6251,7 +6251,7 @@ export default function SalesLeadDetailPage() {
                   confirmJobBusy ||
                   (lead?.paymentStatus !== 'deposit_received' && lead?.paymentStatus !== 'paid_in_full' && !confirmJobDeposit)
                 }
-                className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#243460] disabled:opacity-40 transition-colors"
+                className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#071421] disabled:opacity-40 transition-colors"
               >
                 {confirmJobBusy ? 'Confirming…' : 'Confirm Booking'}
               </button>
@@ -6263,7 +6263,7 @@ export default function SalesLeadDetailPage() {
       {/* ── Incident Modal ────────────────────────────────────────── */}
       {incidentOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-[16px] border border-[var(--app-line)] bg-white shadow-none">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--app-line)] bg-white shadow-none">
             <div className="border-b border-[var(--app-line)] bg-[#071421] px-6 py-4">
               <h2 className="font-display text-base font-semibold text-white">Log Incident</h2>
               <div className="mt-1 h-0.5 w-10 bg-[#C99700]" />
@@ -6307,7 +6307,7 @@ export default function SalesLeadDetailPage() {
               <button
                 onClick={() => void logIncident()}
                 disabled={incidentBusy || !incidentDesc.trim()}
-                className="rounded-[10px] bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
               >
                 {incidentBusy ? 'Logging...' : 'Log Incident'}
               </button>

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PartnerPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f6f8fb]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f9fafb]" />}>
       <PartnerReferralForm />
     </Suspense>
   )

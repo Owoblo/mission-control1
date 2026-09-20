@@ -60,7 +60,7 @@ export function InventoryVerificationPanel({
   return (
     <>
       {/* ── REQUEST PHOTOS — always visible ───────────────────────── */}
-      <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
+      <div className="rounded-lg border border-[var(--app-line)] bg-white p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div className="text-xs font-semibold text-[var(--app-ink)]">📷 Request Photos</div>
           {surveyUrl && (
@@ -79,7 +79,7 @@ export function InventoryVerificationPanel({
               <button
                 type="button"
                 onClick={copyLink}
-                className={`flex-1 rounded-[6px] py-2 text-xs font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#071421] text-white hover:bg-[#071421]/90'}`}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#071421] text-white hover:bg-[#071421]/90'}`}
               >
                 {copied ? '✓ Copied!' : 'Copy Link'}
               </button>
@@ -87,14 +87,14 @@ export function InventoryVerificationPanel({
                 href={surveyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                className="rounded-lg border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
               >
                 Preview
               </a>
               <button
                 onClick={onRequestVerification}
                 disabled={!canEditCurrentLead || surveyBusy}
-                className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition disabled:opacity-60"
+                className="rounded-lg border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition disabled:opacity-60"
                 title="Resend link via SMS"
               >
                 {surveyBusy ? '…' : 'Resend SMS'}
@@ -104,14 +104,14 @@ export function InventoryVerificationPanel({
 
             {/* Customer photos — show here directly when submitted, even with no MLS/scan */}
             {surveyCompleted && totalCustomerMedia > 0 && (
-              <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-2 space-y-2">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 space-y-2">
                 <div className="text-[11px] font-semibold text-emerald-800">
                   {totalCustomerMedia} photo{totalCustomerMedia !== 1 ? 's' : ''} submitted
                   {customerVideoAssets.length > 0 && ` · ${customerVideoAssets.length} video${customerVideoAssets.length !== 1 ? 's' : ''}`}
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {customerImageAssets.map((asset, index) => (
-                    <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-[6px] border border-emerald-200">
+                    <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-lg border border-emerald-200">
                       <button type="button" onClick={() => setLightboxIndex(index)} className="absolute inset-0 cursor-zoom-in" title={asset.room || `Photo ${index + 1}`}>
                         <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                       </button>
@@ -119,7 +119,7 @@ export function InventoryVerificationPanel({
                         <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[11px] text-white">{asset.room}</div>
                       )}
                       {canEditCurrentLead && onRemoveMedia && (
-                        <button type="button" onClick={() => onRemoveMedia(asset.id)} className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-rose-600 text-[12px] font-semibold leading-none text-white shadow-sm transition hover:scale-110 hover:bg-rose-700" aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`} title="Delete this uploaded photo">×</button>
+                        <button type="button" onClick={() => onRemoveMedia(asset.id)} className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-rose-600 text-xs font-semibold leading-none text-white shadow-sm transition hover:scale-110 hover:bg-rose-700" aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`} title="Delete this uploaded photo">×</button>
                       )}
                     </div>
                   ))}
@@ -137,7 +137,7 @@ export function InventoryVerificationPanel({
                     type="button"
                     onClick={onScanCustomerMedia}
                     disabled={!canEditCurrentLead}
-                    className="w-full rounded-[6px] bg-emerald-700 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition disabled:opacity-60"
+                    className="w-full rounded-lg bg-emerald-700 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition disabled:opacity-60"
                   >
                     Scan Media for Inventory
                   </button>
@@ -159,7 +159,7 @@ export function InventoryVerificationPanel({
             <button
               onClick={onRequestVerification}
               disabled={!canEditCurrentLead || surveyBusy}
-              className="flex-1 rounded-[6px] bg-[#071421] py-2 text-xs font-semibold text-white hover:bg-[#071421]/90 transition disabled:opacity-60"
+              className="flex-1 rounded-lg bg-[#071421] py-2 text-xs font-semibold text-white hover:bg-[#071421]/90 transition disabled:opacity-60"
             >
               {surveyBusy ? '⏳ Generating…' : '📤 Send via SMS'}
             </button>
@@ -167,7 +167,7 @@ export function InventoryVerificationPanel({
               <button
                 onClick={onGenerateLinkOnly}
                 disabled={!canEditCurrentLead || surveyBusy}
-                className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition disabled:opacity-60"
+                className="rounded-lg border border-[var(--app-line)] px-3 py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition disabled:opacity-60"
               >
                 {surveyBusy ? '…' : 'Get Link'}
               </button>
@@ -178,14 +178,14 @@ export function InventoryVerificationPanel({
 
       {/* ── INVENTORY VERIFICATION — only when MLS/scan exists ────── */}
       {hasMlsOrScan && (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
           <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Inventory Verification</div>
           <p className="text-[11px] text-[var(--app-muted)] leading-4">
             Customer confirms the scanned or MLS inventory — flags what&apos;s staying behind, adds missing items.
           </p>
 
           {totalCustomerMedia > 0 && (
-            <div className={`rounded-[8px] border px-3 py-3 space-y-2 ${surveyCompleted && !surveyScanned ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)] bg-white'}`}>
+            <div className={`rounded-lg border px-3 py-3 space-y-2 ${surveyCompleted && !surveyScanned ? 'border-emerald-300 bg-emerald-50' : 'border-[var(--app-line)] bg-white'}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold text-[var(--app-ink)]">
                   {totalCustomerMedia} media file{totalCustomerMedia !== 1 ? 's' : ''}
@@ -194,7 +194,7 @@ export function InventoryVerificationPanel({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 rounded-[8px] bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
+              <div className="grid grid-cols-2 gap-2 rounded-lg bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
                 <div>Moving confirmed: <span className="font-semibold text-[var(--app-ink)]">{verificationSummary.goingCount}</span></div>
                 <div>Staying behind: <span className="font-semibold text-[var(--app-ink)]">{verificationSummary.notGoingCount}</span></div>
                 <div>Needs review: <span className="font-semibold text-[var(--app-ink)]">{verificationSummary.unsureCount}</span></div>
@@ -202,11 +202,11 @@ export function InventoryVerificationPanel({
               </div>
 
               {recentActivity.length > 0 && (
-                <div className="rounded-[8px] bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
+                <div className="rounded-lg bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
                   <div className="mb-2 font-semibold uppercase tracking-[0.12em]">Latest customer edits</div>
                   <div className="space-y-1.5">
                     {recentActivity.map(item => (
-                      <div key={item.id} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2">
+                      <div key={item.id} className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium text-[var(--app-ink)]">{item.title}</div>
                           <div className="text-[11px] text-[var(--app-muted)]">
@@ -221,7 +221,7 @@ export function InventoryVerificationPanel({
               )}
 
               {verificationSummary.addressMismatch && (
-                <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
                   Customer flagged a possible address or unit mismatch. Review before pricing.
                 </div>
               )}
@@ -232,7 +232,7 @@ export function InventoryVerificationPanel({
                   const sourceTone = asset.source === 'mms' ? 'bg-sky-100 text-sky-700' : asset.source === 'survey' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'
                   const canRemove = canEditCurrentLead && !!onRemoveMedia
                   return (
-                    <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-[6px] border border-[var(--app-line)]">
+                    <div key={asset.id || index} className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--app-line)]">
                       <button type="button" onClick={() => setLightboxIndex(index)} className="absolute inset-0 cursor-zoom-in">
                         <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                       </button>
@@ -242,7 +242,7 @@ export function InventoryVerificationPanel({
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); onRemoveMedia!(asset.id) }}
-                          className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-rose-600 text-[12px] font-semibold leading-none text-white shadow-sm transition hover:scale-110 hover:bg-rose-700"
+                          className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-rose-600 text-xs font-semibold leading-none text-white shadow-sm transition hover:scale-110 hover:bg-rose-700"
                           aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`}
                           title="Delete this uploaded photo"
                         >
@@ -264,12 +264,12 @@ export function InventoryVerificationPanel({
               )}
 
               {customerVideoAssets.length > 0 && (
-                <div className="rounded-[8px] bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
+                <div className="rounded-lg bg-white/70 p-2 text-[11px] text-[var(--app-muted)]">
                   <div className="mb-2 font-semibold text-[var(--app-ink)]">Video attachments</div>
                   <div className="space-y-1.5">
                     {customerVideoAssets.map((asset, index) => (
                       <a key={asset.id || `video-${index}`} href={asset.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center justify-between rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 hover:border-[var(--app-ink)]"
+                        className="flex items-center justify-between rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 hover:border-[var(--app-ink)]"
                       >
                         <span className="min-w-0 pr-3">
                           <span className="block truncate font-medium text-[var(--app-ink)]">{asset.filename || asset.room || `Video ${index + 1}`}</span>
@@ -303,7 +303,7 @@ export function InventoryVerificationPanel({
                 <button
                   onClick={onScanCustomerMedia}
                   disabled={surveyBusy}
-                  className={`w-full rounded-[6px] py-2 text-xs font-semibold transition disabled:opacity-60 ${surveyScanned ? 'border border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                  className={`w-full rounded-lg py-2 text-xs font-semibold transition disabled:opacity-60 ${surveyScanned ? 'border border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                 >
                   {surveyBusy ? '⏳ Scanning…' : surveyScanned ? '✓ Re-scan customer media' : '🔍 Scan media into inventory'}
                 </button>

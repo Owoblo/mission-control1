@@ -64,7 +64,7 @@ export function ChangePasswordButton({ compact = false }: { compact?: boolean })
 
       {open ? (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/35 p-0 md:items-center md:p-4">
-          <div className="w-full rounded-t-[14px] border border-[var(--app-line)] bg-white shadow-none md:max-w-md md:rounded-[12px]">
+          <div className="w-full rounded-t-[14px] border border-[var(--app-line)] bg-white shadow-none md:max-w-md md:rounded-xl">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
                 <div className="text-sm font-bold text-[var(--app-ink)]">Change Password</div>
@@ -106,10 +106,10 @@ export function ChangePasswordButton({ compact = false }: { compact?: boolean })
               />
 
               {error ? (
-                <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{error}</div>
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{error}</div>
               ) : null}
               {success ? (
-                <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{success}</div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{success}</div>
               ) : null}
 
               <button

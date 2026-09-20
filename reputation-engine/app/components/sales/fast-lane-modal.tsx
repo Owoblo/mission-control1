@@ -143,7 +143,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
         {result ? (
           /* ── Sent confirmation ── */
           <div className="flex flex-col gap-4 px-5 py-6">
-            <div className="rounded-[12px] bg-emerald-50 border border-emerald-200 p-4 text-center">
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-center">
               <div className="text-3xl mb-2">✅</div>
               <div className="text-sm font-semibold text-emerald-800">Hourly booking link sent</div>
               <div className="mt-1 text-xs text-emerald-700">
@@ -151,7 +151,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
               </div>
             </div>
 
-            <div className="rounded-[10px] bg-[var(--app-bg)] px-4 py-3 space-y-1">
+            <div className="rounded-xl bg-[var(--app-bg)] px-4 py-3 space-y-1">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Booking terms</div>
               <div className="text-sm font-semibold text-[var(--app-ink)]">{result.crewLabel} · ${result.rate}/hr</div>
               <div className="text-xs text-[var(--app-muted)]">
@@ -162,7 +162,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
               <div className="text-xs text-[var(--app-muted)]">$100 deposit to book</div>
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] px-4 py-3">
+            <div className="rounded-xl border border-[var(--app-line)] px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)] mb-1">Booking link</div>
               <div className="text-xs text-[#071421] break-all">{result.bookingLink}</div>
               <button
@@ -179,7 +179,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
           <div className="space-y-4 px-5 py-4">
 
             {blockingIssues.length > 0 && (
-              <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3">
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
                 <div className="text-sm font-semibold text-amber-950">Add the booking essentials</div>
                 <p className="mt-1 text-xs leading-5 text-amber-900">
                   An hourly booking only needs a current service date and pickup or work location.
@@ -191,7 +191,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             )}
 
             {blockingIssues.length === 0 && bookingNotes.length > 0 && (
-              <div className="rounded-[10px] border border-sky-200 bg-sky-50 px-4 py-3">
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
                 <div className="text-sm font-semibold text-sky-950">Hourly booking is available</div>
                 <p className="mt-1 text-xs leading-5 text-sky-900">
                   These details can be confirmed after booking and before dispatch:
@@ -211,7 +211,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     key={val}
                     type="button"
                     onClick={() => setMoveType(val)}
-                    className={`rounded-[10px] border py-3 text-sm font-semibold transition ${
+                    className={`rounded-xl border py-3 text-sm font-semibold transition ${
                       moveType === val
                         ? 'border-[#071421] bg-[#071421] text-white'
                         : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[#071421]'
@@ -232,7 +232,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     key={n}
                     type="button"
                     onClick={() => setCrew(n)}
-                    className={`rounded-[10px] border py-3 text-sm font-semibold transition ${
+                    className={`rounded-xl border py-3 text-sm font-semibold transition ${
                       crew === n
                         ? 'border-[#C99700] bg-[#C99700] text-[#071421]'
                         : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[#C99700]'
@@ -253,7 +253,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     key={i}
                     type="button"
                     onClick={() => setRangeIdx(i)}
-                    className={`rounded-[10px] border py-2.5 text-sm font-semibold transition ${
+                    className={`rounded-xl border py-2.5 text-sm font-semibold transition ${
                       rangeIdx === i
                         ? 'border-[#071421] bg-[#071421]/5 text-[#071421]'
                         : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)] hover:border-[#071421]'
@@ -274,7 +274,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     key={amt}
                     type="button"
                     onClick={() => setSurcharge(amt)}
-                    className={`rounded-[10px] border py-2.5 text-sm font-semibold transition ${
+                    className={`rounded-xl border py-2.5 text-sm font-semibold transition ${
                       surcharge === amt
                         ? 'border-rose-500 bg-rose-500 text-white'
                         : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)] hover:border-rose-400'
@@ -292,7 +292,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             </div>
 
             {/* Rate preview */}
-            <div className="rounded-[10px] bg-[#071421]/5 px-4 py-3">
+            <div className="rounded-xl bg-[#071421]/5 px-4 py-3">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm font-bold text-[#071421]">${rate}/hr</span>
                 <span className="text-xs text-[var(--app-muted)]">{range.min}-hour minimum</span>
@@ -313,7 +313,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     key={item.id}
                     type="button"
                     onClick={() => toggleSpecialty(item.id)}
-                    className={`w-full rounded-[10px] border px-3 py-2.5 text-left transition ${
+                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
                       specialtyItems.includes(item.id)
                         ? 'border-amber-400 bg-amber-50'
                         : 'border-[var(--app-line)] bg-[var(--app-bg)] hover:border-amber-300'
@@ -340,7 +340,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                       key={amt}
                       type="button"
                       onClick={() => setSpecialtyCharge(amt)}
-                      className={`rounded-[10px] border py-2.5 text-sm font-semibold transition ${
+                      className={`rounded-xl border py-2.5 text-sm font-semibold transition ${
                         specialtyCharge === amt
                           ? 'border-[#C99700] bg-[#C99700] text-[#071421]'
                           : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)] hover:border-[#C99700]'
@@ -360,7 +360,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             <button
               onClick={() => void sendQuote()}
               disabled={sending || (!lead.phone && !lead.email) || blockingIssues.length > 0}
-              className="w-full rounded-[10px] bg-[#C99700] py-3.5 text-sm font-bold text-[#071421] transition hover:opacity-90 disabled:opacity-60"
+              className="w-full rounded-xl bg-[#C99700] py-3.5 text-sm font-bold text-[#071421] transition hover:opacity-90 disabled:opacity-60"
             >
               {sending ? 'Sending...' : `Send Hourly Booking Link to ${lead.name?.split(' ')[0] || 'Customer'}`}
             </button>

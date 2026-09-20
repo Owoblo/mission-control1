@@ -50,14 +50,14 @@ async function sendQuoteNotification(event: 'viewed' | 'viewed_again' | 'accepte
       <div style="background:#071421;padding:20px 24px;border-radius:10px 10px 0 0">
         <span style="color:#C99700;font-weight:700;font-size:16px">Saturn Star Moving</span>
       </div>
-      <div style="background:#f8f9fb;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px">
+      <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px">
         <p style="margin:0 0 16px;font-size:15px">${intros[event]}</p>
         <table style="width:100%;border-collapse:collapse;font-size:14px">
-          <tr><td style="padding:6px 0;color:#6b7280">Quote</td><td style="padding:6px 0;font-weight:600">${quoteNumber}</td></tr>
-          <tr><td style="padding:6px 0;color:#6b7280">Total</td><td style="padding:6px 0;font-weight:600">${total}</td></tr>
-          <tr><td style="padding:6px 0;color:#6b7280">Move date</td><td style="padding:6px 0;font-weight:600">${moveDate}</td></tr>
-          ${lead?.phone ? `<tr><td style="padding:6px 0;color:#6b7280">Phone</td><td style="padding:6px 0">${lead.phone}</td></tr>` : ''}
-          ${lead?.email ? `<tr><td style="padding:6px 0;color:#6b7280">Email</td><td style="padding:6px 0">${lead.email}</td></tr>` : ''}
+          <tr><td style="padding:6px 0;color:#667085">Quote</td><td style="padding:6px 0;font-weight:600">${quoteNumber}</td></tr>
+          <tr><td style="padding:6px 0;color:#667085">Total</td><td style="padding:6px 0;font-weight:600">${total}</td></tr>
+          <tr><td style="padding:6px 0;color:#667085">Move date</td><td style="padding:6px 0;font-weight:600">${moveDate}</td></tr>
+          ${lead?.phone ? `<tr><td style="padding:6px 0;color:#667085">Phone</td><td style="padding:6px 0">${lead.phone}</td></tr>` : ''}
+          ${lead?.email ? `<tr><td style="padding:6px 0;color:#667085">Email</td><td style="padding:6px 0">${lead.email}</td></tr>` : ''}
         </table>
         ${crmUrl ? `<div style="margin-top:20px"><a href="${crmUrl}" style="background:#071421;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM →</a></div>` : ''}
       </div>

@@ -209,7 +209,7 @@ function AddressInput({
         </span>
       )}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-[var(--app-line)] bg-white shadow-lg">
           {suggestions.map((s, i) => (
             <button
               key={i}
@@ -310,7 +310,7 @@ function PropertyIntelligenceCard({
   const confidenceColor = access.confidence === 'high' ? 'emerald' : access.confidence === 'medium' ? 'sky' : 'amber'
 
   return (
-    <div className={`rounded-[8px] border border-${confidenceColor}-200 bg-${confidenceColor}-50 px-3 py-2.5`}>
+    <div className={`rounded-lg border border-${confidenceColor}-200 bg-${confidenceColor}-50 px-3 py-2.5`}>
       <div className="flex items-start gap-2">
         <span className="text-base leading-none mt-0.5">{icon}</span>
         <div className="flex-1 min-w-0">
@@ -363,7 +363,7 @@ function PropertyIntelligenceCard({
                 value={floorOverride}
                 onChange={e => setFloorOverride(e.target.value)}
                 placeholder="—"
-                className="w-12 rounded-[6px] border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-center"
+                className="w-12 rounded-lg border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-center"
               />
             </div>
             <div className="flex items-center gap-1.5">
@@ -371,7 +371,7 @@ function PropertyIntelligenceCard({
               <select
                 value={elevatorOverride === null ? '' : elevatorOverride ? 'yes' : 'no'}
                 onChange={e => setElevatorOverride(e.target.value === '' ? null : e.target.value === 'yes')}
-                className="rounded-[6px] border border-slate-300 bg-white px-1.5 py-0.5 text-[11px]"
+                className="rounded-lg border border-slate-300 bg-white px-1.5 py-0.5 text-[11px]"
               >
                 <option value="">Auto</option>
                 <option value="yes">Yes</option>
@@ -386,7 +386,7 @@ function PropertyIntelligenceCard({
         <button
           type="button"
           onClick={apply}
-          className="rounded-[6px] bg-[#071421] px-3 py-1 text-[11px] font-semibold text-white hover:bg-[#243460] transition"
+          className="rounded-lg bg-[#071421] px-3 py-1 text-[11px] font-semibold text-white hover:bg-[#071421] transition"
         >
           {applied ? '✓ Applied' : `Apply to ${field} access`}
         </button>
@@ -410,7 +410,7 @@ function ApartmentPrompt({
   const floorNumber = Math.max(1, Number(floor) || 1)
 
   return (
-    <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-3">
+    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-semibold text-amber-900">🏢 Apartment detected at {field === 'dest' ? 'destination' : 'origin'}</span>
         <button type="button" onClick={onDismiss} className="text-amber-600 hover:text-amber-900 text-xs">✕</button>
@@ -424,7 +424,7 @@ function ApartmentPrompt({
           value={floor}
           onChange={e => setFloor(e.target.value)}
           onBlur={() => setFloor(String(floorNumber))}
-          className="w-16 rounded-[6px] border border-amber-300 bg-white px-2 py-1 text-sm text-center focus:outline-none"
+          className="w-16 rounded-lg border border-amber-300 bg-white px-2 py-1 text-sm text-center focus:outline-none"
         />
         <label className="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-amber-800">
           <input
@@ -438,7 +438,7 @@ function ApartmentPrompt({
         <button
           type="button"
           onClick={() => onApply({ floor: floorNumber, hasElevator })}
-          className="ml-auto rounded-[6px] bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-amber-700"
+          className="ml-auto rounded-lg bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-amber-700"
         >
           Apply
         </button>
@@ -667,13 +667,13 @@ export function LeadBasicsPanel({
     <aside className="border-r border-[var(--app-line)] bg-[var(--app-panel)]">
       <div className="border-b border-[var(--app-line)] p-5">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(34,72,56,0.12)] text-lg font-semibold text-[var(--app-accent)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(15,106,83,0.12)] text-lg font-semibold text-[var(--app-accent)]">
             {(activeContactName || 'L').slice(0, 2).toUpperCase()}
           </div>
           <div className="min-w-0">
             <div className="font-display text-[1.8rem] font-semibold tracking-tight text-[var(--app-ink)]">{activeContactName}</div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
-              <span className="rounded-full bg-[rgba(34,72,56,0.08)] px-2 py-0.5 font-medium text-[var(--app-accent)] capitalize">{lead.stage}</span>
+              <span className="rounded-full bg-[rgba(15,106,83,0.08)] px-2 py-0.5 font-medium text-[var(--app-accent)] capitalize">{lead.stage}</span>
               <span>ID: {lead.id}</span>
             </div>
           </div>
@@ -686,7 +686,7 @@ export function LeadBasicsPanel({
             <div className="text-xs text-[var(--app-muted)]">Branch: {getSalesBranchLabel(branch)}</div>
           ) : null}
         </div>
-        <div className="mt-5 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
+        <div className="mt-5 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
           <div className="crm-label">Contact Summary</div>
           <div className="mt-2 text-sm leading-6 text-[var(--app-ink)]">{customerSummary}</div>
         </div>
@@ -737,7 +737,7 @@ export function LeadBasicsPanel({
             <span className="text-xs font-medium text-[var(--app-muted)]">Exact date not decided yet</span>
           </label>
           {moveDateFlexible && (
-            <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <label className="block">
                 <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-amber-900">Best timing window + reason</span>
                 <input
@@ -824,7 +824,7 @@ export function LeadBasicsPanel({
           {(originAddress || originCity) && onScanListing && (
             hasListing ? (
               <div className="space-y-1.5">
-                <div className="flex items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
                   <span className="text-[11px] font-semibold text-emerald-700">📷 Listing matched</span>
                   <span className="ml-1 text-[11px] text-emerald-600">
                     — {listingPropertySummary ? `${listingPropertySummary} · ` : ''}inventory auto-loaded
@@ -842,14 +842,14 @@ export function LeadBasicsPanel({
                   </div>
                 </div>
                 {listingOverrideOpen && (
-                  <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-3 space-y-2">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
                     <div className="text-[11px] font-semibold text-amber-800">Re-scan with a different address (e.g. correct unit number)</div>
                     <div className="flex gap-2">
                       <input
                         value={listingOverrideAddress}
                         onChange={e => setListingOverrideAddress(e.target.value)}
                         placeholder="e.g. 601-203 Catherine St W, Windsor"
-                        className="flex-1 rounded-[6px] border border-amber-200 bg-white px-2.5 py-1.5 text-[11px] text-[var(--app-ink)] outline-none focus:border-amber-400"
+                        className="flex-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-[11px] text-[var(--app-ink)] outline-none focus:border-amber-400"
                       />
                       <button
                         disabled={listingLookupBusy || listingOverrideAddress.trim().length < 5}
@@ -859,7 +859,7 @@ export function LeadBasicsPanel({
                             setListingOverrideOpen(false)
                           }
                         }}
-                        className="shrink-0 rounded-[6px] bg-amber-600 px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50 hover:bg-amber-700"
+                        className="shrink-0 rounded-lg bg-amber-600 px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50 hover:bg-amber-700"
                       >
                         {listingLookupBusy ? 'Scanning…' : 'Re-scan'}
                       </button>
@@ -874,7 +874,7 @@ export function LeadBasicsPanel({
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 rounded-[8px] border border-dashed border-[var(--app-accent)] bg-[rgba(34,72,56,0.04)] px-3 py-2.5">
+              <div className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--app-accent)] bg-[rgba(15,106,83,0.04)] px-3 py-2.5">
                 <span className="flex-1 text-[11px] text-[var(--app-accent)]">
                   <span className="font-semibold">📷 Scan MLS photos</span>
                   <span className="ml-1 opacity-70">— auto-build inventory from listing</span>
@@ -882,7 +882,7 @@ export function LeadBasicsPanel({
                 <button
                   onClick={onScanListing}
                   disabled={listingLookupBusy}
-                  className="shrink-0 rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#0a5b47] disabled:opacity-60"
+                  className="shrink-0 rounded-lg bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#0f6a53] disabled:opacity-60"
                 >
                   {listingLookupBusy ? 'Scanning...' : 'Scan'}
                 </button>
@@ -924,7 +924,7 @@ export function LeadBasicsPanel({
           <input value={parkingNotes} onChange={event => onParkingNotesChange(event.target.value)} className="crm-input" placeholder="Parking / truck notes" />
         </fieldset>
         <div className="relative mt-5 pl-4">
-          <div className="absolute bottom-0 left-0 top-2 w-px bg-[rgba(228,226,220,1)]" />
+          <div className="absolute bottom-0 left-0 top-2 w-px bg-[rgba(247,244,237,1)]" />
           <div className="relative mb-6 pl-4">
             <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full border-2 border-[var(--app-accent)] bg-white" />
             <div className="text-xs font-medium text-[var(--app-muted)]">Origin ({formatDate(moveDate || lead.moveDate)})</div>
@@ -977,7 +977,7 @@ export function LeadBasicsPanel({
           </div>
         </div>
         {scanWatchouts.length > 0 ? (
-          <div className="mt-4 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-3">
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">MLS Watchouts</div>
             <div className="mt-2 space-y-1 text-xs leading-5 text-amber-900">
               {scanWatchouts.slice(0, 3).map(item => (
@@ -987,7 +987,7 @@ export function LeadBasicsPanel({
           </div>
         ) : null}
         {listingDescription ? (
-          <div className="mt-4 rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
+          <div className="mt-4 rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Listing Description</div>
             <div className="mt-2 text-xs leading-5 text-[var(--app-ink)]">
               {listingDescription.length > 260 ? `${listingDescription.slice(0, 257)}...` : listingDescription}

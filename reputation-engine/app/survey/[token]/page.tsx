@@ -471,7 +471,7 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5]">
+      <div className="flex min-h-screen items-center justify-center bg-[#f9fafb]">
         <div className="space-y-3 text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#071421] border-t-transparent" />
           <p className="text-sm text-gray-500">Loading your inventory review...</p>
@@ -482,7 +482,7 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5] p-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#f9fafb] p-6">
         <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-sm">
           <div className="text-4xl">😕</div>
           <h1 className="mt-4 text-lg font-bold text-[#071421]">Review link unavailable</h1>
@@ -495,7 +495,7 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
 
   if (allDone) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f0f2f5] p-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#f9fafb] p-6">
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm">
           <div className="text-5xl">✅</div>
           <h1 className="mt-4 text-xl font-bold text-[#071421]">
@@ -504,7 +504,7 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
           <p className="mt-3 text-sm leading-relaxed text-gray-600">
             Our team will use this confirmed inventory and your photos to tighten up the quote and crew plan.
           </p>
-          <div className="mt-5 rounded-2xl bg-[#f4efe4] p-4 text-left text-sm text-[#071421]">
+          <div className="mt-5 rounded-2xl bg-[#f7f4ed] p-4 text-left text-sm text-[#071421]">
             <div className="font-semibold">What we received</div>
             <div className="mt-2 text-gray-700">
               {formatRoomCount(totalPhotos, 'photo')} across {formatRoomCount(completedRooms.length, 'room')}
@@ -526,7 +526,7 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
+    <div className="min-h-screen bg-[#f9fafb]">
       <div className="bg-[#071421] px-5 pb-6 pt-10 text-white">
         <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#C99700]">Saturn Star Movers</p>
         <h1 className="text-xl font-bold">

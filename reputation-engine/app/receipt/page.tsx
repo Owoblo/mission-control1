@@ -34,14 +34,14 @@ function ReceiptInner() {
       .catch(err => setError(err instanceof Error ? err.message : 'Receipt not found'))
   }, [id, token])
 
-  if (error) return <main className="flex min-h-screen items-center justify-center bg-[#F7F4ED] p-6"><div className="rounded-[20px] border border-[#E5E7EB] bg-white p-8 text-center text-sm text-[#667085]">{error}</div></main>
+  if (error) return <main className="flex min-h-screen items-center justify-center bg-[#F7F4ED] p-6"><div className="rounded-3xl border border-[#E5E7EB] bg-white p-8 text-center text-sm text-[#667085]">{error}</div></main>
   if (!data) return <main className="flex min-h-screen items-center justify-center bg-[#F7F4ED]"><div className="h-10 w-10 animate-pulse rounded-full bg-[#C99700]" /></main>
 
   const { receipt, quote, customer, brand } = data
   const route = [quote.originCity, quote.destCity].filter(Boolean).join(' → ') || 'Move details on file'
   return (
-    <main className="min-h-screen bg-[#F7F4ED] px-4 py-8 text-[#111827] print:bg-white print:p-0">
-      <article className="mx-auto max-w-2xl overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-white print:border-0">
+    <main className="min-h-screen bg-[#F7F4ED] px-4 py-8 text-[#071421] print:bg-white print:p-0">
+      <article className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-[#E5E7EB] bg-white print:border-0">
         <header className="bg-[#071421] px-6 py-7 sm:px-10 sm:py-9">
           <div className="flex items-start justify-between gap-5">
             <div>
@@ -66,7 +66,7 @@ function ReceiptInner() {
             </div>
           </div>
 
-          <section className="my-7 rounded-[20px] bg-[#F7F4ED] p-5 sm:p-6">
+          <section className="my-7 rounded-3xl bg-[#F7F4ED] p-5 sm:p-6">
             <div className="grid gap-5 sm:grid-cols-2">
               <div><div className="text-[11px] font-semibold uppercase tracking-wider text-[#667085]">Quote</div><div className="mt-1 font-bold text-[#071421]">{quote.number}</div></div>
               <div><div className="text-[11px] font-semibold uppercase tracking-wider text-[#667085]">Move date</div><div className="mt-1 font-bold text-[#071421]">{date(quote.moveDate)}</div></div>
@@ -74,7 +74,7 @@ function ReceiptInner() {
             </div>
           </section>
 
-          <section className="rounded-[20px] border border-[#071421] p-5 sm:p-6">
+          <section className="rounded-3xl border border-[#071421] p-5 sm:p-6">
             <div className="flex items-end justify-between border-b border-[#E5E7EB] pb-5">
               <div><div className="text-[11px] font-semibold uppercase tracking-wider text-[#667085]">Payment received</div><div className="mt-1 text-sm font-semibold text-[#071421]">{receipt.methodLabel}{receipt.cardLast4 ? ` ···· ${receipt.cardLast4}` : ''}</div></div>
               <div className="text-3xl font-extrabold text-[#071421]">{money(receipt.amount)}</div>
@@ -86,11 +86,11 @@ function ReceiptInner() {
             </div>
           </section>
 
-          {(receipt.reference || receipt.note) && <section className="mt-6 rounded-[18px] border border-[#E5E7EB] p-5 text-sm text-[#667085]">{receipt.reference && <div><strong className="text-[#111827]">Reference:</strong> {receipt.reference}</div>}{receipt.note && <div className={receipt.reference ? 'mt-2' : ''}><strong className="text-[#111827]">Note:</strong> {receipt.note}</div>}</section>}
+          {(receipt.reference || receipt.note) && <section className="mt-6 rounded-2xl border border-[#E5E7EB] p-5 text-sm text-[#667085]">{receipt.reference && <div><strong className="text-[#071421]">Reference:</strong> {receipt.reference}</div>}{receipt.note && <div className={receipt.reference ? 'mt-2' : ''}><strong className="text-[#071421]">Note:</strong> {receipt.note}</div>}</section>}
 
           <div className="mt-8 flex flex-wrap gap-3 print:hidden">
-            <button onClick={() => window.print()} className="rounded-[12px] bg-[#C99700] px-5 py-3 text-sm font-bold text-[#071421]">Print or save PDF</button>
-            <a href={brand.phoneHref} className="rounded-[12px] border border-[#E5E7EB] px-5 py-3 text-sm font-bold text-[#071421]">Questions? {brand.phone}</a>
+            <button onClick={() => window.print()} className="rounded-xl bg-[#C99700] px-5 py-3 text-sm font-bold text-[#071421]">Print or save PDF</button>
+            <a href={brand.phoneHref} className="rounded-xl border border-[#E5E7EB] px-5 py-3 text-sm font-bold text-[#071421]">Questions? {brand.phone}</a>
           </div>
         </div>
 

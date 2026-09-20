@@ -93,15 +93,15 @@ function AffiliatePortal() {
   const pendingPayout = submissions.filter(s => s.status === 'won' && !s.commission_paid).reduce((sum, s) => sum + (s.commission_amount || 0), 0)
 
   if (loading) return (
-    <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center">
+    <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center">
       <h1 className="sr-only">Saturn Star partner portal</h1><div role="status" className="text-slate-500 text-sm">Loading your portal…</div>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center p-4">
       <h1 className="sr-only">Saturn Star partner portal</h1>
-      <div className="rounded-[20px] bg-white p-8 max-w-sm w-full text-center shadow-sm">
+      <div className="rounded-3xl bg-white p-8 max-w-sm w-full text-center shadow-sm">
         <div className="text-3xl mb-4">🔒</div>
         <div className="text-sm font-semibold text-slate-800 mb-2">Access Required</div>
         <div className="text-sm text-slate-500">{error}</div>
@@ -111,7 +111,7 @@ function AffiliatePortal() {
   )
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8]">
+    <div className="min-h-screen bg-[#f9fafb]">
       <h1 className="sr-only">Saturn Star partner portal</h1>
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-6">
@@ -140,7 +140,7 @@ function AffiliatePortal() {
             { label: 'Credited Rewards', value: `$${totalEarned}`, sub: partner?.commissionType === 'per_job' ? `after completed paid moves` : `${partner?.commissionRate}% after completion` },
             { label: 'Pending Payout', value: `$${pendingPayout}`, sub: pendingPayout > 0 ? 'ready for payout' : 'nothing due yet' },
           ].map(s => (
-            <div key={s.label} className="rounded-[16px] bg-white p-4 shadow-sm">
+            <div key={s.label} className="rounded-2xl bg-white p-4 shadow-sm">
               <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{s.label}</div>
               <div className="mt-1 text-2xl font-bold text-[#071421]">{s.value}</div>
               <div className="text-[11px] text-slate-500 mt-0.5">{s.sub}</div>
@@ -151,18 +151,18 @@ function AffiliatePortal() {
         {/* Action buttons */}
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => { setView('submit'); setSubmitted(false); setForm({ customer_name: '', customer_phone: '', customer_email: '', move_date: '', move_size: '', origin_city: '', dest_city: '', notes: '' }) }}
-            className="rounded-[16px] py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #0f6a53 0%, #1a9070 100%)' }}>
+            className="rounded-2xl py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #0f6a53 0%, #0f6a53 100%)' }}>
             + Refer a Client
           </button>
           <button onClick={() => setView('history')}
-            className="rounded-[16px] bg-white py-4 text-sm font-semibold text-[#071421] shadow-sm border border-slate-200 hover:bg-slate-50 transition">
+            className="rounded-2xl bg-white py-4 text-sm font-semibold text-[#071421] shadow-sm border border-slate-200 hover:bg-slate-50 transition">
             View History →
           </button>
         </div>
 
         {/* How it works */}
-        <div className="rounded-[16px] bg-white p-5 shadow-sm">
+        <div className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="text-sm font-semibold text-[#071421] mb-3">How the network works</div>
           <div className="space-y-3">
             {[
@@ -188,7 +188,7 @@ function AffiliatePortal() {
 
       {/* Submit Lead Drawer */}
       {view === 'submit' && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-[#f4f6f8]">
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#f9fafb]">
           <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
             <button onClick={() => setView('home')} className="text-white/70 hover:text-white text-sm">← Back</button>
             <div className="text-white font-semibold">Refer a Client</div>
@@ -201,62 +201,62 @@ function AffiliatePortal() {
                 <div className="text-lg font-bold text-[#071421]">Referral submitted!</div>
                 <div className="text-sm text-slate-500 mt-2">Our team will reach out to your client shortly.</div>
                 <div className="text-sm text-slate-500 mt-1">You'll see this lead in your history once we've made contact.</div>
-                <button onClick={() => setView('home')} className="mt-6 rounded-[12px] bg-[#0f6a53] px-6 py-2.5 text-sm font-semibold text-white">
+                <button onClick={() => setView('home')} className="mt-6 rounded-xl bg-[#0f6a53] px-6 py-2.5 text-sm font-semibold text-white">
                   Back to Portal
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4 max-w-lg mx-auto">
-                <div className="rounded-[16px] bg-white p-5 shadow-sm space-y-4">
+                <div className="rounded-2xl bg-white p-5 shadow-sm space-y-4">
                   <div className="text-sm font-semibold text-[#071421]">Client Information</div>
                   <div>
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Full Name *</label>
                     <input value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} required
                       placeholder="Sarah Johnson"
-                      className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                      className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</label>
                       <input type="tel" value={form.customer_phone} onChange={e => setForm(f => ({ ...f, customer_phone: e.target.value }))}
                         placeholder="519-555-0100"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Email</label>
                       <input type="email" value={form.customer_email} onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))}
                         placeholder="sarah@email.com"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-[16px] bg-white p-5 shadow-sm space-y-4">
+                <div className="rounded-2xl bg-white p-5 shadow-sm space-y-4">
                   <div className="text-sm font-semibold text-[#071421]">Move Details (optional but helpful)</div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving From</label>
                       <input value={form.origin_city} onChange={e => setForm(f => ({ ...f, origin_city: e.target.value }))}
                         placeholder="Windsor"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving To</label>
                       <input value={form.dest_city} onChange={e => setForm(f => ({ ...f, dest_city: e.target.value }))}
                         placeholder="Toronto"
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Move Date</label>
                       <input type="date" value={form.move_date} onChange={e => setForm(f => ({ ...f, move_date: e.target.value }))}
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Home Size</label>
                       <select value={form.move_size} onChange={e => setForm(f => ({ ...f, move_size: e.target.value }))}
-                        className="mt-1 block w-full rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]">
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]">
                         <option value="">Select…</option>
                         {MOVE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -266,15 +266,15 @@ function AffiliatePortal() {
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Notes (anything else we should know?)</label>
                     <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3}
                       placeholder="e.g. They have a piano, elevator access, flexible on dates…"
-                      className="mt-1 block w-full resize-none rounded-[10px] border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                      className="mt-1 block w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
                   </div>
                 </div>
 
-                {formError && <div className="rounded-[10px] bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div>}
+                {formError && <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div>}
 
                 <button type="submit" disabled={submitting}
-                  className="w-full rounded-[14px] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #0f6a53 0%, #1a9070 100%)' }}>
+                  className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #0f6a53 0%, #0f6a53 100%)' }}>
                   {submitting ? 'Submitting…' : 'Submit Referral →'}
                 </button>
               </form>
@@ -285,7 +285,7 @@ function AffiliatePortal() {
 
       {/* History Drawer */}
       {view === 'history' && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-[#f4f6f8]">
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#f9fafb]">
           <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
             <button onClick={() => setView('home')} className="text-white/70 hover:text-white text-sm">← Back</button>
             <div className="text-white font-semibold">Your Referrals ({submissions.length})</div>
@@ -301,7 +301,7 @@ function AffiliatePortal() {
             ) : submissions.map(s => {
               const meta = STATUS_META[s.status] || { label: s.status, color: 'bg-slate-100 text-slate-500' }
               return (
-                <div key={s.id} className="rounded-[16px] bg-white p-4 shadow-sm">
+                <div key={s.id} className="rounded-2xl bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-[#071421] truncate">{s.customer_name}</div>
@@ -340,7 +340,7 @@ function AffiliatePortal() {
 
 export default function AffiliatePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center text-sm text-slate-500">Loading…</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f9fafb] flex items-center justify-center text-sm text-slate-500">Loading…</div>}>
       <AffiliatePortal />
     </Suspense>
   )

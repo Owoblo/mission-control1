@@ -1185,14 +1185,14 @@ function SalesInboxPageInner() {
   return (
     <div className="crm-shell">
       <h1 className="sr-only">Customer communication inbox</h1>
-      <div className="h-[calc(100vh-40px)] overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] flex flex-col">
+      <div className="h-[calc(100vh-40px)] overflow-hidden rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] flex flex-col">
         {error ? <div role="alert" className="flex shrink-0 items-center justify-between gap-3 border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700"><span>{error}</span><button type="button" onClick={() => void refresh()} className="min-h-11 rounded border border-rose-300 bg-white px-4 font-semibold">Retry</button></div> : null}
         {loading ? (
           <div role="status" aria-live="polite" className="flex flex-1 flex-col justify-center p-8 md:p-16">
             <div className="mx-auto w-full max-w-3xl">
               <p className="text-base font-semibold text-[var(--app-ink)]">Preparing your communication queue</p>
               <p className="mt-1 text-sm text-[var(--app-muted)]">Replies, missed calls, forms and handoffs are being organized without changing your current selection.</p>
-              <div className="mt-6 space-y-3" aria-hidden="true">{[0, 1, 2].map(item => <div key={item} className="h-16 animate-pulse rounded-[8px] border border-[var(--app-line)] bg-stone-100" />)}</div>
+              <div className="mt-6 space-y-3" aria-hidden="true">{[0, 1, 2].map(item => <div key={item} className="h-16 animate-pulse rounded-lg border border-[var(--app-line)] bg-stone-100" />)}</div>
             </div>
           </div>
         ) : (
@@ -1218,7 +1218,7 @@ function SalesInboxPageInner() {
                         key={tab.id}
                         onClick={() => startTransition(() => setViewMode(tab.id))}
                         title={tab.label}
-                        className={`relative mb-1 mx-2 flex flex-col items-center gap-1 rounded-[10px] border px-1 py-2.5 transition ${
+                        className={`relative mb-1 mx-2 flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 transition ${
                           active
                             ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'
                             : 'border-transparent text-[var(--app-muted)] hover:border-[var(--app-line)] hover:bg-white hover:text-[var(--app-ink)]'
@@ -1303,17 +1303,17 @@ function SalesInboxPageInner() {
 
                     {(viewMode === 'calls' || viewMode === 'webforms') && (
                       <div className="flex gap-1.5">
-                        <button onClick={() => setChannelScope('action')} className={`rounded-[7px] border px-3 py-1.5 text-xs font-semibold ${channelScope === 'action' ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>Needs action</button>
-                        <button onClick={() => setChannelScope('history')} className={`rounded-[7px] border px-3 py-1.5 text-xs font-semibold ${channelScope === 'history' ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>History</button>
+                        <button onClick={() => setChannelScope('action')} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${channelScope === 'action' ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>Needs action</button>
+                        <button onClick={() => setChannelScope('history')} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${channelScope === 'history' ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>History</button>
                       </div>
                     )}
 
                     {viewMode === 'messages' && (
                       <div className="flex items-center gap-1.5">
-                        {([['action', 'Needs reply'], ['all', 'All'], ['waiting', 'Waiting']] as const).map(([value, label]) => <button key={value} onClick={() => setSmsScope(value)} className={`rounded-[7px] border px-2.5 py-1.5 text-xs font-semibold ${smsScope === value ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>{label}</button>)}
+                        {([['action', 'Needs reply'], ['all', 'All'], ['waiting', 'Waiting']] as const).map(([value, label]) => <button key={value} onClick={() => setSmsScope(value)} className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold ${smsScope === value ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>{label}</button>)}
                         <details className="relative ml-auto">
-                          <summary className="cursor-pointer list-none rounded-[7px] border border-[var(--app-line)] px-2.5 py-1.5 text-xs font-semibold text-[var(--app-muted)]">Filters{smsBranch || smsStage || smsRecency !== '30' ? ' · On' : ''}</summary>
-                          <div className="absolute right-0 z-30 mt-2 grid w-64 gap-2 rounded-[9px] border border-[var(--app-line)] bg-white p-3 shadow-lg">
+                          <summary className="cursor-pointer list-none rounded-lg border border-[var(--app-line)] px-2.5 py-1.5 text-xs font-semibold text-[var(--app-muted)]">Filters{smsBranch || smsStage || smsRecency !== '30' ? ' · On' : ''}</summary>
+                          <div className="absolute right-0 z-30 mt-2 grid w-64 gap-2 rounded-xl border border-[var(--app-line)] bg-white p-3 shadow-lg">
                             <select value={smsBranch} onChange={event => setSmsBranch(event.target.value)} className="crm-input text-xs"><option value="">All cities / branches</option>{smsBranchOptions.map(branch => <option key={branch} value={branch}>{branch}</option>)}</select>
                             <select value={smsStage} onChange={event => setSmsStage(event.target.value)} className="crm-input text-xs"><option value="">All stages</option>{smsStageOptions.map(stage => <option key={stage} value={stage}>{String(stage).replace(/_/g, ' ')}</option>)}</select>
                             <select value={smsRecency} onChange={event => setSmsRecency(event.target.value as typeof smsRecency)} className="crm-input text-xs"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="all">All history</option></select>
@@ -1400,11 +1400,11 @@ function SalesInboxPageInner() {
                       <p className="text-sm font-medium text-[var(--app-ink)] line-clamp-1">{displayEmailSubject(em.subject)}</p>
                       <p className="mt-0.5 text-xs text-[var(--app-muted)] line-clamp-1">{em.body?.slice(0, 120)}</p>
                       <div className="mt-2 flex gap-2">
-                        <span className={`rounded-[4px] border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${em.direction === 'inbound' ? 'border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] text-[var(--app-warm)]' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
+                        <span className={`rounded border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${em.direction === 'inbound' ? 'border-[var(--app-warm)] bg-[rgba(201,151,0,0.1)] text-[var(--app-warm)]' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
                           {em.direction === 'inbound' ? '← Received' : '→ Sent'}
                         </span>
                         {em.templateType && (
-                          <span className="rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-muted)]">
+                          <span className="rounded border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-muted)]">
                             {em.templateType.replace(/_/g, ' ')}
                           </span>
                         )}
@@ -1425,7 +1425,7 @@ function SalesInboxPageInner() {
                         <button onClick={() => setSmsNewChatOpen(false)} className="text-[11px] text-[var(--app-muted)] px-1">✕</button>
                       </div>
                     ) : (
-                      <button onClick={() => setSmsNewChatOpen(true)} className="ml-auto rounded-[5px] bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90">+ New</button>
+                      <button onClick={() => setSmsNewChatOpen(true)} className="ml-auto rounded bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90">+ New</button>
                     )}
                   </div>
                   {threadsLoading ? (
@@ -1452,15 +1452,15 @@ function SalesInboxPageInner() {
                             <span className="shrink-0 rounded-full bg-[var(--app-accent)] px-1.5 text-[11px] font-bold text-white">{thread.unreadCount}</span>
                           )}
                           {!thread.unread && thread.lastReadAt ? (
-                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
+                            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
                               Read{thread.lastReadByName ? ` · ${thread.lastReadByName}` : ''}
                             </span>
                           ) : null}
                           {outboundOnly && (
-                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">No reply</span>
+                            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">No reply</span>
                           )}
                           {thread.partnerOpportunity && (
-                            <span className="shrink-0 rounded-[3px] border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[11px] font-bold uppercase text-sky-700">Partner handoff</span>
+                            <span className="shrink-0 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[11px] font-bold uppercase text-sky-700">Partner handoff</span>
                           )}
                         </div>
                         <span className="shrink-0 text-[11px] text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
@@ -1539,22 +1539,22 @@ function SalesInboxPageInner() {
                                         ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--app-accent)]" />
                                         : null}
                                 <span className={`truncate text-sm font-semibold ${status === 'needs_action' && unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{displayLeadName(item)}</span>
-                                {item.matchedLeadId && <span className="shrink-0 rounded-[3px] bg-sky-100 px-1.5 py-0.5 text-[11px] font-semibold text-sky-700">EXISTING</span>}
+                                {item.matchedLeadId && <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-semibold text-sky-700">EXISTING</span>}
                                 {!unread && readMeta?.lastReadAt ? (
-                                  <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
+                                  <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
                                     Read{readMeta.lastReadByName ? ` · ${readMeta.lastReadByName}` : ''}
                                   </span>
                                 ) : null}
                               </div>
                               {/* Live urgency timer or regular timestamp */}
                               {tier === 'live' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-emerald-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">LIVE · {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded bg-emerald-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">LIVE · {liveTimer(secs)}</span>
                               ) : tier === 'warning' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">⚠ {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">⚠ {liveTimer(secs)}</span>
                               ) : tier === 'urgent' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">⚠ URGENT · {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">⚠ URGENT · {liveTimer(secs)}</span>
                               ) : tier === 'overdue' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-rose-700 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">OVERDUE · {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded bg-rose-700 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">OVERDUE · {liveTimer(secs)}</span>
                               ) : (
                                 <span className="shrink-0 text-[11px] text-[var(--app-muted)]">{timeAgo(getInboundActionTimestamp(item, raw))}</span>
                               )}
@@ -1565,7 +1565,7 @@ function SalesInboxPageInner() {
                             <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--app-muted)] opacity-70">
                               {getLeadSummary(item, raw)}
                             </p>
-                            <span className={`rounded-[3px] px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${actionMeta.className}`}>
+                            <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${actionMeta.className}`}>
                               {actionMeta.label}
                             </span>
                           </button>
@@ -1620,7 +1620,7 @@ function SalesInboxPageInner() {
                         </div>
                         {/* New reply banner */}
                         {latestInbound && isUnreadEmail(latestInbound) && (
-                          <div className="mt-2 flex items-center gap-2 rounded-[6px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.08)] px-3 py-1.5">
+                          <div className="mt-2 flex items-center gap-2 rounded-lg border border-[var(--app-warm)] bg-[rgba(201,151,0,0.08)] px-3 py-1.5">
                             <span className="text-sm">✉️</span>
                             <span className="text-xs font-medium text-[var(--app-warm)]">
                               New reply from {latestInbound.from} · {timeAgo(latestInbound.sentAt)}
@@ -1632,7 +1632,7 @@ function SalesInboxPageInner() {
                       {/* Thread — newest first */}
                       <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
                         {threadEmails.map((msg, idx) => (
-                          <div key={msg.id} className={`${msg.direction === 'inbound' ? 'bg-[rgba(245,166,35,0.04)]' : 'bg-[var(--app-panel)]'}`}>
+                          <div key={msg.id} className={`${msg.direction === 'inbound' ? 'bg-[rgba(201,151,0,0.04)]' : 'bg-[var(--app-panel)]'}`}>
                             <div className="flex items-start gap-3 px-5 py-4">
                               {/* Avatar */}
                               <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${msg.direction === 'inbound' ? 'bg-[var(--app-ink)]' : 'bg-[var(--app-accent)]'}`}>
@@ -1651,7 +1651,7 @@ function SalesInboxPageInner() {
                                   <div className="flex shrink-0 items-center gap-2">
                                     <span className="text-xs text-[var(--app-muted)]">{formatAbsoluteTime(msg.sentAt)}</span>
                                     {idx === 0 && msg.direction === 'inbound' && isUnreadEmail(msg) && (
-                                      <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[11px] font-semibold uppercase text-[var(--app-warm)]">New</span>
+                                      <span className="rounded border border-[var(--app-warm)] bg-[rgba(201,151,0,0.1)] px-1.5 py-0.5 text-[11px] font-semibold uppercase text-[var(--app-warm)]">New</span>
                                     )}
                                   </div>
                                 </div>
@@ -1671,7 +1671,7 @@ function SalesInboxPageInner() {
                           <span className="text-xs text-[var(--app-muted)]">Cmd+Enter to send</span>
                         </div>
                         <textarea
-                          className="crm-input min-h-[88px] w-full resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
+                          className="crm-input min-h-[88px] w-full resize-none rounded-2xl px-4 py-3 text-base leading-[1.5] lg:text-sm"
                           rows={3}
                           placeholder={`Reply to ${replyTo}…`}
                           value={emailReply.body}
@@ -1706,14 +1706,14 @@ function SalesInboxPageInner() {
                     <div className="flex min-w-0 flex-1 flex-col min-h-0 bg-white">
                       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4">
                         <button onClick={() => setSelectedThread(null)} className="crm-button min-h-11 px-4 text-sm md:hidden">Back</button>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-[#111827]">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-[#071421]">
                           {(thread.leadName || thread.contactPhone).slice(0, 1).toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="text-base font-semibold text-[var(--app-ink)]">{thread.leadName || formatPhoneDisplay(thread.contactPhone)}</div>
                             {thread.leadStage ? (
-                              <span className="rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
+                              <span className="rounded border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
                                 {thread.leadStage.replace(/_/g, ' ')}
                               </span>
                             ) : null}
@@ -1744,9 +1744,9 @@ function SalesInboxPageInner() {
                           const groupedWithNext = sameInboxSmsGroup(msg, nextMessage)
                           return (
                           <div key={msg.id} className={`flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
-                            <div className={`max-w-[min(78%,620px)] min-w-0 px-4 py-3 text-base leading-[1.5] lg:text-sm ${msg.direction === 'outbound' ? `bg-[#0f6a53] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `bg-[#f1f3f5] text-[#111827] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                            <div className={`max-w-[min(78%,620px)] min-w-0 px-4 py-3 text-base leading-[1.5] lg:text-sm ${msg.direction === 'outbound' ? `bg-[#0f6a53] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `bg-[#f9fafb] text-[#071421] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
                               <p className="whitespace-pre-wrap break-words">{msg.body}</p>
-                              <p className={`mt-1 text-[11px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
+                              <p className={`mt-1 text-[11px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#667085]'}`}>
                                 {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               </p>
                             </div>
@@ -1768,9 +1768,9 @@ function SalesInboxPageInner() {
                             {smsMediaFiles.map((f, i) => (
                               <div key={i} className="relative">
                                 {f.type.startsWith('image/') ? (
-                                  <img src={URL.createObjectURL(f)} alt={f.name} className="h-14 w-14 rounded-[6px] object-cover" />
+                                  <img src={URL.createObjectURL(f)} alt={f.name} className="h-14 w-14 rounded-lg object-cover" />
                                 ) : (
-                                  <div className="h-14 w-14 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[11px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,10)}</div>
+                                  <div className="h-14 w-14 rounded-lg bg-[var(--app-bg)] flex items-center justify-center text-[11px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,10)}</div>
                                 )}
                                 <button onClick={() => setSmsMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-xl bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center">×</button>
                               </div>
@@ -1781,7 +1781,7 @@ function SalesInboxPageInner() {
                           <button onClick={() => smsFileInputRef.current?.click()} title="Attach image or video"
                             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base transition hover:bg-slate-50 lg:h-11 lg:w-11">📎</button>
                           <textarea
-                            className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] outline-none transition placeholder:text-slate-500 focus:border-slate-300 focus:bg-white lg:text-sm"
+                            className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#071421] outline-none transition placeholder:text-slate-500 focus:border-slate-300 focus:bg-white lg:text-sm"
                             rows={2}
                             placeholder={smsMediaFiles.length > 0 ? 'Add a caption...' : 'Type a reply...'}
                             value={smsReply}
@@ -1791,7 +1791,7 @@ function SalesInboxPageInner() {
                           <button
                             onClick={() => void sendSmsReply()}
                             disabled={smsReplyBusy || (!smsReply.trim() && smsMediaFiles.length === 0)}
-                            className="min-h-12 self-end rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0c5745] disabled:opacity-50 lg:min-h-11"
+                            className="min-h-12 self-end rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0f6a53] disabled:opacity-50 lg:min-h-11"
                           >
                             {smsReplyBusy ? '...' : 'Send'}
                           </button>
@@ -1816,33 +1816,33 @@ function SalesInboxPageInner() {
                       <button onClick={() => setSelectedId(null)} className="crm-button px-3 md:hidden">
                         Back
                       </button>
-                      <div className="flex h-12 w-12 items-center justify-center rounded-[6px] bg-[rgba(15,106,83,0.1)] text-xl font-semibold text-[var(--app-accent)]">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[rgba(15,106,83,0.1)] text-xl font-semibold text-[var(--app-accent)]">
                         {getLeadAvatarText(selected)}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-base font-semibold text-[var(--app-ink)]">{displayLeadName(selected)}</h2>
                           {selected.matchedLeadId && !selected.linkedLeadId ? (
-                            <span className="rounded-[4px] border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-sky-700">
+                            <span className="rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-sky-700">
                               Existing Lead
                             </span>
                           ) : null}
                           {selectedBranch.branchLabel ? (
-                            <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
+                            <span className="rounded border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                               {selectedBranch.branchLabel}
                             </span>
                           ) : null}
                           {selectedIsQrLead ? (
-                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-700">
+                            <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-700">
                               QR / Direct Mail
                             </span>
                           ) : selectedBranch.trackingLabel ? (
-                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-700">
+                            <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-700">
                               {selectedBranch.trackingLabel}
                             </span>
                           ) : null}
                           {selectedActionMeta ? (
-                            <span className={`rounded-[4px] border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${selectedActionMeta.className}`}>
+                            <span className={`rounded border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${selectedActionMeta.className}`}>
                               {selectedStatus === 'recent_handoff' ? 'Recent Handoff' : selectedActionMeta.label}
                             </span>
                           ) : null}
@@ -1959,7 +1959,7 @@ function SalesInboxPageInner() {
 
                         {/* Quick SMS reply */}
                         {selected.phone && (
-                          <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
+                          <div className="rounded-lg border border-[var(--app-line)] bg-white p-3">
                             <div className="mb-2 flex items-center justify-between">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">SMS Reply</div>
                               <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✦ Smart Compose</button>
@@ -1968,7 +1968,7 @@ function SalesInboxPageInner() {
                               <div className="mb-2 grid grid-cols-2 gap-1.5">
                                 {SC_GOALS.map(g => (
                                   <button key={g.id} onClick={() => void runSmartCompose(g.id, 'sms')} disabled={scBusy}
-                                    className="min-h-11 rounded-[10px] border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
+                                    className="min-h-11 rounded-xl border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
                                     <span className="font-medium text-[var(--app-ink)]">{g.label}</span>
                                   </button>
                                 ))}
@@ -1976,7 +1976,7 @@ function SalesInboxPageInner() {
                             )}
                             <textarea rows={2} value={compose.smsBody} onChange={e => setCompose(c => ({ ...c, smsBody: e.target.value }))}
                               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void send('sms') }}
-                              className="crm-input min-h-[88px] w-full resize-none rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm" placeholder="Type a reply..." />
+                              className="crm-input min-h-[88px] w-full resize-none rounded-2xl px-4 py-3 text-base leading-[1.5] lg:text-sm" placeholder="Type a reply..." />
                             <button onClick={() => void send('sms')} disabled={messageBusy || !compose.smsBody.trim()} className="mt-2 crm-button-dark min-h-11 rounded-xl px-5 text-sm disabled:opacity-50">
                               {messageBusy ? 'Sending...' : 'Send SMS'}
                             </button>
@@ -1985,7 +1985,7 @@ function SalesInboxPageInner() {
 
                         {/* Conversation history */}
                         {threadEvents.length > 0 && (
-                          <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
+                          <div className="rounded-lg border border-[var(--app-line)] bg-white p-3">
                             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">History with this contact</div>
                             <div className="space-y-2">
                               {threadEvents.map(event => (
@@ -2007,7 +2007,7 @@ function SalesInboxPageInner() {
                         )}
                       </div>
                     ) : selectedHasRoute ? (
-                      <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+                      <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
                         <div className="flex items-center gap-4">
                           <div className="flex-1">
                             <div className="crm-label">Origin</div>
@@ -2016,7 +2016,7 @@ function SalesInboxPageInner() {
                           </div>
                           <div className="px-4 text-center">
                             <div className="text-xs font-medium text-[var(--app-muted)]">{selectedRoute.distance}</div>
-                            <div className="mt-2 h-px w-24 bg-[rgba(228,226,220,1)]" />
+                            <div className="mt-2 h-px w-24 bg-[rgba(247,244,237,1)]" />
                           </div>
                           <div className="flex-1 text-right">
                             <div className="crm-label">Destination</div>
@@ -2026,7 +2026,7 @@ function SalesInboxPageInner() {
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                      <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                           <div className="max-w-2xl">
                             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">
@@ -2042,19 +2042,19 @@ function SalesInboxPageInner() {
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
-                            <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
+                            <div className="rounded-lg bg-[var(--app-bg)] px-4 py-3">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Contact</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{selected.phone ? formatPhoneDisplay(selected.phone) : selected.email || '—'}</div>
                             </div>
-                            <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
+                            <div className="rounded-lg bg-[var(--app-bg)] px-4 py-3">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">How they found us</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{selectedIsQrLead ? 'QR / Direct Mail' : selectedBranch.trackingLabel || SOURCE_LABELS[selected.source] || 'Direct'}</div>
                             </div>
-                            <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
+                            <div className="rounded-lg bg-[var(--app-bg)] px-4 py-3">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Inbound line</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{selectedBranch.branchLabel || 'Primary'}</div>
                             </div>
-                            <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
+                            <div className="rounded-lg bg-[var(--app-bg)] px-4 py-3">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">What to do next</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{aiSummary?.nextAction || (selected.phone ? 'Call now — get route + details.' : 'Reply and collect route.')}</div>
                             </div>
@@ -2067,13 +2067,13 @@ function SalesInboxPageInner() {
                     {selected.source !== 'twilio_call' && selected.source !== 'missed_call' && (
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                       <div className="space-y-6">
-                        <div className="overflow-hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+                        <div className="overflow-hidden rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
                           <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[rgba(15,106,83,0.05)] px-5 py-3">
                             <span className="text-[var(--app-accent)]">✦</span>
                             <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--app-accent)]">What we know</h3>
                           </div>
                           <div className="p-5">
-                            <p className="text-[15px] leading-8 text-[var(--app-ink)]">
+                            <p className="text-sm leading-8 text-[var(--app-ink)]">
                               {aiSummary?.summary || 'Transcript and summary are still processing for this lead.'}
                             </p>
                             <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-[var(--app-line)] pt-4 text-sm">
@@ -2101,7 +2101,7 @@ function SalesInboxPageInner() {
                           </div>
                         </div>
 
-                        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+                        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
                           <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-3">
                             <h3 className="font-display text-lg font-semibold text-[var(--app-ink)]">Conversation Timeline</h3>
                             <div className="text-xs text-[var(--app-muted)]">Living lead story</div>
@@ -2113,7 +2113,7 @@ function SalesInboxPageInner() {
                                 <div className="absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--app-line)] bg-[var(--app-panel)] text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">
                                   {event.actor.slice(0, 1)}
                                 </div>
-                                <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+                                <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
                                   <div className="flex items-center justify-between gap-3">
                                     <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">{event.type}</div>
                                     <div className="text-xs text-[var(--app-muted)]" title={formatAbsoluteTime(event.time)}>{formatAbsoluteTime(event.time)}</div>
@@ -2127,7 +2127,7 @@ function SalesInboxPageInner() {
                       </div>
 
                       <div className="space-y-6">
-                        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                           <div className="flex items-center justify-between">
                             <h3 className="font-display text-lg font-semibold text-[var(--app-ink)]">Original Inquiry</h3>
                             <div className="text-xs text-[var(--app-muted)]" title={formatAbsoluteTime(selected.created_at)}>
@@ -2199,7 +2199,7 @@ function SalesInboxPageInner() {
                         ) : null}
 
                         {(selected.email || selected.phone) ? (
-                          <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                          <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                             <div className="mb-3 flex items-center justify-between">
                               <div className="crm-label">Quick Templates</div>
                             </div>
@@ -2223,18 +2223,18 @@ function SalesInboxPageInner() {
                         ) : null}
 
                         {selected.email ? (
-                          <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                          <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                             <div className="flex items-center justify-between">
                               <div className="crm-label">Email Reply</div>
                               <button onClick={() => setScGoalOpen(scGoalOpen === 'email' ? null : 'email')} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'email' ? (
-                              <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                              <div className="mt-3 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                                 <div className="mb-2 text-xs font-medium text-[var(--app-ink)]">What's the goal?</div>
                                 <div className="grid grid-cols-2 gap-2">
                                   {SC_GOALS.map(g => (
                                     <button key={g.id} onClick={() => void runSmartCompose(g.id, 'email')} disabled={scBusy}
-                                      className="flex min-h-11 flex-col items-start rounded-[10px] border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
+                                      className="flex min-h-11 flex-col items-start rounded-xl border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
                                       <span className="font-medium text-[var(--app-ink)]">{scBusy ? '...' : g.label}</span>
                                       <span className="text-[var(--app-muted)]">{g.desc}</span>
                                     </button>
@@ -2248,7 +2248,7 @@ function SalesInboxPageInner() {
                               onChange={event => setCompose(current => ({ ...current, emailSubject: event.target.value }))}
                             />
                             <textarea
-                              className="crm-input mt-4 min-h-40 rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
+                              className="crm-input mt-4 min-h-40 rounded-2xl px-4 py-3 text-base leading-[1.5] lg:text-sm"
                               value={compose.emailBody}
                               onChange={event => setCompose(current => ({ ...current, emailBody: event.target.value }))}
                             />
@@ -2259,18 +2259,18 @@ function SalesInboxPageInner() {
                         ) : null}
 
                         {selected.phone ? (
-                          <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                          <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                             <div className="flex items-center justify-between">
                               <div className="crm-label">SMS Reply</div>
                               <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✨ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'sms' ? (
-                              <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                              <div className="mt-3 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                                 <div className="mb-2 text-xs font-medium text-[var(--app-ink)]">What's the goal?</div>
                                 <div className="grid grid-cols-2 gap-2">
                                   {SC_GOALS.map(g => (
                                     <button key={g.id} onClick={() => void runSmartCompose(g.id, 'sms')} disabled={scBusy}
-                                      className="flex min-h-11 flex-col items-start rounded-[10px] border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
+                                      className="flex min-h-11 flex-col items-start rounded-xl border border-[var(--app-line)] px-3 py-2 text-left text-xs hover:border-[var(--app-accent)] disabled:opacity-50">
                                       <span className="font-medium text-[var(--app-ink)]">{scBusy ? '...' : g.label}</span>
                                       <span className="text-[var(--app-muted)]">{g.desc}</span>
                                     </button>
@@ -2279,7 +2279,7 @@ function SalesInboxPageInner() {
                               </div>
                             ) : null}
                             <textarea
-                              className="crm-input mt-4 min-h-40 rounded-[18px] px-4 py-3 text-base leading-[1.5] lg:text-sm"
+                              className="crm-input mt-4 min-h-40 rounded-2xl px-4 py-3 text-base leading-[1.5] lg:text-sm"
                               value={compose.smsBody}
                               onChange={event => setCompose(current => ({ ...current, smsBody: event.target.value }))}
                             />

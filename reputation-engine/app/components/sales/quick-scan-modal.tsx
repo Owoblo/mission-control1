@@ -255,7 +255,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
               </p>
 
               {error && (
-                <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
               )}
 
               <label className="block">
@@ -311,7 +311,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
 
           {step === 'done' && surveyUrl && (
             <div className="space-y-3">
-              <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
                 <div className="text-2xl mb-1">🔗</div>
                 <div className="text-sm font-semibold text-emerald-800">Link ready — {copied ? '✓ Copied to clipboard!' : 'copy and share now'}</div>
                 <div className="mt-1 text-[11px] text-emerald-700 break-all">{surveyUrl}</div>
@@ -323,7 +323,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                   setCopied(true)
                   setTimeout(() => setCopied(false), 2000)
                 }}
-                className={`w-full rounded-[8px] py-2.5 text-sm font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#071421] text-white hover:bg-[#071421]/90'}`}
+                className={`w-full rounded-lg py-2.5 text-sm font-semibold transition ${copied ? 'bg-emerald-600 text-white' : 'bg-[#071421] text-white hover:bg-[#071421]/90'}`}
               >
                 {copied ? '✓ Copied!' : 'Copy Link'}
               </button>
@@ -332,7 +332,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                 <button
                   onClick={() => void sendSms()}
                   disabled={smsSending || smsSent}
-                  className={`w-full rounded-[8px] py-2.5 text-sm font-medium transition disabled:opacity-70 ${
+                  className={`w-full rounded-lg py-2.5 text-sm font-medium transition disabled:opacity-70 ${
                     smsSent
                       ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
                       : 'border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
@@ -344,7 +344,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
 
               {/* Live scan progress */}
               {scanProgress && (
-                <div className="rounded-[8px] border border-blue-200 bg-blue-50 px-3 py-2.5 space-y-1.5">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent shrink-0" />
                     <span className="text-[11px] font-medium text-blue-700">{scanProgress.status}</span>
@@ -367,12 +367,12 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                 </div>
               )}
               {scanDone === 'done' && (
-                <div className="rounded-[8px] bg-emerald-50 border border-emerald-200 px-3 py-2 text-[11px] text-emerald-700">
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-[11px] text-emerald-700">
                   ✅ Scan complete — customer sees their full inventory on the link.
                 </div>
               )}
               {scanDone === 'no-listing' && (
-                <div className="rounded-[8px] bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
                   ⚠ No MLS listing found. Customer sees empty rooms — they can add items manually.
                 </div>
               )}
@@ -390,13 +390,13 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
               <div className="border-t border-[var(--app-line)] pt-3 flex gap-2">
                 <button
                   onClick={openLead}
-                  className="flex-1 rounded-[8px] border border-[var(--app-line)] py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                  className="flex-1 rounded-lg border border-[var(--app-line)] py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
                 >
                   Fill in full details →
                 </button>
                 <button
                   onClick={() => { setStep('form'); setOriginAddress(''); setOriginCity(''); setPhone('') }}
-                  className="flex-1 rounded-[8px] border border-[var(--app-line)] py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                  className="flex-1 rounded-lg border border-[var(--app-line)] py-2 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
                 >
                   New scan
                 </button>

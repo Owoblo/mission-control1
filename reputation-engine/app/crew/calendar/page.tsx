@@ -360,7 +360,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
         <div className="mt-1 text-lg font-semibold text-[#071421]">{nextPhase?.label || 'Move workflow complete'}</div>
         {queuedPhase && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">Saved on this device. It will sync automatically when the connection returns.</div>}
         {phaseError && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{phaseError}</div>}
-        {nextPhase && <button type="button" onClick={() => void completeNextPhase()} disabled={phaseBusy} className="mt-4 min-h-14 w-full rounded-xl bg-[#C99700] px-5 py-3 text-base font-bold text-[#071421] transition hover:bg-[#b88900] disabled:opacity-60">{phaseBusy ? 'Updating…' : `Mark: ${nextPhase.label}`}</button>}
+        {nextPhase && <button type="button" onClick={() => void completeNextPhase()} disabled={phaseBusy} className="mt-4 min-h-14 w-full rounded-xl bg-[#C99700] px-5 py-3 text-base font-bold text-[#071421] transition hover:bg-[#c99700] disabled:opacity-60">{phaseBusy ? 'Updating…' : `Mark: ${nextPhase.label}`}</button>}
       </section>
 
       <div className="flex items-start gap-3 text-sm">

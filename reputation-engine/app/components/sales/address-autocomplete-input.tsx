@@ -113,7 +113,7 @@ export function SalesAddressAutocompleteInput({
         </span>
       )}
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 top-full z-[60] mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-[8px] border border-[var(--app-line)] bg-white shadow-lg">
+        <div className="absolute left-0 top-full z-[60] mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-[var(--app-line)] bg-white shadow-lg">
           {suggestions.map((suggestion, index) => (
             <button
               key={`${suggestion.label}-${index}`}

@@ -25,25 +25,25 @@ function buildPreMoveEmail(lead: CRMLead) {
 
   return {
     subject: `Move day tomorrow — Saturn Star Moving`,
-    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;">
+    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#071421;">
   <div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;">
     <div style="color:#C99700;font-size:22px;font-weight:700;">Saturn Star Moving</div>
-    <div style="color:#ffffff80;font-size:13px;margin-top:4px;">Your Trusted Moving Partner</div>
+    <div style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px;">Your Trusted Moving Partner</div>
   </div>
-  <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;">
+  <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;">
     <h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — move day is tomorrow!</h1>
-    <p style="color:#555;margin:0 0 20px;line-height:1.6;">Your crew is confirmed and we're ready to go. Here's a quick reminder:</p>
-    <div style="background:#f8f9fb;border-radius:8px;padding:20px;margin-bottom:20px;">
+    <p style="color:#667085;margin:0 0 20px;line-height:1.6;">Your crew is confirmed and we're ready to go. Here's a quick reminder:</p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px;margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-        <span style="color:#888;font-size:13px;">Move Date</span>
+        <span style="color:#667085;font-size:13px;">Move Date</span>
         <span style="font-weight:600;font-size:13px;">${dateLine}</span>
       </div>
       ${route ? `<div style="display:flex;justify-content:space-between;">
-        <span style="color:#888;font-size:13px;">Route</span>
+        <span style="color:#667085;font-size:13px;">Route</span>
         <span style="font-weight:600;font-size:13px;">${route}</span>
       </div>` : ''}
     </div>
-    <ul style="color:#374151;font-size:14px;line-height:2;padding-left:20px;margin:0 0 20px;">
+    <ul style="color:#071421;font-size:14px;line-height:2;padding-left:20px;margin:0 0 20px;">
       <li>Ensure clear vehicle access at both addresses</li>
       <li>Have any fragile or specialty items flagged for the crew</li>
       <li>Elevator reservations confirmed (if applicable)</li>
@@ -51,7 +51,7 @@ function buildPreMoveEmail(lead: CRMLead) {
     </ul>
     <div style="background:#071421;border-radius:8px;padding:16px;text-align:center;">
       <div style="color:#C99700;font-weight:700;font-size:15px;">Questions? We're here.</div>
-      <div style="color:#ffffffb0;font-size:13px;margin-top:4px;">${SATURN_PHONE} · business@starmovers.ca</div>
+      <div style="color:rgba(255,255,255,0.69);font-size:13px;margin-top:4px;">${SATURN_PHONE} · business@starmovers.ca</div>
     </div>
   </div>
 </div>`,
@@ -171,7 +171,7 @@ export default function BookedJobsPage() {
     <div className="crm-shell space-y-6">
       <section className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Booked Jobs</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--app-ink)]">Booked Jobs</h1>
           <div className="mt-2 text-sm text-[var(--app-muted)]">
             {upcoming.length} upcoming · {past.length} completed{currentUser?.role === 'sales_rep' ? ' · your moves only' : ''}
           </div>
@@ -187,10 +187,10 @@ export default function BookedJobsPage() {
         </div>
       </section>
 
-      {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
       {loading ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading booked jobs...</div>
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading booked jobs...</div>
       ) : (
         <div className="space-y-8">
           {/* ── UPCOMING MOVES ── */}
@@ -200,7 +200,7 @@ export default function BookedJobsPage() {
               <span className="text-xs text-[var(--app-muted)]">{upcoming.length} jobs</span>
             </div>
             {upcoming.length === 0 ? (
-              <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
+              <div className="rounded-lg border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
                 No upcoming moves booked yet.
               </div>
             ) : (
@@ -216,7 +216,7 @@ export default function BookedJobsPage() {
                   return (
                     <div
                       key={lead.id}
-                      className={`rounded-[10px] border bg-[var(--app-panel)] p-5 ${needsOpsAttention ? 'border-rose-200 bg-rose-50/30' : days !== null && days <= 1 ? 'border-amber-200' : 'border-[var(--app-line)]'}`}
+                      className={`rounded-xl border bg-[var(--app-panel)] p-5 ${needsOpsAttention ? 'border-rose-200 bg-rose-50/30' : days !== null && days <= 1 ? 'border-amber-200' : 'border-[var(--app-line)]'}`}
                     >
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="flex-1 min-w-0">
@@ -262,7 +262,7 @@ export default function BookedJobsPage() {
                             <button
                               onClick={() => void sendReminder(lead)}
                               disabled={!!reminderBusy || sent}
-                              className={`rounded-[8px] px-4 py-2 text-sm font-semibold transition ${
+                              className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
                                 sent
                                   ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                                   : 'bg-[var(--app-ink)] text-white hover:opacity-90 disabled:opacity-60'
@@ -294,7 +294,7 @@ export default function BookedJobsPage() {
                     <Link
                       key={lead.id}
                       href={`/sales/leads/${lead.id}`}
-                      className="grid grid-cols-[minmax(0,1fr)_140px_140px] gap-4 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3 text-sm transition hover:bg-[var(--app-bg)]"
+                      className="grid grid-cols-[minmax(0,1fr)_140px_140px] gap-4 rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3 text-sm transition hover:bg-[var(--app-bg)]"
                     >
                       <div>
                         <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>

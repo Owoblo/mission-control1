@@ -733,7 +733,7 @@ export default function FinancePage() {
       {addOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center p-4 md:items-center"
-          style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
+          style={{ background: 'rgba(7,20,33,0.55)', backdropFilter: 'blur(2px)' }}
           onClick={e => {
             if (e.target === e.currentTarget) {
               setAddOpen(false)

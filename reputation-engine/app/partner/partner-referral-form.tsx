@@ -109,7 +109,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f8fb] text-[#071421]">
+    <main className="min-h-screen bg-[#f9fafb] text-[#071421]">
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto grid min-h-[92dvh] max-w-6xl gap-8 px-4 py-6 md:grid-cols-[0.9fr_1.1fr] md:px-8 md:py-10">
           <div className="flex flex-col justify-between gap-8">
@@ -123,7 +123,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
               </div>
 
               <div className="mt-12 max-w-xl">
-                <h1 className="text-4xl font-semibold tracking-tight text-[#111827] md:text-5xl">Refer a moving client without the back-and-forth.</h1>
+                <h1 className="text-4xl font-semibold tracking-tight text-[#071421] md:text-5xl">Refer a moving client without the back-and-forth.</h1>
                 <p className="mt-5 text-base leading-7 text-slate-600">
                   Send us the client details. We contact them, quote the move, track attribution, and credit the partner only after a completed paid move.
                 </p>
@@ -246,7 +246,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                     Partner rewards are credited only after the referred move is completed and paid. No payouts for quotes, cancelled jobs, or unverified leads.
                   </div>
                   {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
-                  <button disabled={submitting} className="min-h-12 w-full rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0c5947] disabled:opacity-50">
+                  <button disabled={submitting} className="min-h-12 w-full rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0f6a53] disabled:opacity-50">
                     {submitting ? 'Submitting...' : 'Submit referral'}
                   </button>
                 </form>

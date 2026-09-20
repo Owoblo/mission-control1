@@ -148,7 +148,7 @@ export function LeadCommunicationsPanel({
           >
             Emails
             {inboundEmailCount > 0 ? (
-              <span className="rounded-full bg-[rgba(34,72,56,0.1)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">
+              <span className="rounded-full bg-[rgba(15,106,83,0.1)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">
                 {inboundEmailCount}
               </span>
             ) : null}
@@ -201,7 +201,7 @@ export function LeadCommunicationsPanel({
           ) : (
             <div className="flex-1 divide-y divide-[var(--app-line)] overflow-y-auto">
               {emailThread.messages.map((message, index) => (
-                <div key={message.id} className={`px-5 py-4 ${message.direction === 'inbound' ? 'bg-[rgba(245,166,35,0.04)]' : 'bg-[var(--app-panel)]'}`}>
+                <div key={message.id} className={`px-5 py-4 ${message.direction === 'inbound' ? 'bg-[rgba(201,151,0,0.04)]' : 'bg-[var(--app-panel)]'}`}>
                   <div className="flex items-start gap-3">
                     <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${message.direction === 'inbound' ? 'bg-[var(--app-ink)]' : 'bg-[var(--app-accent)]'}`}>
                       {message.direction === 'inbound' ? (lead.name?.slice(0, 1) || message.from.slice(0, 1)).toUpperCase() : 'S'}
@@ -213,7 +213,7 @@ export function LeadCommunicationsPanel({
                             {message.direction === 'inbound' ? (lead.name || message.from) : 'Saturn Star Movers'}
                           </span>
                           {index === 0 && message.direction === 'inbound' ? (
-                            <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--app-warm)]">New</span>
+                            <span className="rounded border border-[var(--app-warm)] bg-[rgba(201,151,0,0.1)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--app-warm)]">New</span>
                           ) : null}
                         </div>
                         <span className="shrink-0 text-xs text-[var(--app-muted)]">
@@ -242,7 +242,7 @@ export function LeadCommunicationsPanel({
                   onComposerSubjectChange(defaultEmailSubject)
                 }
               }}
-              className="min-h-12 w-full rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-2 text-base leading-[1.5] text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none lg:min-h-10 lg:text-sm"
+              className="min-h-12 w-full rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-2 text-base leading-[1.5] text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none lg:min-h-10 lg:text-sm"
               placeholder="Subject…"
               disabled={!canHandleCommunication}
             />
@@ -259,7 +259,7 @@ export function LeadCommunicationsPanel({
                   onRequestSmartCompose('email')
                 }
               }}
-              className="min-h-[88px] w-full resize-none rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 text-base leading-[1.5] text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none lg:text-sm"
+              className="min-h-[88px] w-full resize-none rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 text-base leading-[1.5] text-[var(--app-ink)] focus:border-[var(--app-accent)] focus:outline-none lg:text-sm"
               placeholder="Write a reply…"
               rows={3}
               disabled={!canHandleCommunication}
@@ -346,7 +346,7 @@ export function LeadCommunicationsPanel({
                         className={`max-w-[min(78%,620px)] px-4 py-3 text-base leading-[1.5] break-words lg:text-sm ${isOutbound ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}
                         style={isOutbound
                           ? { background: isWhatsApp ? '#25D366' : '#0f6a53', color: 'white' }
-                          : { background: '#f1f3f5', color: '#111827' }}
+                          : { background: '#f9fafb', color: '#071421' }}
                       >
                         {cleanBody ? (
                           <div className="whitespace-pre-wrap">{cleanBody}</div>
@@ -363,7 +363,7 @@ export function LeadCommunicationsPanel({
                                   href={proxiedUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className={`block overflow-hidden rounded-[10px] border ${isOutbound ? 'border-white/30 bg-white/10' : 'border-slate-200 bg-white'}`}
+                                  className={`block overflow-hidden rounded-xl border ${isOutbound ? 'border-white/30 bg-white/10' : 'border-slate-200 bg-white'}`}
                                 >
                                   {isLikelyImageUrl(url) ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -407,14 +407,14 @@ export function LeadCommunicationsPanel({
                 <button
                   type="button"
                   onClick={() => onSmsChannelChange('sms')}
-                  className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${smsThread.channel === 'sms' ? 'bg-[#071421] text-white' : 'text-[var(--app-muted)]'}`}
+                  className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition ${smsThread.channel === 'sms' ? 'bg-[#071421] text-white' : 'text-[var(--app-muted)]'}`}
                 >
                   SMS
                 </button>
                 <button
                   type="button"
                   onClick={() => onSmsChannelChange('whatsapp')}
-                  className={`min-h-9 rounded-md px-3 text-xs font-semibold transition ${smsThread.channel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'text-[var(--app-muted)]'}`}
+                  className={`min-h-9 rounded-lg px-3 text-xs font-semibold transition ${smsThread.channel === 'whatsapp' ? 'bg-[#25D366] text-white' : 'text-[var(--app-muted)]'}`}
                 >
                   WhatsApp
                 </button>
@@ -436,7 +436,7 @@ export function LeadCommunicationsPanel({
                   placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
                   rows={1}
                   disabled={!canHandleCommunication || smsThread.sending}
-                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] placeholder:text-slate-500 outline-none transition focus:border-slate-300 focus:bg-white lg:text-sm"
+                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#071421] placeholder:text-slate-500 outline-none transition focus:border-slate-300 focus:bg-white lg:text-sm"
                   style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#C99700' }}
                   onInput={event => {
                     const field = event.currentTarget
@@ -454,7 +454,7 @@ export function LeadCommunicationsPanel({
                 disabled={!canHandleCommunication || smsThread.sending || !smsThread.input.trim() || smsThread.input.length > 1600}
                 onClick={onSmsSend}
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40 lg:h-11 lg:w-11"
-                style={{ background: smsThread.sending ? '#ccc' : '#0f6a53' }}
+                style={{ background: smsThread.sending ? '#e5e7eb' : '#0f6a53' }}
               >
                 {smsThread.sending ? (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" /></svg>
@@ -464,7 +464,7 @@ export function LeadCommunicationsPanel({
               </button>
             </div>
             {smsThread.sendError && (
-              <div className="mt-1.5 rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
+              <div className="mt-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
                 {smsThread.sendError}
               </div>
             )}
@@ -475,7 +475,7 @@ export function LeadCommunicationsPanel({
 
       {composer.open ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-0 md:items-center md:p-4">
-          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[14px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:max-w-2xl md:rounded-[10px]">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[14px] border border-[var(--app-line)] bg-[var(--app-panel)] shadow-none md:max-w-2xl md:rounded-xl">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-4 md:px-5">
               <div>
                 <div className="crm-label">{composer.channel === 'sms' ? 'SMS Composer' : 'Email Composer'}</div>

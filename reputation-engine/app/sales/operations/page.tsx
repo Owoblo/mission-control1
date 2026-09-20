@@ -1109,11 +1109,11 @@ function JobsCalendar({
                         setSelectedJob(isSelected ? null : job)
                         setSelectedOccurrence(isSelected ? null : occurrence)
                       }}
-                      className={`w-full rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-tight transition hover:opacity-80 ${branchColor}`}
+                      className={`w-full rounded-lg px-1.5 py-1 text-left text-[11px] font-semibold leading-tight transition hover:opacity-80 ${branchColor}`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <span className="truncate">{job.lead.name}</span>
-                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase ${readinessBadgeClasses(readiness.level)}`}>
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase ${readinessBadgeClasses(readiness.level)}`}>
                           {readiness.level === 'ready' ? 'Ready' : 'Setup'}
                         </span>
                       </div>
@@ -1412,13 +1412,13 @@ function JobsCalendar({
                       type="datetime-local"
                       value={executionTimes[phase] || ''}
                       onChange={event => setExecutionTimes(prev => ({ ...prev, [phase]: event.target.value }))}
-                      className="w-40 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#071421]"
+                      className="w-40 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#071421]"
                     />
                   </div>
                   <input
                     value={executionNotes[phase] || ''}
                     onChange={event => setExecutionNotes(prev => ({ ...prev, [phase]: event.target.value }))}
-                    className="mt-2 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#071421]"
+                    className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 outline-none focus:border-[#071421]"
                     placeholder="Phase note"
                   />
                 </div>
@@ -1487,7 +1487,7 @@ function JobsCalendar({
               {(selectedJob.lead.moveExecutionLog?.issues?.length ?? 0) > 0 && (
                 <div className="mt-3 space-y-1 text-xs text-slate-600">
                   {selectedJob.lead.moveExecutionLog!.issues!.map(issue => (
-                    <div key={issue.id} className="rounded-md bg-white px-2 py-1">
+                    <div key={issue.id} className="rounded-lg bg-white px-2 py-1">
                       <span className="font-semibold capitalize">{issue.category.replace(/_/g, ' ')}</span>
                       <span className="text-slate-500"> · {issue.severity}</span>
                       <span> — {issue.note}</span>
@@ -1765,7 +1765,7 @@ function CrewAssignModal({
   return (
     <div
       className="fixed inset-0 z-50 overflow-y-auto p-4 py-8"
-      style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
+      style={{ background: 'rgba(7,20,33,0.55)', backdropFilter: 'blur(2px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl items-start">

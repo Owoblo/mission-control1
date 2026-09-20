@@ -84,7 +84,7 @@ export default function SalesQuotesIndexPage() {
     <div className="crm-shell space-y-6">
       <section className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Quotes</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--app-ink)]">Quotes</h1>
           <div className="mt-2 text-sm text-[var(--app-muted)]">
             {quotes.length} total quotes · {grouped.sent.length} active · {formatMoney(grouped.accepted.reduce((sum, item) => sum + item.total, 0))} accepted
           </div>
@@ -92,10 +92,10 @@ export default function SalesQuotesIndexPage() {
         <button onClick={() => void refresh()} className="crm-button">Refresh</button>
       </section>
 
-      {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
       {loading ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading quotes...</div>
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading quotes...</div>
       ) : (
         <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
           <section className="space-y-8">
@@ -120,7 +120,7 @@ export default function SalesQuotesIndexPage() {
                       <Link
                         key={quote.id}
                         href={`/sales/quotes/${quote.id}`}
-                        className={`grid grid-cols-[minmax(0,1fr)_120px] items-start gap-4 rounded-[8px] border px-4 py-4 transition hover:border-[var(--app-ink)] ${isExpiringSoon ? 'border-amber-200 bg-amber-50/40' : 'border-[var(--app-line)] bg-[var(--app-panel)]'}`}
+                        className={`grid grid-cols-[minmax(0,1fr)_120px] items-start gap-4 rounded-lg border px-4 py-4 transition hover:border-[var(--app-ink)] ${isExpiringSoon ? 'border-amber-200 bg-amber-50/40' : 'border-[var(--app-line)] bg-[var(--app-panel)]'}`}
                       >
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -146,7 +146,7 @@ export default function SalesQuotesIndexPage() {
                     )
                   })}
                   {grouped[section.key].length === 0 ? (
-                    <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-10 text-sm text-[var(--app-muted)]">
+                    <div className="rounded-lg border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-10 text-sm text-[var(--app-muted)]">
                       No {section.label.toLowerCase()} quotes yet.
                     </div>
                   ) : null}
@@ -156,7 +156,7 @@ export default function SalesQuotesIndexPage() {
           </section>
 
           <aside className="space-y-6">
-            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-6">
+            <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-6">
               <div className="crm-label">Quote Performance</div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
@@ -192,7 +192,7 @@ export default function SalesQuotesIndexPage() {
                 </div>
               </div>
             </div>
-            <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-6">
+            <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-6">
               <div className="crm-label">Recent Views</div>
               <div className="mt-4 space-y-3">
                 {quotes
@@ -200,7 +200,7 @@ export default function SalesQuotesIndexPage() {
                   .sort((a, b) => new Date(b.viewedAt || '').getTime() - new Date(a.viewedAt || '').getTime())
                   .slice(0, 5)
                   .map(item => (
-                    <Link key={item.id} href={`/sales/quotes/${item.id}`} className="block rounded-[6px] border border-transparent px-3 py-3 transition hover:border-[var(--app-line)] hover:bg-[var(--app-bg)]">
+                    <Link key={item.id} href={`/sales/quotes/${item.id}`} className="block rounded-lg border border-transparent px-3 py-3 transition hover:border-[var(--app-line)] hover:bg-[var(--app-bg)]">
                       <div className="text-sm font-medium text-[var(--app-ink)]">{item.number}</div>
                       <div className="mt-1 text-xs text-[var(--app-muted)]">Viewed {formatDate(item.viewedAt)}</div>
                     </Link>

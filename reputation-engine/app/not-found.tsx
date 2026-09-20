@@ -16,7 +16,7 @@ export default function NotFound() {
         <div className="mt-6">
           <Link
             href="/sales"
-            className="flex min-h-[44px] items-center justify-center rounded-lg bg-[#071421] px-4 text-sm font-bold text-white hover:bg-[#243460]"
+            className="flex min-h-[44px] items-center justify-center rounded-lg bg-[#071421] px-4 text-sm font-bold text-white hover:bg-[#071421]"
           >
             Back to dashboard
           </Link>

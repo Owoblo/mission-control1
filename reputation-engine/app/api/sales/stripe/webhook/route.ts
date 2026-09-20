@@ -21,7 +21,7 @@ function buildBookingConfirmationEmail(name: string, brand: ReceiptBrand, moveDa
   const route = originCity && destCity ? `${originCity} → ${destCity}` : originCity || destCity || 'TBD'
   return {
     subject: `Your Move is Confirmed — ${brand.fullName}`,
-    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;"><div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;"><div style="color:#C99700;font-size:24px;font-weight:700;">${brand.fullName}</div></div><div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;"><h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — your move is confirmed!</h1><p style="color:#555;margin:0 0 24px;line-height:1.6;">We have everything locked in. Move date: <strong>${dateLine}</strong> · Route: <strong>${route}</strong>.</p><p style="color:#555;font-size:14px;line-height:1.6;">Our team will reach out 48 hours before your move with crew details. Questions? <strong>${brand.phone}</strong></p></div></div>`,
+    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#071421;"><div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;"><div style="color:#C99700;font-size:24px;font-weight:700;">${brand.fullName}</div></div><div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;"><h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — your move is confirmed!</h1><p style="color:#667085;margin:0 0 24px;line-height:1.6;">We have everything locked in. Move date: <strong>${dateLine}</strong> · Route: <strong>${route}</strong>.</p><p style="color:#667085;font-size:14px;line-height:1.6;">Our team will reach out 48 hours before your move with crew details. Questions? <strong>${brand.phone}</strong></p></div></div>`,
     text: `Hi ${first}, your move with ${brand.fullName} is confirmed for ${dateLine} (${route}). We'll reach out 48 hours before. Questions? ${brand.phone}`,
   }
 }
@@ -181,12 +181,12 @@ export async function POST(request: Request) {
                 `<div style="font-family:sans-serif;color:#071421;max-width:520px">
                   <p><strong>${customerName}</strong> just paid their deposit of <strong>$${depositAmt.toFixed(2)}</strong> via Stripe.</p>
                   <table style="font-size:14px;border-collapse:collapse;width:100%">
-                    <tr><td style="padding:4px 0;color:#666">Quote</td><td style="padding:4px 0">${quoteNum}</td></tr>
-                    <tr><td style="padding:4px 0;color:#666">Deposit paid</td><td style="padding:4px 0;font-weight:600;color:#0f6a53">$${depositAmt.toFixed(2)}</td></tr>
-                    <tr><td style="padding:4px 0;color:#666">Balance due</td><td style="padding:4px 0">$${Math.max(0,(quote?.total||0)-depositAmt).toFixed(2)}</td></tr>
-                    ${lead.phone ? `<tr><td style="padding:4px 0;color:#666">Phone</td><td style="padding:4px 0">${lead.phone}</td></tr>` : ''}
+                    <tr><td style="padding:4px 0;color:#667085">Quote</td><td style="padding:4px 0">${quoteNum}</td></tr>
+                    <tr><td style="padding:4px 0;color:#667085">Deposit paid</td><td style="padding:4px 0;font-weight:600;color:#0f6a53">$${depositAmt.toFixed(2)}</td></tr>
+                    <tr><td style="padding:4px 0;color:#667085">Balance due</td><td style="padding:4px 0">$${Math.max(0,(quote?.total||0)-depositAmt).toFixed(2)}</td></tr>
+                    ${lead.phone ? `<tr><td style="padding:4px 0;color:#667085">Phone</td><td style="padding:4px 0">${lead.phone}</td></tr>` : ''}
                   </table>
-                  <p style="margin-top:16px"><a href="${crmUrl}" style="background:#071421;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM →</a></p>
+                  <p style="margin-top:16px"><a href="${crmUrl}" style="background:#071421;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM →</a></p>
                 </div>`
               ).catch(() => {})
               if (fundingReviewRequired) {

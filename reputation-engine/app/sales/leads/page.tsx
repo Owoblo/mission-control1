@@ -309,15 +309,15 @@ function SalesLeadsIndexContent() {
     <div className="crm-shell space-y-6">
       <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Leads</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--app-ink)]">Leads</h1>
           <div className="mt-1 text-sm text-[var(--app-muted)]">What needs a response or decision now.</div>
         </div>
         <details className="relative self-start lg:self-auto">
           <summary className="crm-button cursor-pointer list-none">Tools</summary>
-          <div className="absolute right-0 z-30 mt-2 grid w-52 gap-1 rounded-[10px] border border-[var(--app-line)] bg-white p-2 shadow-lg">
-            <button onClick={() => void refresh({ includeDeleted: viewMode === 'deleted' })} className="rounded-[7px] px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)]">Refresh data</button>
-            <button onClick={() => void syncCallHistory()} disabled={backfilling} className="rounded-[7px] px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)] disabled:opacity-50">{backfilling ? 'Syncing…' : 'Sync call history'}</button>
-            <Link href="/sales/cleanup" className="rounded-[7px] px-3 py-2 text-sm text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-rose-700">Review junk leads</Link>
+          <div className="absolute right-0 z-30 mt-2 grid w-52 gap-1 rounded-xl border border-[var(--app-line)] bg-white p-2 shadow-lg">
+            <button onClick={() => void refresh({ includeDeleted: viewMode === 'deleted' })} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)]">Refresh data</button>
+            <button onClick={() => void syncCallHistory()} disabled={backfilling} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)] disabled:opacity-50">{backfilling ? 'Syncing…' : 'Sync call history'}</button>
+            <Link href="/sales/cleanup" className="rounded-lg px-3 py-2 text-sm text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-rose-700">Review junk leads</Link>
           </div>
         </details>
       </section>
@@ -342,7 +342,7 @@ function SalesLeadsIndexContent() {
                   key={mode.id}
                   type="button"
                   onClick={() => setViewMode(mode.id)}
-                  className={`rounded-[7px] border px-3 py-2 text-sm font-semibold transition ${
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
                     active
                       ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
                       : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
@@ -361,7 +361,7 @@ function SalesLeadsIndexContent() {
 
       {/* Today's Calls / Overdue Follow-ups */}
       {viewMode !== 'deleted' && viewMode !== 'booked' && todaysCallList.length > 0 && (
-        <section className="overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white">
+        <section className="overflow-hidden rounded-xl border border-[var(--app-line)] bg-white">
           <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-3">
             <span className="text-sm font-semibold text-[var(--app-ink)]">
               {todaysCallList.filter(({ lead }) => (lead.followUpDate || '') < today).length > 0
@@ -398,16 +398,16 @@ function SalesLeadsIndexContent() {
       ) : null}
 
       {error ? (
-        <div className="flex items-center justify-between gap-4 rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
           <span>{error.includes('aborted') || error.includes('timeout') ? 'Lead data took too long to load. Your records are safe.' : error}</span>
-          <button type="button" onClick={() => void refresh()} className="shrink-0 rounded-[7px] border border-rose-300 bg-white px-3 py-1.5 font-semibold hover:bg-rose-100">Retry</button>
+          <button type="button" onClick={() => void refresh()} className="shrink-0 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-semibold hover:bg-rose-100">Retry</button>
         </div>
       ) : null}
 
       {loading ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading leads...</div>
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading leads...</div>
       ) : viewMode === 'deleted' ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
           <div className="border-b border-[var(--app-line)] px-5 py-3 text-sm text-[var(--app-muted)]">
             Deleted leads stay out of the rep workflow but can be restored here.
           </div>
@@ -438,7 +438,7 @@ function SalesLeadsIndexContent() {
                       type="button"
                       onClick={() => void handleRestoreLead(lead)}
                       disabled={rowActionId === lead.id}
-                      className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
                     >
                       {rowActionId === lead.id ? 'Restoring...' : 'Restore Lead'}
                     </button>
@@ -449,15 +449,15 @@ function SalesLeadsIndexContent() {
           )}
         </div>
       ) : (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
           <div className="space-y-3 p-3 md:hidden">
             {visibleLeads.length === 0 ? (
-              <div className="rounded-[18px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
+              <div className="rounded-2xl border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
                 {emptyText}
               </div>
             ) : (
               visibleLeads.map(({ lead, quote, guidance }) => (
-                <div key={lead.id} className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                <div key={lead.id} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -477,7 +477,7 @@ function SalesLeadsIndexContent() {
                   <div className="mt-3 text-sm text-[var(--app-muted)]">
                     {lead.originAddress || lead.originCity || 'Origin TBD'} → {lead.destAddress || lead.destCity || 'Destination TBD'}
                   </div>
-                  <div className="mt-3 rounded-[12px] bg-white px-3 py-3">
+                  <div className="mt-3 rounded-xl bg-white px-3 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Next Action</div>
                     <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{guidance.action.nextAction}</div>
                     <div className="mt-1 text-xs text-[var(--app-muted)]">{guidance.action.reason}</div>
@@ -498,7 +498,7 @@ function SalesLeadsIndexContent() {
                       type="button"
                       onClick={() => void handleMarkNotInterested(lead)}
                       disabled={rowActionId === lead.id}
-                      className="rounded-[8px] border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+                      className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
                     >
                       ✕ Not Interested
                     </button>
@@ -507,7 +507,7 @@ function SalesLeadsIndexContent() {
                         type="button"
                         onClick={() => void handleDeleteLead(lead)}
                         disabled={rowActionId === lead.id}
-                        className="rounded-[8px] border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                        className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                       >
                         {rowActionId === lead.id ? '...' : 'Delete'}
                       </button>
@@ -565,7 +565,7 @@ function SalesLeadsIndexContent() {
                     <div className="text-[var(--app-ink)]">{moveDateLabel(lead, quote)}</div>
                     <div className="text-[var(--app-muted)]">{formatRelativeTime(guidance.latestActivity.at)}</div>
                     <div className="flex items-start justify-end gap-2">
-                      <Link href={`/sales/leads/${lead.id}`} className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                      <Link href={`/sales/leads/${lead.id}`} className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Open
                       </Link>
                       <button
@@ -573,7 +573,7 @@ function SalesLeadsIndexContent() {
                         onClick={() => void handleMarkNotInterested(lead)}
                         disabled={rowActionId === lead.id}
                         title="Mark as not interested — removes from active pipeline"
-                        className="rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
                       >
                         ✕ Not Interested
                       </button>
@@ -582,7 +582,7 @@ function SalesLeadsIndexContent() {
                           type="button"
                           onClick={() => void handleDeleteLead(lead)}
                           disabled={rowActionId === lead.id}
-                          className="rounded-[8px] border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                          className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                         >
                           {rowActionId === lead.id ? '...' : 'Delete'}
                         </button>

@@ -30,7 +30,7 @@ function Toggle({ checked, onChange, label = 'Toggle setting' }: { checked: bool
 
 function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[12px] border border-[var(--app-line)] bg-white">
+    <div className="rounded-xl border border-[var(--app-line)] bg-white">
       <div className="border-b border-[var(--app-line)] px-6 py-4">
         <div className="font-semibold text-[var(--app-ink)]">{title}</div>
         {description && <div className="mt-0.5 text-xs text-[var(--app-muted)]">{description}</div>}
@@ -154,7 +154,7 @@ export default function DialerSettingsPage() {
   if (!settings) {
     return (
       <div className="crm-shell">
-        <h1 className="sr-only">Dialer settings</h1><div role="alert" className="rounded-[10px] border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">{error || 'Could not load settings.'}</div>
+        <h1 className="sr-only">Dialer settings</h1><div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">{error || 'Could not load settings.'}</div>
       </div>
     )
   }
@@ -176,25 +176,25 @@ export default function DialerSettingsPage() {
 
       {/* DB Setup Banner */}
       {!tableExists && (
-        <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-5 py-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
           <div className="flex items-start gap-3">
             <span className="text-lg">⚠️</span>
             <div className="flex-1">
               <div className="font-semibold text-amber-800">One-time setup required</div>
               <div className="mt-1 text-sm text-amber-700">Run this SQL in your Supabase dashboard to enable settings storage. Settings are currently showing defaults.</div>
-              <pre className="mt-3 overflow-x-auto rounded-[8px] bg-white px-4 py-3 text-xs text-slate-700">{setupSql}</pre>
+              <pre className="mt-3 overflow-x-auto rounded-lg bg-white px-4 py-3 text-xs text-slate-700">{setupSql}</pre>
               <div className="mt-3 flex gap-2">
                 <a
                   href="https://supabase.com/dashboard/project/idbyrtwdeeruiutoukct/editor"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-[8px] bg-amber-500 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-400"
+                  className="rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-400"
                 >
                   Open Supabase SQL Editor →
                 </a>
                 <button
                   onClick={() => navigator.clipboard.writeText(setupSql)}
-                  className="rounded-[8px] border border-amber-300 px-4 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                  className="rounded-lg border border-amber-300 px-4 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
                 >
                   Copy SQL
                 </button>
@@ -205,7 +205,7 @@ export default function DialerSettingsPage() {
       )}
 
       {!isOwner && (
-        <div className="rounded-[10px] border border-sky-200 bg-sky-50 px-5 py-3 text-sm text-sky-700">
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-5 py-3 text-sm text-sky-700">
           You can view settings but only the owner can make changes.
         </div>
       )}
@@ -217,7 +217,7 @@ export default function DialerSettingsPage() {
           <input value={newBlockedName} onChange={event => setNewBlockedName(event.target.value)} placeholder="Caller or company (optional)" className="crm-input" />
           <input value={newBlockedTag} onChange={event => setNewBlockedTag(event.target.value)} placeholder="Tag (Spam, Robocall…)" className="crm-input" />
           <input value={newBlockedNote} onChange={event => setNewBlockedNote(event.target.value)} placeholder="Reason / context (optional)" className="crm-input" />
-          <button onClick={() => void addBlockedCaller()} disabled={!newBlockedPhone.trim() || saving} className="rounded-[8px] bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-40">Tag & block</button>
+          <button onClick={() => void addBlockedCaller()} disabled={!newBlockedPhone.trim() || saving} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-40">Tag & block</button>
         </div>
         {(settings.blockedCallers || []).length > 0 ? (
           <div className="mt-4 flex items-center gap-3">
@@ -232,7 +232,7 @@ export default function DialerSettingsPage() {
         ) : null}
         <div className="mt-4 space-y-2">
           {(settings.blockedCallers || []).length === 0 ? (
-            <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-5 text-center text-sm text-[var(--app-muted)]">No blocked callers yet.</div>
+            <div className="rounded-lg bg-[var(--app-bg)] px-4 py-5 text-center text-sm text-[var(--app-muted)]">No blocked callers yet.</div>
           ) : (settings.blockedCallers || []).filter(entry => {
             const query = blockedSearch.trim().toLowerCase()
             if (!query) return true
@@ -240,14 +240,14 @@ export default function DialerSettingsPage() {
               .filter(Boolean)
               .some(value => String(value).toLowerCase().includes(query))
           }).map(entry => (
-            <div key={entry.phone} className="flex items-center justify-between gap-4 rounded-[8px] border border-[var(--app-line)] px-4 py-3">
+            <div key={entry.phone} className="flex items-center justify-between gap-4 rounded-lg border border-[var(--app-line)] px-4 py-3">
               <div className="min-w-0">
                 <div className="font-semibold text-[var(--app-ink)]">{entry.displayName || entry.phone}</div>
                 {entry.displayName ? <div className="mt-0.5 text-xs text-[var(--app-muted)]">{entry.phone}</div> : null}
                 <div className="mt-0.5 text-xs text-[var(--app-muted)]"><span className="font-semibold text-rose-600">{entry.tag}</span> · Blocked {new Date(entry.blockedAt).toLocaleDateString()}{entry.blockedBy ? ` by ${entry.blockedBy}` : ''}</div>
                 {entry.note ? <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">{entry.note}</div> : null}
               </div>
-              <button onClick={() => void unblockCaller(entry.phone)} className="shrink-0 rounded-[7px] border border-[var(--app-line)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)]">Unblock</button>
+              <button onClick={() => void unblockCaller(entry.phone)} className="shrink-0 rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)]">Unblock</button>
             </div>
           ))}
         </div>
@@ -402,7 +402,7 @@ export default function DialerSettingsPage() {
               className="crm-input mt-1.5 resize-none"
               placeholder="Press 1 for a quote. Press 2 for an existing booking."
             />
-            <div className="mt-2 rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-muted)]">
+            <div className="mt-2 rounded-lg bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-muted)]">
               Both options currently route to the same rep team. Assign dedicated reps per option in a future update.
             </div>
           </div>
@@ -491,7 +491,7 @@ export default function DialerSettingsPage() {
                       setNewEmail('')
                     }
                   }}
-                  className="rounded-[8px] border border-[var(--app-line)] px-3 py-2 text-sm text-[var(--app-ink)] hover:bg-[var(--app-bg)]"
+                  className="rounded-lg border border-[var(--app-line)] px-3 py-2 text-sm text-[var(--app-ink)] hover:bg-[var(--app-bg)]"
                 >Add</button>
               </div>
             )}
@@ -552,7 +552,7 @@ export default function DialerSettingsPage() {
                       setNewEmail('')
                     }
                   }}
-                  className="rounded-[8px] border border-[var(--app-line)] px-3 py-2 text-sm text-[var(--app-ink)] hover:bg-[var(--app-bg)]"
+                  className="rounded-lg border border-[var(--app-line)] px-3 py-2 text-sm text-[var(--app-ink)] hover:bg-[var(--app-bg)]"
                 >
                   Add
                 </button>
@@ -567,7 +567,7 @@ export default function DialerSettingsPage() {
         <div className="space-y-2">
           {settings.sipUsers.map((user, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="flex flex-1 items-center gap-2 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
+              <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
                 <span className="text-xs text-[var(--app-muted)]">sip:</span>
                 <input
                   value={user}
@@ -617,7 +617,7 @@ export default function DialerSettingsPage() {
                     setNewSipUser('')
                   }
                 }}
-                className="rounded-[8px] border border-[var(--app-line)] px-3 py-2 text-sm text-[var(--app-ink)] hover:bg-[var(--app-bg)]"
+                className="rounded-lg border border-[var(--app-line)] px-3 py-2 text-sm text-[var(--app-ink)] hover:bg-[var(--app-bg)]"
               >
                 Add
               </button>

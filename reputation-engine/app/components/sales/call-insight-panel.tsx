@@ -99,10 +99,10 @@ export function CallInsightPanel({
   const details = [callerName, timestamp, duration, branchLabel].filter(Boolean).join(' · ')
 
   return (
-    <div className={`rounded-[10px] border border-[var(--app-line)] bg-white p-4 shadow-sm ${className}`}>
+    <div className={`rounded-xl border border-[var(--app-line)] bg-white p-4 shadow-sm ${className}`}>
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-4">
-          <div className="rounded-[10px] bg-[var(--app-bg)] p-4">
+          <div className="rounded-xl bg-[var(--app-bg)] p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-lg shadow-sm">☎</div>
               <div className="min-w-0 flex-1">
@@ -126,11 +126,11 @@ export function CallInsightPanel({
                     <RecordingPlayer recordingUrl={recordingUrl} recordingSid={recordingSid} />
                   </div>
                 ) : recordingUnavailable ? (
-                  <div className="mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
                     {recordingUnavailableReason || 'No playable recording is available for this call.'}
                   </div>
                 ) : processingMessage ? (
-                  <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs leading-5 text-[var(--app-muted)]">
+                  <div className="mt-3 rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs leading-5 text-[var(--app-muted)]">
                     {processingMessage}
                   </div>
                 ) : null}
@@ -139,7 +139,7 @@ export function CallInsightPanel({
             </div>
           </div>
 
-          <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-4">
+          <div className="rounded-xl border border-[var(--app-line)] bg-white p-4">
             <div className="flex flex-wrap items-center gap-2">
               <div className="crm-label">{title}</div>
               <span className="text-[11px] font-semibold text-violet-500">Powered by Saturn Star AI</span>
@@ -162,7 +162,7 @@ export function CallInsightPanel({
           </div>
         </div>
 
-        <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+        <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="crm-label">Transcript</div>
             <span className="text-[11px] font-semibold text-[var(--app-muted)]">{transcriptLines.length ? `${transcriptLines.length} lines` : 'Pending'}</span>
@@ -180,7 +180,7 @@ export function CallInsightPanel({
               ))}
             </div>
           ) : (
-            <div className="rounded-[8px] border border-dashed border-[var(--app-line)] bg-white px-4 py-6 text-sm leading-6 text-[var(--app-muted)]">
+            <div className="rounded-lg border border-dashed border-[var(--app-line)] bg-white px-4 py-6 text-sm leading-6 text-[var(--app-muted)]">
               {processingMessage || 'Transcript will appear here when processing is complete.'}
             </div>
           )}

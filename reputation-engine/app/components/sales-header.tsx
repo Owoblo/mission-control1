@@ -381,7 +381,7 @@ export function SalesHeader() {
     <>
       {/* ── GLOBAL TOAST (fires on any page) ─────────────────────────────── */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-3 rounded-[12px] border border-[var(--app-line)] bg-white p-4 shadow-none animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div className="fixed bottom-6 right-6 z-[60] flex max-w-sm items-start gap-3 rounded-xl border border-[var(--app-line)] bg-white p-4 shadow-none animate-in slide-in-from-bottom-4 fade-in duration-200">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(15,106,83,0.12)] text-xl">
               {toast.source ? SOURCE_ICON[toast.source] || TYPE_ICON[toast.type] : TYPE_ICON[toast.type]}
           </div>
@@ -395,7 +395,7 @@ export function SalesHeader() {
             </div>
             <button
               onClick={() => { setToast(null); router.push(toast.href) }}
-              className="mt-2 rounded-[6px] bg-[var(--app-ink)] px-3 py-1 text-xs font-semibold text-white hover:bg-[#071421]"
+              className="mt-2 rounded-lg bg-[var(--app-ink)] px-3 py-1 text-xs font-semibold text-white hover:bg-[#071421]"
             >
               View →
             </button>
@@ -410,7 +410,7 @@ export function SalesHeader() {
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}
           <div className={`hidden lg:flex items-center border-b border-[var(--app-line)] ${sidebarCollapsed ? 'h-14 justify-center px-0' : 'h-14 gap-2.5 px-4'}`}>
             <Link href={homeHref} className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0'}`}>
-              {isDexaView ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[#071421] text-[11px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={32} height={32} className="shrink-0 object-contain" priority />}
+              {isDexaView ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#071421] text-[11px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={32} height={32} className="shrink-0 object-contain" priority />}
               {!sidebarCollapsed && (
                 <span className="truncate text-sm font-bold tracking-tight text-[var(--app-ink)]">{isDexaView ? 'Dexa OS' : 'Saturn Star OS'}</span>
               )}
@@ -418,7 +418,7 @@ export function SalesHeader() {
             {!sidebarCollapsed && (
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--app-muted)] hover:bg-[var(--app-line)] hover:text-[var(--app-ink)] transition text-xs"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--app-muted)] hover:bg-[var(--app-line)] hover:text-[var(--app-ink)] transition text-xs"
                 title="Collapse sidebar"
               >‹‹</button>
             )}
@@ -443,20 +443,20 @@ export function SalesHeader() {
           {/* ── Mobile/tablet top bar ─────────────────────────────────── */}
           <div className="flex items-center justify-between gap-4 lg:hidden">
             <Link href={homeHref} className="flex min-w-0 items-center gap-2.5">
-              {isDexaView ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[6px] bg-[#071421] text-[8px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={30} height={30} className="shrink-0 object-contain" priority />}
+              {isDexaView ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-[#071421] text-[11px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={30} height={30} className="shrink-0 object-contain" priority />}
               <div className="truncate font-semibold tracking-tight text-[var(--app-ink)]">{isDexaView ? 'Dexa OS' : 'Saturn Star OS'}</div>
             </Link>
             <div className="flex items-center gap-2">
               {canUseSalesActions && (
                 <>
                   <button onClick={() => setNewLeadOpen(true)} className="crm-button-dark h-9 px-3 text-sm">New Lead</button>
-                  <button onClick={() => setQuickScanOpen(true)} className="flex h-9 items-center gap-1 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition" title="MLS Quick Inventory Scan">⚡</button>
+                  <button onClick={() => setQuickScanOpen(true)} className="flex h-9 items-center gap-1 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition" title="MLS Quick Inventory Scan">⚡</button>
                 </>
               )}
               <div ref={notifRef} className="relative">
                 <button
                   onClick={() => { setNotifOpen(v => !v); requestPushPermission() }}
-                  className={`relative flex h-9 w-9 items-center justify-center rounded-[8px] border text-lg transition ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-lg border text-lg transition ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
                   title="Notifications"
                 >
                   🔔
@@ -485,7 +485,7 @@ export function SalesHeader() {
               </button>
               <button
                 onClick={() => setQuickScanOpen(true)}
-                className={`flex h-9 items-center justify-center rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition ${sidebarCollapsed ? 'w-10' : 'px-2.5'}`}
+                className={`flex h-9 items-center justify-center rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] text-sm font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition ${sidebarCollapsed ? 'w-10' : 'px-2.5'}`}
                 title="MLS Quick Inventory Scan"
               >⚡</button>
               </>
@@ -495,7 +495,7 @@ export function SalesHeader() {
             <div ref={notifRef} className="relative">
               <button
                 onClick={() => { setNotifOpen(v => !v); requestPushPermission() }}
-                className={`relative flex h-9 items-center justify-center rounded-[8px] border text-lg transition ${sidebarCollapsed ? 'w-10' : 'w-9'} ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
+                className={`relative flex h-9 items-center justify-center rounded-lg border text-lg transition ${sidebarCollapsed ? 'w-10' : 'w-9'} ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
                 title="Notifications — click to enable alert sounds"
               >
                 🔔
@@ -508,7 +508,7 @@ export function SalesHeader() {
 
                 {/* ── Notification Panel — fixed so it clears the sidebar ── */}
                 {notifOpen && (
-                  <div className="fixed left-4 right-4 top-4 z-[60] mx-auto max-w-sm max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-none flex flex-col lg:left-auto lg:right-6 lg:top-6 lg:w-[400px]">
+                  <div className="fixed left-4 right-4 top-4 z-[60] mx-auto max-w-sm max-h-[80vh] overflow-hidden rounded-xl border border-[var(--app-line)] bg-white shadow-none flex flex-col lg:left-auto lg:right-6 lg:top-6 lg:w-[400px]">
                     {/* Panel header */}
                     <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                       <div>
@@ -525,7 +525,7 @@ export function SalesHeader() {
                         {notifTotal > 0 && (
                           <button
                             onClick={markAllRead}
-                            className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
+                            className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
                           >
                             Mark all read
                           </button>
@@ -533,7 +533,7 @@ export function SalesHeader() {
                         <Link
                           href="/sales/inbox"
                           onClick={() => setNotifOpen(false)}
-                          className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
+                          className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]"
                         >
                           Open Inbox →
                         </Link>
@@ -573,7 +573,7 @@ export function SalesHeader() {
                               {item.branchLabel ? `${item.branchLabel} • ` : ''}{item.preview}
                             </div>
                             <div className="mt-1 flex items-center gap-2">
-                              <span className={`rounded-[4px] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] ${
+                              <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] ${
                                 item.type === 'lead'  ? 'bg-emerald-50 text-emerald-700' :
                                 item.type === 'sms'   ? 'bg-sky-50 text-sky-700' :
                                 item.type === 'email' ? 'bg-amber-50 text-amber-700' :
@@ -625,7 +625,7 @@ export function SalesHeader() {
                     title={item.label}
                     className={`relative shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition
                       md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1
-                      lg:flex lg:w-full lg:rounded-[10px] lg:border lg:py-2
+                      lg:flex lg:w-full lg:rounded-xl lg:border lg:py-2
                       ${sidebarCollapsed
                         ? 'lg:flex-col lg:items-center lg:justify-center lg:gap-0 lg:px-0 lg:py-2.5'
                         : 'lg:items-center lg:justify-between lg:px-3'}
@@ -658,7 +658,7 @@ export function SalesHeader() {
                   type="button"
                   aria-expanded={moreNavOpen || activeSecondaryItem}
                   onClick={() => setMoreNavOpen(current => !current)}
-                  className={`relative mt-1 shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 lg:flex lg:w-full lg:items-center lg:rounded-[10px] lg:border lg:py-2 ${sidebarCollapsed ? 'lg:justify-center lg:px-0' : 'lg:justify-between lg:px-3'} ${activeSecondaryItem ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] md:border-transparent lg:border-transparent lg:hover:bg-[var(--app-line)]/40'}`}
+                  className={`relative mt-1 shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition md:rounded-none md:border-x-0 md:border-t-0 md:border-b-2 md:px-0 md:py-1 lg:flex lg:w-full lg:items-center lg:rounded-xl lg:border lg:py-2 ${sidebarCollapsed ? 'lg:justify-center lg:px-0' : 'lg:justify-between lg:px-3'} ${activeSecondaryItem ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : 'border-[var(--app-line)] text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] md:border-transparent lg:border-transparent lg:hover:bg-[var(--app-line)]/40'}`}
                 >
                   <span className={sidebarCollapsed ? 'lg:hidden' : ''}>More</span>
                   <span aria-hidden className="hidden lg:inline">{moreNavOpen || activeSecondaryItem ? '−' : '+'}</span>
@@ -679,10 +679,10 @@ export function SalesHeader() {
                     if (query.trim().length >= 1) setShowDropdown(true)
                   }}
                   onKeyDown={e => e.key === 'Escape' && setShowDropdown(false)}
-                  className="h-10 w-full rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
+                  className="h-10 w-full rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] pl-9 pr-4 text-sm text-[var(--app-ink)] outline-none transition focus:border-[var(--app-ink)]"
                 />
                 {showDropdown && (
-                  <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white shadow-lg">
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-[var(--app-line)] bg-white shadow-lg">
                     {searchLoading ? (
                       <div className="px-4 py-3 text-sm text-[var(--app-muted)]">Searching leads…</div>
                     ) : searchLoadError ? (
@@ -727,8 +727,8 @@ export function SalesHeader() {
             </div>
             )}
 
-            <div className={`hidden rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2 lg:mt-auto lg:block ${sidebarCollapsed ? 'lg:hidden' : 'lg:mx-3'}`}>
-              <div className="mb-2 flex items-center gap-2 rounded-[12px] px-2 py-1">
+            <div className={`hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-2 lg:mt-auto lg:block ${sidebarCollapsed ? 'lg:hidden' : 'lg:mx-3'}`}>
+              <div className="mb-2 flex items-center gap-2 rounded-xl px-2 py-1">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--app-line)] text-xs font-semibold text-[var(--app-ink)]">
                   {initials}
                 </div>

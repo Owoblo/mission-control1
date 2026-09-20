@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function PartnerCodePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f6f8fb]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f9fafb]" />}>
       <PartnerReferralForm pathCode={decodeURIComponent(code)} />
     </Suspense>
   )

@@ -37,7 +37,7 @@ function statusTone(stage: ReturnType<typeof deriveOperatingStage>) {
   if (['completed', 'paid', 'reviewed', 'closed'].includes(stage)) return 'border-emerald-200 bg-emerald-50 text-emerald-800'
   if (['booked', 'confirmed', 'prepared'].includes(stage)) return 'border-blue-200 bg-blue-50 text-blue-800'
   if (['dispatched', 'in_progress'].includes(stage)) return 'border-amber-300 bg-amber-50 text-amber-900'
-  return 'border-[var(--app-line)] bg-white text-[#344054]'
+  return 'border-[var(--app-line)] bg-white text-[#071421]'
 }
 
 export function OperatingSystemOverview({ leads, quotes, loading }: Props) {
@@ -75,7 +75,7 @@ export function OperatingSystemOverview({ leads, quotes, loading }: Props) {
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a6800]">Saturn Star operating system</div>
-          <h1 className="mt-2 font-display text-[2rem] font-semibold tracking-tight text-[#071421] md:text-[34px]">What is happening, and what needs intervention?</h1>
+          <h1 className="mt-2 font-display text-[2rem] font-semibold tracking-tight text-[#071421] md:text-3xl">What is happening, and what needs intervention?</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">One operational view from incoming demand to prepared jobs, live execution and final care.</p>
         </div>
         <div className="flex gap-2"><Link href="/sales/new" className="crm-button-dark">Capture demand</Link><Link href="/sales/operations" className="crm-button">Open operations</Link></div>
@@ -88,7 +88,7 @@ export function OperatingSystemOverview({ leads, quotes, loading }: Props) {
             <div className="divide-y divide-[var(--app-line)]">
               {liveJobs.slice(0, 6).map(lead => {
                 const quote = quoteFor(lead); const stage = deriveOperatingStage(lead, quote); const execution = latestExecution(lead); const readiness = deriveJobReadiness(lead, quote)
-                return <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="grid gap-3 px-1 py-4 transition hover:bg-[#faf8f2] sm:grid-cols-[minmax(0,1fr)_minmax(180px,.7fr)_auto] sm:items-center"><div><div className="font-semibold text-[#071421]">{lead.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{routeLabel(lead, quote)} · {lead.branch || 'Branch TBD'}</div></div><div><div className="text-sm text-[#344054]">{execution?.label || (stage === 'dispatched' ? 'Crew confirmed for dispatch' : 'Scheduled today')}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{readiness.label} · {readiness.percent}% prepared</div></div><span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusTone(stage)}`}>{OPERATING_STAGE_META[stage].label}</span></Link>
+                return <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="grid gap-3 px-1 py-4 transition hover:bg-[#f7f4ed] sm:grid-cols-[minmax(0,1fr)_minmax(180px,.7fr)_auto] sm:items-center"><div><div className="font-semibold text-[#071421]">{lead.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{routeLabel(lead, quote)} · {lead.branch || 'Branch TBD'}</div></div><div><div className="text-sm text-[#071421]">{execution?.label || (stage === 'dispatched' ? 'Crew confirmed for dispatch' : 'Scheduled today')}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{readiness.label} · {readiness.percent}% prepared</div></div><span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusTone(stage)}`}>{OPERATING_STAGE_META[stage].label}</span></Link>
               })}
               {!liveJobs.length && <div className="py-8 text-sm text-[var(--app-muted)]">No jobs are currently marked as dispatched or in progress.</div>}
             </div>
@@ -114,7 +114,7 @@ export function OperatingSystemOverview({ leads, quotes, loading }: Props) {
 
       <section>
         <div className="mb-3"><h2 className="text-xl font-semibold text-[#071421]">Operating spine</h2><p className="mt-1 text-xs text-[var(--app-muted)]">Where active work currently sits from capture to execution</p></div>
-        <div className="grid gap-px overflow-hidden border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-3 lg:grid-cols-9">{stageCounts.map(item => <Link key={item.stage} href={item.stage === 'booked' || item.stage === 'confirmed' || item.stage === 'prepared' || item.stage === 'dispatched' || item.stage === 'in_progress' ? '/sales/operations' : '/sales/pipeline'} className="bg-white p-3 transition hover:bg-[#faf8f2]"><div className="text-2xl font-semibold tabular-nums text-[#071421]">{item.count}</div><div className="mt-1 text-[11px] text-[var(--app-muted)]">{OPERATING_STAGE_META[item.stage].label}</div></Link>)}</div>
+        <div className="grid gap-px overflow-hidden border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-3 lg:grid-cols-9">{stageCounts.map(item => <Link key={item.stage} href={item.stage === 'booked' || item.stage === 'confirmed' || item.stage === 'prepared' || item.stage === 'dispatched' || item.stage === 'in_progress' ? '/sales/operations' : '/sales/pipeline'} className="bg-white p-3 transition hover:bg-[#f7f4ed]"><div className="text-2xl font-semibold tabular-nums text-[#071421]">{item.count}</div><div className="mt-1 text-[11px] text-[var(--app-muted)]">{OPERATING_STAGE_META[item.stage].label}</div></Link>)}</div>
       </section>
 
       <section>

@@ -412,7 +412,7 @@ export default function AnalyticsPage() {
             ['Released', data.reservationFunnel.released],
             ['Expired', data.reservationFunnel.expired],
           ].map(([label, value]) => (
-            <div key={String(label)} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+            <div key={String(label)} className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">{label}</div>
               <div className="mt-1 text-xl font-bold text-[var(--app-ink)]">{value}</div>
             </div>

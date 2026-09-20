@@ -2506,7 +2506,7 @@ export function FloatingDialer() {
   return (
     <div className="fixed inset-x-3 z-50 flex justify-end sm:inset-x-auto sm:right-5" style={{ bottom: 'max(12px, env(safe-area-inset-bottom))' }}>
       {open && (
-        <div className="mb-3 w-full max-w-[min(420px,calc(100vw-24px))] overflow-hidden rounded-[28px] border border-white/10 bg-[#111111] text-white shadow-[0_30px_80px_rgba(0,0,0,0.5)] sm:w-[340px]">
+        <div className="mb-3 w-full max-w-[min(420px,calc(100vw-24px))] overflow-hidden rounded-3xl border border-white/10 bg-[#071421] text-white shadow-[0_30px_80px_rgba(0,0,0,0.5)] sm:w-[340px]">
 
           {/* ── INCOMING CALL ── */}
           {status === 'incoming' && (
@@ -2534,7 +2534,7 @@ export function FloatingDialer() {
                 </div>
               )}
               {transferContext && (
-                <div className="mt-4 w-full rounded-[12px] border border-amber-300/25 bg-amber-300/10 p-3 text-left text-xs">
+                <div className="mt-4 w-full rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-left text-xs">
                   <div className="font-semibold text-amber-200">Transferred by {transferContext.transferredBy || 'Saturn Star team'}</div>
                   <div className="mt-1 text-white/80">{transferContext.reason || 'Continue the customer conversation'}</div>
                   {transferContext.notes && <div className="mt-2 border-t border-white/10 pt-2 text-white/55">{transferContext.notes}</div>}
@@ -2545,7 +2545,7 @@ export function FloatingDialer() {
                   </div>
                 </div>
               )}
-              {activeLeadContext && <div className="mt-4 w-full rounded-[12px] border border-white/10 bg-white/5 p-3 text-left">
+              {activeLeadContext && <div className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left">
                 <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                   <div><div className="text-white/35">Stage</div><div className="mt-0.5 font-medium capitalize text-white/80">{activeLeadContext.stage.replaceAll('_', ' ')}</div></div>
                   <div><div className="text-white/35">Owner</div><div className="mt-0.5 font-medium text-white/80">{activeLeadOwner}</div></div>
@@ -2563,7 +2563,7 @@ export function FloatingDialer() {
               </button>
               <div className="mt-9 flex items-end justify-center gap-14">
                 <div className="flex flex-col items-center gap-2.5">
-                  <button onClick={declineIncoming} className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 shadow-[0_8px_24px_rgba(239,68,68,0.4)] transition hover:bg-rose-400 active:scale-95">
+                  <button onClick={declineIncoming} className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 shadow-[0_8px_24px_rgba(180,35,24,0.4)] transition hover:bg-rose-400 active:scale-95">
                     <svg className="h-7 w-7 rotate-[135deg] text-white" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
                     </svg>
@@ -2626,7 +2626,7 @@ export function FloatingDialer() {
                   {status === 'active' ? 'Live on' : 'Calling from'} {callerProfile.branchLabel || 'Primary'} · {callerProfile.fromNumber}
                 </div>
               )}
-              {activeLeadContext && <div className="mt-3 w-full rounded-[12px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
+              {activeLeadContext && <div className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
                 <div className="flex flex-wrap justify-between gap-2"><span className="capitalize">{activeLeadContext.stage.replaceAll('_', ' ')}</span><span>{activeLeadContext.moveDate || 'Move date TBD'}</span><span>{activeLeadOwner}</span></div>
                 <div className="mt-1 truncate text-white/40">{activeLeadRoute || activeLeadContext.branch || 'Route not confirmed'} · Last contact {activeLeadLastContact ? new Date(activeLeadLastContact).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : 'not recorded'}</div>
               </div>}
@@ -2656,7 +2656,7 @@ export function FloatingDialer() {
               <div className="mt-8 flex items-end justify-center gap-10">
                 {status === 'active' && (
                   <div className="flex flex-col items-center gap-2.5">
-                    <button onClick={toggleMute} className={`flex h-14 w-14 items-center justify-center rounded-full transition active:scale-95 ${muted ? 'bg-amber-500 shadow-[0_6px_20px_rgba(245,158,11,0.35)] hover:bg-amber-400' : 'bg-white/10 hover:bg-white/15'}`}>
+                    <button onClick={toggleMute} className={`flex h-14 w-14 items-center justify-center rounded-full transition active:scale-95 ${muted ? 'bg-amber-500 shadow-[0_6px_20px_rgba(201,151,0,0.35)] hover:bg-amber-400' : 'bg-white/10 hover:bg-white/15'}`}>
                       {muted ? (
                         <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z" />
@@ -2688,7 +2688,7 @@ export function FloatingDialer() {
                   </div>
                 )}
                 <div className="flex flex-col items-center gap-2.5">
-                  <button onClick={hangUp} className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 shadow-[0_8px_24px_rgba(239,68,68,0.4)] transition hover:bg-rose-400 active:scale-95">
+                  <button onClick={hangUp} className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 shadow-[0_8px_24px_rgba(180,35,24,0.4)] transition hover:bg-rose-400 active:scale-95">
                     <svg className="h-7 w-7 rotate-[135deg] text-white" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" />
                     </svg>
@@ -2706,7 +2706,7 @@ export function FloatingDialer() {
                     value={callNotes}
                     onChange={e => setCallNotes(e.target.value)}
                     placeholder="Call notes… (auto-saved on hangup)"
-                    className="w-full resize-none rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
+                    className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
                     rows={2}
                   />
                 </div>
@@ -2716,7 +2716,7 @@ export function FloatingDialer() {
               {status === 'active' && (
                 <div className="mt-2 px-1">
                   {warmTransferSession ? (
-                    <div className="space-y-2 rounded-[10px] border border-sky-400/20 bg-sky-400/8 px-3 py-3 text-xs text-sky-100">
+                    <div className="space-y-2 rounded-xl border border-sky-400/20 bg-sky-400/8 px-3 py-3 text-xs text-sky-100">
                       <div className="font-semibold text-sky-200">
                         {warmTransferSession.mode === 'hold'
                           ? (customerOnHold ? 'Customer is on hold' : 'Customer is back on the line')
@@ -2737,7 +2737,7 @@ export function FloatingDialer() {
                             <button
                               onClick={() => void joinWarmTransferParticipants()}
                               disabled={conferencing}
-                              className="col-span-2 rounded-[10px] bg-white py-2 text-xs font-semibold text-[#071421] disabled:opacity-50"
+                              className="col-span-2 rounded-xl bg-white py-2 text-xs font-semibold text-[#071421] disabled:opacity-50"
                             >
                               {conferencing ? 'Connecting…' : 'Bring everyone together'}
                             </button>
@@ -2745,14 +2745,14 @@ export function FloatingDialer() {
                           <button
                             onClick={() => void completeWarmTransfer()}
                             disabled={conferencing}
-                            className="rounded-[10px] bg-emerald-500/90 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                            className="rounded-xl bg-emerald-500/90 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                           >
                             {conferencing ? 'Working…' : warmTransferSession.mode === 'conference' ? 'Leave call' : 'Transfer & leave'}
                           </button>
                           <button
                             onClick={() => void returnWarmTransferToCaller()}
                             disabled={conferencing}
-                            className="rounded-[10px] border border-white/10 bg-white/5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
+                            className="rounded-xl border border-white/10 bg-white/5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
                           >
                             {warmTransferSession.mode === 'conference' ? 'Remove teammate' : 'Cancel transfer'}
                           </button>
@@ -2762,7 +2762,7 @@ export function FloatingDialer() {
                   ) : !showConference ? (
                     <button
                       onClick={() => setShowConference(true)}
-                      className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/50 transition hover:bg-white/10 hover:text-white/80"
                     >
                       Transfer or add teammate
                     </button>
@@ -2772,19 +2772,19 @@ export function FloatingDialer() {
                         value={conferenceTarget}
                         onChange={e => setConferenceTarget(e.target.value)}
                         placeholder="Choose a teammate below"
-                        className="w-full rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80 placeholder:text-white/25 outline-none focus:border-white/20"
                       />
                       <div className="flex gap-2">
                         <button
                           onClick={() => void initiateConference()}
                           disabled={!conferenceTarget.trim() || conferencing}
-                          className="flex-1 rounded-[10px] bg-sky-500/80 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition hover:bg-sky-500"
+                          className="flex-1 rounded-xl bg-sky-500/80 py-1.5 text-xs font-semibold text-white disabled:opacity-50 transition hover:bg-sky-500"
                         >
                           {conferencing ? 'Connecting…' : 'Call teammate privately'}
                         </button>
                         <button
                           onClick={() => { setShowConference(false); setConferenceTarget('') }}
-                          className="rounded-[10px] border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:text-white/80"
+                          className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:text-white/80"
                         >
                           Cancel
                         </button>
@@ -2820,7 +2820,7 @@ export function FloatingDialer() {
               {status === 'connecting' && stuckSeconds >= 30 && (
                 <button
                   onClick={forceHangUp}
-                  className="mt-5 rounded-[10px] border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-400/20"
+                  className="mt-5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-400/20"
                 >
                   Force end stuck call
                 </button>
@@ -2851,20 +2851,20 @@ export function FloatingDialer() {
 
               {/* Browser warning */}
               {browserWarning && (
-                <div className="mt-3 rounded-[10px] border border-amber-400/20 bg-amber-400/8 px-3 py-2 text-xs text-amber-300">
+                <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2 text-xs text-amber-300">
                   ⚠ {browserWarning}
                 </div>
               )}
 
               {/* Mic denied warning */}
               {micPermission === 'denied' && (
-                <div className="mt-3 rounded-[10px] border border-rose-400/20 bg-rose-400/8 px-3 py-2 text-xs text-rose-300">
+                <div className="mt-3 rounded-xl border border-rose-400/20 bg-rose-400/8 px-3 py-2 text-xs text-rose-300">
                   🎤 Microphone access blocked — allow it in your browser settings to make calls.
                 </div>
               )}
 
               {preCallWarning && micPermission !== 'denied' && (
-                <div className="mt-3 rounded-[10px] border border-sky-400/20 bg-sky-400/8 px-3 py-2 text-xs text-sky-200">
+                <div className="mt-3 rounded-xl border border-sky-400/20 bg-sky-400/8 px-3 py-2 text-xs text-sky-200">
                   {preCallWarning}
                 </div>
               )}
@@ -2882,11 +2882,11 @@ export function FloatingDialer() {
                       void makeCall()
                     }
                   }}
-                  className="h-11 flex-1 rounded-[12px] border border-white/10 bg-white/5 px-4 text-base font-medium text-white outline-none placeholder:text-white/25 focus:border-white/20"
+                  className="h-11 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 text-base font-medium text-white outline-none placeholder:text-white/25 focus:border-white/20"
                   placeholder="Enter number"
                 />
                 {phone && (
-                  <button onClick={() => handlePhoneChange(phone.slice(0, -1))} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white/5 text-white/50 transition hover:bg-white/10 hover:text-white/80">
+                  <button onClick={() => handlePhoneChange(phone.slice(0, -1))} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-white/50 transition hover:bg-white/10 hover:text-white/80">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 12H9m0 0l4-4m-4 4l4 4" />
                     </svg>
@@ -2894,7 +2894,7 @@ export function FloatingDialer() {
                 )}
               </div>
               {(callerProfile || callerProfileLoading) && (
-                <div className="mt-2 flex items-center justify-between rounded-[10px] border border-white/8 bg-white/5 px-3 py-2 text-[11px] text-white/55">
+                <div className="mt-2 flex items-center justify-between rounded-xl border border-white/8 bg-white/5 px-3 py-2 text-[11px] text-white/55">
                   <span>
                     {callerProfileLoading
                       ? 'Choosing local outbound line…'
@@ -2908,14 +2908,14 @@ export function FloatingDialer() {
 
               {/* Queue indicator */}
               {queueSize > 0 && status === 'ready' && (
-                <div className="mt-3 flex items-center justify-between rounded-[10px] border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
                   <div className="text-xs font-medium text-amber-300">
                     {queueSize} caller{queueSize > 1 ? 's' : ''} holding
                   </div>
                   <button
                     onClick={() => void acceptQueueCall()}
                     disabled={acceptingQueue}
-                    className="rounded-[8px] bg-amber-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:opacity-50 active:scale-95"
+                    className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:opacity-50 active:scale-95"
                   >
                     {acceptingQueue ? 'Connecting…' : 'Accept'}
                   </button>
@@ -2924,16 +2924,16 @@ export function FloatingDialer() {
 
               {/* Error panel */}
               {(error || status === 'error') && (
-                <div className="mt-3 rounded-[10px] border border-rose-400/20 bg-rose-400/8 p-3">
+                <div className="mt-3 rounded-xl border border-rose-400/20 bg-rose-400/8 p-3">
                   <div className="text-sm text-rose-300">
                     {error || 'Dialer failed to initialize — open browser console (F12) for details'}
                   </div>
                   {errorCode === 53405 && (
-                    <div className="mt-2 rounded-[8px] border border-amber-400/20 bg-amber-400/8 px-3 py-2 text-xs text-amber-300">
+                    <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/8 px-3 py-2 text-xs text-amber-300">
                       📱 Use Groundwire or your mobile to answer calls while this is resolved.
                     </div>
                   )}
-                  <button onClick={() => void retryConnection()} className="mt-2 rounded-[8px] bg-white/8 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/12">
+                  <button onClick={() => void retryConnection()} className="mt-2 rounded-lg bg-white/8 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:bg-white/12">
                     Retry connection
                   </button>
                 </div>
@@ -2959,10 +2959,10 @@ export function FloatingDialer() {
                           <select
                             value={selectedMicId}
                             onChange={e => setSelectedMicId(e.target.value)}
-                            className="w-full rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 outline-none"
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 outline-none"
                           >
                             {audioDevices.map(d => (
-                              <option key={d.deviceId} value={d.deviceId} className="bg-[#111]">
+                              <option key={d.deviceId} value={d.deviceId} className="bg-[#071421]">
                                 {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
                               </option>
                             ))}
@@ -2975,10 +2975,10 @@ export function FloatingDialer() {
                           <select
                             value={selectedSpeakerId}
                             onChange={e => setSelectedSpeakerId(e.target.value)}
-                            className="w-full rounded-[10px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 outline-none"
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 outline-none"
                           >
                             {speakerDevices.map(d => (
-                              <option key={d.deviceId} value={d.deviceId} className="bg-[#111]">
+                              <option key={d.deviceId} value={d.deviceId} className="bg-[#071421]">
                                 {d.label || `Speaker ${d.deviceId.slice(0, 8)}`}
                               </option>
                             ))}
@@ -3003,7 +3003,7 @@ export function FloatingDialer() {
                     key={key}
                     type="button"
                     onClick={() => handlePhoneChange(`${phone}${key}`)}
-                    className="flex h-11 items-center justify-center rounded-[12px] border border-white/8 bg-white/5 text-base font-medium text-white/80 transition hover:bg-white/10 active:bg-white/15"
+                    className="flex h-11 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-base font-medium text-white/80 transition hover:bg-white/10 active:bg-white/15"
                   >
                     {key}
                   </button>
@@ -3014,7 +3014,7 @@ export function FloatingDialer() {
               <button
                 onClick={() => void makeCall()}
                 disabled={!phone.trim() || status === 'idle' || outboundCallStarting || callerProfileLoading || micPermission === 'denied'}
-                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-emerald-500 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(16,185,129,0.28)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98]"
+                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(16,185,129,0.28)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98]"
               >
                 <PhoneIcon className="h-4 w-4" />
                 {status === 'idle'
@@ -3030,18 +3030,18 @@ export function FloatingDialer() {
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <a
                   href={phone.trim() ? `sms:${phone.trim()}` : '#'}
-                  className="flex h-10 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/60 transition hover:bg-white/12 hover:text-white/80"
+                  className="flex h-10 items-center justify-center rounded-xl bg-white/8 text-sm font-medium text-white/60 transition hover:bg-white/12 hover:text-white/80"
                 >
                   Open SMS
                 </a>
-                <Link href="/sales/new" className="flex h-10 items-center justify-center rounded-[12px] bg-white/8 text-sm font-medium text-white/60 transition hover:bg-white/12 hover:text-white/80">
+                <Link href="/sales/new" className="flex h-10 items-center justify-center rounded-xl bg-white/8 text-sm font-medium text-white/60 transition hover:bg-white/12 hover:text-white/80">
                   New lead
                 </Link>
                 <button
                   type="button"
                   onClick={() => void blockDialedNumber()}
                   disabled={!phone.trim() || blockingDialedNumber}
-                  className="flex h-10 items-center justify-center rounded-[12px] border border-rose-400/20 bg-rose-400/8 text-sm font-medium text-rose-300 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-35"
+                  className="flex h-10 items-center justify-center rounded-xl border border-rose-400/20 bg-rose-400/8 text-sm font-medium text-rose-300 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {blockingDialedNumber ? 'Blocking…' : 'Block'}
                 </button>
@@ -3061,7 +3061,7 @@ export function FloatingDialer() {
       {/* Floating toggle button */}
       <button
         onClick={() => setOpen(c => !c)}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--app-accent)] px-5 py-3 text-sm font-medium text-white shadow-[0_18px_44px_rgba(15,106,83,0.24)] transition hover:bg-[#0a5b47] sm:w-auto"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--app-accent)] px-5 py-3 text-sm font-medium text-white shadow-[0_18px_44px_rgba(15,106,83,0.24)] transition hover:bg-[#0f6a53] sm:w-auto"
       >
         <span className={`inline-block h-2.5 w-2.5 rounded-full ${status === 'active' ? 'animate-pulse bg-emerald-300' : status === 'incoming' ? 'animate-ping bg-white' : status === 'error' ? 'bg-rose-400' : 'bg-white/80'}`} />
         {status === 'active' ? 'On call' : status === 'incoming' ? 'Incoming!' : status === 'connecting' ? 'Calling…' : status === 'error' ? 'Dialer error' : open ? 'Hide dialer' : 'Dialer'}

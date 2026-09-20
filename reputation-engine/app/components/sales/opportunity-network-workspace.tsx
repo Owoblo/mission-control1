@@ -139,7 +139,7 @@ export function OpportunityNetworkWorkspace({
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d6b53a]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#c99700]">
               Move relationship graph
             </div>
             <h2
@@ -193,7 +193,7 @@ export function OpportunityNetworkWorkspace({
                           Remove
                         </button>
                       </div>
-                      <div className="mt-3 border-t border-[var(--app-line)] pt-2 text-xs text-[#344054]">
+                      <div className="mt-3 border-t border-[var(--app-line)] pt-2 text-xs text-[#071421]">
                         {MOVE_RELATIONSHIP_ROLE_LABELS[relationship.role]} ·{" "}
                         {relationship.confidence}
                       </div>
@@ -219,7 +219,7 @@ export function OpportunityNetworkWorkspace({
                     </div>
                   ))
                 ) : (
-                  <div className="border border-dashed border-[var(--app-line)] bg-[#fbfaf6] p-5 text-sm text-[var(--app-muted)] md:col-span-2">
+                  <div className="border border-dashed border-[var(--app-line)] bg-[#f7f4ed] p-5 text-sm text-[var(--app-muted)] md:col-span-2">
                     No surrounding relationships connected yet. Add the realtor,
                     brokerage, building, property manager, mortgage broker or
                     another relevant person or organization.
@@ -227,7 +227,7 @@ export function OpportunityNetworkWorkspace({
                 )}
               </div>
             </div>
-            <div className="border border-[var(--app-line)] bg-[#fbfaf6] p-4">
+            <div className="border border-[var(--app-line)] bg-[#f7f4ed] p-4">
               <div className="text-sm font-semibold text-[#071421]">
                 Connect a relationship
               </div>
@@ -265,7 +265,7 @@ export function OpportunityNetworkWorkspace({
                     <option value="likely">Likely match</option>
                     <option value="possible">Possible — verify</option>
                   </select>
-                  <label className="md:col-span-2 text-[11px] font-semibold uppercase tracking-wider text-[#5d5642]">
+                  <label className="md:col-span-2 text-[11px] font-semibold uppercase tracking-wider text-[#071421]">
                     Which side of the move?
                     <select
                       className="crm-input mt-1 w-full"
@@ -346,7 +346,7 @@ export function OpportunityNetworkWorkspace({
                   Connect to this move
                 </button>
                 <div className="border-t border-[var(--app-line)] pt-3">
-                  <label className="flex items-start gap-2 text-xs leading-5 text-[#344054]">
+                  <label className="flex items-start gap-2 text-xs leading-5 text-[#071421]">
                     <input
                       type="checkbox"
                       className="mt-1 accent-[#C99700]"
@@ -373,7 +373,7 @@ export function OpportunityNetworkWorkspace({
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--app-line)] bg-[#fbfaf6] px-5 py-4 md:px-7">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--app-line)] bg-[#f7f4ed] px-5 py-4 md:px-7">
             <div className="text-xs text-[var(--app-muted)]">
               {message ||
                 (reviewComplete

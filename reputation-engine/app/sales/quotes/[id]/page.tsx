@@ -60,24 +60,24 @@ function buildQuoteEmailHtml({
     ? 'This pricing reflects the latest inventory and access details currently on file. Reply to this email if you want any further adjustments before booking.'
     : 'This pricing is based on the inventory and access details currently on file. Reply to this email if you want any adjustments before booking.'
   return `
-  <div style="background:#f7f4ee;padding:32px 16px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#171717;">
-    <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e9e4d9;border-radius:18px;overflow:hidden;">
-      <div style="padding:28px 32px;border-bottom:1px solid #eee7da;">
-        <div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7c766a;font-weight:700;">${brandName}</div>
-        <h1 style="margin:14px 0 8px;font-size:30px;line-height:1.1;color:#171717;">${heading}</h1>
-        <p style="margin:0;font-size:15px;line-height:1.7;color:#4b5563;">${intro}</p>
+  <div style="background:#f7f4ed;padding:32px 16px;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#071421;">
+    <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #f7f4ed;border-radius:18px;overflow:hidden;">
+      <div style="padding:28px 32px;border-bottom:1px solid #f7f4ed;">
+        <div style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#667085;font-weight:700;">${brandName}</div>
+        <h1 style="margin:14px 0 8px;font-size:30px;line-height:1.1;color:#071421;">${heading}</h1>
+        <p style="margin:0;font-size:15px;line-height:1.7;color:#071421;">${intro}</p>
       </div>
       <div style="padding:28px 32px;">
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:24px;">
-          <div style="padding:16px;border:1px solid #eee7da;border-radius:14px;background:#fcfbf8;">
-            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Your Move</div>
-            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">Moving estimate</div>
-            <div style="margin-top:4px;font-size:14px;color:#57534e;">${originCity || 'Origin TBD'} to ${destCity || 'Destination TBD'}</div>
+          <div style="padding:16px;border:1px solid #f7f4ed;border-radius:14px;background:#f7f4ed;">
+            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#667085;font-weight:700;">Your Move</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#071421;">Moving estimate</div>
+            <div style="margin-top:4px;font-size:14px;color:#071421;">${originCity || 'Origin TBD'} to ${destCity || 'Destination TBD'}</div>
           </div>
-          <div style="padding:16px;border:1px solid #eee7da;border-radius:14px;background:#fcfbf8;">
-            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Move Date</div>
-            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#171717;">${moveDate || 'To be confirmed'}</div>
-            <div style="margin-top:4px;font-size:14px;color:#57534e;">Valid until ${validUntilText}</div>
+          <div style="padding:16px;border:1px solid #f7f4ed;border-radius:14px;background:#f7f4ed;">
+            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#667085;font-weight:700;">Move Date</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;color:#071421;">${moveDate || 'To be confirmed'}</div>
+            <div style="margin-top:4px;font-size:14px;color:#071421;">Valid until ${validUntilText}</div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:28px;">
@@ -86,18 +86,18 @@ function buildQuoteEmailHtml({
             <div style="margin-top:8px;font-size:30px;font-weight:700;">${formatMoney(total)}</div>
             <div style="margin-top:4px;font-size:11px;opacity:.65;">+ 13% HST — full breakdown on quote</div>
           </div>
-          <div style="padding:18px;border-radius:14px;background:#f4efe4;border:1px solid #eee7da;">
-            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;">Deposit To Book</div>
-            <div style="margin-top:8px;font-size:30px;font-weight:700;color:#171717;">${formatMoney(deposit)}</div>
+          <div style="padding:18px;border-radius:14px;background:#f7f4ed;border:1px solid #f7f4ed;">
+            <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#667085;font-weight:700;">Deposit To Book</div>
+            <div style="margin-top:8px;font-size:30px;font-weight:700;color:#071421;">${formatMoney(deposit)}</div>
           </div>
         </div>
-        ${moveDescription ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f4efe4;border:1px solid #eee7da;font-size:14px;line-height:1.7;color:#374151;">${moveDescription}</div>` : ''}
-        ${scopeNotes && scopeNotes.length > 0 ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#fcfbf8;border:1px solid #eee7da;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8a8478;font-weight:700;margin-bottom:8px;">Move-specific notes</div>${scopeNotes.map(note => `<div style="font-size:13px;line-height:1.7;color:#4b5563;">• ${note}</div>`).join('')}</div>` : ''}
-        <div style="margin-bottom:18px;font-size:15px;line-height:1.7;color:#374151;">${summary}</div>
+        ${moveDescription ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f7f4ed;border:1px solid #f7f4ed;font-size:14px;line-height:1.7;color:#071421;">${moveDescription}</div>` : ''}
+        ${scopeNotes && scopeNotes.length > 0 ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:#f7f4ed;border:1px solid #f7f4ed;"><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#667085;font-weight:700;margin-bottom:8px;">Move-specific notes</div>${scopeNotes.map(note => `<div style="font-size:13px;line-height:1.7;color:#071421;">• ${note}</div>`).join('')}</div>` : ''}
+        <div style="margin-bottom:18px;font-size:15px;line-height:1.7;color:#071421;">${summary}</div>
         <div style="margin-bottom:28px;">
           <a href="${acceptUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#0f6a53;color:#ffffff;text-decoration:none;font-weight:700;">Open Quote</a>
         </div>
-        <div style="padding-top:18px;border-top:1px solid #eee7da;font-size:13px;line-height:1.8;color:#6b7280;">
+        <div style="padding-top:18px;border-top:1px solid #f7f4ed;font-size:13px;line-height:1.8;color:#667085;">
           ${footer}
         </div>
       </div>
@@ -854,13 +854,13 @@ ${brand.fullName}`
   return (
     <div className="crm-shell flex flex-col gap-0">
       {error && (
-        <div className="mb-4 rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700">{error}</div>
+        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-700">{error}</div>
       )}
       {quoteReadOnlyReason ? (
-        <div className="mb-4 rounded-[8px] border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">{quoteReadOnlyReason}</div>
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">{quoteReadOnlyReason}</div>
       ) : null}
       {deliveryJobs.length > 0 ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-3 text-xs">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--app-line)] bg-white px-4 py-3 text-xs">
           <span className="font-semibold text-[var(--app-ink)]">Delivery:</span>
           {deliveryJobs.slice(0, 4).map(job => {
             const tone = job.status === 'sent'
@@ -886,14 +886,14 @@ ${brand.fullName}`
         {lead ? (
           <button
             onClick={() => router.push(`/sales/leads/${lead.id}`)}
-            className="flex items-center gap-1.5 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
           >
             ← {lead.name || 'Back to lead'}
           </button>
         ) : (
           <button
             onClick={() => router.push('/sales')}
-            className="flex items-center gap-1.5 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
           >
             ← Dashboard
           </button>
@@ -948,7 +948,7 @@ ${brand.fullName}`
               More ▾
             </button>
             {moreMenuOpen && (
-              <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-[8px] border border-[var(--app-line)] bg-white py-1 shadow-lg">
+              <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-[var(--app-line)] bg-white py-1 shadow-lg">
                 <button onClick={() => { setMoreMenuOpen(false); window.print() }} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50">🖨 Print</button>
                 <button onClick={() => { setMoreMenuOpen(false); setShowPreview('email'); setPreviewTab('email') }} disabled={!canEditQuoteWorkspace} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
                   {isRevision ? '✉ Resend Email Update' : '✉ Email Only'}
@@ -966,12 +966,12 @@ ${brand.fullName}`
           {/* Primary CTA */}
           {justSent ? (
             <div className="flex items-center gap-2">
-              <div className="rounded-[8px] bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
+              <div className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
                 ✅ Quote queued for delivery
               </div>
               <button
                 onClick={() => { window.location.href = lead ? `/sales/leads/${lead.id}` : '/sales' }}
-                className="rounded-[8px] border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition"
+                className="rounded-lg border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition"
               >
                 ← {lead ? `Back to ${lead.name}` : 'Back'}
               </button>
@@ -980,7 +980,7 @@ ${brand.fullName}`
             <button
               onClick={() => { setShowPreview('both'); setPreviewTab('email') }}
               disabled={!canEditQuoteWorkspace || sendBothBusy}
-              className="rounded-[8px] bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="rounded-lg bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {sendBothBusy ? 'Sending…' : isRevision ? 'Preview & Send Update →' : 'Preview & Send →'}
             </button>
@@ -989,7 +989,7 @@ ${brand.fullName}`
       </div>
 
       {/* ── MAIN WORKSPACE ── */}
-      <div className="overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)]" style={{ minHeight: '600px' }}>
+      <div className="overflow-hidden rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)]" style={{ minHeight: '600px' }}>
         <div className="flex h-full flex-col lg:flex-row" style={{ minHeight: '600px' }}>
 
           {/* ── LEFT SIDEBAR: Controls ── */}
@@ -1032,7 +1032,7 @@ ${brand.fullName}`
               <div>
                 <div className="crm-label mb-3">Pricing</div>
                 {lineItems.some(li => li.description === 'Moving Services — Agreed Rate') && (
-                  <div className="mb-3 rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700 font-medium">
+                  <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700 font-medium">
                     ⚠ Price override active — editing crew/hours won&apos;t change the quote total. Go back to the estimate modal to adjust.
                   </div>
                 )}
@@ -1090,12 +1090,12 @@ ${brand.fullName}`
               <div>
                 <div className="crm-label mb-3">Discount</div>
                 {currentUser?.role === 'sales_rep' ? (
-                  <div className="mb-2 rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+                  <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
                     Sales reps can apply up to a 10% discount. Larger pricing adjustments require a manager.
                   </div>
                 ) : null}
                 {currentUser?.role === 'manager' ? (
-                  <div className="mb-2 rounded-[6px] border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-medium text-sky-700">
+                  <div className="mb-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] font-medium text-sky-700">
                     Managers can approve larger discounts, up to 20%, without involving the owner.
                   </div>
                 ) : null}
@@ -1105,12 +1105,12 @@ ${brand.fullName}`
                   <button onClick={() => { setDiscountAmount(200); setDiscountLabel('$200 off') }} className="crm-button flex-1 text-xs">$200</button>
                 </div>
                 {currentUser?.role === 'sales_rep' && discountPct > 0.1 ? (
-                  <div className="mb-2 rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium text-rose-700">
+                  <div className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium text-rose-700">
                     This discount is above the rep threshold and won&apos;t save until a manager or owner reviews it.
                   </div>
                 ) : null}
                 {discountAmount > 0 && (
-                  <div className="flex items-center justify-between rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm">
+                  <div className="flex items-center justify-between rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-sm">
                     <span className="text-[var(--app-muted)]">{discountLabel}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-emerald-700">−{formatMoney(discountAmount)}</span>
@@ -1128,7 +1128,7 @@ ${brand.fullName}`
                     <button
                       key={preset.id}
                       onClick={() => addPackingMaterial(preset.id)}
-                      className="flex w-full items-center justify-between rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-left transition hover:border-[var(--app-accent)]"
+                      className="flex w-full items-center justify-between rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-left transition hover:border-[var(--app-accent)]"
                     >
                       <span className="text-sm text-[var(--app-ink)]">{preset.label}</span>
                       <span className="text-xs font-medium text-[var(--app-muted)]">{formatMoney(preset.unitPrice)}</span>
@@ -1263,7 +1263,7 @@ ${brand.fullName}`
           }}
         >
           <div
-            className="flex w-full max-w-3xl flex-col overflow-hidden rounded-[12px] bg-white shadow-none"
+            className="flex w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-none"
             style={{ maxHeight: '92vh' }}
             onMouseDown={event => event.stopPropagation()}
           >
@@ -1278,7 +1278,7 @@ ${brand.fullName}`
               <div className="flex items-center gap-2">
                 <button
                   onClick={closePreviewModal}
-                  className="rounded-[6px] border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                  className="rounded-lg border border-[var(--app-line)] px-3 py-1.5 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
                 >
                   ← Fix Estimate
                 </button>
@@ -1296,7 +1296,7 @@ ${brand.fullName}`
                   {lead && (
                     <button
                       onClick={() => router.push(`/sales/leads/${lead.id}`)}
-                      className="shrink-0 rounded-[6px] bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 transition"
+                      className="shrink-0 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 transition"
                     >
                       ← Add Email / Phone
                     </button>
@@ -1336,7 +1336,7 @@ ${brand.fullName}`
               {previewTab === ('quote') ? (
                 <>
                   {Math.abs(quoteTotals.subtotal - (quote?.subtotal ?? 0)) > 0.01 && (
-                    <div className="mx-4 mt-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                       ⚠️ The customer view below shows the <strong>previously saved price</strong> (${(quote?.subtotal ?? 0).toFixed(2)}). The prices in the confirm section below are what will actually be sent (${quoteTotals.subtotal.toFixed(2)}).
                     </div>
                   )}
@@ -1350,7 +1350,7 @@ ${brand.fullName}`
                 </>
               ) : previewTab === ('email') ? (
                 <div className="p-6">
-                  <div className="mb-4 rounded-[8px] border border-[var(--app-line)] bg-stone-50 px-4 py-3 text-sm">
+                  <div className="mb-4 rounded-lg border border-[var(--app-line)] bg-stone-50 px-4 py-3 text-sm">
                     <div className="flex flex-wrap gap-4">
                       <span>
                         <span className="font-medium text-[var(--app-muted)]">To: </span>
@@ -1362,7 +1362,7 @@ ${brand.fullName}`
                     </div>
                   </div>
                   <div
-                    className="overflow-hidden rounded-[8px] border border-[var(--app-line)]"
+                    className="overflow-hidden rounded-lg border border-[var(--app-line)]"
                     dangerouslySetInnerHTML={{ __html: emailDraft.htmlBody }}
                   />
                 </div>
@@ -1374,7 +1374,7 @@ ${brand.fullName}`
                       ? <span className="font-medium text-[var(--app-ink)]">{client?.phone || lead?.phone}</span>
                       : <span className="text-amber-600 font-medium">no phone on file</span>}
                   </div>
-                  <div className="inline-block max-w-sm rounded-[18px] rounded-tl-[4px] bg-stone-100 px-4 py-3 text-sm leading-relaxed text-[var(--app-ink)]">
+                  <div className="inline-block max-w-sm rounded-2xl rounded-tl-[4px] bg-stone-100 px-4 py-3 text-sm leading-relaxed text-[var(--app-ink)]">
                     {smsBody}
                   </div>
                 </div>
@@ -1384,12 +1384,12 @@ ${brand.fullName}`
             {/* Modal footer */}
             <div className="border-t border-[var(--app-line)] px-6 py-4 space-y-3">
               {error && (
-                <div role="alert" className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700">
+                <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700">
                   {error}
                 </div>
               )}
               {/* Price confirmation */}
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+              <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Confirm Price Being Sent</div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -1420,7 +1420,7 @@ ${brand.fullName}`
                     else await sendNow()
                   }}
                   disabled={!canEditQuoteWorkspace || sendBusy || sendBothBusy || (!(client?.email || lead?.email) && !(client?.phone || lead?.phone))}
-                  className="rounded-[8px] bg-[var(--app-accent)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                  className="rounded-lg bg-[var(--app-accent)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                 >
                   {(sendBusy || sendBothBusy)
                     ? 'Sending…'

@@ -70,7 +70,7 @@ export function RecordingPlayer({ recordingUrl, recordingSid, className = 'w-ful
           type="button"
           onClick={() => void loadRecording()}
           disabled={loading}
-          className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)] disabled:opacity-60"
+          className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)] disabled:opacity-60"
         >
           {loading ? 'Loading recording…' : 'Load recording'}
         </button>

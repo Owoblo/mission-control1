@@ -409,7 +409,7 @@ export default function DialerHealthPage() {
 
         {/* TwiML probe + Twilio alert strip */}
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className={`flex items-center gap-3 rounded-[10px] border px-4 py-3 ${
+          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
             twimlProbe === null ? 'border-stone-200 bg-stone-50' :
             twimlProbe.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
           }`}>
@@ -423,7 +423,7 @@ export default function DialerHealthPage() {
               <div className="text-xs text-[var(--app-muted)]">{twimlProbe?.detail || 'Checking…'}</div>
             </div>
           </div>
-          <div className={`flex items-center gap-3 rounded-[10px] border px-4 py-3 ${
+          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
             twilioAlerts.length === 0 ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
           }`}>
             <span className={`text-lg ${twilioAlerts.length === 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -449,7 +449,7 @@ export default function DialerHealthPage() {
             { label: 'Failed', value: health?.metrics?.failedCallsToday ?? 0 },
             { label: '53405', value: health?.metrics?.mediaConnectionFailuresToday ?? 0 },
           ].map(card => (
-            <div key={card.label} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+            <div key={card.label} className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
               <div className="text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">{card.label}</div>
               <div className="mt-2 text-3xl font-semibold text-[var(--app-ink)]">{card.value}</div>
             </div>
@@ -463,7 +463,7 @@ export default function DialerHealthPage() {
             { label: 'Warm Handoffs', value: health?.metrics?.warmTransfersCompletedToday ?? 0 },
             { label: 'Warm Returns', value: health?.metrics?.warmTransfersReturnedToday ?? 0 },
           ].map(card => (
-            <div key={card.label} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
+            <div key={card.label} className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-4">
               <div className="text-xs uppercase tracking-[0.16em] text-[var(--app-muted)]">{card.label}</div>
               <div className="mt-2 text-3xl font-semibold text-[var(--app-ink)]">{card.value}</div>
             </div>
@@ -472,14 +472,14 @@ export default function DialerHealthPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">System Checks</h2>
                 <button onClick={() => void runChecks()} className="crm-button text-xs">Re-run</button>
               </div>
               <div className="space-y-2">
                 {checks.map(check => (
-                  <div key={check.label} className={`flex items-center justify-between rounded-[8px] border px-3 py-2 ${statusColor(check.status)}`}>
+                  <div key={check.label} className={`flex items-center justify-between rounded-lg border px-3 py-2 ${statusColor(check.status)}`}>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold">{statusIcon(check.status)}</span>
                       <span className="text-sm font-medium">{check.label}</span>
@@ -490,7 +490,7 @@ export default function DialerHealthPage() {
               </div>
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Twilio Token</h2>
                 <button onClick={checkToken} disabled={tokenStatus === 'checking'} className="crm-button text-xs">
@@ -502,7 +502,7 @@ export default function DialerHealthPage() {
               </div>
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Stress Tests</h2>
                 <button onClick={() => void refreshAll()} className="crm-button text-xs">Refresh</button>
@@ -519,7 +519,7 @@ export default function DialerHealthPage() {
               {actionStatus && <div className="mt-3 text-xs text-[var(--app-muted)]">{actionStatus}</div>}
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Current Snapshot</h2>
               <div className="grid gap-2 text-sm md:grid-cols-2">
                 {[
@@ -530,7 +530,7 @@ export default function DialerHealthPage() {
                   ['Identity', String(snapshot.identity || 'unknown')],
                   ['Token expiry', formatTime(typeof snapshot.tokenExpiresAt === 'string' ? snapshot.tokenExpiresAt : null)],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
+                  <div key={label} className="rounded-lg bg-[var(--app-bg)] px-3 py-2">
                     <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
                     <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
                   </div>
@@ -540,7 +540,7 @@ export default function DialerHealthPage() {
           </div>
 
           <div className="space-y-6">
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Production Monitoring</h2>
               <div className="space-y-2 text-sm text-[var(--app-muted)]">
                 <div>Browser sessions online: {health?.browserPresence?.sessionCount ?? 0}</div>
@@ -558,7 +558,7 @@ export default function DialerHealthPage() {
                 <div className="mt-4 space-y-2">
                   <div className="text-[11px] uppercase tracking-[0.16em] text-[var(--app-muted)]">Calls by rep</div>
                   {health.metrics.callsByRep.map(row => (
-                    <div key={row.rep} className="flex items-center justify-between rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-sm">
+                    <div key={row.rep} className="flex items-center justify-between rounded-lg bg-[var(--app-bg)] px-3 py-2 text-sm">
                       <span>{row.rep}</span>
                       <span>{row.count}</span>
                     </div>
@@ -567,7 +567,7 @@ export default function DialerHealthPage() {
               ) : null}
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Queue Routing</h2>
               <div className="grid gap-2 sm:grid-cols-2">
                 {[
@@ -576,7 +576,7 @@ export default function DialerHealthPage() {
                   ['Requeued', health?.metrics?.queueRequeuedToday ?? 0],
                   ['Rerouted', health?.metrics?.queueReroutedToday ?? 0],
                 ].map(([label, value]) => (
-                  <div key={String(label)} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
+                  <div key={String(label)} className="rounded-lg bg-[var(--app-bg)] px-3 py-2">
                     <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
                     <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
                   </div>
@@ -587,7 +587,7 @@ export default function DialerHealthPage() {
                   <div className="text-sm text-[var(--app-muted)]">No queue routing events captured yet.</div>
                 ) : (
                   (health?.metrics?.recentQueueEvents || []).map((event, index) => (
-                    <div key={`${event.ts}-${event.event}-${index}`} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-sm">
+                    <div key={`${event.ts}-${event.event}-${index}`} className="rounded-lg bg-[var(--app-bg)] px-3 py-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-medium text-[var(--app-ink)]">{prettyDialerEventName(event.event)}</div>
                         <div className="text-[11px] text-[var(--app-muted)]">{formatTime(event.ts)}</div>
@@ -603,7 +603,7 @@ export default function DialerHealthPage() {
               </div>
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Warm Transfers</h2>
               <div className="grid gap-2 sm:grid-cols-2">
                 {[
@@ -612,7 +612,7 @@ export default function DialerHealthPage() {
                   ['Completed', health?.metrics?.warmTransfersCompletedToday ?? 0],
                   ['Returned', health?.metrics?.warmTransfersReturnedToday ?? 0],
                 ].map(([label, value]) => (
-                  <div key={String(label)} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
+                  <div key={String(label)} className="rounded-lg bg-[var(--app-bg)] px-3 py-2">
                     <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
                     <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
                   </div>
@@ -623,7 +623,7 @@ export default function DialerHealthPage() {
                   <div className="text-sm text-[var(--app-muted)]">No warm-transfer events captured yet.</div>
                 ) : (
                   (health?.metrics?.recentWarmTransferEvents || []).map((event, index) => (
-                    <div key={`${event.ts}-${event.event}-${index}`} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-sm">
+                    <div key={`${event.ts}-${event.event}-${index}`} className="rounded-lg bg-[var(--app-bg)] px-3 py-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-medium text-[var(--app-ink)]">{prettyDialerEventName(event.event)}</div>
                         <div className="text-[11px] text-[var(--app-muted)]">{formatTime(event.ts)}</div>
@@ -638,7 +638,7 @@ export default function DialerHealthPage() {
               </div>
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Server Event Log</h2>
                 <span className="text-xs text-[var(--app-muted)]">{serverEvents.length} events</span>
@@ -648,7 +648,7 @@ export default function DialerHealthPage() {
                   <div className="text-[var(--app-muted)]">No server-side dialer events captured yet.</div>
                 ) : (
                   serverEvents.map((event, index) => (
-                    <div key={`${event.ts}-${index}`} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
+                    <div key={`${event.ts}-${index}`} className="rounded-lg bg-[var(--app-bg)] px-3 py-2">
                       <div className="text-[var(--app-muted)]">{formatTime(event.ts)}</div>
                       <div className="mt-1 font-semibold text-[var(--app-ink)]">{String(event.properties.event || 'event')}</div>
                       <div className="mt-1 text-[var(--app-muted)]">
@@ -660,7 +660,7 @@ export default function DialerHealthPage() {
               </div>
             </div>
 
-            <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Local Event Log</h2>
                 <span className="text-xs text-[var(--app-muted)]">{localEvents.length} events</span>
@@ -670,7 +670,7 @@ export default function DialerHealthPage() {
                   <div className="text-[var(--app-muted)]">No local events recorded yet.</div>
                 ) : (
                   [...localEvents].reverse().map((event, index) => (
-                    <div key={`${event.ts}-${index}`} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
+                    <div key={`${event.ts}-${index}`} className="rounded-lg bg-[var(--app-bg)] px-3 py-2">
                       <div className="text-[var(--app-muted)]">{formatTime(event.ts)}</div>
                       <div className="mt-1 font-semibold text-[var(--app-ink)]">{event.event}</div>
                       <div className="mt-1 text-[var(--app-muted)]">{event.detail || String(event.payload?.failureReason || '')}</div>
@@ -681,11 +681,11 @@ export default function DialerHealthPage() {
             </div>
 
             {twilioAlerts.length > 0 && (
-              <div className="rounded-[10px] border border-rose-200 bg-rose-50 p-5">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-5">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-rose-700">Telephony Error Alerts</h2>
                 <div className="space-y-2 font-mono text-xs">
                   {twilioAlerts.slice(0, 10).map((alert, i) => (
-                    <div key={i} className="rounded-[6px] border border-rose-200 bg-white px-3 py-2">
+                    <div key={i} className="rounded-lg border border-rose-200 bg-white px-3 py-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-rose-700">{alert.errorCode}</span>
                         <span className="text-rose-400">{new Date(alert.ts).toLocaleTimeString()}</span>
@@ -698,11 +698,11 @@ export default function DialerHealthPage() {
             )}
 
             {devices.length > 0 && (
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+              <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Audio Inputs</h2>
                 <div className="space-y-2">
                   {devices.map(device => (
-                    <div key={device.deviceId} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-ink)]">
+                    <div key={device.deviceId} className="rounded-lg bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-ink)]">
                       {device.label || `Microphone ${device.deviceId.slice(0, 10)}`}
                     </div>
                   ))}

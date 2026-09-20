@@ -148,7 +148,7 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
       ) : (
         <>
           {sessions[0]?.status === 'waiting' && (
-            <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 shadow-[0_0_0_3px_rgba(245,158,11,0.08)]">
+            <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 shadow-[0_0_0_3px_rgba(201,151,0,0.08)]">
               <div className="flex items-start gap-2.5">
                 <span className="mt-1 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-amber-500" />
                 <div className="min-w-0">

@@ -106,7 +106,7 @@ export function VideoSurveyReviewPanel({ sessionId }: { sessionId: string }) {
             </div>
             {item.review_status === 'pending' && (
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <button disabled={busyId === item.id || item.disposition === 'uncertain'} onClick={() => void decide(item, 'approved')} className="rounded-lg bg-[#0b7055] px-2 py-2 font-semibold text-white disabled:opacity-40">Approve</button>
+                <button disabled={busyId === item.id || item.disposition === 'uncertain'} onClick={() => void decide(item, 'approved')} className="rounded-lg bg-[#0f6a53] px-2 py-2 font-semibold text-white disabled:opacity-40">Approve</button>
                 <button disabled={busyId === item.id} onClick={() => void decide(item, 'rejected')} className="rounded-lg border border-slate-300 bg-white px-2 py-2 font-semibold">Reject</button>
               </div>
             )}

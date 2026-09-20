@@ -197,12 +197,12 @@ export default function VideoSurveyRoom({ authToken, roomName, eventEndpoint, pa
   }
 
   return (
-    <div className="relative min-h-[70vh] overflow-hidden rounded-3xl bg-[#111]">
+    <div className="relative min-h-[70vh] overflow-hidden rounded-3xl bg-[#071421]">
       <RtkMeeting meeting={meeting} className="min-h-[70vh]" />
       {peerPresent === false && !left && (
         <div className="pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center px-20">
           <div className="flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-xs font-semibold text-[#071421] shadow-xl backdrop-blur">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-[#e1ad01]" />
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#c99700]" />
             Waiting for {peerLabel || (participantRole === 'customer' ? 'your moving specialist' : 'the customer')}…
           </div>
         </div>

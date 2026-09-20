@@ -25,7 +25,7 @@ export default function RootError({ error, reset }: { error: Error & { digest?: 
           <button
             type="button"
             onClick={() => reset()}
-            className="min-h-[44px] rounded-lg bg-[#071421] px-4 text-sm font-bold text-white hover:bg-[#243460]"
+            className="min-h-[44px] rounded-lg bg-[#071421] px-4 text-sm font-bold text-white hover:bg-[#071421]"
           >
             Try again
           </button>
