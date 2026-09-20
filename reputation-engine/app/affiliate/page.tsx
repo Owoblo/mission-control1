@@ -3,6 +3,7 @@
 import { Check, ClipboardList, Lock, PartyPopper } from 'lucide-react'
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { URGENCY_TONE_CLASSES } from '@/app/components/sales/urgency-badge'
 
 interface Partner {
   id: string
@@ -30,13 +31,13 @@ interface Submission {
   created_at: string
 }
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  pending:   { label: 'Received',  color: 'bg-blue-100 text-blue-700' },
-  contacted: { label: 'Contacted', color: 'bg-amber-100 text-amber-700' },
-  quoted:    { label: 'Quoted',    color: 'bg-purple-100 text-purple-700' },
-  booked:    { label: 'Booked',    color: 'bg-emerald-100 text-emerald-700' },
-  won:       { label: 'Won',     color: 'bg-emerald-100 text-emerald-800 font-semibold' },
-  lost:      { label: 'Not booked', color: 'bg-slate-100 text-slate-500' },
+const STATUS_META: Record<string, { label: string; tone: keyof typeof URGENCY_TONE_CLASSES }> = {
+  pending:   { label: 'Received',   tone: 'info' },
+  contacted: { label: 'Contacted',  tone: 'info' },
+  quoted:    { label: 'Quoted',     tone: 'warning' },
+  booked:    { label: 'Booked',     tone: 'positive' },
+  won:       { label: 'Won',        tone: 'positive' },
+  lost:      { label: 'Not booked', tone: 'neutral' },
 }
 
 const MOVE_SIZES = ['Studio / Bachelor', '1 Bedroom', '2 Bedrooms', '3 Bedrooms', '4 Bedrooms', '5+ Bedrooms / Full House', 'Office / Commercial', 'Other']
@@ -115,7 +116,7 @@ function AffiliatePortal() {
     <div className="min-h-screen bg-[#f9fafb]">
       <h1 className="sr-only">Saturn Star partner portal</h1>
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-6">
+      <div  className="bg-[#071421] px-4 py-6">
         <div className="mx-auto max-w-lg">
           <div className="text-white/60 text-[11px] font-semibold uppercase tracking-widest mb-1">Local Partner Network</div>
           <div className="text-white text-xl font-bold">Saturn Star Movers</div>
@@ -137,9 +138,9 @@ function AffiliatePortal() {
         <div className="grid grid-cols-2 gap-3">
           {[
             { label: 'Clients Referred', value: submissions.length, sub: `${wonJobs} completed` },
-            { label: 'In Progress', value: pendingJobs, sub: 'being worked' },
+            { label: 'In Progress', value: pendingJobs, sub: 'being worked right now' },
             { label: 'Credited Rewards', value: `$${totalEarned}`, sub: partner?.commissionType === 'per_job' ? `after completed paid moves` : `${partner?.commissionRate}% after completion` },
-            { label: 'Pending Payout', value: `$${pendingPayout}`, sub: pendingPayout > 0 ? 'ready for payout' : 'nothing due yet' },
+            { label: 'Pending Payout', value: `$${pendingPayout}`, sub: pendingPayout > 0 ? 'cleared — we\'ll be in touch to arrange payment' : 'nothing due yet' },
           ].map(s => (
             <div key={s.label} className="rounded-2xl bg-white p-4 shadow-sm">
               <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{s.label}</div>
@@ -152,8 +153,8 @@ function AffiliatePortal() {
         {/* Action buttons */}
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => { setView('submit'); setSubmitted(false); setForm({ customer_name: '', customer_phone: '', customer_email: '', move_date: '', move_size: '', origin_city: '', dest_city: '', notes: '' }) }}
-            className="rounded-2xl py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg, #0f6a53 0%, #0f6a53 100%)' }}>
+            className="rounded-2xl bg-[#0f6a53] py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
             + Refer a Client
           </button>
           <button onClick={() => setView('history')}
@@ -172,7 +173,7 @@ function AffiliatePortal() {
               { n: '3', title: 'Reward after completion', desc: `Rewards are credited only after the client completes a paid move.` },
             ].map(s => (
               <div key={s.n} className="flex gap-3">
-                <div className="h-7 w-7 rounded-full bg-[#0f6a53] text-white text-xs font-bold flex items-center justify-center shrink-0">{s.n}</div>
+                <div className="h-7 w-7 rounded-full bg-[#0F6A53] text-white text-xs font-bold flex items-center justify-center shrink-0">{s.n}</div>
                 <div>
                   <div className="text-sm font-semibold text-[#071421]">{s.title}</div>
                   <div className="text-[11px] text-slate-500">{s.desc}</div>
@@ -190,7 +191,7 @@ function AffiliatePortal() {
       {/* Submit Lead Drawer */}
       {view === 'submit' && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#f9fafb]">
-          <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
+          <div  className="bg-[#071421] px-4 py-5 flex items-center gap-3">
             <button onClick={() => setView('home')} className="text-white/70 hover:text-white text-sm">← Back</button>
             <div className="text-white font-semibold">Refer a Client</div>
           </div>
@@ -214,20 +215,20 @@ function AffiliatePortal() {
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Full Name *</label>
                     <input value={form.customer_name} onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))} required
                       placeholder="Sarah Johnson"
-                      className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                      className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Phone</label>
                       <input type="tel" value={form.customer_phone} onChange={e => setForm(f => ({ ...f, customer_phone: e.target.value }))}
                         placeholder="519-555-0100"
-                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Email</label>
                       <input type="email" value={form.customer_email} onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))}
                         placeholder="sarah@email.com"
-                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]" />
                     </div>
                   </div>
                 </div>
@@ -239,25 +240,25 @@ function AffiliatePortal() {
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving From</label>
                       <input value={form.origin_city} onChange={e => setForm(f => ({ ...f, origin_city: e.target.value }))}
                         placeholder="Windsor"
-                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Moving To</label>
                       <input value={form.dest_city} onChange={e => setForm(f => ({ ...f, dest_city: e.target.value }))}
                         placeholder="Toronto"
-                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Move Date</label>
                       <input type="date" value={form.move_date} onChange={e => setForm(f => ({ ...f, move_date: e.target.value }))}
-                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]" />
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Home Size</label>
                       <select value={form.move_size} onChange={e => setForm(f => ({ ...f, move_size: e.target.value }))}
-                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]">
+                        className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]">
                         <option value="">Select…</option>
                         {MOVE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -267,15 +268,15 @@ function AffiliatePortal() {
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Notes (anything else we should know?)</label>
                     <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3}
                       placeholder="e.g. They have a piano, elevator access, flexible on dates…"
-                      className="mt-1 block w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0f6a53]" />
+                      className="mt-1 block w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-[#071421] outline-none focus:border-[#0F6A53]" />
                   </div>
                 </div>
 
-                {formError && <div className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div>}
+                {formError && <div className="rounded-xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B42318]">{formError}</div>}
 
                 <button type="submit" disabled={submitting}
-                  className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #0f6a53 0%, #0f6a53 100%)' }}>
+                  className="w-full rounded-2xl bg-[#0f6a53] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                  >
                   {submitting ? 'Submitting…' : 'Submit Referral →'}
                 </button>
               </form>
@@ -287,7 +288,7 @@ function AffiliatePortal() {
       {/* History Drawer */}
       {view === 'history' && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#f9fafb]">
-          <div style={{ background: 'linear-gradient(135deg, #071421 0%, #0f6a53 100%)' }} className="px-4 py-5 flex items-center gap-3">
+          <div  className="bg-[#071421] px-4 py-5 flex items-center gap-3">
             <button onClick={() => setView('home')} className="text-white/70 hover:text-white text-sm">← Back</button>
             <div className="text-white font-semibold">Your Referrals ({submissions.length})</div>
           </div>
@@ -300,7 +301,8 @@ function AffiliatePortal() {
                 <div className="text-xs text-slate-500 mt-1">Submit your first referral to start tracking</div>
               </div>
             ) : submissions.map(s => {
-              const meta = STATUS_META[s.status] || { label: s.status, color: 'bg-slate-100 text-slate-500' }
+              const meta = STATUS_META[s.status] || { label: s.status, tone: 'neutral' as const }
+              const toneClasses = URGENCY_TONE_CLASSES[meta.tone].badge
               return (
                 <div key={s.id} className="rounded-2xl bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
@@ -316,10 +318,10 @@ function AffiliatePortal() {
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.color}`}>{s.status === 'won' && <Check size={11} />}{meta.label}</span>
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${toneClasses}`}>{s.status === 'won' && <Check size={11} />}{meta.label}</span>
                       {s.status === 'won' && s.commission_amount > 0 && (
-                        <div className={`mt-1 text-[11px] font-semibold ${s.commission_paid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          ${s.commission_amount} {s.commission_paid ? (<><Check size={12} className="mr-1 inline-block align-middle" />Paid</>) : 'Pending'}
+                        <div className={`mt-1 text-[11px] font-semibold ${s.commission_paid ? 'text-[#0F6A53]' : 'text-[#92400E]'}`}>
+                          ${s.commission_amount} {s.commission_paid ? (<><Check size={12} className="mr-1 inline-block align-middle" />Paid</>) : 'Not paid yet'}
                         </div>
                       )}
                     </div>
