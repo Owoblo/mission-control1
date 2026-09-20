@@ -16,7 +16,7 @@ export default function SalesReadFirstPage() {
         <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(15,106,83,0.18)] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-accent)]">
           Read First
         </div>
-        <h1 className="mt-4 font-display text-[32px] font-semibold tracking-tight text-[var(--app-ink)]">
+        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-[var(--app-ink)]">
           What every Saturn Star rep should understand before touching live leads.
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">
@@ -55,7 +55,7 @@ export default function SalesReadFirstPage() {
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{section.title}</div>
               <div className="mt-4 space-y-3">
                 {section.items.map(item => (
-                  <div key={item} className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
+                  <div key={item} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
                     {item}
                   </div>
                 ))}
@@ -67,7 +67,7 @@ export default function SalesReadFirstPage() {
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{SALES_READ_FIRST_NON_NEGOTIABLES.title}</div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {SALES_READ_FIRST_NON_NEGOTIABLES.items.map(item => (
-                <div key={item} className="rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
+                <div key={item} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
                   {item}
                 </div>
               ))}
@@ -80,7 +80,7 @@ export default function SalesReadFirstPage() {
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Active branches</div>
             <div className="mt-4 space-y-3">
               {SALES_READ_FIRST_BRANCHES.map(branch => (
-                <div key={branch.title} className="rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                <div key={branch.title} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                   <div className="text-sm font-semibold text-[var(--app-ink)]">{branch.title}</div>
                   <div className="mt-2 text-sm leading-6 text-[var(--app-muted)]">{branch.body}</div>
                 </div>
@@ -92,7 +92,7 @@ export default function SalesReadFirstPage() {
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{SALES_READ_FIRST_SERVICE_STANDARD.title}</div>
             <div className="mt-4 space-y-3">
               {SALES_READ_FIRST_SERVICE_STANDARD.items.map(item => (
-                <div key={item} className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
+                <div key={item} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
                   {item}
                 </div>
               ))}
@@ -106,7 +106,7 @@ export default function SalesReadFirstPage() {
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Customer promises</div>
           <div className="mt-4 space-y-3">
             {SALES_READ_FIRST_PROMISES.map(card => (
-              <div key={card.title} className="rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+              <div key={card.title} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="text-sm font-semibold text-[var(--app-ink)]">{card.title}</div>
                 <div className="mt-2 text-sm leading-6 text-[var(--app-muted)]">{card.body}</div>
               </div>
@@ -118,12 +118,12 @@ export default function SalesReadFirstPage() {
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{SALES_READ_FIRST_FIRST_SHIFT.title}</div>
           <div className="mt-4 space-y-3">
             {SALES_READ_FIRST_FIRST_SHIFT.items.map(item => (
-              <div key={item} className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
+              <div key={item} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
                 {item}
               </div>
             ))}
           </div>
-          <div className="mt-5 rounded-[18px] border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.06)] p-4">
+          <div className="mt-5 rounded-2xl border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.06)] p-4">
             <div className="text-sm font-semibold text-[var(--app-ink)]">Use this order</div>
             <div className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
               Read First gives the rep the business context. The academy then teaches the call system, tonality, phrase bank, pricing rules,

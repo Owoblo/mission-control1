@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { Check } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
@@ -109,7 +110,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f8fb] text-[#071421]">
+    <main className="min-h-screen bg-[#f9fafb] text-[#071421]">
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto grid min-h-[92dvh] max-w-6xl gap-8 px-4 py-6 md:grid-cols-[0.9fr_1.1fr] md:px-8 md:py-10">
           <div className="flex flex-col justify-between gap-8">
@@ -118,12 +119,12 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                 <Image src="/saturn-star-logo.png" alt="Saturn Star Movers" width={44} height={44} className="rounded-lg" priority />
                 <div>
                   <div className="text-sm font-semibold">Saturn Star Movers</div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Local Partner Network</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0F6A53]">Local Partner Network</div>
                 </div>
               </div>
 
               <div className="mt-12 max-w-xl">
-                <h1 className="text-4xl font-semibold tracking-tight text-[#111827] md:text-5xl">Refer a moving client without the back-and-forth.</h1>
+                <h1 className="text-4xl font-semibold tracking-tight text-[#071421] md:text-5xl">Refer a moving client without the back-and-forth.</h1>
                 <p className="mt-5 text-base leading-7 text-slate-600">
                   Send us the client details. We contact them, quote the move, track attribution, and credit the partner only after a completed paid move.
                 </p>
@@ -137,7 +138,7 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                 ['03', 'Partner credited after completion'],
               ].map(([n, label]) => (
                 <div key={n} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-[11px] font-bold text-emerald-700">{n}</div>
+                  <div className="text-[11px] font-bold text-[#0F6A53]">{n}</div>
                   <div className="mt-2 text-sm font-semibold leading-5">{label}</div>
                 </div>
               ))}
@@ -148,10 +149,10 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
             <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               {submitted ? (
                 <div className="flex min-h-[520px] flex-col items-center justify-center text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-700">✓</div>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF3] text-[#0F6A53]"><Check className="h-7 w-7" /></div>
                   <h2 className="mt-5 text-2xl font-semibold">Referral received</h2>
                   <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                    The lead is now tagged in the CRM with this partner code. Our team will follow up and track the move from quote to completion.
+                    We’ve received your referral and linked it to your partner code. Our team will follow up and track the move from quote to completion.
                   </p>
                   <button
                     onClick={() => setSubmitted(null)}
@@ -242,11 +243,11 @@ export function PartnerReferralForm({ pathCode = '' }: { pathCode?: string }) {
                     </label>
                   </div>
 
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800">
+                  <div className="rounded-xl border border-[#0F6A53]/25 bg-[#ECFDF3] px-3 py-2 text-xs leading-5 text-[#0F6A53]">
                     Partner rewards are credited only after the referred move is completed and paid. No payouts for quotes, cancelled jobs, or unverified leads.
                   </div>
                   {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
-                  <button disabled={submitting} className="min-h-12 w-full rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0c5947] disabled:opacity-50">
+                  <button disabled={submitting} className="min-h-12 w-full rounded-full bg-[#0f6a53] px-5 text-sm font-semibold text-white transition hover:bg-[#0f6a53] disabled:opacity-50">
                     {submitting ? 'Submitting...' : 'Submit referral'}
                   </button>
                 </form>

@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { AlertTriangle, Phone, Trash2, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { deleteSalesLead, fetchSalesOverview, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatMoney, getLeadAssignedRepName, getSalesBranchLabel, SALES_BRANCHES, isClosedLeadStage } from '@/lib/sales'
 import { formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
+import { UrgencyBadge, heatToTone, URGENCY_TONE_CLASSES } from '@/app/components/sales/urgency-badge'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 
 const COLUMN_ORDER: CRMLead['stage'][] = ['new', 'contacted', 'estimate_scheduled', 'estimate_completed', 'pricing', 'quoted', 'tentative', 'nurture', 'booked', 'completed', 'customer_success', 'lost']
@@ -26,17 +28,8 @@ const COLUMN_HEADER_ACCENT: Partial<Record<CRMLead['stage'], string>> = {
 }
 
 function HeatTag({ label, score, tone }: { label: string; score: number; tone: 'hot' | 'warm' | 'cold' | 'dormant' | 'risk' }) {
-  const classes =
-    tone === 'risk'
-      ? 'border-rose-200 bg-rose-50 text-rose-700'
-      : tone === 'hot'
-        ? 'border-orange-200 bg-orange-50 text-orange-700'
-        : tone === 'warm'
-          ? 'border-amber-200 bg-amber-50 text-amber-700'
-          : tone === 'dormant'
-            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
-            : 'border-slate-200 bg-slate-50 text-slate-600'
-  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${classes}`}>{label} {score}</span>
+  // One urgency language: lead heat -> shared tone.
+  return <UrgencyBadge tone={heatToTone(tone)} label={`${label} ${score}`} />
 }
 
 const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
@@ -48,7 +41,7 @@ const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
   quoted: 'Quote Sent',
   tentative: 'Tentative',
   nurture: 'Shopping Around',
-  booked: 'Booked ✓',
+  booked: 'Booked',
   completed: 'Completed',
   customer_success: 'Customer Success',
   lost: 'Lost',
@@ -426,13 +419,13 @@ function SalesPipelineContent() {
     setWorkflowFilter('all')
   }
 
-  // ── Urgency helpers for list view ──
-  function getUrgency(lead: CRMLead): 'overdue' | 'cold' | 'ok' {
+  // ── Urgency helpers for list view — one language: SLA state -> shared tone ──
+  function getUrgency(lead: CRMLead): { tone: 'critical' | 'warning' | 'neutral'; label: string } {
     const t = today()
-    if (lead.followUpDate && dayStart(new Date(lead.followUpDate)) < t && !isClosedLeadStage(lead.stage)) return 'overdue'
+    if (lead.followUpDate && dayStart(new Date(lead.followUpDate)) < t && !isClosedLeadStage(lead.stage)) return { tone: 'critical', label: 'Overdue' }
     const last = lead.lastTouchedAt || lead.createdAt
-    if (last && new Date(last) < daysAgo(7) && !isClosedLeadStage(lead.stage)) return 'cold'
-    return 'ok'
+    if (last && new Date(last) < daysAgo(7) && !isClosedLeadStage(lead.stage)) return { tone: 'warning', label: 'Gone cold' }
+    return { tone: 'neutral', label: '' }
   }
 
   async function handleQuickAction(event: MouseEvent, lead: CRMLead, action: 'call' | 'sms' | 'open' | 'snooze', quote?: CRMQuote | null) {
@@ -479,7 +472,7 @@ function SalesPipelineContent() {
       {/* ── HEADER ── */}
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Pipeline</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--app-ink)]">Pipeline</h1>
           <div className="mt-1 text-sm text-[var(--app-muted)]">
             {leads.length} leads · {quotes.length} quotes · {formatMoney(quotes.reduce((s, q) => s + q.total, 0))} pipeline value
           </div>
@@ -498,9 +491,9 @@ function SalesPipelineContent() {
             <option value="created">Sort: Newest First</option>
           </select>
           {/* View toggle */}
-          <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
-            <button onClick={() => setViewMode('list')} className={`rounded-[4px] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] ${viewMode === 'list' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>List</button>
-            <button onClick={() => setViewMode('board')} className={`rounded-[4px] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] ${viewMode === 'board' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>Board</button>
+          <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
+            <button onClick={() => setViewMode('list')} className={`rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] ${viewMode === 'list' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>List</button>
+            <button onClick={() => setViewMode('board')} className={`rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] ${viewMode === 'board' ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>Board</button>
           </div>
           <button onClick={() => void refresh()} className="crm-button">Refresh</button>
           <Link href="/sales/leads/new" className="crm-button-primary text-xs px-3 py-2">+ New Lead</Link>
@@ -529,7 +522,7 @@ function SalesPipelineContent() {
             <button
               key={key}
               onClick={() => setWorkflowFilter(current => current === key ? 'all' : key)}
-              className={`flex min-h-11 shrink-0 items-center gap-2 rounded-[7px] border px-3 py-2 text-left transition ${
+              className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-left transition ${
                 workflowFilter === key
                   ? 'border-[var(--app-accent)] bg-[var(--app-accent-soft)]'
                   : 'border-[var(--app-line)] bg-[var(--app-bg)] hover:border-[var(--app-ink)]'
@@ -546,11 +539,11 @@ function SalesPipelineContent() {
       <section className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Needs Attention:</span>
         {([
-          ['overdue', '🔴', 'Overdue Follow-up', attentionCounts.overdue],
-          ['cold',    '🟡', 'Gone Cold 7d+',    attentionCounts.cold],
-          ['no_quote','🟠', 'No Quote Sent',    attentionCounts.no_quote],
-          ['new_today','🔵','New Today',        attentionCounts.new_today],
-        ] as [AttentionFilter, string, string, number][]).map(([key, emoji, label, count]) => (
+          ['overdue', URGENCY_TONE_CLASSES.critical.dot, 'Overdue Follow-up', attentionCounts.overdue],
+          ['cold',    URGENCY_TONE_CLASSES.warning.dot, 'Gone Cold 7d+',    attentionCounts.cold],
+          ['no_quote',URGENCY_TONE_CLASSES.warning.dot, 'No Quote Sent',    attentionCounts.no_quote],
+          ['new_today',URGENCY_TONE_CLASSES.info.dot,'New Today',        attentionCounts.new_today],
+        ] as [AttentionFilter, string, string, number][]).map(([key, dotClass, label, count]) => (
           <button
             key={key}
             onClick={() => setFilterAttention(filterAttention === key ? '' : key)}
@@ -562,7 +555,7 @@ function SalesPipelineContent() {
                 : 'border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--app-muted)] opacity-50'
             }`}
           >
-            {emoji} {label} {count > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterAttention === key ? 'bg-white/20' : 'bg-[var(--app-wash)]'}`}>{count}</span>}
+            {<span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />} {label} {count > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterAttention === key ? 'bg-white/20' : 'bg-[var(--app-wash)]'}`}>{count}</span>}
           </button>
         ))}
       </section>
@@ -570,14 +563,14 @@ function SalesPipelineContent() {
       {/* ── FILTER BAR ── */}
       <section className="flex flex-wrap items-center gap-2">
         {/* Ownership */}
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-1">
           {(['all','mine','unassigned'] as const).map(v => (
-            <button key={v} onClick={() => setOwnershipView(v)} className={`rounded-[6px] px-3 py-1.5 text-xs font-semibold capitalize ${ownershipView === v ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>
+            <button key={v} onClick={() => setOwnershipView(v)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize ${ownershipView === v ? 'bg-[var(--app-ink)] text-white' : 'text-[var(--app-muted)]'}`}>
               {v === 'all' ? 'Team' : v === 'mine' ? 'My Leads' : 'Unassigned'}
             </button>
           ))}
           {(currentUser?.role === 'owner' || currentUser?.role === 'manager') && (
-            <button onClick={() => { setShowDeletedDrawer(true); void loadDeletedLeads() }} className="rounded-[6px] px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-50">🗑 Trash</button>
+            <button onClick={() => { setShowDeletedDrawer(true); void loadDeletedLeads() }} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-50"><Trash2 size={13} />Trash</button>
           )}
         </div>
 
@@ -617,7 +610,7 @@ function SalesPipelineContent() {
 
         {activeFilterCount > 0 && (
           <button onClick={clearAllFilters} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-100">
-            Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} ✕
+            Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} <X size={13} />
           </button>
         )}
 
@@ -627,7 +620,7 @@ function SalesPipelineContent() {
         </span>
       </section>
 
-      {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
       {/* Bulk action toolbar */}
       {!loading && visibleLeads.length > 0 && (
@@ -656,8 +649,8 @@ function SalesPipelineContent() {
                   setSelectedIds(new Set())
                   setBulkBusy(false)
                 }}
-                className="rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
-                {bulkBusy ? 'Working…' : `🗑 Delete ${selectedIds.size}`}
+                className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
+                {bulkBusy ? 'Working…' : (<><Trash2 size={13} className="mr-1.5 inline-block align-middle" />Delete {selectedIds.size}</>)}
               </button>
               <button
                 disabled={bulkBusy}
@@ -669,7 +662,7 @@ function SalesPipelineContent() {
                   setSelectedIds(new Set())
                   setBulkBusy(false)
                 }}
-                className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)] transition disabled:opacity-50">
+                className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)] transition disabled:opacity-50">
                 Mark Lost
               </button>
               <button onClick={() => setSelectedIds(new Set())} className="text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)] transition">Clear</button>
@@ -679,11 +672,11 @@ function SalesPipelineContent() {
       )}
 
       {loading ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading pipeline…</div>
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading pipeline…</div>
       ) : viewMode === 'list' ? (
         <>
           {/* ── DESKTOP LIST TABLE ── */}
-          <div className="hidden rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] md:block overflow-hidden">
+          <div className="hidden rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] md:block overflow-hidden">
             <div className="grid grid-cols-[28px_minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] bg-[var(--app-wash)] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
               <div />
               <div>Lead</div>
@@ -708,15 +701,15 @@ function SalesPipelineContent() {
                 <div
                   key={lead.id}
                   className={`group relative grid grid-cols-[28px_minmax(180px,1.8fr)_130px_200px_100px_180px_110px_110px_90px] gap-0 border-b border-[var(--app-line)] px-5 py-3.5 text-sm transition cursor-pointer
-                    ${isSelected ? 'bg-[var(--app-accent-soft)]' : guidance?.action.goldenMoment ? 'bg-orange-50/80 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.2)] hover:bg-orange-50' : urgency === 'overdue' ? 'bg-red-50/40 hover:bg-red-50' : urgency === 'cold' ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-[var(--app-bg)]'}`}
+                    ${isSelected ? 'bg-[var(--app-accent-soft)]' : guidance?.action.goldenMoment ? `${URGENCY_TONE_CLASSES.warning.softBg}/80 hover:${URGENCY_TONE_CLASSES.warning.softBg}` : urgency.tone !== 'neutral' ? `${URGENCY_TONE_CLASSES[urgency.tone].softBg}/40 hover:${URGENCY_TONE_CLASSES[urgency.tone].softBg}` : 'hover:bg-[var(--app-bg)]'}`}
                   onClick={() => router.push(`/sales/leads/${lead.id}`)}
                 >
                   <div className="flex items-center" onClick={e => { e.stopPropagation(); setSelectedIds(prev => { const n = new Set(prev); n.has(lead.id) ? n.delete(lead.id) : n.add(lead.id); return n }) }}>
                     <input type="checkbox" checked={isSelected} onChange={() => {}} className="h-4 w-4 rounded accent-[var(--app-accent)] cursor-pointer" />
                   </div>
-                  {/* Urgency stripe */}
-                  {(urgency !== 'ok' || guidance?.action.goldenMoment) && (
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${guidance?.action.goldenMoment ? 'bg-orange-500' : urgency === 'overdue' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                  {/* Urgency stripe — one language */}
+                  {(urgency.tone !== 'neutral' || guidance?.action.goldenMoment) && (
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${guidance?.action.goldenMoment ? URGENCY_TONE_CLASSES.warning.stripe : URGENCY_TONE_CLASSES[urgency.tone].stripe}`} />
                   )}
 
                   {/* Lead name + info */}
@@ -725,7 +718,7 @@ function SalesPipelineContent() {
                       <span className="font-semibold text-[var(--app-ink)] truncate min-w-0">{lead.name}</span>
                       {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                       {guidance?.action.goldenMoment ? (
-                        <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
+                        <UrgencyBadge tone="warning" label="QUOTE VIEWED NOW" className="font-bold" />
                       ) : null}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--app-muted)]">
@@ -753,7 +746,7 @@ function SalesPipelineContent() {
                     <select
                       value={lead.stage}
                       onChange={async e => { e.stopPropagation(); await moveLeadToStage(lead.id, e.target.value as CRMLead['stage']) }}
-                      className={`rounded-[6px] border-0 px-2 py-1 text-xs font-semibold cursor-pointer outline-none w-full ${stageColor}`}
+                      className={`rounded-lg border-0 px-2 py-1 text-xs font-semibold cursor-pointer outline-none w-full ${stageColor}`}
                     >
                       {COLUMN_ORDER.map(s => <option key={s} value={s}>{COLUMN_LABELS[s]}</option>)}
                     </select>
@@ -790,7 +783,7 @@ function SalesPipelineContent() {
                   <div className="text-xs flex items-center">
                     {lead.followUpDate ? (
                       <span className={dayStart(new Date(lead.followUpDate)) < today() ? 'text-red-600 font-semibold' : 'text-[var(--app-muted)]'}>
-                        {dayStart(new Date(lead.followUpDate)) < today() ? '⚠ ' : ''}{formatDate(lead.followUpDate)}
+                        {dayStart(new Date(lead.followUpDate)) < today() ? <AlertTriangle size={12} className="mr-1 inline-block align-middle" /> : null}{formatDate(lead.followUpDate)}
                       </span>
                     ) : <span className="opacity-70 text-[var(--app-muted)]">{guidance?.action.dueAt ? formatDate(guidance.action.dueAt) : 'Not set'}</span>}
                   </div>
@@ -808,15 +801,15 @@ function SalesPipelineContent() {
                   </div>
 
                   <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[var(--app-line)]">
-                    <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Call</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">SMS</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Open</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Snooze</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Call</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">SMS</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Open</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Snooze</button>
                     <button
                       onClick={e => void removeLead(e, lead)}
                       className="ml-auto px-1 text-[11px] text-[var(--app-muted)] hover:text-rose-600 transition"
                     >
-                      {deleteBusyId === lead.id ? '…' : '✕'}
+                      {deleteBusyId === lead.id ? '…' : <X size={13} />}
                     </button>
                   </div>
                 </div>
@@ -836,11 +829,13 @@ function SalesPipelineContent() {
               const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
               const guidance = guidanceMap.get(lead.id)
               const urgency = getUrgency(lead)
+              // One urgency language: golden moment reads as time-sensitive (warning)
+              const cardTone = guidance?.action.goldenMoment ? 'warning' as const : urgency.tone
               return (
-                <div key={lead.id} className={`relative rounded-[8px] border bg-[var(--app-panel)] transition
-                  ${guidance?.action.goldenMoment ? 'border-orange-300 bg-orange-50/40' : urgency === 'overdue' ? 'border-red-300 bg-red-50/30' : urgency === 'cold' ? 'border-amber-200 bg-amber-50/20' : 'border-[var(--app-line)]'}`}>
+                <div key={lead.id} className={`relative rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] transition
+                  ${cardTone !== 'neutral' ? `${URGENCY_TONE_CLASSES[cardTone].softBg}/40 border-l-4 ${URGENCY_TONE_CLASSES[cardTone].stripe.replace('bg-', 'border-l-')}` : ''}`}>
                   <button onClick={e => void removeLead(e, lead)} className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700">
-                    {deleteBusyId === lead.id ? '…' : '✕'}
+                    {deleteBusyId === lead.id ? '…' : <X size={13} />}
                   </button>
                   <Link href={`/sales/leads/${lead.id}`} className="block p-4 pr-10">
                     <div className="flex items-start justify-between gap-2">
@@ -852,7 +847,7 @@ function SalesPipelineContent() {
                         <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.phone}</div>
                         {lead.opportunityContext?.waitingFor ? <div className="mt-1 text-[11px] text-[#8a6800]">Waiting for: {lead.opportunityContext.waitingFor}</div> : null}
                       </div>
-                      <span className={`shrink-0 rounded-[6px] px-2 py-1 text-[11px] font-semibold ${STAGE_COLORS[lead.stage] || 'bg-gray-50 text-gray-600'}`}>
+                      <span className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${STAGE_COLORS[lead.stage] || 'bg-gray-50 text-gray-600'}`}>
                         {COLUMN_LABELS[lead.stage]}
                       </span>
                     </div>
@@ -863,15 +858,15 @@ function SalesPipelineContent() {
                     </div>
                   </Link>
                   <div className="flex gap-2 border-t border-[var(--app-line)] px-4 py-3">
-                    <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="flex-1 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-[11px] font-semibold text-[var(--app-ink)]">Call</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="flex-1 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-[11px] font-semibold text-[var(--app-ink)]">SMS</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="flex-1 rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-[11px] font-semibold text-[var(--app-ink)]">Snooze</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="flex-1 rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-[11px] font-semibold text-[var(--app-ink)]">Call</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="flex-1 rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-[11px] font-semibold text-[var(--app-ink)]">SMS</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="flex-1 rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-[11px] font-semibold text-[var(--app-ink)]">Snooze</button>
                   </div>
                 </div>
               )
             })}
             {visibleLeads.length === 0 && (
-              <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-4 py-10 text-center text-sm text-[var(--app-muted)]">
+              <div className="rounded-lg border border-dashed border-[var(--app-line)] px-4 py-10 text-center text-sm text-[var(--app-muted)]">
                 {activeFilterCount > 0 ? 'No leads match these filters.' : 'No leads yet.'}
               </div>
             )}
@@ -885,19 +880,19 @@ function SalesPipelineContent() {
               <div key={column.stage} className="w-[290px]" onDragOver={e => handleDragOver(e, column.stage)} onDragLeave={handleDragLeave} onDrop={e => void handleDrop(e, column.stage)}>
                 <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-3">
                   <h2 className={`font-display text-sm font-semibold uppercase tracking-[0.16em] ${COLUMN_HEADER_ACCENT[column.stage] || 'text-[var(--app-ink)]'}`}>{column.label}</h2>
-                  <span className="rounded-[4px] bg-[var(--app-wash)] px-2 py-0.5 text-xs text-[var(--app-muted)]">{column.cards.length}</span>
+                  <span className="rounded bg-[var(--app-wash)] px-2 py-0.5 text-xs text-[var(--app-muted)]">{column.cards.length}</span>
                 </div>
-                <div className={`min-h-[120px] space-y-3 rounded-[8px] transition-all duration-150 ${dragOverStage === column.stage ? 'bg-[rgba(15,106,83,0.06)] ring-2 ring-[var(--app-accent)] ring-inset' : draggedLeadId ? 'bg-[var(--app-bg)] ring-1 ring-[var(--app-line)] ring-inset' : ''} p-1`}>
+                <div className={`min-h-[120px] space-y-3 rounded-lg transition-all duration-150 ${dragOverStage === column.stage ? 'bg-[rgba(15,106,83,0.06)] ring-2 ring-[var(--app-accent)] ring-inset' : draggedLeadId ? 'bg-[var(--app-bg)] ring-1 ring-[var(--app-line)] ring-inset' : ''} p-1`}>
                   {column.cards.map(lead => {
                     const quote = lead.quoteId ? quoteMap.get(lead.quoteId) : undefined
                     const guidance = guidanceMap.get(lead.id)
                     const isDragging = draggedLeadId === lead.id
                     return (
                       <div key={lead.id} draggable onDragStart={() => handleDragStart(lead.id)} onDragEnd={handleDragEnd}
-                        className={`group relative rounded-[8px] border bg-[var(--app-panel)] transition hover:border-[var(--app-ink)] ${guidance?.action.goldenMoment ? 'border-orange-300 bg-orange-50/40 shadow-sm' : COLUMN_ACCENT[column.stage] || 'border-[var(--app-line)]'} ${isDragging ? 'opacity-40 ring-2 ring-[var(--app-accent)]' : 'cursor-grab active:cursor-grabbing'}`}>
+                        className={`group relative rounded-lg border bg-[var(--app-panel)] transition hover:border-[var(--app-ink)] ${guidance?.action.goldenMoment ? 'border-orange-300 bg-orange-50/40 shadow-sm' : COLUMN_ACCENT[column.stage] || 'border-[var(--app-line)]'} ${isDragging ? 'opacity-40 ring-2 ring-[var(--app-accent)]' : 'cursor-grab active:cursor-grabbing'}`}>
                         <div className="absolute left-2 top-1/2 -translate-y-1/2 select-none text-[11px] text-[var(--app-line)] hover:text-[var(--app-muted)]">⠿</div>
                         <button onClick={e => void removeLead(e, lead)} className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700">
-                          {deleteBusyId === lead.id ? '…' : '✕'}
+                          {deleteBusyId === lead.id ? '…' : <X size={13} />}
                         </button>
                         <Link href={`/sales/leads/${lead.id}`} className="block pl-6 pr-4 pt-4 pb-4">
                           <div className="flex items-start justify-between gap-3">
@@ -906,10 +901,10 @@ function SalesPipelineContent() {
                                 <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
                                 {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                                 {lead.stage === 'tentative' && lead.followUpDate && new Date(lead.followUpDate) <= new Date() && (
-                                  <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[11px] font-bold text-white">CALL TODAY</span>
+                                  <UrgencyBadge tone="critical" label="CALL TODAY" className="font-bold" />
                                 )}
                                 {guidance?.action.goldenMoment ? (
-                                  <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-bold text-orange-800">HOT: CUSTOMER IS REVIEWING QUOTE</span>
+                                  <UrgencyBadge tone="warning" label="HOT: CUSTOMER IS REVIEWING QUOTE" className="font-bold" />
                                 ) : null}
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--app-muted)]">
@@ -920,14 +915,14 @@ function SalesPipelineContent() {
                                 {lead.leadKind === 'partner_opportunity' && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Partner Sales Handoff</span>}
                               </div>
                             </div>
-                            <span className="mr-5 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">{guidance?.heat.score || lead.leadScore || 0}</span>
+                            <span className="mr-5 rounded bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">{guidance?.heat.score || lead.leadScore || 0}</span>
                           </div>
                           <div className="mt-3 flex items-center justify-between text-xs text-[var(--app-muted)]">
                             <span>{lead.originAddress || lead.originCity || 'Origin TBD'} → {lead.destAddress || lead.destCity || 'Destination TBD'}</span>
                             <span>{quote ? formatMoney(quote.total) : 'Est. pending'}</span>
                           </div>
-                          {lead.opportunityContext?.summary ? <div className="mt-3 border-l-2 border-[#C99700] pl-2 text-[11px] leading-4 text-[#344054]">{lead.opportunityContext.summary}</div> : null}
-                          {lead.leadKind === 'partner_opportunity' ? <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-900"><div className="font-semibold">Partner event</div><div>{lead.partnerLeadSummary || 'Call the referring partner first and collect the referred customer details.'}</div>{lead.partnerLeadSignal ? <div className="mt-1 text-[11px] font-medium uppercase tracking-wide">Signal: {lead.partnerLeadSignal} · Priority: {lead.partnerLeadPriority || 'normal'}</div> : null}</div> : null}
+                          {lead.opportunityContext?.summary ? <div className="mt-3 border-l-2 border-[#C99700] pl-2 text-[11px] leading-4 text-[#071421]">{lead.opportunityContext.summary}</div> : null}
+                          {lead.leadKind === 'partner_opportunity' ? <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-900"><div className="font-semibold">Partner event</div><div>{lead.partnerLeadSummary || 'Call the referring partner first and collect the referred customer details.'}</div>{lead.partnerLeadSignal ? <div className="mt-1 text-[11px] font-medium uppercase tracking-wide">Signal: {lead.partnerLeadSignal} · Priority: {lead.partnerLeadPriority || 'normal'}</div> : null}</div> : null}
                           <div className="mt-2 text-[11px] text-[var(--app-ink)]">
                             <span className="font-semibold">Next:</span> {lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.intelligence?.nextAction || 'Review lead'}
                           </div>
@@ -939,22 +934,22 @@ function SalesPipelineContent() {
                               {getLeadAssignedRepName(lead) && <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{getLeadAssignedRepName(lead)}</span>}
                               {lead.phone && (
                                 <button onClick={e => void handleQuickAction(e, lead, 'call', quote)}
-                                  className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-[var(--app-muted)] transition hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]" title={`Call ${lead.phone}`}>☎</button>
+                                  className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-[var(--app-muted)] transition hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]" title={`Call ${lead.phone}`}><Phone size={12} /></button>
                               )}
                             </div>
                           </div>
                           <div className="mt-2 flex gap-1.5">
-                            <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Call</button>
-                            <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">SMS</button>
-                            <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Open</button>
-                            <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Snooze</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Call</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">SMS</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Open</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-lg border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Snooze</button>
                           </div>
                         </Link>
                       </div>
                     )
                   })}
                   {column.cards.length === 0 && (
-                    <div className={`rounded-[8px] border border-dashed px-4 py-12 text-center text-sm transition ${dragOverStage === column.stage ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>
+                    <div className={`rounded-lg border border-dashed px-4 py-12 text-center text-sm transition ${dragOverStage === column.stage ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-[var(--app-line)] text-[var(--app-muted)]'}`}>
                       {dragOverStage === column.stage ? 'Drop here →' : 'No leads here yet.'}
                     </div>
                   )}
@@ -992,10 +987,10 @@ function SalesPipelineContent() {
           <div className="relative flex w-full max-w-md flex-col bg-white shadow-none">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
-                <h2 className="text-base font-semibold text-[var(--app-ink)]">🗑 Recently Deleted</h2>
+                <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--app-ink)]"><Trash2 size={16} />Recently Deleted</h2>
                 <p className="text-xs text-[var(--app-muted)]">Leads deleted in the last 30 days.</p>
               </div>
-              <button onClick={() => setShowDeletedDrawer(false)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setShowDeletedDrawer(false)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]" aria-label="Close"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
               {deletedLoading ? <div className="p-8 text-center text-sm text-[var(--app-muted)]">Loading…</div>
@@ -1007,7 +1002,7 @@ function SalesPipelineContent() {
                       <div className="text-xs text-[var(--app-muted)]">{lead.phone} · {lead.stage} · deleted {lead._deletedAt ? new Date(lead._deletedAt).toLocaleDateString() : ''}</div>
                     </div>
                     <button onClick={() => void restoreLead(lead.id)} disabled={restoreBusyId === lead.id}
-                      className="shrink-0 rounded-[6px] border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
+                      className="shrink-0 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
                       {restoreBusyId === lead.id ? 'Restoring…' : 'Restore'}
                     </button>
                   </div>

@@ -222,7 +222,7 @@ export default function RecentSalesPage() {
     <div className="flex min-h-0 flex-1 overflow-hidden border border-[var(--app-line)] bg-white">
       <aside className="flex w-[390px] min-w-[320px] flex-col border-r border-[var(--app-line)]">
         <div className="border-b border-[var(--app-line)] p-5">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#111827]">Recent sales</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-[#071421]">Recent sales</h1>
           <p className="mt-1 text-sm text-slate-500">Verified moments worth a thoughtful partner touch.</p>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-lg bg-amber-50 px-2 py-2"><b>{counts.review}</b><span className="block text-[11px] text-amber-800">Review</span></div>
@@ -231,7 +231,7 @@ export default function RecentSalesPage() {
           </div>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
-            <input value={query} onChange={event => setQuery(event.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-[15px] outline-none focus:border-[#14213d]" placeholder="Search Realtor, brokerage, address" />
+            <input value={query} onChange={event => setQuery(event.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#071421]" placeholder="Search Realtor, brokerage, address" />
           </div>
           <select value={status} onChange={event => setStatus(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
             <option value="open">Open opportunities</option>
@@ -248,10 +248,10 @@ export default function RecentSalesPage() {
           {loading && <div className="p-8 text-center text-sm text-slate-500">Loading verified sales…</div>}
           {!loading && visible.length === 0 && <div className="p-8 text-center text-sm text-slate-500">No opportunities in this view.</div>}
           {visible.map(sale => (
-            <button key={sale.id} onClick={() => setActiveId(sale.id)} className={`block w-full border-b border-slate-100 p-4 text-left transition ${active?.id === sale.id ? 'bg-[#f4f7fb]' : 'hover:bg-slate-50'}`}>
+            <button key={sale.id} onClick={() => setActiveId(sale.id)} className={`block w-full border-b border-slate-100 p-4 text-left transition ${active?.id === sale.id ? 'bg-[#f9fafb]' : 'hover:bg-slate-50'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate font-semibold text-[#111827]">{sale.realtor_name}</div>
+                  <div className="truncate font-semibold text-[#071421]">{sale.realtor_name}</div>
                   <div className="truncate text-xs text-slate-500">{sale.realtor_brokerage || 'Brokerage unavailable'}</div>
                 </div>
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{STATUS_LABEL[sale.status] || sale.status}</span>
@@ -274,8 +274,8 @@ export default function RecentSalesPage() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-semibold text-[#111827]">{active.realtor_name}</h2>
-                  <span className="rounded-full bg-[#14213d] px-2.5 py-1 text-xs font-medium text-white">{active.relationship_tier.replace('_', ' ')}</span>
+                  <h2 className="text-2xl font-semibold text-[#071421]">{active.realtor_name}</h2>
+                  <span className="rounded-full bg-[#071421] px-2.5 py-1 text-xs font-medium text-white">{active.relationship_tier.replace('_', ' ')}</span>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">{active.realtor_brokerage || 'Brokerage unavailable'} · {active.realtor_role || 'listing agent'}</p>
                 {activeContactSales.length > 1 && (
@@ -300,12 +300,12 @@ export default function RecentSalesPage() {
             <section className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><MapPin className="h-4 w-4" /> Verified sale</div>
-                <div className="mt-2 font-semibold text-[#111827]">{active.address}</div>
+                <div className="mt-2 font-semibold text-[#071421]">{active.address}</div>
                 <div className="mt-1 text-sm text-slate-500">{active.city}{active.mls_id ? ` · MLS ${active.mls_id}` : ''}</div>
               </div>
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Evidence</div>
-                <div className="mt-2 font-semibold text-[#111827]">{active.verification_confidence ?? 100}% confidence</div>
+                <div className="mt-2 font-semibold text-[#071421]">{active.verification_confidence ?? 100}% confidence</div>
                 <div className="mt-1 truncate text-sm text-slate-500">{active.verification_source || 'Verified source'}</div>
               </div>
             </section>
@@ -319,7 +319,7 @@ export default function RecentSalesPage() {
                     value={matchQuery}
                     onChange={event => setMatchQuery(event.target.value)}
                     onKeyDown={event => { if (event.key === 'Enter') void searchContacts() }}
-                    className="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-[15px] text-slate-900 outline-none"
+                    className="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none"
                     placeholder="Search name, brokerage, or city"
                   />
                   <button onClick={() => void searchContacts()} disabled={matching} className="rounded-lg bg-amber-900 px-4 py-2 font-semibold text-white">
@@ -344,16 +344,16 @@ export default function RecentSalesPage() {
 
             <section className="mt-6 rounded-xl border border-slate-200">
               <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
-                <MessageSquareText className="h-5 w-5 text-[#14213d]" />
+                <MessageSquareText className="h-5 w-5 text-[#071421]" />
                 <div>
-                  <h3 className="font-semibold text-[#111827]">Relationship message</h3>
+                  <h3 className="font-semibold text-[#071421]">Relationship message</h3>
                   <p className="text-xs text-slate-500">Use only after reviewing the established partnership conversation. Nothing is sent automatically.</p>
                 </div>
               </div>
               <div className="p-5">
-                <textarea value={draft} onChange={event => setDraft(event.target.value)} className="min-h-40 w-full resize-y rounded-xl border border-slate-200 p-4 text-[16px] leading-7 text-[#111827] outline-none focus:border-[#14213d]" />
+                <textarea value={draft} onChange={event => setDraft(event.target.value)} className="min-h-40 w-full resize-y rounded-xl border border-slate-200 p-4 text-base leading-7 text-[#071421] outline-none focus:border-[#071421]" />
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <button onClick={() => void approve()} disabled={busy !== null || !active.contact_id} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-[#14213d] disabled:opacity-40">
+                  <button onClick={() => void approve()} disabled={busy !== null || !active.contact_id} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-[#071421] disabled:opacity-40">
                     <Check className="h-4 w-4" /> {busy === 'approve' ? 'Saving…' : 'Save relationship draft'}
                   </button>
                   {active.contact_id && (

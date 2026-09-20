@@ -36,7 +36,7 @@ function MarketingNav() {
             href={item.href}
             className={`shrink-0 border-b-2 px-4 py-3 text-sm font-medium transition ${
               active
-                ? 'border-[#b68a3a] text-[#14213d]'
+                ? 'border-[#c99700] text-[#071421]'
                 : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'
             }`}
           >

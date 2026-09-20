@@ -221,13 +221,13 @@ export function LeadTimeline({
         {/* Quick note / recording bar */}
         <div className="mb-6 flex items-center gap-2">
           {readOnly ? (
-            <div className="w-full rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+            <div className="w-full rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
               This lead is view-only for you. Open your own lead or ask a manager to reassign it before logging notes or changing the timeline.
             </div>
           ) : null}
           {consultationActive ? (
             <>
-              <div className="flex flex-1 items-center gap-3 rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+              <div className="flex flex-1 items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500" />
                 <span className="text-sm font-medium text-emerald-900">Recording live • {formatSeconds(consultationSeconds)}</span>
               </div>
@@ -235,7 +235,7 @@ export function LeadTimeline({
                 type="button"
                 onClick={onStopConsultation}
                 disabled={consultationSaving}
-                className="shrink-0 rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                className="shrink-0 rounded-lg bg-[#071421] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#071421] disabled:opacity-50"
               >
                 {consultationSaving ? 'Saving…' : 'Stop + Save'}
               </button>
@@ -252,14 +252,14 @@ export function LeadTimeline({
                 }}
                 rows={1}
                 disabled={readOnly}
-                className="flex-1 resize-none rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm leading-5 outline-none focus:border-[#071421] focus:ring-1 focus:ring-[#071421]"
+                className="flex-1 resize-none rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-sm leading-5 outline-none focus:border-[#071421] focus:ring-1 focus:ring-[#071421]"
                 placeholder="Add a note…"
               />
               <button
                 type="button"
                 onClick={() => void handlePostNote()}
                 disabled={readOnly || postingNote || !quickNote.trim()}
-                className="shrink-0 rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                className="shrink-0 rounded-lg bg-[#071421] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#071421] disabled:opacity-50"
               >
                 {postingNote ? 'Posting…' : 'Post'}
               </button>
@@ -268,10 +268,10 @@ export function LeadTimeline({
         </div>
 
         <div className="relative">
-          <div className="absolute bottom-0 left-[15px] top-0 w-px bg-[rgba(228,226,220,1)]" />
+          <div className="absolute bottom-0 left-[15px] top-0 w-px bg-[rgba(247,244,237,1)]" />
           <div className="space-y-8 pb-8">
             {filteredTimeline.length === 0 ? (
-              <div className="rounded-[8px] border border-dashed border-stone-200 px-5 py-8 text-sm text-stone-400">No activity logged yet.</div>
+              <div className="rounded-lg border border-dashed border-stone-200 px-5 py-8 text-sm text-stone-400">No activity logged yet.</div>
             ) : (
               filteredTimeline.map((item, index) => (
                 <TimelineEventCard
@@ -292,7 +292,7 @@ export function LeadTimeline({
       </div>
 
       <div className="border-t border-[var(--app-line)] bg-[var(--app-bg)] p-4">
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-3">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] p-3">
           <textarea
             value={activityNotes}
             onChange={event => onActivityNotesChange(event.target.value)}

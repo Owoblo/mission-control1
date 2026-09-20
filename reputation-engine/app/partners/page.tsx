@@ -125,7 +125,7 @@ export default function PartnersPage() {
 
       {partners.length === 0 ? (
         <div className="crm-panel p-16 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] text-[#071421]">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] text-[#071421]">
             <Plus className="h-5 w-5" />
           </div>
           <p className="font-semibold text-[#071421]">No partners yet.</p>
@@ -138,7 +138,7 @@ export default function PartnersPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {partners.map(partner => (
-            <div key={partner.id} className="crm-panel space-y-4 transition hover:border-[#cfd6d1]">
+            <div key={partner.id} className="crm-panel space-y-4 transition hover:border-[#e5e7eb]">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-[#071421]">{partner.name}</p>
@@ -146,10 +146,10 @@ export default function PartnersPage() {
                   <span className="crm-chip mt-2">{TYPE_LABELS[partner.type]}</span>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => openEdit(partner)} className="rounded-[4px] p-2 text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[#071421]" aria-label={`Edit ${partner.name}`}>
+                  <button onClick={() => openEdit(partner)} className="rounded p-2 text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[#071421]" aria-label={`Edit ${partner.name}`}>
                     <Edit3 className="h-4 w-4" />
                   </button>
-                  <button onClick={() => void remove(partner.id)} className="rounded-[4px] p-2 text-[var(--app-muted)] transition hover:bg-rose-50 hover:text-rose-600" aria-label={`Delete ${partner.name}`}>
+                  <button onClick={() => void remove(partner.id)} className="rounded p-2 text-[var(--app-muted)] transition hover:bg-rose-50 hover:text-rose-600" aria-label={`Delete ${partner.name}`}>
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -169,11 +169,11 @@ export default function PartnersPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 border-t border-[var(--app-line)] pt-3">
-                <div className="rounded-[8px] bg-[var(--app-bg)] p-3 text-center">
+                <div className="rounded-lg bg-[var(--app-bg)] p-3 text-center">
                   <p className="text-lg font-bold text-[#071421]">{partner.totalJobsReferred}</p>
                   <p className="text-xs text-[var(--app-muted)]">Jobs Sent</p>
                 </div>
-                <div className="rounded-[8px] bg-[var(--app-bg)] p-3 text-center">
+                <div className="rounded-lg bg-[var(--app-bg)] p-3 text-center">
                   <p className="text-lg font-bold text-[#071421]">{formatCadFromCents(partner.totalIncentiveOwed * REFERRAL_INCENTIVE_PER_JOB_CENTS)}</p>
                   <p className="text-xs text-[var(--app-muted)]">Reward Exposure</p>
                 </div>
@@ -193,7 +193,7 @@ export default function PartnersPage() {
           <div className="crm-panel w-full max-w-md space-y-5 animate-slide-up">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-bold text-[#071421]">{editing ? 'Edit Partner' : 'Add Partner'}</h3>
-              <button type="button" onClick={() => setModal(false)} className="rounded-[4px] p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-[#071421]" aria-label="Close">
+              <button type="button" onClick={() => setModal(false)} className="rounded p-2 text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-[#071421]" aria-label="Close">
                 <X className="h-4 w-4" />
               </button>
             </div>

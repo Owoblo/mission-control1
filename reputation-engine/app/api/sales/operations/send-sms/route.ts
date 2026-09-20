@@ -1,32 +1,15 @@
 /**
  * POST /api/sales/operations/send-sms
  * Sends an SMS from the operations number (+12267746581).
+ *
+ * Uses the one logged send path: lib/server/sales-messaging.sendSalesMessage.
+ * The ops number is passed as a deliberate fromNumberOverride so branch-number
+ * resolution can never silently swap the sender.
  */
 import { NextResponse } from 'next/server'
-import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
-import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { sendSalesMessage } from '@/lib/server/sales-messaging'
 
 const OPS_NUMBER = '+12267746581'
-
-async function saveSentSms(to: string, body: string, sid: string) {
-  try {
-    const { url, headers } = requireSupabaseEnv()
-    await fetch(`${url}/rest/v1/sms_messages`, {
-      method: 'POST',
-      headers: { ...headers, Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        id: crypto.randomUUID(),
-        from_number: OPS_NUMBER,
-        to_number: to,
-        body,
-        direction: 'outbound',
-        lead_id: null,
-        twilio_sid: sid || null,
-        created_at: new Date().toISOString(),
-      }),
-    })
-  } catch { /* non-fatal */ }
-}
 
 export async function POST(request: Request) {
   try {
@@ -35,41 +18,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'to is required' }, { status: 400 })
     }
 
-    const accountSid = readEnv('TWILIO_ACCOUNT_SID')
-    const authToken = readEnv('TWILIO_AUTH_TOKEN')
-    if (!accountSid || !authToken) {
-      return NextResponse.json({ error: 'Twilio not configured' }, { status: 500 })
-    }
-
     const bodyText = (body || '').trim()
-    const params = new URLSearchParams({ From: OPS_NUMBER, To: to })
-    // Twilio requires Body OR MediaUrl — include Body only if non-empty
-    if (bodyText) params.set('Body', bodyText)
-    else if (!mediaUrls?.length) params.set('Body', ' ') // fallback for empty sends
-    if (mediaUrls?.length) {
-      mediaUrls.forEach(url => params.append('MediaUrl', url))
-    }
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: twilioAuth(accountSid, authToken),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
-      }
-    )
+    const result = await sendSalesMessage({
+      channel: 'sms',
+      to,
+      // Twilio requires Body OR MediaUrl — keep the old fallback for empty sends.
+      body: bodyText || (mediaUrls?.length ? '' : ' '),
+      mediaUrls,
+      fromNumberOverride: OPS_NUMBER,
+      actor: 'human',
+      notes: `Operations SMS sent to ${to}`,
+    })
 
-    const result = (await res.json().catch(() => ({}))) as { sid?: string; message?: string; error_message?: string }
-    if (!res.ok || !result.sid) {
-      return NextResponse.json({ error: result.message || result.error_message || 'Send failed' }, { status: 400 })
+    if (result.result?.blocked) {
+      return NextResponse.json({ error: `SMS blocked — ${String(result.result.reason || 'safety guard')}` }, { status: 400 })
     }
 
-    const mediaText = mediaUrls?.length ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
-    await saveSentSms(to, (body || '').trim() + mediaText, result.sid || '')
-    return NextResponse.json({ ok: true, sid: result.sid })
+    return NextResponse.json({ ok: true, sid: result.result?.sid || null })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Failed'
+    const status = /twilio|missing/i.test(message) ? 500 : 400
+    return NextResponse.json({ error: message }, { status })
   }
 }

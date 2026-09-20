@@ -90,6 +90,12 @@ const REVIEWS = [
   { name: 'Lazlo', text: 'You guys did a great job, definitely recommended.', stars: 5 },
 ]
 
+// Dexa Movers Google business profile (Ottawa). Verified review quotes for
+// Dexa have not been curated yet — add them here when available. Never reuse
+// Saturn quotes on Dexa pages; until then Dexa links to its live profile.
+const DEXA_REVIEWS: { name: string; text: string; stars: number }[] = []
+const DEXA_GOOGLE_PROFILE = 'https://share.google/SMoRwagOcK268t7jy'
+
 type QuoteBrand = {
   name: string
   shortName: string
@@ -164,7 +170,7 @@ function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size
   if (brand.logo === 'dexa') {
     return (
       <span
-        className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-black tracking-tight ${dark ? 'bg-white text-[#071421] shadow-sm' : 'bg-[#071421] text-white'}`}
+        className={`inline-flex shrink-0 items-center justify-center rounded-xl font-black tracking-tight ${dark ? 'bg-white text-[#071421] shadow-sm' : 'bg-[#071421] text-white'}`}
         style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.28)) }}
         aria-label={brand.name}
       >
@@ -190,7 +196,7 @@ function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size
 }
 
 function Stars({ count }: { count: number }) {
-  return <span className="text-[#C99700]">{'★'.repeat(count)}</span>
+  return <span className="text-[#8a6800]">{'★'.repeat(count)}</span>
 }
 
 function expiryDate(quote: PublicQuote): string {
@@ -367,11 +373,17 @@ function buildMoveTimeline(params: {
   const loadDone = startDecimal + loadH
   const arrive   = loadDone + driveH
   const done     = arrive + unloadH
+  // Driving is a duration, not a moment: never stamp it with the same
+  // precise time as loading completion (the old code showed two identical
+  // timestamps, which reads as a bug because it is one).
+  const driveLabel = driveH >= 1
+    ? `~${Math.round(driveH)}h drive`
+    : `~${Math.round(driveH * 60)} min drive`
 
   return [
     { emoji: '🚚', time: fmtH(startDecimal), title: 'Crew arrives at origin', detail: `${crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''}${disassemblyItems.length > 0 ? ` · Disassemble: ${disassemblyItems.slice(0, 2).join(', ')}${disassemblyItems.length > 2 ? ' +more' : ''}` : ''} · wrap all furniture` },
     { emoji: '📦', time: fmtH(loadDone), title: 'Loading complete', detail: `All items wrapped and secured · truck${trucks > 1 ? 's' : ''} ready to go` },
-    { emoji: '🚛', time: fmtH(loadDone), title: `Driving to ${destCity || 'destination'}`, detail: 'Travel time included in your estimate' },
+    { emoji: '🚛', time: driveLabel, title: `Driving to ${destCity || 'destination'}`, detail: 'Travel time included in your estimate' },
     { emoji: '🏠', time: fmtH(arrive), title: 'Arrive at new home', detail: `Unload · place furniture${disassemblyItems.length > 0 ? ` · Reassemble: ${disassemblyItems.slice(0, 2).join(', ')}` : ''}` },
     { emoji: '✅', time: fmtH(done), title: 'Move complete', detail: 'Final walkthrough · keys handed over' },
   ]
@@ -516,16 +528,16 @@ function InventoryIntelligence({
               {items.map((item, index) => {
                 const name = item.name || item.item || 'Item'
                 const qty = Number(item.qty || 1)
-                return <div key={`${name}-${index}`} className="flex items-center justify-between gap-4 text-sm"><span className="text-[#071421]/75"><span className="mr-2 text-[#C99700]">✓</span>{name}</span>{qty > 1 && <span className="text-xs font-semibold text-[#667085]">×{qty}</span>}</div>
+                return <div key={`${name}-${index}`} className="flex items-center justify-between gap-4 text-sm"><span className="text-[#071421]/75"><span className="mr-2 text-[#8a6800]">✓</span>{name}</span>{qty > 1 && <span className="text-xs font-semibold text-[#667085]">×{qty}</span>}</div>
               })}
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-5 rounded-2xl border border-[#C99700]/25 bg-[#fffaf0] p-6">
+      <div className="mt-5 rounded-2xl border border-[#C99700]/25 bg-[#f7f4ed] p-6">
         <div className="text-sm font-bold text-[#071421]">Anything missing?</div>
         <p className="mt-1 text-xs leading-5 text-[#667085]">Your moving plan and price are based on the items above. Tell us before accepting if anything is missing—especially boxes, garage or basement contents, outdoor items, or specialty pieces.</p>
-        <a href={updateHref} className="mt-4 inline-flex rounded-lg bg-[#071421] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#15273a]">Update my inventory</a>
+        <a href={updateHref} className="mt-4 inline-flex rounded-lg bg-[#071421] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#071421]">Update my inventory</a>
       </div>
     </div>
   )
@@ -552,11 +564,11 @@ function ScopeOfWork({ scope }: { scope: CustomerQuoteScope }) {
             const CareIcon = carePlanIcon(plan.item, plan.category)
             return (
               <div key={`${plan.category}-${plan.item}-${index}`} className="group flex gap-4 rounded-2xl border border-[#071421]/10 bg-white p-5 transition-colors hover:border-[#C99700]/35">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#C99700]/10 text-[#9b7200]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#C99700]/10 text-[#c99700]">
                   <CareIcon className="h-6 w-6" strokeWidth={1.8} aria-hidden="true" />
                 </div>
                 <div className="min-w-0 pt-0.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#C99700]">{categoryLabel[plan.category]}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a6800]">{categoryLabel[plan.category]}</div>
                   <div className="mt-1.5 text-base font-bold text-[#071421]">{plan.item}</div>
                   <div className="mt-1 text-xs leading-5 text-[#667085]">{plan.service}</div>
                 </div>
@@ -738,6 +750,7 @@ function AcceptBlock({
   onDecline,
   onPayStripe,
   onRequireTerms,
+  scopeNeedsConfirmation,
   variant = 'main',
 }: {
   quote: PublicQuote
@@ -753,6 +766,7 @@ function AcceptBlock({
   onDecline: () => void
   onPayStripe: () => void
   onRequireTerms: () => void
+  scopeNeedsConfirmation?: boolean
   variant?: 'main' | 'sticky'
 }) {
   const needsTerms = !quote.termsAcceptedAt && !termsAccepted
@@ -774,11 +788,11 @@ function AcceptBlock({
 
   if (declined) {
     return variant === 'sticky' ? (
-      <div className="rounded-lg border border-[#071421]/20 bg-[#071421]/5 px-4 py-2 text-xs font-semibold text-[#071421]/50">Quote Declined</div>
+      <div className="rounded-lg border border-[#071421]/20 bg-[#071421]/5 px-4 py-2 text-xs font-semibold text-[#071421]/60">Quote Declined</div>
     ) : (
       <div className="rounded-xl border border-[#071421]/15 bg-[#071421]/5 p-6 text-center">
         <div className="text-sm font-semibold text-[#071421]/60 mb-1">Quote Declined</div>
-        <div className="text-xs text-[#071421]/40">If you change your mind, call or text us at {brand.phone}.</div>
+        <div className="text-xs text-[#071421]/60">If you change your mind, call or text us at {brand.phone}.</div>
       </div>
     )
   }
@@ -793,6 +807,12 @@ function AcceptBlock({
         <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
           Your deposit has been received. The {brand.name} team will be in touch shortly to confirm move-day details.
         </div>
+        {scopeNeedsConfirmation && (
+          <div className="mt-4 rounded-lg bg-white/10 p-4 text-left text-sm text-white/80">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">What happens next</div>
+            <p className="mt-1 leading-6">A moving coordinator will confirm the remaining access and handling details with you before dispatch, so the crew arrives with the right plan.</p>
+          </div>
+        )}
         <div className="mt-5 rounded-lg bg-white/10 p-4 text-sm text-white/80">
           Questions? Call or text <strong className="text-[#C99700]">{brand.phone}</strong>{brand.email ? <> or email <strong className="text-[#C99700]">{brand.email}</strong></> : null}
         </div>
@@ -807,7 +827,7 @@ function AcceptBlock({
       ) : (
         <div className="rounded-xl border-2 border-[#071421] bg-white p-6 text-center">
           <div className="text-sm font-bold text-[#071421] mb-1">Estimate Approved</div>
-          <div className="text-xs text-[#071421]/50">We&apos;ll coordinate billing using {paymentTermsLabel(quote.paymentTerms).toLowerCase()}.</div>
+          <div className="text-xs text-[#071421]/60">We&apos;ll coordinate billing using {paymentTermsLabel(quote.paymentTerms).toLowerCase()}.</div>
         </div>
       )
     }
@@ -823,16 +843,16 @@ function AcceptBlock({
       <div className="rounded-xl border-2 border-[#071421] bg-white p-6">
         <div className="text-center mb-5">
           <div className="text-sm font-bold text-[#071421] mb-1">Quote Accepted — Secure Your Date</div>
-          <div className="text-xs text-[#071421]/50">Pay your deposit to lock in your move.</div>
+          <div className="text-xs text-[#071421]/60">Pay your deposit to lock in your move.</div>
         </div>
         <button
           onClick={payOrRequestTerms}
           disabled={stripeLoading}
-          className="w-full rounded-xl bg-[#071421] py-4 text-base font-bold text-white hover:bg-[#243460] disabled:opacity-50 shadow-md"
+          className="w-full rounded-xl bg-[#071421] py-4 text-base font-bold text-white hover:bg-[#071421] disabled:opacity-50 shadow-md"
         >
           {stripeLoading ? 'Redirecting to payment...' : `Pay Deposit Online — ${formatMoney(quote.deposit)}`}
         </button>
-        <div className="mt-3 rounded-lg border border-[#071421]/10 bg-[#071421]/5 p-3 text-xs text-[#071421]/50 text-center">
+        <div className="mt-3 rounded-lg border border-[#071421]/10 bg-[#071421]/5 p-3 text-xs text-[#071421]/60 text-center">
           {brand.email ? <>Prefer e-Transfer or cash? Send to <strong>{brand.email}</strong> and reply to confirm.</> : <>Prefer e-Transfer or cash? Call or text <strong>{brand.phone}</strong> to arrange payment.</>}
         </div>
       </div>
@@ -845,13 +865,13 @@ function AcceptBlock({
       <div className="flex items-center gap-3">
         <div className="text-right">
           <div className="text-sm font-black tracking-tight text-[#071421]">{formatMoney(quote.total)}</div>
-          <div className="text-[11px] font-medium text-[#071421]/50">incl. HST</div>
+          <div className="text-[11px] font-medium text-[#071421]/60">incl. HST</div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onDecline} disabled={declining} className="min-h-[44px] rounded-lg border border-[#071421]/20 px-3 py-2 text-xs font-medium text-[#071421]/40 hover:border-[#071421]/40 disabled:opacity-40">
+          <button onClick={onDecline} disabled={declining} className="min-h-[44px] rounded-lg border border-[#071421]/20 px-3 py-2 text-xs font-medium text-[#071421]/60 hover:border-[#071421]/40 disabled:opacity-40">
             {declining ? '...' : 'Decline'}
           </button>
-          <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="min-h-[44px] rounded-lg bg-[#071421] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
+          <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="min-h-[44px] rounded-lg bg-[#071421] px-5 py-2 text-xs font-bold text-white hover:bg-[#071421] disabled:opacity-50">
             {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit')}
           </button>
         </div>
@@ -878,7 +898,7 @@ function AcceptBlock({
         <button
           onClick={acceptOrRequestTerms}
           disabled={accepting}
-          className="mt-4 text-xs text-white/30 hover:text-white/60 disabled:opacity-40"
+          className="mt-4 text-xs text-white/60 hover:text-white/80 disabled:opacity-40"
         >
           {accepting ? 'Confirming...' : 'Accept without card (E-Transfer/Cash)'}
         </button>
@@ -886,7 +906,7 @@ function AcceptBlock({
       <button
         onClick={onDecline}
         disabled={declining}
-        className="mt-2 text-xs text-white/20 hover:text-white/40 disabled:opacity-40"
+        className="mt-2 text-xs text-white/60 hover:text-white/80 disabled:opacity-40"
       >
         {declining ? 'Updating...' : 'Decline this quote'}
       </button>
@@ -917,7 +937,7 @@ function CustomerTermsAgreement({
             This protects both sides: {brand.name} is agreeing to the price and plan shown here, and you are confirming that the inventory, access, addresses, and services are accurate.
           </p>
         </div>
-        <div className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${isBindingEstimate ? 'bg-emerald-50 text-emerald-700' : 'bg-[#C99700]/12 text-[#9b5b00]'}`}>
+        <div className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${isBindingEstimate ? 'bg-emerald-50 text-emerald-700' : 'bg-[#C99700]/12 text-[#8a6800]'}`}>
           {isBindingEstimate ? 'Inventory-based estimate' : 'Hourly / non-binding estimate'}
         </div>
       </div>
@@ -949,7 +969,7 @@ function CustomerTermsAgreement({
         ))}
       </div>
 
-      <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${termsAccepted ? 'border-emerald-200 bg-emerald-50' : termsPrompt ? 'border-[#C99700] bg-[#fff8e8]' : 'border-[#071421]/10 bg-[#F7F4ED]'}`}>
+      <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${termsAccepted ? 'border-emerald-200 bg-emerald-50' : termsPrompt ? 'border-[#C99700] bg-[#f7f4ed]' : 'border-[#071421]/10 bg-[#F7F4ED]'}`}>
         <input
           type="checkbox"
           checked={termsAccepted}
@@ -964,7 +984,7 @@ function CustomerTermsAgreement({
         </span>
       </label>
       {termsPrompt && !termsAccepted ? (
-        <div className="mt-2 text-xs font-semibold text-[#9b5b00]">Please check this box before accepting or paying the deposit.</div>
+        <div className="mt-2 text-xs font-semibold text-[#8a6800]">Please check this box before accepting or paying the deposit.</div>
       ) : null}
     </div>
   )
@@ -1122,7 +1142,7 @@ function QuoteAcceptPageInner() {
     <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED]">
       <div className="flex flex-col items-center gap-3">
         <div className="h-9 w-9 animate-pulse rounded-xl bg-[#071421]/10" />
-        <div className="text-xs text-[#071421]/40 tracking-wider uppercase">Loading your quote...</div>
+        <div className="text-xs text-[#071421]/60 tracking-wider uppercase">Loading your quote...</div>
       </div>
     </div>
   )
@@ -1147,7 +1167,7 @@ function QuoteAcceptPageInner() {
               Call or text {expiredPhone}
             </a>
           )}
-          {quote?.number && <div className="mt-3 text-xs text-[#071421]/40">Quote {quote.number}</div>}
+          {quote?.number && <div className="mt-3 text-xs text-[#071421]/60">Quote {quote.number}</div>}
         </div>
       </div>
     )
@@ -1184,6 +1204,10 @@ function QuoteAcceptPageInner() {
     singleLocation: isSingleLocationLaborOnly,
   })
   const reviewedHiddenAreas = hiddenInventoryCoverage(jobFactors || undefined)
+  // Scope confirmation is a post-payment next step, never a pre-accept gate:
+  // the confirmation banner below used to sit next to the live pay button,
+  // arguing with it. It now appears only in the booked confirmation state.
+  const scopeNeedsConfirmation = isBindingEstimate && moveIntelligence.fixedPriceReadiness !== 'ready'
   const confirmedAccessProfiles = (quote.jobFactors?.accessProfiles || []).filter(profile => profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown'))
   const operationalTimeBudget = quote.jobFactors?.operationalTimeBudget
   const legacyAssemblyItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
@@ -1242,7 +1266,7 @@ function QuoteAcceptPageInner() {
           <div className="mb-6 flex items-center gap-3">
             <LogoMark size={36} brand={brand} />
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/40">{brand.name}</div>
+              <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/60">{brand.name}</div>
               <div className="text-sm font-semibold text-[#071421]">Your Moving Quote</div>
             </div>
           </div>
@@ -1265,7 +1289,7 @@ function QuoteAcceptPageInner() {
 
               {/* Rate card */}
               <div className="rounded-2xl bg-white border border-[#071421]/10 shadow-sm p-5 mb-4">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/40 mb-3">Your quote</div>
+                <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/60 mb-3">Your quote</div>
                 <div className="text-xl font-black text-[#071421] mb-1">{rateDesc}</div>
                 {maximumHours > minimumHours ? (
                   <div className="text-sm text-[#071421]/60 mb-4">Most jobs in this lane take about {minimumHours}-{maximumHours} hours</div>
@@ -1275,11 +1299,11 @@ function QuoteAcceptPageInner() {
 
                 {rate && minimumHours > 0 && (
                   <div className="rounded-xl bg-[#F7F4ED] p-4">
-                    <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/40 mb-2">Minimum charge (incl. HST)</div>
+                    <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/60 mb-2">Minimum charge (incl. HST)</div>
                     <div className="text-2xl font-black text-[#071421]">
                       ${minimumTotal.toLocaleString()}
                     </div>
-                    <div className="mt-1 text-[11px] text-[#071421]/50">
+                    <div className="mt-1 text-[11px] text-[#071421]/60">
                       Based on a {minimumHours}-hour minimum at ${rate}/hr + {hstPct}% HST
                     </div>
                     {maximumHours > minimumHours ? (
@@ -1336,24 +1360,37 @@ function QuoteAcceptPageInner() {
                   {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : `Book Now — Pay $${DEPOSIT} Deposit`)}
                 </button>
                 {!invoiceStyleTerms ? (
-                  <div className="mt-3 text-[11px] text-white/30">
+                  <div className="mt-3 text-[11px] text-white/60">
                     {brand.email ? `Prefer e-Transfer? Send to ${brand.email} and reply to confirm.` : `Prefer e-Transfer? Call or text ${brand.phone} to arrange payment.`}
                   </div>
                 ) : null}
               </div>
 
-              {/* Social proof */}
+              {/* Social proof — every brand gets proof, never another brand's quotes */}
               <div className="space-y-2">
-                {brand.logo === 'saturn' && REVIEWS.slice(0, 2).map((r, i) => (
+                {brand.logo === 'saturn' ? REVIEWS.slice(0, 2).map((r, i) => (
                   <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
                     <Stars count={r.stars} />
                     <div className="mt-1 text-xs text-[#071421]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
-                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/40">{r.name}</div>
+                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/60">{r.name}</div>
+                  </div>
+                )) : DEXA_REVIEWS.slice(0, 2).map((r, i) => (
+                  <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
+                    <Stars count={r.stars} />
+                    <div className="mt-1 text-xs text-[#071421]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
+                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/60">{r.name}</div>
                   </div>
                 ))}
+                {brand.logo === 'dexa' && DEXA_REVIEWS.length === 0 && (
+                  <a href={DEXA_GOOGLE_PROFILE} target="_blank" rel="noreferrer" className="block rounded-xl bg-white border border-[#071421]/8 p-4">
+                    <Stars count={5} />
+                    <div className="mt-1 text-xs text-[#071421]/70 leading-5">Dexa Movers on Google — verified reviews from Ottawa customers.</div>
+                    <div className="mt-1 text-[11px] font-semibold text-[#667085]">Read all reviews</div>
+                  </a>
+                )}
               </div>
 
-              <div className="mt-6 text-center text-xs text-[#071421]/40">
+              <div className="mt-6 text-center text-xs text-[#071421]/60">
                 Questions? Call or text <strong>{brand.phone}</strong>{brand.website ? ` · ${brand.website}` : ''}
               </div>
             </>
@@ -1373,7 +1410,7 @@ function QuoteAcceptPageInner() {
             <LogoMark size={28} brand={brand} />
             <div>
               <div className="text-xs font-black tracking-tight text-[#071421]">{brand.shortName}</div>
-              <div className="text-[11px] font-medium text-[#071421]/40 tracking-wide">MOVING</div>
+              <div className="text-[11px] font-medium text-[#071421]/60 tracking-wide">MOVING</div>
             </div>
           </div>
           <AcceptBlock
@@ -1390,6 +1427,7 @@ function QuoteAcceptPageInner() {
             onDecline={() => setConfirmingDecline(true)}
             onPayStripe={() => void payDepositStripe()}
             onRequireTerms={ensureTermsAccepted}
+            scopeNeedsConfirmation={scopeNeedsConfirmation}
             variant="sticky"
           />
         </div>
@@ -1415,7 +1453,7 @@ function QuoteAcceptPageInner() {
               <LogoMark size={64} dark brand={brand} />
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white">{brand.name}</div>
-                <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/40">Your moving estimate · {marketLabel}</div>
+                <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/60">Your moving estimate · {marketLabel}</div>
               </div>
             </div>
 
@@ -1463,7 +1501,7 @@ function QuoteAcceptPageInner() {
               <div>
                 <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/35">{isSingleLocationLaborOnly ? 'Work location' : 'Origin'}</div>
                 <div className="text-lg font-bold leading-tight text-white">{quote.originCity || (isSingleLocationLaborOnly ? 'Service address' : 'Origin')}</div>
-                {quote.originAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.originAddress}</div>}
+                {quote.originAddress && <div className="mt-1 text-xs leading-5 text-white/60">{quote.originAddress}</div>}
               </div>
               {!isSingleLocationLaborOnly && <div className="flex justify-center">
                 <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
@@ -1477,7 +1515,7 @@ function QuoteAcceptPageInner() {
                 ) : (
                   <>
                     <div className="text-lg font-bold leading-tight text-white">{quote.destCity || 'Destination'}</div>
-                    {quote.destAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.destAddress}</div>}
+                    {quote.destAddress && <div className="mt-1 text-xs leading-5 text-white/60">{quote.destAddress}</div>}
                   </>
                 )}
               </div>}
@@ -1512,13 +1550,13 @@ function QuoteAcceptPageInner() {
           isBindingEstimate
             ? 'border-[#071421]/20 bg-[#071421]/5'
             : 'border-[#C99700]/30 bg-[#C99700]/8'
-        }`} style={isBindingEstimate ? {} : { background: 'rgba(245,166,35,0.06)' }}>
+        }`} style={isBindingEstimate ? {} : { background: 'rgba(201,151,0,0.06)' }}>
           <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${isBindingEstimate ? 'bg-[#071421]' : 'bg-[#C99700]'}`} />
           <div>
             <div className={`text-xs font-bold mb-0.5 ${isBindingEstimate ? 'text-[#071421]' : 'text-[#071421]'}`}>
               {isBindingEstimate ? (quote.scopeStatus === 'provisional' ? 'Scope-Based Estimate · Confirmation Pending' : 'Scope-Based Flat Rate') : 'Hourly Estimate'}
             </div>
-            <div className="text-xs leading-5 text-[#071421]/50">
+            <div className="text-xs leading-5 text-[#071421]/60">
               {isBindingEstimate
                 ? quote.scopeStatus === 'provisional'
                   ? 'This estimate is ready to review. Confirm the highlighted inventory and access details with our team before the scope is finalized.'
@@ -1528,18 +1566,6 @@ function QuoteAcceptPageInner() {
             </div>
           </div>
         </div>
-
-        {isBindingEstimate && moveIntelligence.fixedPriceReadiness !== 'ready' && (
-          <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-[#071421]">
-            <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Scope confirmation required</div>
-            <p className="mt-2 text-sm leading-6 text-[#071421]/70">
-              This fixed price applies to the inventory and access shown in this estimate. A moving coordinator must confirm the remaining high-impact access or handling details before dispatch.
-            </p>
-            {moveIntelligence.questions.slice(0, 3).map(question => (
-              <div key={question.id} className="mt-2 text-xs font-semibold text-[#071421]/70">• {question.question}</div>
-            ))}
-          </div>
-        )}
 
         {hasInventory && (
           <InventoryIntelligence
@@ -1552,7 +1578,7 @@ function QuoteAcceptPageInner() {
 
         {hasInventory && (
           <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Before you continue</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[#8a6800]">Before you continue</div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">Hidden areas and loose contents.</h2>
             <p className="mt-2 text-sm leading-6 text-[#071421]/60">This records what was reviewed with you—including areas that are empty or do not apply—so the moving plan reflects the same agreed scope.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1568,7 +1594,7 @@ function QuoteAcceptPageInner() {
 
         {confirmedAccessProfiles.length > 0 && (
           <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Access included in your moving plan</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[#8a6800]">Access included in your moving plan</div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">From each room to the truck.</h2>
             <p className="mt-2 text-sm leading-6 text-[#071421]/60">Your quoted scope includes the parking, carrying route, stairs, elevators, and normal building procedures confirmed below.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -1586,20 +1612,20 @@ function QuoteAcceptPageInner() {
 
         {operationalTimeBudget && operationalTimeBudget.totalCrewClockTime > 0 && (
           <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Your service window</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[#8a6800]">Your service window</div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">A schedule built around the actual job.</h2>
             <p className="mt-2 text-sm leading-6 text-[#071421]/60">This range accounts for the listed inventory, confirmed access, included services, transportation, and a normal operating allowance. Your price remains based on the agreed scope—not a customer-facing hourly calculation.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {operationalTimeBudget.stops.map(stop => (
                 <div key={stop.stopId} className="rounded-xl border border-[#071421]/10 bg-[#F7F4ED] px-4 py-4">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#C99700]">{stop.role === 'dropoff' ? 'Destination services' : stop.role === 'storage' ? 'Storage services' : 'Origin services'}</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#8a6800]">{stop.role === 'dropoff' ? 'Destination services' : stop.role === 'storage' ? 'Storage services' : 'Origin services'}</div>
                   <div className="mt-1 font-bold text-[#071421]">{stop.label}</div>
                   <div className="mt-2 text-sm text-[#071421]/60">Approximately {stop.customerRange.minHours}–{stop.customerRange.maxHours} hours</div>
                 </div>
               ))}
               {operationalTimeBudget.transportationTime > 0 && (
                 <div className="rounded-xl border border-[#071421]/10 bg-[#F7F4ED] px-4 py-4">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#C99700]">Transportation</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#8a6800]">Transportation</div>
                   <div className="mt-1 font-bold text-[#071421]">Confirmed route plan</div>
                   <div className="mt-2 text-sm text-[#071421]/60">Approximately {operationalTimeBudget.transportationTime} hours in the operating plan</div>
                 </div>
@@ -1640,16 +1666,16 @@ function QuoteAcceptPageInner() {
                         <span className="text-sm font-semibold text-[#071421]">{leg.label}</span>
                         <span className="rounded-full bg-[#C99700]/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#071421]">{typeLabel}</span>
                         {leg.scheduledDate && (
-                          <span className="text-[11px] text-[#071421]/40">{new Date(leg.scheduledDate + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
+                          <span className="text-[11px] text-[#071421]/60">{new Date(leg.scheduledDate + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
                         )}
                       </div>
-                      <div className="mt-1.5 flex items-center gap-2 text-xs text-[#071421]/50">
+                      <div className="mt-1.5 flex items-center gap-2 text-xs text-[#071421]/60">
                         <span className="truncate">{origin}</span>
-                        <svg className="h-3 w-3 shrink-0 text-[#C99700]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        <svg className="h-3 w-3 shrink-0 text-[#8a6800]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                         <span className="truncate">{dest}</span>
                       </div>
                       {(leg.distanceKm || customerLegNote) && (
-                        <div className="mt-1 text-[11px] text-[#071421]/35">
+                        <div className="mt-1 text-[11px] text-[#071421]/60">
                           {leg.distanceKm ? `${leg.distanceKm} km${!isBindingEstimate && leg.driveHours ? ` · ${leg.driveHours}h drive` : ''}` : ''}
                           {leg.distanceKm && customerLegNote ? ' · ' : ''}
                           {customerLegNote}
@@ -1691,8 +1717,8 @@ function QuoteAcceptPageInner() {
                 <div className="mt-2 text-sm text-[#667085]">A considered plan for how your move unfolds.</div>
               </div>
               {isBindingEstimate && (
-                <div className="mb-8 rounded-xl border border-[#C99700]/25 bg-[#fffaf0] p-5">
-                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#9b7200]">Before anything is loaded</div>
+                <div className="mb-8 rounded-xl border border-[#C99700]/25 bg-[#f7f4ed] p-5">
+                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#c99700]">Before anything is loaded</div>
                   <p className="mt-2 text-sm leading-6 text-[#071421]/70">Your crew will complete a quick walkthrough with you to verify the inventory and move conditions against this plan. If the scope has materially changed, we will explain any required adjustment before additional work begins.</p>
                 </div>
               )}
@@ -1704,12 +1730,12 @@ function QuoteAcceptPageInner() {
                     {timeline.map((phase, i) => {
                       const PhaseIcon = timelinePhaseIcon(phase)
                       return <div key={i} className="flex gap-4">
-                        <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#C99700]/15 bg-[#fffaf0] text-[#9b7200] shadow-[0_3px_10px_rgba(7,20,33,0.05)]">
+                        <div className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#C99700]/15 bg-[#f7f4ed] text-[#c99700] shadow-[0_3px_10px_rgba(7,20,33,0.05)]">
                           <PhaseIcon className="h-[18px] w-[18px]" strokeWidth={1.9} aria-hidden="true" />
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
                           <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#C99700]">{isBindingEstimate ? `Stage ${i + 1}` : phase.time}</span>
+                            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6800]">{isBindingEstimate ? `Stage ${i + 1}` : phase.time}</span>
                             <span className="text-xs font-semibold text-[#071421]/70">{phase.title}</span>
                           </div>
                           <div className="mt-1 text-sm leading-5 text-[#667085]">{isBindingEstimate ? flatRateTimelineDetail(phase.title, crewSize, trucks, customerScope.assemblyItems) : phase.detail}</div>
@@ -1729,7 +1755,7 @@ function QuoteAcceptPageInner() {
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Your move investment</div>
             {!bundledMove && <button
               onClick={() => setLineItemsOpen(v => !v)}
-              className="text-[11px] font-semibold uppercase tracking-wide text-white/40 hover:text-white"
+              className="text-[11px] font-semibold uppercase tracking-wide text-white/60 hover:text-white"
             >
               {lineItemsOpen ? 'Hide breakdown' : 'See breakdown'}
             </button>}
@@ -1739,7 +1765,7 @@ function QuoteAcceptPageInner() {
           <div className="grid grid-cols-[1fr_auto] gap-4 px-8 py-6 text-sm sm:px-12">
             <div>
               <div className="font-semibold text-white">{serviceLabel}</div>
-              <div className="mt-1 text-xs text-white/40">
+              <div className="mt-1 text-xs text-white/60">
                 {crewSize}-person professional team · {trucks} truck{trucks > 1 ? 's' : ''}{!bundledMove && hours ? ` · ~${hours} hrs` : bundledMove ? ' · planned execution' : ''}
               </div>
             </div>
@@ -1770,7 +1796,7 @@ function QuoteAcceptPageInner() {
               </div>
             )}
             {/* The hero number is always the tax-inclusive total — one rule everywhere */}
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">{bundledMove ? 'Flat-rate total' : 'Estimated total'} · including HST</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">{bundledMove ? 'Flat-rate total' : 'Estimated total'} · including HST</div>
             <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.total)}</div>
             <div className="mt-4 flex justify-center gap-2 text-xs text-white/35">
               <span>{formatMoney(quote.subtotal)} before tax</span><span>·</span><span>HST {formatMoney(quote.hst)}</span>
@@ -1785,7 +1811,7 @@ function QuoteAcceptPageInner() {
           </div>
           {invoiceStyleTerms ? (
             <div className="px-5 py-4">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-[#C99700] mb-1">Terms</div>
+              <div className="text-[11px] font-bold uppercase tracking-widest text-[#8a6800] mb-1">Terms</div>
               <div className="text-2xl font-black text-[#071421]">{paymentTermsLabel(quote.paymentTerms)}</div>
               <div className="mt-2 text-xs leading-5 text-[#071421]/45">
                 Approving this estimate confirms the scope and terms. {brand.name} will coordinate billing, invoice details, or purchase-order requirements with your office contact.
@@ -1805,14 +1831,14 @@ function QuoteAcceptPageInner() {
               </div>
             </div>
           )}
-          <div className="border-t border-[#071421]/8 bg-[#071421]/3 px-5 py-3" style={{ background: 'rgba(26,39,68,0.025)' }}>
+          <div className="border-t border-[#071421]/8 bg-[#071421]/3 px-5 py-3" style={{ background: 'rgba(7,20,33,0.025)' }}>
             {!invoiceStyleTerms && <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#071421]/55"><span>Total including HST: <strong className="text-[#071421]">{formatMoney(quote.total)}</strong></span><span>−</span><span>deposit: <strong className="text-[#071421]">{formatMoney(quote.deposit)}</strong></span><span>=</span><span>remaining balance: <strong className="text-[#071421]">{formatMoney(quote.balance)}</strong></span></div>}
             <div className="flex flex-wrap gap-1.5">
               {['Cash', 'e-Transfer', 'Credit Card', 'Debit'].map(m => (
-                <span key={m} className="rounded-full border border-[#071421]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#071421]/50">{m}</span>
+                <span key={m} className="rounded-full border border-[#071421]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#071421]/60">{m}</span>
               ))}
             </div>
-            <div className="mt-1.5 text-[11px] text-[#071421]/30">No card or administration surcharge{brand.email ? ` · e-Transfer also available at ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
+            <div className="mt-1.5 text-[11px] text-[#071421]/60">No card or administration surcharge{brand.email ? ` · e-Transfer also available at ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
           </div>
         </div>
 
@@ -1832,32 +1858,53 @@ function QuoteAcceptPageInner() {
             onDecline={() => setConfirmingDecline(true)}
             onPayStripe={() => void payDepositStripe()}
             onRequireTerms={ensureTermsAccepted}
+            scopeNeedsConfirmation={scopeNeedsConfirmation}
           />
           {error && <div className="mt-3 rounded-lg border border-[#071421]/15 bg-[#071421]/5 px-4 py-2 text-xs text-[#071421]/60">{error}</div>}
         </div>
 
-        {/* ── Trust before paperwork ── */}
-        {brand.logo === 'saturn' && (
+        {/* ── Trust before paperwork — every brand gets proof ── */}
+        {(
           <div className="mb-16">
             <SectionLabel>Trusted for moves that matter</SectionLabel>
             <div className="mb-8 max-w-2xl text-3xl font-bold tracking-tight text-[#071421] sm:text-4xl">Careful planning. Calm communication. Five-star execution.</div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {REVIEWS.map((review, index) => (
-                <div key={index} className="rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
-                  <Stars count={review.stars} />
-                  <p className="mt-5 text-base leading-7 text-[#071421]/70">{review.text}</p>
-                  <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">{review.name}</p>
+            {brand.logo === 'saturn' ? (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {REVIEWS.map((review, index) => (
+                    <div key={index} className="rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
+                      <Stars count={review.stars} />
+                      <p className="mt-5 text-base leading-7 text-[#071421]/70">{review.text}</p>
+                      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">{review.name}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="mt-5 text-center text-xs text-[#667085]">Five-star rated on Google · starmovers.ca</div>
+                <div className="mt-5 text-center text-xs text-[#667085]">Five-star rated on Google · starmovers.ca</div>
+              </>
+            ) : DEXA_REVIEWS.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {DEXA_REVIEWS.map((review, index) => (
+                  <div key={index} className="rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
+                    <Stars count={review.stars} />
+                    <p className="mt-5 text-base leading-7 text-[#071421]/70">{review.text}</p>
+                    <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">{review.name}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <a href={DEXA_GOOGLE_PROFILE} target="_blank" rel="noreferrer" className="block rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
+                <Stars count={5} />
+                <p className="mt-5 text-base leading-7 text-[#071421]/70">Dexa Movers is rated by Ottawa customers on Google. Read verified reviews from recent moves.</p>
+                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">Read Google reviews</p>
+              </a>
+            )}
           </div>
         )}
 
         {/* ── Conditional Clause ── */}
         {quote.conditionalClause && (
           <div className="mb-6 overflow-hidden rounded-xl border border-[#C99700]/30 bg-white">
-            <div className="border-b border-[#C99700]/20 px-5 py-3.5" style={{ background: 'rgba(245,166,35,0.05)' }}>
+            <div className="border-b border-[#C99700]/20 px-5 py-3.5" style={{ background: 'rgba(201,151,0,0.05)' }}>
               <div className="flex items-center gap-2">
                 <span className="text-sm">⚠️</span>
                 <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Important Condition</div>
@@ -1944,6 +1991,7 @@ function QuoteAcceptPageInner() {
             onDecline={() => setConfirmingDecline(true)}
             onPayStripe={() => void payDepositStripe()}
             onRequireTerms={ensureTermsAccepted}
+            scopeNeedsConfirmation={scopeNeedsConfirmation}
           />
         </div>
 
@@ -1970,13 +2018,13 @@ function QuoteAcceptPageInner() {
           <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
             <LogoMark size={48} dark brand={brand} />
             <div className="mt-3 text-sm font-bold tracking-tight text-white">{brand.shortName}</div>
-            <div className="mt-3 text-xs leading-6 text-white/40">
+            <div className="mt-3 text-xs leading-6 text-white/60">
               {marketLabel}<br />
               <a href={brand.phoneHref} className="text-white/50 hover:text-white">{brand.phone}</a>
               {brand.email ? <>{' · '}<a href={`mailto:${brand.email}`} className="text-white/50 hover:text-white">{brand.email}</a></> : null}
               {brand.website ? <>{' · '}<a href={`https://${brand.website}`} className="text-white/50 hover:text-white">{brand.website}</a></> : null}
             </div>
-            <div className="mt-2 text-[11px] text-white/20">Valid until {expiryDate(quote)}</div>
+            <div className="mt-2 text-[11px] text-white/60">Valid until {expiryDate(quote)}</div>
           </div>
         </div>
 
@@ -2001,7 +2049,7 @@ export default function QuoteAcceptPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED]">
         <div className="flex flex-col items-center gap-3">
           <div className="h-9 w-9 animate-pulse rounded-xl bg-[#071421]/10" />
-          <div className="text-xs text-[#071421]/40 tracking-wider uppercase">Loading...</div>
+          <div className="text-xs text-[#071421]/60 tracking-wider uppercase">Loading...</div>
         </div>
       </div>
     }>

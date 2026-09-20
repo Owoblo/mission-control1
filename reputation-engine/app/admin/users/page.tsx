@@ -217,7 +217,7 @@ export default function AdminUsersPage() {
       {addOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
+          style={{ background: 'rgba(7,20,33,0.55)', backdropFilter: 'blur(2px)' }}
           onClick={e => { if (e.target === e.currentTarget) { setAddOpen(false); setEditUser(null) } }}
         >
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">

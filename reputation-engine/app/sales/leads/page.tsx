@@ -1,5 +1,6 @@
 'use client'
 
+import { Home, X, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -9,6 +10,12 @@ import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDel
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 import { ConfirmDialog } from '@/app/components/confirm-dialog'
+import { UrgencyBadge, heatToTone, URGENCY_TONE_CLASSES, type UrgencyTone } from '@/app/components/sales/urgency-badge'
+
+// One urgency language: lead heat -> shared tone.
+function heatTone(tone: ReturnType<typeof getLeadGuidance>['heat']['tone']): UrgencyTone {
+  return heatToTone(tone)
+}
 
 type LeadViewMode = 'focus' | 'booked' | 'all' | 'realtor' | 'deleted'
 type DeletedLeadRow = CRMLead & { _deletedAt?: string }
@@ -25,7 +32,7 @@ const LEAD_VIEW_MODES: Array<{ id: LeadViewMode; label: string; description: str
   { id: 'focus', label: 'Needs Follow-Up', description: 'Only leads with a live next action.' },
   { id: 'booked', label: 'Booked', description: 'Booked and completed jobs that still matter operationally.' },
   { id: 'all', label: 'All Active', description: 'Everything active except deleted and lost.' },
-  { id: 'realtor', label: '🏠 Realtor Opps', description: 'Destination-side leads — pitch the listing agent for the current occupant\'s move.' },
+  { id: 'realtor', label: 'Realtor Opps', description: 'Destination-side leads — pitch the listing agent for the current occupant\'s move.' },
   { id: 'deleted', label: 'Deleted', description: 'Recently removed leads that can still be restored.' },
 ]
 
@@ -45,14 +52,6 @@ function matchesLeadQuery(lead: CRMLead, query: string) {
     .join(' ')
     .toLowerCase()
   return haystack.includes(query)
-}
-
-function heatBadgeClasses(tone: ReturnType<typeof getLeadGuidance>['heat']['tone']) {
-  if (tone === 'risk') return 'border-rose-200 bg-rose-50 text-rose-700'
-  if (tone === 'hot') return 'border-orange-200 bg-orange-50 text-orange-700'
-  if (tone === 'warm') return 'border-amber-200 bg-amber-50 text-amber-700'
-  if (tone === 'dormant') return 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
-  return 'border-slate-200 bg-slate-50 text-slate-600'
 }
 
 function stageClasses(stage: CRMLead['stage']) {
@@ -309,15 +308,15 @@ function SalesLeadsIndexContent() {
     <div className="crm-shell space-y-6">
       <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Leads</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--app-ink)]">Leads</h1>
           <div className="mt-1 text-sm text-[var(--app-muted)]">What needs a response or decision now.</div>
         </div>
         <details className="relative self-start lg:self-auto">
           <summary className="crm-button cursor-pointer list-none">Tools</summary>
-          <div className="absolute right-0 z-30 mt-2 grid w-52 gap-1 rounded-[10px] border border-[var(--app-line)] bg-white p-2 shadow-lg">
-            <button onClick={() => void refresh({ includeDeleted: viewMode === 'deleted' })} className="rounded-[7px] px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)]">Refresh data</button>
-            <button onClick={() => void syncCallHistory()} disabled={backfilling} className="rounded-[7px] px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)] disabled:opacity-50">{backfilling ? 'Syncing…' : 'Sync call history'}</button>
-            <Link href="/sales/cleanup" className="rounded-[7px] px-3 py-2 text-sm text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-rose-700">Review junk leads</Link>
+          <div className="absolute right-0 z-30 mt-2 grid w-52 gap-1 rounded-xl border border-[var(--app-line)] bg-white p-2 shadow-lg">
+            <button onClick={() => void refresh({ includeDeleted: viewMode === 'deleted' })} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)]">Refresh data</button>
+            <button onClick={() => void syncCallHistory()} disabled={backfilling} className="rounded-lg px-3 py-2 text-left text-sm hover:bg-[var(--app-bg)] disabled:opacity-50">{backfilling ? 'Syncing…' : 'Sync call history'}</button>
+            <Link href="/sales/cleanup" className="rounded-lg px-3 py-2 text-sm text-[var(--app-muted)] hover:bg-[var(--app-bg)] hover:text-rose-700">Review junk leads</Link>
           </div>
         </details>
       </section>
@@ -342,7 +341,7 @@ function SalesLeadsIndexContent() {
                   key={mode.id}
                   type="button"
                   onClick={() => setViewMode(mode.id)}
-                  className={`rounded-[7px] border px-3 py-2 text-sm font-semibold transition ${
+                  className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
                     active
                       ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
                       : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]'
@@ -361,7 +360,7 @@ function SalesLeadsIndexContent() {
 
       {/* Today's Calls / Overdue Follow-ups */}
       {viewMode !== 'deleted' && viewMode !== 'booked' && todaysCallList.length > 0 && (
-        <section className="overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white">
+        <section className="overflow-hidden rounded-xl border border-[var(--app-line)] bg-white">
           <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-3">
             <span className="text-sm font-semibold text-[var(--app-ink)]">
               {todaysCallList.filter(({ lead }) => (lead.followUpDate || '') < today).length > 0
@@ -376,7 +375,7 @@ function SalesLeadsIndexContent() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {(lead.followUpDate || '') < today && (
-                      <span className="h-2 w-2 rounded-full bg-rose-500" />
+                      <span className={`h-2 w-2 rounded-full ${URGENCY_TONE_CLASSES.critical.dot}`} />
                     )}
                     <span className="font-medium text-[var(--app-ink)]">{lead.name || 'Unnamed'}</span>
                     <span className="text-xs text-[var(--app-muted)]">{(lead.followUpDate || '') < today ? `Overdue since ${lead.followUpDate}` : 'Due today'}</span>
@@ -398,16 +397,16 @@ function SalesLeadsIndexContent() {
       ) : null}
 
       {error ? (
-        <div className="flex items-center justify-between gap-4 rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
           <span>{error.includes('aborted') || error.includes('timeout') ? 'Lead data took too long to load. Your records are safe.' : error}</span>
-          <button type="button" onClick={() => void refresh()} className="shrink-0 rounded-[7px] border border-rose-300 bg-white px-3 py-1.5 font-semibold hover:bg-rose-100">Retry</button>
+          <button type="button" onClick={() => void refresh()} className="shrink-0 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-semibold hover:bg-rose-100">Retry</button>
         </div>
       ) : null}
 
       {loading ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading leads...</div>
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)] px-5 py-16 text-center text-sm text-[var(--app-muted)]">Loading leads...</div>
       ) : viewMode === 'deleted' ? (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
           <div className="border-b border-[var(--app-line)] px-5 py-3 text-sm text-[var(--app-muted)]">
             Deleted leads stay out of the rep workflow but can be restored here.
           </div>
@@ -438,7 +437,7 @@ function SalesLeadsIndexContent() {
                       type="button"
                       onClick={() => void handleRestoreLead(lead)}
                       disabled={rowActionId === lead.id}
-                      className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
                     >
                       {rowActionId === lead.id ? 'Restoring...' : 'Restore Lead'}
                     </button>
@@ -449,22 +448,20 @@ function SalesLeadsIndexContent() {
           )}
         </div>
       ) : (
-        <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">
+        <div className="rounded-lg border border-[var(--app-line)] bg-[var(--app-panel)]">
           <div className="space-y-3 p-3 md:hidden">
             {visibleLeads.length === 0 ? (
-              <div className="rounded-[18px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
+              <div className="rounded-2xl border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-12 text-center text-sm text-[var(--app-muted)]">
                 {emptyText}
               </div>
             ) : (
               visibleLeads.map(({ lead, quote, guidance }) => (
-                <div key={lead.id} className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+                <div key={lead.id} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="truncate font-medium text-[var(--app-ink)]">{lead.name}</div>
-                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${heatBadgeClasses(guidance.heat.tone)}`}>
-                          {guidance.heat.label} · {guidance.heat.score}
-                        </span>
+                        <UrgencyBadge tone={heatTone(guidance.heat.tone)} label={`${guidance.heat.label} · ${guidance.heat.score}`} />
                       </div>
                       <div className="mt-1 text-xs text-[var(--app-muted)]">
                         {guidance.stageLabel} · {guidance.branchLabel} · Owner {guidance.ownerLabel}
@@ -477,7 +474,7 @@ function SalesLeadsIndexContent() {
                   <div className="mt-3 text-sm text-[var(--app-muted)]">
                     {lead.originAddress || lead.originCity || 'Origin TBD'} → {lead.destAddress || lead.destCity || 'Destination TBD'}
                   </div>
-                  <div className="mt-3 rounded-[12px] bg-white px-3 py-3">
+                  <div className="mt-3 rounded-xl bg-white px-3 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Next Action</div>
                     <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{guidance.action.nextAction}</div>
                     <div className="mt-1 text-xs text-[var(--app-muted)]">{guidance.action.reason}</div>
@@ -498,16 +495,16 @@ function SalesLeadsIndexContent() {
                       type="button"
                       onClick={() => void handleMarkNotInterested(lead)}
                       disabled={rowActionId === lead.id}
-                      className="rounded-[8px] border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+                      className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
                     >
-                      ✕ Not Interested
+                      <X size={13} className="mr-1.5 inline-block align-middle" />Not Interested
                     </button>
                     {canManageLeadLifecycle ? (
                       <button
                         type="button"
                         onClick={() => void handleDeleteLead(lead)}
                         disabled={rowActionId === lead.id}
-                        className="rounded-[8px] border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                        className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                       >
                         {rowActionId === lead.id ? '...' : 'Delete'}
                       </button>
@@ -542,7 +539,7 @@ function SalesLeadsIndexContent() {
                           {guidance.stageLabel}
                         </span>
                         {guidance.action.priority >= 80 && (
-                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">⚡ Urgent</span>
+                          <UrgencyBadge tone="critical" label="Urgent" icon={Zap} className="font-bold" />
                         )}
                       </div>
                       <div className="mt-0.5 text-xs text-[var(--app-muted)]">
@@ -553,9 +550,7 @@ function SalesLeadsIndexContent() {
                       </div>
                     </Link>
                     <div className="self-start">
-                      <div className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${heatBadgeClasses(guidance.heat.tone)}`}>
-                        {guidance.heat.label} · {guidance.heat.score}
-                      </div>
+                      <UrgencyBadge tone={heatTone(guidance.heat.tone)} label={`${guidance.heat.label} · ${guidance.heat.score}`} />
                       <div className="mt-2 text-xs text-[var(--app-muted)]">{guidance.heat.reasons[0] || 'No heat signal'}</div>
                     </div>
                     <Link href={`/sales/leads/${lead.id}`} className="min-w-0 hover:opacity-80">
@@ -565,7 +560,7 @@ function SalesLeadsIndexContent() {
                     <div className="text-[var(--app-ink)]">{moveDateLabel(lead, quote)}</div>
                     <div className="text-[var(--app-muted)]">{formatRelativeTime(guidance.latestActivity.at)}</div>
                     <div className="flex items-start justify-end gap-2">
-                      <Link href={`/sales/leads/${lead.id}`} className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                      <Link href={`/sales/leads/${lead.id}`} className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Open
                       </Link>
                       <button
@@ -573,16 +568,16 @@ function SalesLeadsIndexContent() {
                         onClick={() => void handleMarkNotInterested(lead)}
                         disabled={rowActionId === lead.id}
                         title="Mark as not interested — removes from active pipeline"
-                        className="rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        ✕ Not Interested
+                        <X size={13} className="mr-1.5 inline-block align-middle" />Not Interested
                       </button>
                       {canManageLeadLifecycle ? (
                         <button
                           type="button"
                           onClick={() => void handleDeleteLead(lead)}
                           disabled={rowActionId === lead.id}
-                          className="rounded-[8px] border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                          className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                         >
                           {rowActionId === lead.id ? '...' : 'Delete'}
                         </button>

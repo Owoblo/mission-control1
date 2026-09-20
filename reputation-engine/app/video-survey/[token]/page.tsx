@@ -19,7 +19,7 @@ const walkthroughTips = [
     illustration: (
       <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-[#071421] text-white shadow-sm">
         <Camera className="h-7 w-7" strokeWidth={1.8} />
-        <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-[#f4f0e8] bg-[#e1ad01]" />
+        <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-[#f7f4ed] bg-[#c99700]" />
       </div>
     ),
   },
@@ -27,7 +27,7 @@ const walkthroughTips = [
     title: 'Walk one room at a time',
     detail: 'Pause at each doorway, then show the whole room.',
     illustration: (
-      <div className="flex h-14 w-[76px] items-end justify-center gap-1.5 rounded-2xl bg-[#dfe8e3] px-2.5 pt-2 text-[#0b7055]">
+      <div className="flex h-14 w-[76px] items-end justify-center gap-1.5 rounded-2xl bg-[#ecfdf3] px-2.5 pt-2 text-[#0f6a53]">
         <DoorOpen className="h-10 w-8" strokeWidth={1.65} />
         <DoorOpen className="h-10 w-8 -scale-x-100" strokeWidth={1.65} />
       </div>
@@ -37,9 +37,9 @@ const walkthroughTips = [
     title: 'Mention what is staying',
     detail: 'Tell us which furniture should not be moved.',
     illustration: (
-      <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-[#f7e9bc] text-[#8a6800]">
+      <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-[#f7f4ed] text-[#8a6800]">
         <Armchair className="h-8 w-8" strokeWidth={1.75} />
-        <span className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-white text-xs font-bold text-[#0b7055] shadow-sm">✓</span>
+        <span className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-white text-xs font-bold text-[#0f6a53] shadow-sm">✓</span>
       </div>
     ),
   },
@@ -193,15 +193,15 @@ export default function CustomerVideoSurveyPage() {
   if (!info) return <CenteredMessage title="Preparing your walkthrough" message="One moment while we open your private survey." loading />
   if (finished) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f4f0e8] p-6 text-[#071421]">
+      <main className="grid min-h-screen place-items-center bg-[#f7f4ed] p-6 text-[#071421]">
         <div className="w-full max-w-md rounded-3xl bg-white p-7 text-center shadow-xl">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-xl text-emerald-700">✓</div>
           <h1 className="mt-4 text-2xl font-semibold">Thank you — your walkthrough is saved</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">We’re preparing it for your moving specialist. Nothing changes on your estimate until a person reviews it.</p>
           <div className="mt-6 space-y-2 text-left">
             {['Securing the video and audio', 'Preparing a room-by-room inventory', 'Moving specialist review'].map((label, index) => (
-              <div key={label} className="flex items-center gap-3 rounded-xl bg-[#f4f0e8] px-4 py-3 text-sm">
-                <span className={index === 0 ? 'h-2.5 w-2.5 animate-pulse rounded-full bg-[#0b7055]' : 'h-2.5 w-2.5 rounded-full border-2 border-slate-300'} />
+              <div key={label} className="flex items-center gap-3 rounded-xl bg-[#f7f4ed] px-4 py-3 text-sm">
+                <span className={index === 0 ? 'h-2.5 w-2.5 animate-pulse rounded-full bg-[#0f6a53]' : 'h-2.5 w-2.5 rounded-full border-2 border-slate-300'} />
                 {label}
               </div>
             ))}
@@ -237,7 +237,7 @@ export default function CustomerVideoSurveyPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f0e8] px-4 py-8 text-[#071421] sm:py-14">
+    <main className="min-h-screen bg-[#f7f4ed] px-4 py-8 text-[#071421] sm:py-14">
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center gap-3">
           <Image src="/icon-192.png" alt="" width={44} height={44} className="rounded-xl" />
@@ -247,9 +247,9 @@ export default function CustomerVideoSurveyPage() {
           </div>
         </div>
 
-        <section className="mt-8 overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-[0_24px_70px_rgba(7,20,33,0.09)]">
+        <section className="mt-8 overflow-hidden rounded-3xl border border-black/10 bg-white shadow-[0_24px_70px_rgba(7,20,33,0.09)]">
           <div className="bg-[#071421] px-6 py-8 text-white sm:px-9">
-            <div className="text-sm font-semibold text-[#e1ad01]">A simpler, more accurate estimate</div>
+            <div className="text-sm font-semibold text-[#c99700]">A simpler, more accurate estimate</div>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Hi {info.customerName.split(' ')[0] || 'there'} — let’s walk through your move together.</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/70">
               Show us each room and anything being moved. You won’t need to type a long inventory, and nothing changes on your quote until our team reviews it with you.
@@ -266,14 +266,14 @@ export default function CustomerVideoSurveyPage() {
                   </p>
                 </div>
                 <label className="flex cursor-pointer gap-3 rounded-2xl border border-slate-200 p-4">
-                  <input type="checkbox" checked={recordingConsent} onChange={event => setRecordingConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-[#0b7055]" />
+                  <input type="checkbox" checked={recordingConsent} onChange={event => setRecordingConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-[#0f6a53]" />
                   <span>
                     <span className="block text-sm font-semibold">Allow this walkthrough to be recorded</span>
                     <span className="mt-1 block text-xs leading-5 text-slate-500">The recording helps us verify your inventory and estimate. It is limited to authorized Saturn Star staff.</span>
                   </span>
                 </label>
                 <label className="flex cursor-pointer gap-3 rounded-2xl border border-slate-200 p-4">
-                  <input type="checkbox" checked={aiConsent} onChange={event => setAiConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-[#0b7055]" />
+                  <input type="checkbox" checked={aiConsent} onChange={event => setAiConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-[#0f6a53]" />
                   <span>
                     <span className="block text-sm font-semibold">Allow AI-assisted inventory preparation</span>
                     <span className="mt-1 block text-xs leading-5 text-slate-500">AI may suggest rooms and furniture from what you show and say. A person reviews the result before it affects your estimate.</span>
@@ -295,10 +295,10 @@ export default function CustomerVideoSurveyPage() {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   {walkthroughTips.map((tip, index) => (
-                    <div key={tip.title} className="flex items-center gap-4 rounded-2xl bg-[#f4f0e8] p-4 sm:block">
+                    <div key={tip.title} className="flex items-center gap-4 rounded-2xl bg-[#f7f4ed] p-4 sm:block">
                       <div className="shrink-0">{tip.illustration}</div>
                       <div className="min-w-0 sm:mt-4">
-                        <div className="text-[11px] font-bold tracking-[0.14em] text-[#0b7055]">STEP 0{index + 1}</div>
+                        <div className="text-[11px] font-bold tracking-[0.14em] text-[#0f6a53]">STEP 0{index + 1}</div>
                         <div className="mt-1 text-sm font-semibold">{tip.title}</div>
                         <div className="mt-1 text-xs leading-5 text-slate-600">{tip.detail}</div>
                       </div>
@@ -306,10 +306,10 @@ export default function CustomerVideoSurveyPage() {
                   ))}
                 </div>
                 {deviceState === 'idle' && (
-                  <div className="flex gap-3 rounded-2xl border border-[#0b7055]/15 bg-[#eef5f1] p-4">
-                    <div className="relative mt-0.5 shrink-0 text-[#0b7055]">
+                  <div className="flex gap-3 rounded-2xl border border-[#0f6a53]/15 bg-[#ecfdf3] p-4">
+                    <div className="relative mt-0.5 shrink-0 text-[#0f6a53]">
                       <ShieldCheck className="h-6 w-6" strokeWidth={1.8} />
-                      <Mic className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-[#eef5f1]" strokeWidth={2.2} />
+                      <Mic className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-[#ecfdf3]" strokeWidth={2.2} />
                     </div>
                     <p className="text-xs leading-5 text-slate-600">
                       Next, your browser will ask you to allow camera and microphone access. We’ll only test them briefly and will turn them off until you join.
@@ -323,7 +323,7 @@ export default function CustomerVideoSurveyPage() {
                     {deviceState === 'checking' ? 'Checking camera and microphone…' : deviceState === 'failed' ? 'Try device check again' : 'Allow camera & microphone'}
                   </button>
                 ) : (
-                  <button onClick={() => void join()} disabled={joining || !info.providerReady} className="w-full rounded-2xl bg-[#0b7055] px-5 py-4 text-sm font-semibold text-white disabled:opacity-50">
+                  <button onClick={() => void join()} disabled={joining || !info.providerReady} className="w-full rounded-2xl bg-[#0f6a53] px-5 py-4 text-sm font-semibold text-white disabled:opacity-50">
                     {joining ? 'Opening the private room…' : info.providerReady ? 'Join video walkthrough' : 'Video room is temporarily unavailable'}
                   </button>
                 )}
@@ -339,7 +339,7 @@ export default function CustomerVideoSurveyPage() {
 
 function CenteredMessage({ title, message, loading = false }: { title: string; message: string; loading?: boolean }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-[#f4f0e8] p-6 text-center text-[#071421]">
+    <main className="grid min-h-screen place-items-center bg-[#f7f4ed] p-6 text-center text-[#071421]">
       <div>
         {loading ? <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-slate-300 border-t-[#071421]" /> : <div className="text-4xl">✦</div>}
         <h1 className="mt-4 text-2xl font-semibold">{title}</h1>

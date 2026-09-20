@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Circle, Clock3, Plus, RefreshCw, UserRound } from 'lucide-react'
 import { taskHref, type CRMTask, type TaskPriority } from '@/lib/tasks'
+import { UrgencyBadge, priorityToTone, URGENCY_TONE_CLASSES } from '@/app/components/sales/urgency-badge'
 
 type User = { id: string; name: string; role: string }
 type View = 'mine' | 'all' | 'today' | 'overdue' | 'upcoming' | 'unassigned' | 'completed'
@@ -17,13 +18,6 @@ function dueLabel(value?: string) {
   const days = Math.round((target.getTime() - today.getTime()) / 86400000)
   const prefix = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
   return `${prefix} · ${date.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' })}`
-}
-
-function priorityTone(priority: TaskPriority) {
-  if (priority === 'urgent') return 'border-rose-200 bg-rose-50 text-rose-700'
-  if (priority === 'high') return 'border-amber-200 bg-amber-50 text-amber-800'
-  if (priority === 'low') return 'border-slate-200 bg-slate-50 text-slate-600'
-  return 'border-blue-100 bg-blue-50 text-blue-700'
 }
 
 export default function TasksPage() {
@@ -127,7 +121,7 @@ function TasksWorkspace() {
     {error && <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
     <div className="mt-6 grid gap-6 xl:grid-cols-[210px_minmax(0,1fr)]">
-      <aside className="space-y-1">{views.map(([key, label]) => <button key={key} onClick={() => setView(key)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm ${view === key ? 'bg-[#071421] font-semibold text-white' : 'text-[#344054] hover:bg-[#f5f2e9]'}`}><span>{label}</span><span className={view === key ? 'text-white/70' : 'text-[var(--app-muted)]'}>{counts[key]}</span></button>)}</aside>
+      <aside className="space-y-1">{views.map(([key, label]) => <button key={key} onClick={() => setView(key)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm ${view === key ? 'bg-[#071421] font-semibold text-white' : 'text-[#071421] hover:bg-[#f7f4ed]'}`}><span>{label}</span><span className={view === key ? 'text-white/70' : 'text-[var(--app-muted)]'}>{counts[key]}</span></button>)}</aside>
       <section>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <select value={owner} onChange={event => setOwner(event.target.value)} className="crm-input min-w-[180px]"><option value="">All owners</option>{users.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}</select>
@@ -138,10 +132,10 @@ function TasksWorkspace() {
           {visible.map((task, index) => { const href = taskHref(task); const overdue = task.dueAt && new Date(task.dueAt) < new Date() && task.status !== 'completed'; return <article key={task.id} className={`p-4 sm:p-5 ${index ? 'border-t border-[var(--app-line)]' : ''}`}>
             <div className="flex gap-3">
               <button onClick={() => task.status === 'completed' ? undefined : setCompleting(task)} className="mt-0.5 text-[var(--app-muted)] hover:text-emerald-700" aria-label="Complete task">{task.status === 'completed' ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <Circle className="h-5 w-5" />}</button>
-              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className={`font-semibold ${task.status === 'completed' ? 'text-slate-500 line-through' : 'text-[#071421]'}`}>{task.title}</h2>{task.description && <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">{task.description}</p>}</div><span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${priorityTone(task.priority)}`}>{task.priority}</span></div>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--app-muted)]"><span className={overdue ? 'font-semibold text-rose-700' : ''}><Clock3 className="mr-1 inline h-3.5 w-3.5" />{dueLabel(task.dueAt)}</span><span><UserRound className="mr-1 inline h-3.5 w-3.5" />{task.ownerName || 'Unassigned'}</span><span className="capitalize">{task.category.replaceAll('_', ' ')}</span>{task.relatedLabel && (href ? <Link href={href} className="font-semibold text-[#8a6800] hover:underline">{task.relatedLabel}</Link> : <span>{task.relatedLabel}</span>)}<span>{task.source === 'condition' ? 'System generated' : 'Manual'}</span></div>
-                {task.outcomeNote && <div className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><strong>Outcome:</strong> {task.outcomeNote}{task.completedByName ? ` · ${task.completedByName}` : ''}</div>}
-                {task.status !== 'completed' && <div className="mt-3 flex gap-2"><button onClick={() => void patchTask(task, { status: task.status === 'in_progress' ? 'open' : 'in_progress' })} className="text-xs font-semibold text-[#344054] hover:underline">{task.status === 'in_progress' ? 'Move to open' : 'Start task'}</button><button onClick={() => setCompleting(task)} className="text-xs font-semibold text-emerald-700 hover:underline">Complete with outcome</button></div>}
+              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className={`font-semibold ${task.status === 'completed' ? 'text-slate-500 line-through' : 'text-[#071421]'}`}>{task.title}</h2>{task.description && <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">{task.description}</p>}</div><UrgencyBadge tone={priorityToTone(task.priority)} label={task.priority} className="uppercase tracking-wide" /></div>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--app-muted)]"><span className={overdue ? `font-semibold ${URGENCY_TONE_CLASSES.critical.text}` : ''}><Clock3 className="mr-1 inline h-3.5 w-3.5" />{dueLabel(task.dueAt)}</span><span><UserRound className="mr-1 inline h-3.5 w-3.5" />{task.ownerName || 'Unassigned'}</span><span className="capitalize">{task.category.replaceAll('_', ' ')}</span>{task.relatedLabel && (href ? <Link href={href} className="font-semibold text-[#8a6800] hover:underline">{task.relatedLabel}</Link> : <span>{task.relatedLabel}</span>)}<span>{task.source === 'condition' ? 'System generated' : 'Manual'}</span></div>
+                {task.outcomeNote && <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><strong>Outcome:</strong> {task.outcomeNote}{task.completedByName ? ` · ${task.completedByName}` : ''}</div>}
+                {task.status !== 'completed' && <div className="mt-3 flex gap-2"><button onClick={() => void patchTask(task, { status: task.status === 'in_progress' ? 'open' : 'in_progress' })} className="text-xs font-semibold text-[#071421] hover:underline">{task.status === 'in_progress' ? 'Move to open' : 'Start task'}</button><button onClick={() => setCompleting(task)} className="text-xs font-semibold text-emerald-700 hover:underline">Complete with outcome</button></div>}
               </div>
             </div>
           </article> })}
@@ -151,7 +145,7 @@ function TasksWorkspace() {
     </div>
 
     {creating && <TaskDialog users={users} currentUser={currentUser} relatedId={relatedId} relatedLabel={relatedLabel} onClose={() => setCreating(false)} onCreated={task => { setTasks(current => [task, ...current]); setCreating(false) }} onError={setError} />}
-    {completing && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"><div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"><h2 className="text-lg font-semibold text-[#071421]">Complete task</h2><p className="mt-1 text-sm text-[var(--app-muted)]">{completing.title}</p><label className="mt-5 block"><span className="crm-label mb-2 block">Outcome note *</span><textarea autoFocus value={outcome} onChange={event => setOutcome(event.target.value)} className="crm-input min-h-[100px] w-full" placeholder="What happened, what was decided, and what should the team know?" /></label><div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="text-sm font-semibold text-[#344054]">Optional next task</div><input value={nextTitle} onChange={event => setNextTitle(event.target.value)} className="crm-input mt-2 w-full" placeholder="Next action, if another step is required" />{nextTitle && <input type="datetime-local" value={nextDue} onChange={event => setNextDue(event.target.value)} className="crm-input mt-2 w-full" />}</div><div className="mt-6 flex justify-end gap-2"><button className="crm-button" onClick={() => setCompleting(null)}>Cancel</button><button className="crm-button-dark" disabled={!outcome.trim()} onClick={() => void finishTask()}>Complete task</button></div></div></div>}
+    {completing && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"><div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"><h2 className="text-lg font-semibold text-[#071421]">Complete task</h2><p className="mt-1 text-sm text-[var(--app-muted)]">{completing.title}</p><label className="mt-5 block"><span className="crm-label mb-2 block">Outcome note *</span><textarea autoFocus value={outcome} onChange={event => setOutcome(event.target.value)} className="crm-input min-h-[100px] w-full" placeholder="What happened, what was decided, and what should the team know?" /></label><div className="mt-5 border-t border-[var(--app-line)] pt-4"><div className="text-sm font-semibold text-[#071421]">Optional next task</div><input value={nextTitle} onChange={event => setNextTitle(event.target.value)} className="crm-input mt-2 w-full" placeholder="Next action, if another step is required" />{nextTitle && <input type="datetime-local" value={nextDue} onChange={event => setNextDue(event.target.value)} className="crm-input mt-2 w-full" />}</div><div className="mt-6 flex justify-end gap-2"><button className="crm-button" onClick={() => setCompleting(null)}>Cancel</button><button className="crm-button-dark" disabled={!outcome.trim()} onClick={() => void finishTask()}>Complete task</button></div></div></div>}
   </main>
 }
 

@@ -41,7 +41,7 @@ export function PhotoLightbox({ photos, index, onClose, onNavigate, labels }: Pr
         <img
           src={photos[index]}
           alt={labels?.[index] || `Photo ${index + 1}`}
-          className="max-h-[80vh] max-w-[85vw] rounded-[10px] object-contain shadow-none"
+          className="max-h-[80vh] max-w-[85vw] rounded-xl object-contain shadow-none"
         />
 
         {/* Label + counter */}
@@ -57,7 +57,7 @@ export function PhotoLightbox({ photos, index, onClose, onNavigate, labels }: Pr
               <button
                 key={i}
                 onClick={() => onNavigate(i)}
-                className={`h-12 w-12 shrink-0 overflow-hidden rounded-[6px] border-2 transition ${i === index ? 'border-white' : 'border-transparent opacity-60 hover:opacity-90'}`}
+                className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 transition ${i === index ? 'border-white' : 'border-transparent opacity-60 hover:opacity-90'}`}
               >
                 <img src={p} alt="" className="h-full w-full object-cover" />
               </button>

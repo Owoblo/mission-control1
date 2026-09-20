@@ -131,7 +131,7 @@ function eventTone(item: TimelineItem) {
     }
   }
   return {
-    dot: 'border-[rgba(228,226,220,1)] text-[var(--app-muted)] bg-white',
+    dot: 'border-[rgba(247,244,237,1)] text-[var(--app-muted)] bg-white',
     badge: 'bg-stone-50 text-stone-600 border-stone-200',
     panel: 'border-[var(--app-line)] bg-[var(--app-panel)]',
     accent: 'text-stone-700',
@@ -302,14 +302,14 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
       <div className={`flex flex-col gap-1 ${isOutbound ? 'items-end' : 'items-start'}`}>
         <div className={`flex items-end gap-2 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase tracking-wide ${
-            isOutbound ? 'bg-[var(--app-ink)] text-white' : 'bg-[#d1d1d6] text-[#3a3a3c]'
+            isOutbound ? 'bg-[var(--app-ink)] text-white' : 'bg-[#e5e7eb] text-[#071421]'
           }`}>
             {isOutbound ? 'SS' : item.actor?.slice(0, 1).toUpperCase() || 'C'}
           </div>
-          <div className={`relative max-w-[75%] rounded-[18px] px-4 py-2.5 text-sm leading-[1.5] shadow-sm ${
+          <div className={`relative max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-[1.5] shadow-sm ${
             isOutbound
               ? 'rounded-br-[4px] bg-[var(--app-ink)] text-white'
-              : 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'
+              : 'rounded-bl-[4px] bg-[#e5e7eb] text-[#071421]'
           }`}>
             {!isOutbound && item.emailSubject && (
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] opacity-50">Re: {item.emailSubject}</div>
@@ -334,7 +334,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
           )}
         </div>
         {expanded && item.aiSummary && (
-          <div className={`w-full max-w-[90%] rounded-[10px] border border-[var(--app-line)] bg-white p-4 ${isOutbound ? 'self-end' : 'self-start'}`}>
+          <div className={`w-full max-w-[90%] rounded-xl border border-[var(--app-line)] bg-white p-4 ${isOutbound ? 'self-end' : 'self-start'}`}>
             <div className="mb-2 flex items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Message Intelligence</span>
               {item.aiSummary.moveReadiness && <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-semibold capitalize text-[var(--app-muted)]">{item.aiSummary.moveReadiness}</span>}
@@ -350,10 +350,10 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               <p className="mt-1 text-xs text-[var(--app-warm)]"><span className="font-semibold">Concern:</span> {item.aiSummary.leadConcern}</p>
             )}
             {item.aiSummary.nextAction && (
-              <p className="mt-2 rounded-[6px] bg-[var(--app-bg)] px-3 py-2 text-xs font-medium text-[var(--app-ink)]">→ {item.aiSummary.nextAction}</p>
+              <p className="mt-2 rounded-lg bg-[var(--app-bg)] px-3 py-2 text-xs font-medium text-[var(--app-ink)]">→ {item.aiSummary.nextAction}</p>
             )}
             {item.aiSummary.coachingTip && (
-              <p className="mt-2 rounded-[6px] bg-[#071421] px-3 py-2 text-xs text-white"><span className="font-semibold opacity-60">Coach:</span> {item.aiSummary.coachingTip}</p>
+              <p className="mt-2 rounded-lg bg-[#071421] px-3 py-2 text-xs text-white"><span className="font-semibold opacity-60">Coach:</span> {item.aiSummary.coachingTip}</p>
             )}
           </div>
         )}
@@ -403,7 +403,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         </div>
         {/* Post-voicemail follow-up strip — always visible on voicemail cards */}
         {item.isVoicemail && (
-          <div className="rounded-[8px] border border-[#071421]/20 bg-[#071421]/5 px-4 py-3">
+          <div className="rounded-lg border border-[#071421]/20 bg-[#071421]/5 px-4 py-3">
             {vmSent ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[#071421]">
@@ -430,21 +430,21 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                     type="button"
                     onClick={() => void handleVmSend('both')}
                     disabled={vmSending}
-                    className="rounded-[6px] bg-[#071421] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+                    className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {vmSending ? 'Sending…' : '🚀 Send SMS + Email'}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setVmSmsText(buildVoicemailSms(lead)); setVmFollowUpMode('sms') }}
-                    className="rounded-[6px] border border-[#071421]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#071421] hover:bg-[#071421]/5"
+                    className="rounded-lg border border-[#071421]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#071421] hover:bg-[#071421]/5"
                   >
                     💬 SMS only
                   </button>
                   <button
                     type="button"
                     onClick={() => { const e = buildVoicemailEmail(lead); setVmEmailSubject(e.subject); setVmEmailBody(e.body); setVmFollowUpMode('email') }}
-                    className="rounded-[6px] border border-[#071421]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#071421] hover:bg-[#071421]/5"
+                    className="rounded-lg border border-[#071421]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#071421] hover:bg-[#071421]/5"
                   >
                     📧 Email only
                   </button>
@@ -467,7 +467,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                   value={vmSmsText}
                   onChange={e => setVmSmsText(e.target.value)}
                   rows={3}
-                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
+                  className="w-full rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-[var(--app-muted)]">{vmSmsText.length} chars</span>
@@ -475,7 +475,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                     type="button"
                     onClick={() => void handleVmSend('sms')}
                     disabled={vmSending || !vmSmsText.trim()}
-                    className="rounded-[6px] bg-[#071421] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-lg bg-[#071421] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   >
                     {vmSending ? 'Sending…' : 'Send SMS'}
                   </button>
@@ -491,20 +491,20 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                   value={vmEmailSubject}
                   onChange={e => setVmEmailSubject(e.target.value)}
                   placeholder="Subject"
-                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
+                  className="w-full rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
                 />
                 <textarea
                   value={vmEmailBody}
                   onChange={e => setVmEmailBody(e.target.value)}
                   rows={5}
-                  className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
+                  className="w-full rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
                 />
                 <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => void handleVmSend('email')}
                     disabled={vmSending || !vmEmailBody.trim()}
-                    className="rounded-[6px] bg-[#071421] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-lg bg-[#071421] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   >
                     {vmSending ? 'Sending…' : 'Send Email'}
                   </button>
@@ -514,11 +514,11 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
           </div>
         )}
 
-        <div className={`rounded-[8px] border p-4 ${tone.panel}`}>
+        <div className={`rounded-lg border p-4 ${tone.panel}`}>
           <div className="whitespace-pre-wrap text-sm leading-6 text-[var(--app-ink)]">{expanded ? cleanedText : previewText}</div>
 
           {expanded && isCallKind && recordingUnavailable && !hasRecording && !item.transcript && !item.aiSummary ? (
-            <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+            <div className="mt-3 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
               <p className="text-xs text-[var(--app-muted)] italic">
                 {item.recordingUnavailableReason || 'Twilio did not retain a playable recording for this call.'}
               </p>
@@ -526,7 +526,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
           ) : null}
 
           {expanded && failedOrMissedCall && !recordingUnavailable && !hasRecording && !item.transcript && !item.aiSummary ? (
-            <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
+            <div className="mt-3 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
               <p className="text-xs text-[var(--app-muted)] italic">
                 This call did not connect, so Twilio did not create a recording.
               </p>
@@ -534,7 +534,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
           ) : null}
 
           {expanded && isCallKind && !failedOrMissedCall && !recordingUnavailable && !hasRecording && !item.transcript && !item.aiSummary && (
-            <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 space-y-2">
+            <div className="mt-3 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3 space-y-2">
               <p className="text-xs text-[var(--app-muted)] italic">
                 {item.callSid ? 'Recording not yet available — may still be processing.' : 'No recording for this call.'}
               </p>
@@ -544,7 +544,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                     type="button"
                     onClick={() => void handleFetchRecording()}
                     disabled={fetchingRec}
-                    className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)] disabled:opacity-50"
+                    className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)] disabled:opacity-50"
                   >
                     {fetchingRec ? 'Fetching…' : 'Fetch Recording'}
                   </button>
@@ -576,12 +576,12 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             />
           ) : null}
           {expanded && needsTranscription ? (
-            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-3">
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--app-line)] bg-white px-4 py-3">
               <button
                 type="button"
                 onClick={() => void handleRetranscribe()}
                 disabled={transcribing || !leadId}
-                className="rounded-[6px] bg-[var(--app-ink)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                className="rounded-lg bg-[var(--app-ink)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
               >
                 {transcribing ? 'Transcribing…' : 'Retry transcript'}
               </button>
@@ -593,7 +593,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
           ) : null}
 
           {expanded && quote && item.id === `quote-created-${quote.id}` ? (
-            <div className="mt-4 flex items-center justify-between rounded-[8px] border border-[var(--app-line)] bg-white p-4">
+            <div className="mt-4 flex items-center justify-between rounded-lg border border-[var(--app-line)] bg-white p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded bg-[var(--app-bg)] text-sm">▣</div>
                 <div>
@@ -605,7 +605,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                 <div className="rounded-full bg-[rgba(194,122,78,0.10)] px-2 py-1 text-xs font-medium text-[var(--app-warm)]">
                   {quote.status === 'accepted' ? 'Signed' : quote.status === 'sent' ? 'Pending Review' : quote.status}
                 </div>
-                <button onClick={onOpenQuoteBuilder} className="inline-flex rounded-[4px] bg-[var(--app-ink)] px-4 py-2 text-sm font-medium text-white">
+                <button onClick={onOpenQuoteBuilder} className="inline-flex rounded bg-[var(--app-ink)] px-4 py-2 text-sm font-medium text-white">
                   Open Quote
                 </button>
               </div>

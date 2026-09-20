@@ -184,13 +184,13 @@ export async function POST(request: Request) {
     void sendRepAlertEmail(
       `${fundingReviewRequired ? '⚠️ Payment review' : '💳 Deposit charged'} — ${lead.name} — $${chargeAmount.toFixed(2)} CAD`,
       `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
-        <div style="background:#071421;color:#fff;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
+        <div style="background:#071421;color:#ffffff;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
           Deposit charged — ${lead.name}
         </div>
-        <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px;font-size:14px;color:#071421">
+        <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;padding:20px;font-size:14px;color:#071421">
           <p style="margin:0 0 12px"><strong>Amount charged:</strong> $${chargeAmount.toFixed(2)} CAD</p>
           <p style="margin:0 0 12px"><strong>Card:</strong> ${cardLabel}</p>
-          ${fundingReviewRequired ? '<p style="margin:0 0 12px;padding:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:6px"><strong>Internal review:</strong> Booking remains accepted. Verify the final-balance collection plan before move day.</p>' : ''}
+          ${fundingReviewRequired ? '<p style="margin:0 0 12px;padding:10px;background:#f7f4ed;border:1px solid #fdba74;border-radius:6px"><strong>Internal review:</strong> Booking remains accepted. Verify the final-balance collection plan before move day.</p>' : ''}
           <p style="margin:0 0 12px"><strong>Quote:</strong> ${quote.number}</p>
           <p style="margin:0 0 12px"><strong>Remaining balance:</strong> $${(quote.total - chargeAmount).toFixed(2)} CAD</p>
           <p style="margin:0 0 12px"><strong>Charged by:</strong> ${session?.name || 'CRM'}</p>

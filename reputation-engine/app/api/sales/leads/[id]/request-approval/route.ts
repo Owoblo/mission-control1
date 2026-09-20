@@ -56,7 +56,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     const approveUrl = `${appUrl}/api/sales/leads/${params.id}/approve-margin?token=${token}`
     const customerName = body.customerName || lead.name || 'Unknown customer'
     const moveDate = body.moveDate || lead.moveDate || 'TBD'
-    const marginColor = body.projectedMargin < 45 ? '#dc2626' : '#d97706'
+    const marginColor = body.projectedMargin < 45 ? '#b42318' : '#c99700'
 
     const html = `
 <!DOCTYPE html>
@@ -69,32 +69,32 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       <div style="color: #93c5fd; font-size: 13px; margin-top: 2px;">Manager Approval Required</div>
     </div>
     <div style="padding: 32px;">
-      <p style="margin: 0 0 24px; color: #111827; font-size: 15px;">
+      <p style="margin: 0 0 24px; color: #071421; font-size: 15px;">
         <strong>${repName}</strong> is requesting approval for a below-threshold estimate.
       </p>
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="padding: 10px 0; color: #6b7280; font-size: 13px; width: 40%;">Customer</td>
-          <td style="padding: 10px 0; color: #111827; font-size: 13px; font-weight: 600;">${customerName}</td>
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 10px 0; color: #667085; font-size: 13px; width: 40%;">Customer</td>
+          <td style="padding: 10px 0; color: #071421; font-size: 13px; font-weight: 600;">${customerName}</td>
         </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="padding: 10px 0; color: #6b7280; font-size: 13px;">Move Date</td>
-          <td style="padding: 10px 0; color: #111827; font-size: 13px;">${moveDate}</td>
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 10px 0; color: #667085; font-size: 13px;">Move Date</td>
+          <td style="padding: 10px 0; color: #071421; font-size: 13px;">${moveDate}</td>
         </tr>
-        <tr style="border-bottom: 1px solid #f3f4f6;">
-          <td style="padding: 10px 0; color: #6b7280; font-size: 13px;">Override Total</td>
-          <td style="padding: 10px 0; color: #111827; font-size: 13px; font-weight: 600;">$${body.overrideAmount.toLocaleString()}</td>
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 10px 0; color: #667085; font-size: 13px;">Override Total</td>
+          <td style="padding: 10px 0; color: #071421; font-size: 13px; font-weight: 600;">$${body.overrideAmount.toLocaleString()}</td>
         </tr>
         <tr>
-          <td style="padding: 10px 0; color: #6b7280; font-size: 13px;">Projected Margin</td>
-          <td style="padding: 10px 0; font-size: 13px; font-weight: 700; color: ${marginColor};">${body.projectedMargin.toFixed(1)}% <span style="font-weight: 400; color: #6b7280;">(threshold: 55%)</span></td>
+          <td style="padding: 10px 0; color: #667085; font-size: 13px;">Projected Margin</td>
+          <td style="padding: 10px 0; font-size: 13px; font-weight: 700; color: ${marginColor};">${body.projectedMargin.toFixed(1)}% <span style="font-weight: 400; color: #667085;">(threshold: 55%)</span></td>
         </tr>
       </table>
-      ${body.note ? `<div style="background: #f9fafb; border-radius: 8px; padding: 14px 16px; margin-bottom: 24px; border-left: 3px solid #d1d5db;"><div style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Rep's Note</div><div style="color: #374151; font-size: 13px;">${body.note}</div></div>` : ''}
-      <a href="${approveUrl}" style="display: block; text-align: center; background: #16a34a; color: white; text-decoration: none; padding: 14px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; margin-bottom: 16px;">
+      ${body.note ? `<div style="background: #f9fafb; border-radius: 8px; padding: 14px 16px; margin-bottom: 24px; border-left: 3px solid #e5e7eb;"><div style="font-size: 11px; font-weight: 600; color: #667085; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Rep's Note</div><div style="color: #071421; font-size: 13px;">${body.note}</div></div>` : ''}
+      <a href="${approveUrl}" style="display: block; text-align: center; background: #0f6a53; color: white; text-decoration: none; padding: 14px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; margin-bottom: 16px;">
         ✅ Approve Override
       </a>
-      <p style="margin: 0; color: #9ca3af; font-size: 11px; text-align: center;">
+      <p style="margin: 0; color: #667085; font-size: 11px; text-align: center;">
         This approval link is single-use and tied to this lead. If you have questions, reply to this email.
       </p>
     </div>

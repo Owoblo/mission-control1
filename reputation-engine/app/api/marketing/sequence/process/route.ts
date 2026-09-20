@@ -95,7 +95,7 @@ function buildEmail(contact: Record<string, unknown>, batch: Record<string, unkn
     : `We work with ${industry} professionals in ${city} who refer clients our way. We take great care of those clients and make the referral process easy.`}</p>
   <p>Would you be open to a quick 10-minute conversation? You can reply to this email, call or text me at <strong>${partnershipPhone}</strong>, or scan the QR code from our letter.</p>
   <br/>
-  <p style="color:#555">${repName}<br/>Head of Partnerships | Saturn Star Movers<br/>${partnershipPhone} | ${PARTNERSHIP_EMAIL}</p>
+  <p style="color:#667085">${repName}<br/>Head of Partnerships | Saturn Star Movers<br/>${partnershipPhone} | ${PARTNERSHIP_EMAIL}</p>
 </div>`
 
   return { subject, html, text }

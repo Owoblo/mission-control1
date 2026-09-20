@@ -1,8 +1,10 @@
 'use client'
 
+import { Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteSalesLead, fetchSalesOverview, saveSalesFollowUp, updateSalesLead } from '@/lib/sales-api'
+import { UrgencyBadge, URGENCY_TONE_CLASSES, type UrgencyTone } from '@/app/components/sales/urgency-badge'
 import { deriveLeadFollowUpStatus, FOLLOW_UP_STATUSES, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, LeadFollowUpStatus } from '@/lib/types'
 
@@ -53,22 +55,22 @@ function hasLiveFollowUp(lead: CRMLead) {
 
 function stageColor(stage: string) {
   const map: Record<string, string> = {
-    new: 'border border-[rgba(49,94,173,0.12)] bg-[rgba(49,94,173,0.08)] text-[#315ead]',
+    new: 'border border-[rgba(29,78,216,0.12)] bg-[rgba(29,78,216,0.08)] text-[#1d4ed8]',
     contacted: 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]',
-    pricing: 'border border-[rgba(217,119,6,0.12)] bg-[#fbf2e4] text-[#9a5a00]',
-    quoted: 'border border-[rgba(201,117,78,0.14)] bg-[#f6ece7] text-[#9b5a3c]',
-    nurture: 'border border-[rgba(108,92,164,0.12)] bg-[rgba(108,92,164,0.08)] text-[#6c5ca4]',
+    pricing: 'border border-[rgba(201,151,0,0.12)] bg-[#f7f4ed] text-[#8a6800]',
+    quoted: 'border border-[rgba(138,104,0,0.14)] bg-[#f7f4ed] text-[#8a6800]',
+    nurture: 'border border-[rgba(102,112,133,0.12)] bg-[rgba(102,112,133,0.08)] text-[#667085]',
     booked: 'border border-[rgba(15,106,83,0.12)] bg-[rgba(15,106,83,0.1)] text-[var(--app-accent)]',
-    lost: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#6f736a]',
+    lost: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#667085]',
   }
-  return map[stage] || 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#6f736a]'
+  return map[stage] || 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#667085]'
 }
 
 function contactAgeBadge(days: number) {
   if (days <= 1) return { label: 'Today', cls: 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' }
   if (days <= 2) return { label: `${days}d ago`, cls: 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' }
-  if (days <= 5) return { label: `${days}d ago`, cls: 'border border-[rgba(217,119,6,0.12)] bg-[#fbf2e4] text-[#9a5a00]' }
-  return { label: `${days}d ago`, cls: 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]' }
+  if (days <= 5) return { label: `${days}d ago`, cls: 'border border-[rgba(201,151,0,0.12)] bg-[#f7f4ed] text-[#8a6800]' }
+  return { label: `${days}d ago`, cls: 'border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] text-[#8a6800]' }
 }
 
 const UPDATE_OPTIONS = [
@@ -98,75 +100,47 @@ function followUpStatusMeta(status?: LeadFollowUpStatus | '') {
     case 'pending':
       return {
         label: 'Pending',
-        cls: 'border border-[rgba(217,119,6,0.12)] bg-[#fbf2e4] text-[#9a5a00]',
-        activeCls: 'border border-[rgba(217,119,6,0.16)] bg-[#f5e6c8] text-[#8a4f00]',
+        cls: 'border border-[rgba(201,151,0,0.12)] bg-[#f7f4ed] text-[#8a6800]',
+        activeCls: 'border border-[rgba(201,151,0,0.16)] bg-[#f7f4ed] text-[#8a6800]',
       }
     case 'following_up':
       return {
         label: 'Following Up',
         cls: 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]',
-        activeCls: 'border border-[rgba(15,106,83,0.18)] bg-[#deefe8] text-[#0a5b47]',
+        activeCls: 'border border-[rgba(15,106,83,0.18)] bg-[#ecfdf3] text-[#0f6a53]',
       }
     case 'followed_up':
       return {
         label: 'Followed Up',
-        cls: 'border border-[rgba(62,111,93,0.12)] bg-[#edf4f0] text-[#3a6f5d]',
-        activeCls: 'border border-[rgba(62,111,93,0.18)] bg-[#dfece5] text-[#315d4f]',
+        cls: 'border border-[rgba(15,106,83,0.12)] bg-[#ecfdf3] text-[#0f6a53]',
+        activeCls: 'border border-[rgba(15,106,83,0.18)] bg-[#ecfdf3] text-[#0f6a53]',
       }
     case 'no_response':
       return {
         label: 'No Response',
-        cls: 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]',
-        activeCls: 'border border-[rgba(201,117,78,0.16)] bg-[#eeddd5] text-[#8a4e35]',
+        cls: 'border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] text-[#8a6800]',
+        activeCls: 'border border-[rgba(138,104,0,0.16)] bg-[#f7f4ed] text-[#8a6800]',
       }
     default:
       return {
         label: 'Pending',
-        cls: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#6f736a]',
-        activeCls: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#4f534c]',
+        cls: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#667085]',
+        activeCls: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#071421]',
       }
   }
 }
 
-function urgencyTone(lead: CRMLead) {
+// One urgency language: SLA state -> shared tone. Label carries the meaning.
+function urgencyTone(lead: CRMLead): { tone: UrgencyTone; label: string } {
   const fuDays = daysUntil(lead.followUpDate)
   const overdue = Boolean(lead.followUpDate && fuDays < 0)
   const dueToday = Boolean(lead.followUpDate && fuDays === 0)
   const quietForDays = daysSince(lastContactDate(lead))
 
-  if (overdue) {
-    return {
-      card: 'border-red-200 bg-red-50/40',
-      bar: 'bg-[#c9754e]',
-      flag: 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]',
-      label: 'Past due',
-    }
-  }
-
-  if (dueToday) {
-    return {
-      card: 'border-amber-200 bg-amber-50/40',
-      bar: 'bg-[#d0a24d]',
-      flag: 'border border-[rgba(217,119,6,0.12)] bg-[#fbf2e4] text-[#9a5a00]',
-      label: 'Due today',
-    }
-  }
-
-  if (quietForDays >= 5) {
-    return {
-      card: 'border-[var(--app-line)] bg-white',
-      bar: 'bg-[rgba(15,106,83,0.35)]',
-      flag: 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]',
-      label: 'Re-engage',
-    }
-  }
-
-  return {
-    card: 'border-[var(--app-line)] bg-white',
-    bar: 'bg-[var(--app-line)]',
-    flag: 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[#6f736a]',
-    label: 'Active',
-  }
+  if (overdue) return { tone: 'critical', label: 'Overdue' }
+  if (dueToday) return { tone: 'warning', label: 'Due today' }
+  if (quietForDays >= 5) return { tone: 'info', label: 'Re-engage' }
+  return { tone: 'neutral', label: 'Active' }
 }
 
 // ─── NoteModal ────────────────────────────────────────────────────────────────
@@ -220,7 +194,7 @@ function NoteModal({ lead, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-[16px] bg-white shadow-none" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-none" onClick={e => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--app-line)]">
           <div className="text-sm font-semibold text-[var(--app-ink)]">Log follow-up — {lead.name || lead.phone}</div>
           <div className="text-[11px] text-[var(--app-muted)] mt-0.5">What's the update on this lead?</div>
@@ -232,7 +206,7 @@ function NoteModal({ lead, onClose, onSaved }: {
                 key={opt.id}
                 type="button"
                 onClick={() => setUpdateType(opt.id)}
-                className={`rounded-[8px] border px-3 py-2 text-left text-xs font-medium transition ${
+                className={`rounded-lg border px-3 py-2 text-left text-xs font-medium transition ${
                   updateType === opt.id
                     ? opt.id === 'hard_no'
                       ? 'border-rose-500 bg-rose-500 text-white'
@@ -269,13 +243,13 @@ function NoteModal({ lead, onClose, onSaved }: {
           {error && <div className="text-xs text-rose-600">{error}</div>}
         </div>
         <div className="px-5 pb-4 flex gap-2">
-          <button onClick={onClose} className="flex-1 rounded-[8px] border border-[var(--app-line)] py-2 text-sm text-[var(--app-muted)] hover:border-[var(--app-ink)] transition">
+          <button onClick={onClose} className="flex-1 rounded-lg border border-[var(--app-line)] py-2 text-sm text-[var(--app-muted)] hover:border-[var(--app-ink)] transition">
             Cancel
           </button>
           <button
             onClick={() => void save()}
             disabled={!updateType || busy}
-            className={`flex-1 rounded-[8px] py-2 text-sm font-semibold text-white disabled:opacity-50 transition ${
+            className={`flex-1 rounded-lg py-2 text-sm font-semibold text-white disabled:opacity-50 transition ${
               isLost ? 'bg-rose-600 hover:bg-rose-700' : 'bg-[var(--app-accent)] hover:opacity-90'
             }`}
           >
@@ -353,8 +327,8 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
   }
 
   return (
-    <div className={`rounded-[14px] border p-4 shadow-sm transition hover:shadow-md ${tone.card}`}>
-      <div className={`mb-4 h-1 rounded-full ${tone.bar}`} />
+    <div className={`rounded-2xl border border-[var(--app-line)] bg-white p-4 shadow-sm transition hover:shadow-md ${tone.tone === "neutral" ? "" : URGENCY_TONE_CLASSES[tone.tone].softBg}`}>
+      <div className={`mb-4 h-1 rounded-full ${URGENCY_TONE_CLASSES[tone.tone].stripe}`} />
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -369,9 +343,7 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
               {statusMeta.label}
             </span>
             {(overdue || dueToday) && (
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${tone.flag}`}>
-                {tone.label}
-              </span>
+              <UrgencyBadge tone={tone.tone} label={tone.label} className="font-bold uppercase tracking-wide" />
             )}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[var(--app-muted)]">
@@ -391,7 +363,7 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
 
       {/* Next follow-up */}
       {lead.followUpDate && (
-        <div className={`mt-2 text-[11px] font-medium ${overdue ? 'text-[#9b5a3c]' : dueToday ? 'text-[#9a5a00]' : 'text-[var(--app-muted)]'}`}>
+        <div className={`mt-2 text-[11px] font-medium ${overdue ? 'text-[#8a6800]' : dueToday ? 'text-[#8a6800]' : 'text-[var(--app-muted)]'}`}>
           {overdue ? `Follow-up was ${Math.abs(fuDays)}d ago` : dueToday ? 'Follow up today' : `Follow up ${formatDate(lead.followUpDate)}`}
         </div>
       )}
@@ -407,7 +379,7 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
         </button>
 
         {briefOpen && (
-          <div className="mt-2 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
+          <div className="mt-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
             {/* Static facts always shown */}
             <div className="space-y-1">
               {staticBrief.map((point, i) => (
@@ -433,21 +405,21 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
       {/* Actions */}
       <div className="mt-3 flex gap-2">
         {lead.phone && (
-          <button onClick={callLead} className="flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
+          <button onClick={callLead} className="flex-1 rounded-lg border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
             Call
           </button>
         )}
         {lead.phone && (
-          <button onClick={smsLead} className="flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
+          <button onClick={smsLead} className="flex-1 rounded-lg border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
             Text
           </button>
         )}
-        <Link href={`/sales/leads/${lead.id}`} className="flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-center text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
+        <Link href={`/sales/leads/${lead.id}`} className="flex-1 rounded-lg border border-[var(--app-line)] py-1.5 text-center text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
           Open Lead
         </Link>
         <button
           onClick={() => onNote(lead)}
-          className="flex-1 rounded-[8px] bg-[var(--app-accent)] py-1.5 text-xs font-semibold text-white hover:opacity-90 transition"
+          className="flex-1 rounded-lg bg-[var(--app-accent)] py-1.5 text-xs font-semibold text-white hover:opacity-90 transition"
         >
           Log Update
         </button>
@@ -594,16 +566,16 @@ export default function FollowUpWallPage() {
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
                 urgentCount > 0
-                  ? 'border border-[rgba(201,117,78,0.12)] bg-[#f6ece7] text-[#955941]'
+                  ? 'border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] text-[#8a6800]'
                   : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'
               }`}>
-                <span className={`h-2.5 w-2.5 rounded-full ${urgentCount > 0 ? 'bg-[#c9754e]' : 'bg-[var(--app-accent)]'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${urgentCount > 0 ? 'bg-[#8a6800]' : 'bg-[var(--app-accent)]'}`} />
                 {urgentCount > 0
                   ? `${urgentCount} lead${urgentCount === 1 ? '' : 's'} need attention today`
                   : 'All caught up'}
               </span>
               {counts.overdue > 0 ? (
-                <span className="rounded-full border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] px-2.5 py-1 text-xs font-semibold text-[#955941]">
+                <span className="rounded-full border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] px-2.5 py-1 text-xs font-semibold text-[#8a6800]">
                   {counts.overdue} overdue
                 </span>
               ) : null}
@@ -659,8 +631,8 @@ export default function FollowUpWallPage() {
               <span className={`rounded-full px-1.5 text-[11px] font-bold ${
                 filter === tab.id
                   ? 'bg-white/20 text-white'
-                  : tab.id === 'overdue' ? 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'
-                  : tab.id === 'silent' ? 'border border-[rgba(217,119,6,0.12)] bg-[#fbf2e4] text-[#9a5a00]'
+                  : tab.id === 'overdue' ? 'border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] text-[#8a6800]'
+                  : tab.id === 'silent' ? 'border border-[rgba(201,151,0,0.12)] bg-[#f7f4ed] text-[#8a6800]'
                   : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'
               }`}>
                 {tab.count}
@@ -717,16 +689,16 @@ export default function FollowUpWallPage() {
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-2 ml-2">
               <button onClick={() => void bulkSnooze()} disabled={bulkBusy}
-                className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)] transition disabled:opacity-50">
+                className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:bg-[var(--app-bg)] transition disabled:opacity-50">
                 ⏰ Snooze 7 days
               </button>
               <button onClick={() => void bulkMarkLost()} disabled={bulkBusy}
-                className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)] transition disabled:opacity-50">
+                className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)] transition disabled:opacity-50">
                 Mark Lost
               </button>
               <button onClick={() => void bulkDelete()} disabled={bulkBusy}
-                className="rounded-[6px] border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
-                {bulkBusy ? 'Working…' : `🗑 Delete ${selectedIds.size}`}
+                className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
+                {bulkBusy ? 'Working…' : (<><Trash2 size={13} className="mr-1.5 inline-block align-middle" />Delete {selectedIds.size}</>)}
               </button>
               <button onClick={() => setSelectedIds(new Set())}
                 className="text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)] transition">
@@ -758,7 +730,7 @@ export default function FollowUpWallPage() {
                   onChange={() => toggleSelect(lead.id)}
                   className="absolute left-3 top-3 z-10 h-4 w-4 cursor-pointer rounded accent-[var(--app-accent)]"
                 />
-                <div className={`transition ${isSelected ? 'ring-2 ring-[var(--app-accent)] ring-offset-1 rounded-[14px]' : ''}`}>
+                <div className={`transition ${isSelected ? 'ring-2 ring-[var(--app-accent)] ring-offset-1 rounded-2xl' : ''}`}>
                   <LeadCard lead={lead} quote={leadQuote} onNote={setNoteTarget} />
                 </div>
               </div>

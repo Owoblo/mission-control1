@@ -28,9 +28,9 @@ const CARD_STYLE = {
       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
       fontWeight: '500',
       letterSpacing: '0.02em',
-      '::placeholder': { color: '#94a3b8' },
+      '::placeholder': { color: '#667085' },
     },
-    invalid: { color: '#dc2626' },
+    invalid: { color: '#b42318' },
   },
 }
 
@@ -117,7 +117,7 @@ function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'
         <div className="mb-1.5 flex items-center justify-between">
           <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Card Details</label>
           <div className="flex items-center gap-1 text-[11px] text-slate-300">
-            <svg width="11" height="13" viewBox="0 0 11 13" fill="none"><path d="M5.5 0L0 2.6V6c0 3.3 2.3 6.3 5.5 7C8.7 12.3 11 9.3 11 6V2.6L5.5 0z" fill="#94a3b8"/></svg>
+            <svg width="11" height="13" viewBox="0 0 11 13" fill="none"><path d="M5.5 0L0 2.6V6c0 3.3 2.3 6.3 5.5 7C8.7 12.3 11 9.3 11 6V2.6L5.5 0z" fill="#667085"/></svg>
             Encrypted by Stripe
           </div>
         </div>
@@ -147,7 +147,7 @@ function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'
             ? 'bg-[#071421] ring-[#071421]'
             : 'bg-slate-50 ring-slate-100 hover:ring-slate-200'
         }`}>
-          <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all ${
+          <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
             chargeNow ? 'border-[#C99700] bg-[#C99700]' : 'border-slate-300 bg-white'
           }`}>
             {chargeNow && (
@@ -188,7 +188,7 @@ function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'
         <button
           type="submit"
           disabled={busy || !stripe}
-          className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#243460] disabled:opacity-50 transition-colors"
+          className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#071421] disabled:opacity-50 transition-colors"
         >
           {busy
             ? (chargeNow ? 'Charging…' : 'Saving…')
@@ -257,7 +257,7 @@ export function CollectCardModal({ open, lead, quote, onClose, onSuccess }: Prop
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }}
+      style={{ background: 'rgba(7,20,33,0.55)', backdropFilter: 'blur(2px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="w-full max-w-[420px] overflow-hidden rounded-xl bg-white shadow-none">

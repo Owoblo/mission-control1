@@ -231,7 +231,7 @@ export default function NewSalesLeadPage() {
       {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>}
 
       {duplicateWarning && (
-        <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-5 py-4 flex items-center gap-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-center gap-3">
           <div className="flex-1">
             <div className="text-sm font-semibold text-amber-900">Existing lead found for this contact</div>
             <div className="mt-0.5 text-xs text-amber-700">
@@ -240,7 +240,7 @@ export default function NewSalesLeadPage() {
           </div>
           <Link
             href={`/sales/leads/${duplicateWarning.id}`}
-            className="shrink-0 rounded-[8px] bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+            className="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
           >
             Open existing lead
           </Link>

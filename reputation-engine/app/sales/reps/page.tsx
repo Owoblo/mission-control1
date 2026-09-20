@@ -1,5 +1,6 @@
 'use client'
 
+import { Flame } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatMoney } from '@/lib/sales'
 
@@ -76,7 +77,7 @@ export default function RepsPage() {
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Top Performer</span>
                 )}
                 {rep.hotLeads > 0 && (
-                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">🔥 {rep.hotLeads} Hot</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700"><Flame size={11} />{rep.hotLeads} Hot</span>
                 )}
               </div>
               <div className="text-right">

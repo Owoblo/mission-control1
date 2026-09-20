@@ -1148,13 +1148,13 @@ function DecisionModal({ contact, onClose, onDone }: { contact: Contact; onClose
         <div className="mt-5 grid grid-cols-3 gap-2">
           {(['agreed', 'thinking', 'rejected'] as const).map(d => (
             <button key={d} onClick={() => setDecision(d)}
-              className={`rounded-[14px] border py-3 text-sm font-semibold capitalize transition ${decision === d ? 'border-[#071421] bg-[#071421] text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#071421]'}`}>
+              className={`rounded-2xl border py-3 text-sm font-semibold capitalize transition ${decision === d ? 'border-[#071421] bg-[#071421] text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#071421]'}`}>
               {d === 'agreed' ? '✅ Won' : d === 'thinking' ? '🤔 Maybe' : '❌ Pass'}
             </button>
           ))}
         </div>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes…"
-          className="mt-4 h-20 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 p-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
+          className="mt-4 h-20 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
         <div className="mt-4 flex gap-2">
           <button onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
           <button onClick={submit} disabled={saving} className="flex-1 rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Log'}</button>
@@ -1264,14 +1264,14 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1400px] flex-col border-l border-[var(--app-line)] bg-[#fffefb] shadow-none">
+      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1400px] flex-col border-l border-[var(--app-line)] bg-[#f7f4ed] shadow-none">
 
         {/* Header */}
         <div className="shrink-0 border-b border-[var(--app-line)] bg-white px-5 py-4 md:px-7">
           <div className="flex items-start justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xl font-semibold text-[#14213d]">{contact.name}</span>
+                <span className="text-xl font-semibold text-[#071421]">{contact.name}</span>
                 <TierBadge tier={contact.outreach_tier} />
                 <StageBadge stage={contact.normalized_stage} />
                 {contact.instantly_status && <InstantlyBadge status={contact.instantly_status} />}
@@ -1304,7 +1304,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
             </button>
             {contact.sequence_paused && !contact.decision && (
               <button onClick={() => setShowDecision(true)}
-                className="rounded-xl bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243560] transition">
+                className="rounded-xl bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#071421] transition">
                 Log Decision
               </button>
             )}
@@ -1364,29 +1364,29 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
         {/* Body */}
         <div className="crm-record-layout flex-1 overflow-y-auto">
 
-          <aside className="crm-record-context border-b border-[var(--app-line)] bg-[#fbfaf6] p-5 lg:border-b-0 xl:border-r xl:p-6">
+          <aside className="crm-record-context border-b border-[var(--app-line)] bg-[#f7f4ed] p-5 lg:border-b-0 xl:border-r xl:p-6">
             <div className="sticky top-0 space-y-6">
               <RelationshipRecord contactId={contact.id} />
               <section>
                 <div className="crm-eyebrow">Identity & context</div>
                 <dl className="mt-4 space-y-3 text-sm">
-                  <div><dt className="text-xs text-[var(--app-muted)]">Organization</dt><dd className="mt-1 font-medium text-[#14213d]">{partnerCompanyLabel(contact)}</dd></div>
-                  {contact.title && <div><dt className="text-xs text-[var(--app-muted)]">Role</dt><dd className="mt-1 text-[#14213d]">{contact.title}</dd></div>}
-                  <div><dt className="text-xs text-[var(--app-muted)]">Market</dt><dd className="mt-1 capitalize text-[#14213d]">{contact.city || 'Not set'}</dd></div>
-                  <div><dt className="text-xs text-[var(--app-muted)]">Relationship owner</dt><dd className="mt-1 text-[#14213d]">{owner}</dd></div>
-                  <div><dt className="text-xs text-[var(--app-muted)]">Preferred channel</dt><dd className="mt-1 capitalize text-[#14213d]">{contact.preferred_channel || 'Not recorded'}</dd></div>
-                  <div><dt className="text-xs text-[var(--app-muted)]">Contact status</dt><dd className={`mt-1 ${contact.do_not_contact ? 'text-rose-700' : 'text-[#14213d]'}`}>{contact.do_not_contact ? 'Do not contact' : 'Contact permitted'}</dd></div>
+                  <div><dt className="text-xs text-[var(--app-muted)]">Organization</dt><dd className="mt-1 font-medium text-[#071421]">{partnerCompanyLabel(contact)}</dd></div>
+                  {contact.title && <div><dt className="text-xs text-[var(--app-muted)]">Role</dt><dd className="mt-1 text-[#071421]">{contact.title}</dd></div>}
+                  <div><dt className="text-xs text-[var(--app-muted)]">Market</dt><dd className="mt-1 capitalize text-[#071421]">{contact.city || 'Not set'}</dd></div>
+                  <div><dt className="text-xs text-[var(--app-muted)]">Relationship owner</dt><dd className="mt-1 text-[#071421]">{owner}</dd></div>
+                  <div><dt className="text-xs text-[var(--app-muted)]">Preferred channel</dt><dd className="mt-1 capitalize text-[#071421]">{contact.preferred_channel || 'Not recorded'}</dd></div>
+                  <div><dt className="text-xs text-[var(--app-muted)]">Contact status</dt><dd className={`mt-1 ${contact.do_not_contact ? 'text-rose-700' : 'text-[#071421]'}`}>{contact.do_not_contact ? 'Do not contact' : 'Contact permitted'}</dd></div>
                 </dl>
               </section>
               <section className="border-t border-[var(--app-line)] pt-5">
                 <div className="crm-eyebrow">Relationship</div>
-                <div className="mt-3 text-lg font-semibold text-[#14213d]">{relationshipStageLabel(contact)}</div>
+                <div className="mt-3 text-lg font-semibold text-[#071421]">{relationshipStageLabel(contact)}</div>
                 <div className="mt-2 text-sm text-[var(--app-muted)]">{partnerTemperatureLabel(contact.relationship_temperature)} momentum</div>
                 {contact.tags && contact.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{contact.tags.map(tag => <span key={tag} className="rounded-full border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] text-[var(--app-muted)]">{tag}</span>)}</div>}
               </section>
               <section className="border-t border-[var(--app-line)] pt-5 text-sm">
                 <div className="crm-eyebrow">Contact</div>
-                <div className="mt-3 space-y-2 break-words text-[#14213d]">{contact.phone && <a className="block hover:underline" href={`tel:${contact.phone}`}>{contact.phone}</a>}{contact.email && <a className="block hover:underline" href={`mailto:${contact.email}`}>{contact.email}</a>}{contact.address && <div>{contact.address}</div>}</div>
+                <div className="mt-3 space-y-2 break-words text-[#071421]">{contact.phone && <a className="block hover:underline" href={`tel:${contact.phone}`}>{contact.phone}</a>}{contact.email && <a className="block hover:underline" href={`mailto:${contact.email}`}>{contact.email}</a>}{contact.address && <div>{contact.address}</div>}</div>
               </section>
             </div>
           </aside>
@@ -1394,7 +1394,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
           <main className="crm-record-main bg-white">
             <div className="border-b border-[var(--app-line)] px-5 py-5 md:px-7">
               <div className="crm-eyebrow">Relationship narrative</div>
-              <h3 className="mt-2 text-xl font-semibold text-[#14213d]">What has happened</h3>
+              <h3 className="mt-2 text-xl font-semibold text-[#071421]">What has happened</h3>
               <p className="mt-1 text-sm text-[var(--app-muted)]">A human-readable history of exchanges, outcomes and commitments.</p>
             </div>
 
@@ -1404,7 +1404,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
               <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Upcoming</div>
               <div className="space-y-2">
                 {upcoming.map(a => (
-                  <div key={a.id} className="flex items-center justify-between rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <div key={a.id} className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
                     <div>
                       <div className="text-sm font-semibold text-[#071421]">{a.title}</div>
                       <div className="text-xs text-slate-500">{fmtDateTime(a.scheduled_at)} · {a.duration_minutes}min · {a.channel}</div>
@@ -1423,9 +1423,9 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
           <div className="border-b border-slate-100 px-5 py-4">
             <div className="flex gap-2">
               <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={2} placeholder="Add a note…"
-                className="flex-1 resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#071421] outline-none focus:border-[#071421]" />
+                className="flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#071421] outline-none focus:border-[#071421]" />
               <button onClick={saveNote} disabled={savingNote || !noteText.trim()}
-                className="self-end rounded-[14px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                className="self-end rounded-2xl bg-[#071421] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
                 {savingNote ? '…' : 'Save'}
               </button>
             </div>
@@ -1465,7 +1465,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                   <div className="pt-1">
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-300">Past Appointments</div>
                     {past.map(a => (
-                      <div key={a.id} className="flex items-center gap-3 rounded-[14px] border border-slate-100 bg-slate-50 p-3">
+                      <div key={a.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                         <span className="text-base">📅</span>
                         <div>
                           <div className="text-xs font-semibold text-slate-600">{a.title}</div>
@@ -1482,21 +1482,21 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
 
           <aside className="crm-record-widget p-5 md:p-6">
             <div className="sticky top-0 space-y-6">
-              <section className={`border-l-4 px-4 py-1 ${nextAction?.overdue ? 'border-amber-500' : 'border-[#b68a3a]'}`}>
+              <section className={`border-l-4 px-4 py-1 ${nextAction?.overdue ? 'border-amber-500' : 'border-[#c99700]'}`}>
                 <div className="crm-eyebrow">Next meaningful action</div>
-                <div className="mt-3 text-base font-semibold leading-6 text-[#14213d]">{nextAction?.label || 'Choose the next respectful action'}</div>
+                <div className="mt-3 text-base font-semibold leading-6 text-[#071421]">{nextAction?.label || 'Choose the next respectful action'}</div>
                 <div className={`mt-2 text-sm ${nextAction?.overdue ? 'text-amber-700' : 'text-[var(--app-muted)]'}`}>{nextAction?.due ? `${nextAction.overdue ? 'Due' : 'Scheduled'} ${fmtDate(nextAction.due)}` : 'No timing has been recorded'}</div>
-                <button onClick={() => setShowAppointment(true)} className="mt-4 text-sm font-semibold text-[#8a6828] hover:underline">Schedule a clear action</button>
+                <button onClick={() => setShowAppointment(true)} className="mt-4 text-sm font-semibold text-[#c99700] hover:underline">Schedule a clear action</button>
               </section>
 
               <section className="border-t border-[var(--app-line)] pt-5">
                 <div className="crm-eyebrow">Promises</div>
-                {upcoming.length > 0 ? <div className="mt-3 space-y-3">{upcoming.map(item => <div key={item.id} className="border-b border-[var(--app-line)] pb-3"><div className="text-sm font-medium text-[#14213d]">{item.title}</div><div className="mt-1 text-xs text-[var(--app-muted)]">Due {fmtDateTime(item.scheduled_at)} · {item.channel}</div><button onClick={() => updateApptStatus(item.id, 'completed')} className="mt-2 text-xs font-semibold text-[#0f6a53]">Mark complete</button></div>)}</div> : <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">No open promise is recorded. Commitments should be explicit and evidenced here.</p>}
+                {upcoming.length > 0 ? <div className="mt-3 space-y-3">{upcoming.map(item => <div key={item.id} className="border-b border-[var(--app-line)] pb-3"><div className="text-sm font-medium text-[#071421]">{item.title}</div><div className="mt-1 text-xs text-[var(--app-muted)]">Due {fmtDateTime(item.scheduled_at)} · {item.channel}</div><button onClick={() => updateApptStatus(item.id, 'completed')} className="mt-2 text-xs font-semibold text-[#0f6a53]">Mark complete</button></div>)}</div> : <p className="mt-3 text-sm leading-6 text-[var(--app-muted)]">No open promise is recorded. Commitments should be explicit and evidenced here.</p>}
               </section>
 
               <section className="border-t border-[var(--app-line)] pt-5">
                 <div className="crm-eyebrow">Remembered context</div>
-                <dl className="mt-3 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Category</dt><dd className="text-right text-[#14213d]">{contact.industry || contact.category || 'Not recorded'}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Referrals</dt><dd className="font-medium text-[#14213d]">{referralCount}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Referral code</dt><dd className="text-right font-medium text-[#14213d]">{referralCode || 'Not assigned'}</dd></div></dl>
+                <dl className="mt-3 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Category</dt><dd className="text-right text-[#071421]">{contact.industry || contact.category || 'Not recorded'}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Referrals</dt><dd className="font-medium text-[#071421]">{referralCount}</dd></div><div className="flex justify-between gap-3"><dt className="text-[var(--app-muted)]">Referral code</dt><dd className="text-right font-medium text-[#071421]">{referralCode || 'Not assigned'}</dd></div></dl>
               </section>
             </div>
           </aside>
@@ -1588,7 +1588,7 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
 
           {/* Suggested cold call script */}
           {category && PARTNER_CATEGORIES[category] && (
-            <div className="rounded-[10px] border border-[#071421]/10 bg-[#f8f9fc] px-3 py-2">
+            <div className="rounded-xl border border-[#071421]/10 bg-[#f9fafb] px-3 py-2">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Opening line</div>
               <div className="text-xs text-slate-600 italic">"{PARTNER_CATEGORIES[category].suggestedScript}"</div>
             </div>
@@ -1665,7 +1665,7 @@ function MarkMailedModal({ batch, onClose, onDone }: { batch: Batch; onClose: ()
             <input type="date" value={mailDate} max={new Date().toISOString().slice(0, 10)} onChange={e => setMailDate(e.target.value)}
               className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
           </div>
-          <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
             <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Auto-sequence fires:</div>
             <div className="flex justify-between"><span className="text-slate-600">✉️ Email</span><span className="font-semibold text-[#071421]">{fmtDate(emailDate)}</span></div>
             <div className="flex justify-between"><span className="text-slate-600">💬 SMS</span><span className="font-semibold text-[#071421]">{fmtDate(smsDate)}</span></div>
@@ -1741,7 +1741,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
         {rows.length === 0 ? (
           <div className="mt-6">
             <div onClick={() => fileRef.current?.click()}
-              className="cursor-pointer rounded-[18px] border-2 border-dashed border-slate-300 p-10 text-center hover:border-[#071421]">
+              className="cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 p-10 text-center hover:border-[#071421]">
               <div className="text-2xl">📄</div>
               <div className="mt-2 text-sm font-medium text-slate-600">Click to upload CSV</div>
               <div className="mt-1 text-xs text-slate-500">Name, Email, Phone, Company, City…</div>
@@ -1750,7 +1750,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
           </div>
         ) : (
           <div className="mt-5 space-y-4">
-            <div className="rounded-[14px] border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">{rows.length} rows — map columns</div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">{rows.length} rows — map columns</div>
             <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto">
               {FIELDS.map(field => (
                 <div key={field}>
@@ -1833,8 +1833,8 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
       <section className="border-b border-[var(--app-line)] pb-7">
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#9a762f]">Relationship control room</div>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#14213d]">What needs attention today?</h2>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#c99700]">Relationship control room</div>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#071421]">What needs attention today?</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--app-muted)]">Promises, replies and relationships that need a thoughtful next step—already placed in working order.</p>
           </div>
           <div className="flex gap-2">
@@ -1848,7 +1848,7 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
         <div className="space-y-8">
           <section>
             <div className="mb-3 flex items-baseline justify-between border-b border-[var(--app-line)] pb-3">
-              <h3 className="text-lg font-semibold text-[#14213d]">Today</h3>
+              <h3 className="text-lg font-semibold text-[#071421]">Today</h3>
               <span className="text-sm text-[var(--app-muted)]">{loading ? 'Loading' : `${priority.length} priorities`}</span>
             </div>
             {priority.length === 0 ? (
@@ -1859,16 +1859,16 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
                   const next = getNextPartnerAction(contact)
                   const reply = getInboxStatus(contact) === 'needs_reply'
                   return (
-                    <button key={contact.id} onClick={() => onSelect(contact)} className="grid w-full gap-2 py-4 text-left transition hover:bg-[#fbfaf6] sm:grid-cols-[minmax(0,1fr)_minmax(220px,.8fr)_auto] sm:items-center sm:px-2">
+                    <button key={contact.id} onClick={() => onSelect(contact)} className="grid w-full gap-2 py-4 text-left transition hover:bg-[#f7f4ed] sm:grid-cols-[minmax(0,1fr)_minmax(220px,.8fr)_auto] sm:items-center sm:px-2">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[#14213d]">{contact.name}</div>
+                        <div className="truncate text-sm font-semibold text-[#071421]">{contact.name}</div>
                         <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{partnerCompanyLabel(contact)} · {contact.city || 'Market not set'}</div>
                       </div>
-                      <div className="min-w-0 text-sm text-[#4d5360]">
+                      <div className="min-w-0 text-sm text-[#071421]">
                         <div className="truncate">{reply ? 'Reply thoughtfully to their latest message' : next?.label || 'Review and choose the next respectful action'}</div>
                         <div className="mt-1 text-xs text-[var(--app-muted)]">{reply ? 'Conversation waiting' : next?.due ? `Due ${fmtDate(next.due)}` : relationshipStageLabel(contact)}</div>
                       </div>
-                      <span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${next?.overdue ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-[#d8c28d] bg-[#fbf6e9] text-[#7c6025]'}`}>{reply ? 'Needs reply' : next?.overdue ? 'Promise due' : partnerTemperatureLabel(contact.relationship_temperature)}</span>
+                      <span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${next?.overdue ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-[#c99700] bg-[#f7f4ed] text-[#c99700]'}`}>{reply ? 'Needs reply' : next?.overdue ? 'Promise due' : partnerTemperatureLabel(contact.relationship_temperature)}</span>
                     </button>
                   )
                 })}
@@ -1878,13 +1878,13 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
 
           <section>
             <div className="mb-3 flex items-baseline justify-between border-b border-[var(--app-line)] pb-3">
-              <h3 className="text-lg font-semibold text-[#14213d]">Relationships at risk</h3>
+              <h3 className="text-lg font-semibold text-[#071421]">Relationships at risk</h3>
               <span className="text-sm text-[var(--app-muted)]">{atRisk.length}</span>
             </div>
             <div className="divide-y divide-[var(--app-line)]">
               {atRisk.slice(0, 5).map(contact => (
                 <button key={contact.id} onClick={() => onSelect(contact)} className="flex w-full items-center justify-between gap-4 py-3 text-left">
-                  <div><div className="text-sm font-medium text-[#14213d]">{contact.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{getNextPartnerAction(contact)?.overdue ? 'A commitment is overdue' : 'Active relationship has gone quiet'}</div></div>
+                  <div><div className="text-sm font-medium text-[#071421]">{contact.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{getNextPartnerAction(contact)?.overdue ? 'A commitment is overdue' : 'Active relationship has gone quiet'}</div></div>
                   <span className="text-xs text-amber-700">Review</span>
                 </button>
               ))}
@@ -1895,39 +1895,39 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
 
         <aside className="space-y-8 border-l-0 border-[var(--app-line)] xl:border-l xl:pl-8">
           <section>
-            <div className="border-b border-[var(--app-line)] pb-3"><h3 className="text-lg font-semibold text-[#14213d]">Warm opportunities</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Momentum worth protecting</p></div>
+            <div className="border-b border-[var(--app-line)] pb-3"><h3 className="text-lg font-semibold text-[#071421]">Warm opportunities</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Momentum worth protecting</p></div>
             <div className="divide-y divide-[var(--app-line)]">
-              {warm.slice(0, 5).map(contact => <button key={contact.id} onClick={() => onSelect(contact)} className="w-full py-3 text-left"><div className="text-sm font-medium text-[#14213d]">{contact.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{contact.latest_inbound_note || contact.latest_touch_note || relationshipStageLabel(contact)}</div></button>)}
+              {warm.slice(0, 5).map(contact => <button key={contact.id} onClick={() => onSelect(contact)} className="w-full py-3 text-left"><div className="text-sm font-medium text-[#071421]">{contact.name}</div><div className="mt-1 text-xs text-[var(--app-muted)]">{contact.latest_inbound_note || contact.latest_touch_note || relationshipStageLabel(contact)}</div></button>)}
               {!warm.length && <div className="py-6 text-sm text-[var(--app-muted)]">No warm signals waiting.</div>}
             </div>
           </section>
 
           <section>
-            <div className="border-b border-[var(--app-line)] pb-3"><h3 className="text-lg font-semibold text-[#14213d]">Recent proof</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationships producing real outcomes</p></div>
-            <div className="divide-y divide-[var(--app-line)]">{recentProof.map(contact => <button key={contact.id} onClick={() => onSelect(contact)} className="flex w-full items-center justify-between py-3 text-left"><span className="text-sm text-[#14213d]">{contact.name}</span><span className="text-xs font-semibold text-[#9a762f]">{contact.partner_referral_count || contact.referred_lead_count} referrals</span></button>)}</div>
+            <div className="border-b border-[var(--app-line)] pb-3"><h3 className="text-lg font-semibold text-[#071421]">Recent proof</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationships producing real outcomes</p></div>
+            <div className="divide-y divide-[var(--app-line)]">{recentProof.map(contact => <button key={contact.id} onClick={() => onSelect(contact)} className="flex w-full items-center justify-between py-3 text-left"><span className="text-sm text-[#071421]">{contact.name}</span><span className="text-xs font-semibold text-[#c99700]">{contact.partner_referral_count || contact.referred_lead_count} referrals</span></button>)}</div>
           </section>
         </aside>
       </div>
 
       <section className="border-t border-[var(--app-line)] pt-6">
-        <div className="mb-4"><h3 className="text-lg font-semibold text-[#14213d]">Market pulse</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationship quality by city—not message volume.</p></div>
+        <div className="mb-4"><h3 className="text-lg font-semibold text-[#071421]">Market pulse</h3><p className="mt-1 text-xs text-[var(--app-muted)]">Relationship quality by city—not message volume.</p></div>
         <div className="grid gap-px overflow-hidden border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-2 lg:grid-cols-4">
           {markets.map(item => (
             <button
               key={item.market}
               type="button"
               onClick={() => onOpenMarket(item.market as PartnershipMarketKey)}
-              className="bg-white p-4 text-left transition hover:bg-[#fbfaf6] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#9a762f]"
+              className="bg-white p-4 text-left transition hover:bg-[#f7f4ed] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#c99700]"
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold capitalize text-[#14213d]">{item.market}</div>
-                <span className="text-[11px] font-semibold text-[#9a762f]">View conversations →</span>
+                <div className="text-sm font-semibold capitalize text-[#071421]">{item.market}</div>
+                <span className="text-[11px] font-semibold text-[#c99700]">View conversations →</span>
               </div>
               <div className="mt-4 grid grid-cols-4 gap-3 text-xs text-[var(--app-muted)]">
-                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.active}</strong>active</span>
-                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.replies}</strong>need reply</span>
-                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.conversations}</strong>convos</span>
-                <span><strong className="block text-lg font-semibold text-[#14213d]">{item.total}</strong>known</span>
+                <span><strong className="block text-lg font-semibold text-[#071421]">{item.active}</strong>active</span>
+                <span><strong className="block text-lg font-semibold text-[#071421]">{item.replies}</strong>need reply</span>
+                <span><strong className="block text-lg font-semibold text-[#071421]">{item.conversations}</strong>convos</span>
+                <span><strong className="block text-lg font-semibold text-[#071421]">{item.total}</strong>known</span>
               </div>
             </button>
           ))}
@@ -1955,7 +1955,7 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
   return (
     <div className="space-y-6">
       {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -2047,19 +2047,19 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                         <div className="h-full rounded-full bg-[var(--app-accent)] transition-all" style={{ width: `${smsProgress}%` }} />
                       </div>
                       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                        <div className="rounded-[14px] bg-emerald-50 p-3">
+                        <div className="rounded-2xl bg-emerald-50 p-3">
                           <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Sent today</div>
                           <div className="mt-1 text-xl font-bold text-emerald-800">{smsSentToday}</div>
                         </div>
-                        <div className="rounded-[14px] bg-amber-50 p-3">
+                        <div className="rounded-2xl bg-amber-50 p-3">
                           <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">Left today</div>
                           <div className="mt-1 text-xl font-bold text-amber-800">{smsPendingToday}</div>
                         </div>
-                        <div className="rounded-[14px] bg-slate-50 p-3">
+                        <div className="rounded-2xl bg-slate-50 p-3">
                           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sent total</div>
                           <div className="mt-1 text-xl font-bold text-[#071421]">{smsSent}</div>
                         </div>
-                        <div className="rounded-[14px] bg-slate-50 p-3">
+                        <div className="rounded-2xl bg-slate-50 p-3">
                           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Remaining</div>
                           <div className="mt-1 text-xl font-bold text-[#071421]">{smsPending}</div>
                         </div>
@@ -2076,16 +2076,16 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                   )}
                   {!isSmsCampaign && mailed && (
                     <div className="mt-4 grid grid-cols-3 gap-2">
-                      <div className="rounded-[14px] bg-slate-50 p-3">
+                      <div className="rounded-2xl bg-slate-50 p-3">
                         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Mailed</div>
                         <div className="mt-1 text-sm font-semibold text-[#071421]">{fmtDate(batch.mail_sent_date)}</div>
                       </div>
-                      <div className={`rounded-[14px] p-3 ${emailDays !== null && emailDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                      <div className={`rounded-2xl p-3 ${emailDays !== null && emailDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">✉️ Email</div>
                         <div className="mt-1 text-sm font-semibold text-[#071421]">{emailDays !== null && emailDays <= 0 ? '✅ Sent' : fmtDate(emailDate)}</div>
                         {emailDays !== null && emailDays > 0 && <div className="text-[11px] text-amber-600 font-semibold">in {emailDays}d</div>}
                       </div>
-                      <div className={`rounded-[14px] p-3 ${smsDays !== null && smsDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                      <div className={`rounded-2xl p-3 ${smsDays !== null && smsDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">💬 SMS</div>
                         <div className="mt-1 text-sm font-semibold text-[#071421]">{smsDays !== null && smsDays <= 0 ? '✅ Sent' : fmtDate(smsDate)}</div>
                         {smsDays !== null && smsDays > 0 && <div className="text-[11px] text-amber-600 font-semibold">in {smsDays}d</div>}
@@ -2192,7 +2192,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
 
   return (
     <div className="space-y-4">
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between gap-3">
@@ -2206,7 +2206,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
           <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
             {fieldVisitContacts.slice(0, 24).map(c => (
               <button key={c.id} onClick={() => onSelectContact(c)}
-                className="min-w-[220px] rounded-[16px] border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-[#071421] hover:bg-white">
+                className="min-w-[220px] rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-[#071421] hover:bg-white">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-[#071421]">{c.name}</div>
@@ -2219,7 +2219,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
             ))}
           </div>
         ) : (
-          <div className="mt-3 rounded-[16px] border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-500">
+          <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-500">
             Tap Postcards or Meeting in the inbox to build this list.
           </div>
         )}
@@ -2231,7 +2231,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-[#071421]">Lists</span>
-            <button onClick={() => setShowNewList(v => !v)} className="rounded-lg bg-[#071421] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#243560]">+ New</button>
+            <button onClick={() => setShowNewList(v => !v)} className="rounded-lg bg-[#071421] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#071421]">+ New</button>
           </div>
           {showNewList && (
             <div className="space-y-2">
@@ -2290,7 +2290,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
                   <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="Add contact by name…"
                     className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
                   {addSuggestions.length > 0 && (
-                    <div className="absolute top-10 left-0 right-0 z-10 rounded-[14px] border border-slate-200 bg-white shadow-lg">
+                    <div className="absolute top-10 left-0 right-0 z-10 rounded-2xl border border-slate-200 bg-white shadow-lg">
                       {addSuggestions.map(c => (
                         <button key={c.id} onClick={() => addContactToList(c)}
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0">
@@ -2419,7 +2419,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
               </div>
               <div className="space-y-2">
                 {colContacts.length === 0 ? (
-                  <div className={`rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-500 transition ${dropTarget === col.key ? 'border-[#071421] bg-white text-[#071421]' : ''}`}>Drop here</div>
+                  <div className={`rounded-2xl border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-500 transition ${dropTarget === col.key ? 'border-[#071421] bg-white text-[#071421]' : ''}`}>Drop here</div>
                 ) : colContacts.map(c => {
                   const nextAction = getNextPartnerAction(c)
                   const referralCode = getPartnerReferralCode(c)
@@ -2429,7 +2429,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(c) } }}
                       onDragStart={e => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; setDraggingId(c.id) }}
                       onDragEnd={() => { setDraggingId(null); setDropTarget(null) }}
-                      className={`w-full rounded-[16px] border border-white bg-white p-3 text-left shadow-sm transition hover:shadow-md ${draggingId === c.id ? 'cursor-grabbing opacity-50' : 'cursor-grab'} ${movingId === c.id ? 'pointer-events-none opacity-60' : ''}`}>
+                      className={`w-full rounded-2xl border border-white bg-white p-3 text-left shadow-sm transition hover:shadow-md ${draggingId === c.id ? 'cursor-grabbing opacity-50' : 'cursor-grab'} ${movingId === c.id ? 'pointer-events-none opacity-60' : ''}`}>
                       <div className="flex items-start justify-between gap-1">
                         <div className="text-sm font-semibold text-[#071421] truncate">{c.name}</div>
                         <TierBadge tier={c.outreach_tier} />
@@ -2440,7 +2440,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                         {movingId === c.id ? <span>Saving…</span> : c.last_touch_at && <span>{timeAgo(c.last_touch_at)}</span>}
                       </div>
                       {(nextAction || referralCode) && (
-                        <div className="mt-2 space-y-1 rounded-[10px] bg-slate-50 px-2 py-1.5 text-[11px]">
+                        <div className="mt-2 space-y-1 rounded-xl bg-slate-50 px-2 py-1.5 text-[11px]">
                           {nextAction && (
                             <div className="flex items-center justify-between gap-2">
                               <span className="truncate font-semibold text-slate-600">{nextAction.label}</span>
@@ -2625,7 +2625,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
   return (
     <div className="space-y-4">
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-[var(--app-ink)]">Reply Desk</h2>
@@ -2648,7 +2648,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
       </div>
 
       <div className="grid min-h-[560px] gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-[18px] border border-[var(--app-line)] bg-white">
+        <div className="overflow-hidden rounded-2xl border border-[var(--app-line)] bg-white">
           <div className="border-b border-[var(--app-line)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)]">
             {loading ? 'Loading replies' : `${filtered.length} visible replies`}
           </div>
@@ -2678,7 +2678,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
           </div>
         </div>
 
-        <div className="rounded-[18px] border border-[var(--app-line)] bg-white p-5">
+        <div className="rounded-2xl border border-[var(--app-line)] bg-white p-5">
           {!selected ? (
             <div className="flex h-full min-h-[420px] items-center justify-center text-center text-sm text-[var(--app-muted)]">Select a reply.</div>
           ) : (
@@ -2703,7 +2703,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
                 </div>
               </div>
 
-              <div className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+              <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)]">
                   <span>Latest reply</span>
                   <span>{fmtDateTime(selected.latest_touch.created_at)}</span>
@@ -2715,20 +2715,20 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <button disabled={!!saving} onClick={() => void logReplyAction(selected, 'postcard')}
-                  className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50">
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50">
                   Mark postcard requested
                 </button>
                 <button disabled={!!saving} onClick={() => void logReplyAction(selected, 'handled')}
-                  className="rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50">
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50">
                   Mark handled
                 </button>
                 <button disabled={!!saving} onClick={() => void logReplyAction(selected, 'not_interested')}
-                  className="rounded-[12px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
                   Not interested
                 </button>
               </div>
 
-              <div className="rounded-[14px] border border-[var(--app-line)] p-4">
+              <div className="rounded-2xl border border-[var(--app-line)] p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)]">Recommended handling</div>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Keep the first response human. If they ask for a postcard, log it here, send or drop the card, then use the profile to schedule a follow-up. If they ask to stop, mark not interested so future campaign jobs stay off this contact.
@@ -4706,9 +4706,9 @@ function PhoneTab({
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden bg-white md:border-x md:border-slate-200">
-      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[14px] bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-2xl bg-[#071421] px-5 py-3 text-sm font-medium text-white shadow-none">{toast}</div>}
       {dialer.status === 'ringing' && (
-        <div className="fixed left-1/2 top-6 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-[16px] border border-emerald-200 bg-white p-4 shadow-none">
+        <div className="fixed left-1/2 top-6 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-emerald-200 bg-white p-4 shadow-none">
           <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Incoming partnership call</div>
           <div className="mt-1 truncate text-sm font-semibold text-[#071421]">{dialer.incomingFrom || 'Unknown caller'}</div>
           <div className="mt-3 flex gap-2">
@@ -4768,11 +4768,11 @@ function PhoneTab({
                     onChange={e => setSheetForm(form => form ? { ...form, sheetNote: e.target.value } : form)}
                     rows={3}
                     placeholder="Example: Send digital package, then drop cards at front desk next week. Prefers text."
-                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#071421] outline-none focus:border-[#071421]"
+                    className="mt-1 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#071421] outline-none focus:border-[#071421]"
                   />
                 </label>
 
-                <div className="rounded-[16px] border border-slate-200 bg-white p-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
                   <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Partner context</div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[
@@ -4812,12 +4812,12 @@ function PhoneTab({
                     onChange={e => setSheetInstruction(e.target.value)}
                     rows={3}
                     placeholder="Optional: explain where this should go if the list/status is not obvious."
-                    className="mt-1 w-full resize-none rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#071421] outline-none focus:border-[#071421]"
+                    className="mt-1 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-[#071421] outline-none focus:border-[#071421]"
                   />
                 </label>
               </div>
             )}
-            <div className="mt-3 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800">
+            <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-800">
               Saves the CRM record first, then sends the same tagged update to the partnership sheet when sheet sync is configured.
             </div>
             <div className="mt-4 flex gap-2">
@@ -4845,7 +4845,7 @@ function PhoneTab({
         <div className="shrink-0 border-b border-slate-100 px-4 py-4">
           <div className="mb-3 lg:mb-2">
             <div>
-              <div className="text-[22px] font-semibold tracking-tight text-[#111827] lg:text-xl">Partnership replies</div>
+              <div className="text-xl font-semibold tracking-tight text-[#071421] lg:text-xl">Partnership replies</div>
               <div className="mt-0.5 text-xs font-medium text-slate-500">{filterCounts.inbound} inbound · {filterCounts.needs_reply} need reply</div>
             </div>
           </div>
@@ -4868,14 +4868,14 @@ function PhoneTab({
           </div>
           <div className="flex gap-2">
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
-              className="h-12 min-w-0 flex-1 rounded-[9px] border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
+              className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
             <details className="relative shrink-0">
-              <summary className="flex h-12 cursor-pointer list-none items-center rounded-[9px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 lg:h-10">Filters{hasSegmentFilter ? ' · On' : ''}</summary>
-              <div className="absolute right-0 z-30 mt-2 grid w-72 grid-cols-1 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg sm:grid-cols-2">
+              <summary className="flex h-12 cursor-pointer list-none items-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 lg:h-10">Filters{hasSegmentFilter ? ' · On' : ''}</summary>
+              <div className="absolute right-0 z-30 mt-2 grid w-72 grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg sm:grid-cols-2">
             <select
               value={areaFilter}
               onChange={e => setAreaFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-xs"
             >
               <option value="">All areas</option>
               {PARTNERSHIP_AREA_GROUPS.map(area => (
@@ -4885,7 +4885,7 @@ function PhoneTab({
             <select
               value={cityFilter}
               onChange={e => setCityFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-xs"
             >
               <option value="">All cities</option>
               {cityOptions.map(city => (
@@ -4895,7 +4895,7 @@ function PhoneTab({
             <select
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-xs"
             >
               <option value="">All categories</option>
               {categoryOptions.map(category => (
@@ -4905,7 +4905,7 @@ function PhoneTab({
             <select
               value={batchFilter}
               onChange={e => setBatchFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-xs"
             >
               <option value="">All batches</option>
               {batchOptions.map(batch => (
@@ -4915,14 +4915,14 @@ function PhoneTab({
             <select
               value={brokerageFilter}
               onChange={e => setBrokerageFilter(e.target.value)}
-              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-[12px]"
+              className="h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 outline-none focus:border-[#071421] lg:h-9 lg:text-xs"
             >
               <option value="">All brokerages</option>
               {brokerageOptions.map(brokerage => (
                 <option key={brokerage.name} value={brokerage.name}>{brokerage.name} · {brokerage.inbound} replied / {brokerage.total}</option>
               ))}
             </select>
-                {hasSegmentFilter ? <button onClick={() => { selectMarket(); setCategoryFilter('') }} className="col-span-full rounded-[7px] px-3 py-2 text-left text-xs font-semibold text-slate-500 hover:bg-slate-50">Clear filters</button> : null}
+                {hasSegmentFilter ? <button onClick={() => { selectMarket(); setCategoryFilter('') }} className="col-span-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-500 hover:bg-slate-50">Clear filters</button> : null}
               </div>
             </details>
           </div>
@@ -4961,26 +4961,26 @@ function PhoneTab({
             const p = getContactPreview(c)
             return (
               <button key={c.id} onClick={() => handleSelect(c.id)}
-                className={`w-full border-b border-slate-100 px-4 py-4 text-left transition hover:bg-slate-50 lg:py-3.5 ${selectedId === c.id ? 'bg-slate-100 shadow-[inset_3px_0_0_#111827]' : ''}`}>
+                className={`w-full border-b border-slate-100 px-4 py-4 text-left transition hover:bg-slate-50 lg:py-3.5 ${selectedId === c.id ? 'bg-slate-100 shadow-[inset_3px_0_0_#071421]' : ''}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${selectedId === c.id ? 'bg-[#111827] text-white' : 'bg-slate-100 text-slate-700'}`}>{c.name.charAt(0)}</span>
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${selectedId === c.id ? 'bg-[#071421] text-white' : 'bg-slate-100 text-slate-700'}`}>{c.name.charAt(0)}</span>
                     <div className="min-w-0">
-                      <div className={`truncate text-[15px] font-semibold ${selectedId === c.id ? 'text-[#111827]' : 'text-[#071421]'}`}>{c.name}</div>
+                      <div className={`truncate text-sm font-semibold ${selectedId === c.id ? 'text-[#071421]' : 'text-[#071421]'}`}>{c.name}</div>
                       <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-slate-600' : 'text-slate-500'}`}>{c.company ?? c.industry ?? c.city ?? 'Partner contact'}</div>
                     </div>
                     <TierBadge tier={c.outreach_tier} />
                     {recentSalesByContact.has(c.id) && (
                       <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Recent sale</span>
                     )}
-                    {c.priority === 'high' && <span className="shrink-0 text-sm text-[#b88a25]" title="Priority relationship">★</span>}
+                    {c.priority === 'high' && <span className="shrink-0 text-sm text-[#c99700]" title="Priority relationship">★</span>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {unread && selectedId !== c.id && <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
                     <span className={`text-[11px] ${selectedId === c.id ? 'text-slate-500' : 'text-slate-500'}`}>{timeAgo(c.latest_inbound_at || c.last_touch_at)}</span>
                   </div>
                 </div>
-                {p?.body && <div className={`mt-2 line-clamp-2 text-sm leading-[1.5] lg:text-[13px] ${selectedId === c.id ? 'text-slate-700' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
+                {p?.body && <div className={`mt-2 line-clamp-2 text-sm leading-[1.5] lg:text-xs ${selectedId === c.id ? 'text-slate-700' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
                 <div className="mt-2 flex items-center gap-2 overflow-hidden pl-12 text-xs">
                   <span className={`shrink-0 font-semibold ${status === 'context' ? 'text-rose-700' : status === 'needs_reply' ? 'text-amber-700' : 'text-slate-600'}`}>{inboxStatusLabel(status)}</span>
                   <span className="text-slate-300">·</span>
@@ -5024,7 +5024,7 @@ function PhoneTab({
                 disabled={prioritySaving}
                 className={`flex h-10 w-10 items-center justify-center rounded-lg border text-lg transition disabled:opacity-50 ${
                   selected.priority === 'high'
-                    ? 'border-[#d5b45f] bg-[#fffaf0] text-[#9a7014]'
+                    ? 'border-[#c99700] bg-[#f7f4ed] text-[#c99700]'
                     : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:text-[#071421]'
                 }`}
                 title={selected.priority === 'high' ? 'Remove from Priority' : 'Add to Priority'}
@@ -5053,7 +5053,7 @@ function PhoneTab({
           </div>
 
           {selected && recentSalesByContact.has(selected.id) && (
-            <div className="shrink-0 border-b border-slate-200 bg-[#fbfaf7] px-3 py-3 sm:px-5">
+            <div className="shrink-0 border-b border-slate-200 bg-[#f7f4ed] px-3 py-3 sm:px-5">
               {(() => {
                 const sales = recentSalesByContact.get(selected.id) || []
                 const activeSale = sales.find(sale => sale.id === selectedRecentSaleId) || sales[0]
@@ -5065,7 +5065,7 @@ function PhoneTab({
                 })
                 return <div className="flex flex-wrap items-end justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8d6116]">Recent sale context</div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#c99700]">Recent sale context</div>
                     {sales.length > 1 && (
                       <div className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-1">
                         {sales.map((sale, index) => (
@@ -5195,7 +5195,7 @@ function PhoneTab({
               }
               return (
                 <div key={touch.id} className={`flex ${touch.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${touchIndex === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-4'}`}>
-                  <div className={`max-w-[min(70%,520px)] px-4 py-2.5 text-[15px] leading-[1.45] ${touch.direction === 'outbound' ? 'bg-[#14213d] text-white' : 'bg-[#f0f2f4] text-[#172033]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
+                  <div className={`max-w-[min(70%,520px)] px-4 py-2.5 text-sm leading-[1.45] ${touch.direction === 'outbound' ? 'bg-[#071421] text-white' : 'bg-[#f9fafb] text-[#071421]'} ${touch.direction === 'outbound' ? `${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
                     {!groupedWithPrevious && touch.channel !== 'sms' && (
                       <div className={`mb-1 text-xs font-medium ${touch.direction === 'outbound' ? 'text-white/65' : 'text-slate-500'}`}>
                         {s.label}{s.auto ? ' · Automated' : ''}
@@ -5211,10 +5211,10 @@ function PhoneTab({
                       <div className="mt-2 grid gap-2">
                         {touchMedia.map(url => (
                           isVideoUrl(url) ? (
-                            <video key={url} src={mediaPlaybackUrl(url)} controls className="max-h-64 rounded-[12px] bg-black" />
+                            <video key={url} src={mediaPlaybackUrl(url)} controls className="max-h-64 rounded-xl bg-black" />
                           ) : (
                             <a key={url} href={mediaPlaybackUrl(url)} target="_blank" rel="noreferrer">
-                              <img src={mediaPlaybackUrl(url)} alt="" className="max-h-64 rounded-[12px] object-cover" />
+                              <img src={mediaPlaybackUrl(url)} alt="" className="max-h-64 rounded-xl object-cover" />
                             </a>
                           )
                         ))}
@@ -5248,19 +5248,19 @@ function PhoneTab({
                 <button
                   onClick={() => void handleCreateAppointmentFromSuggestion()}
                   disabled={appointmentSaving}
-                  className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
                 >
                   {appointmentSaving ? 'Saving…' : 'Save'}
                 </button>
               </div>
             )}
             {actionPanelOpen && (
-              <div className="mb-2 rounded-[18px] border border-slate-200 bg-slate-50 p-2 xl:hidden">
+              <div className="mb-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 xl:hidden">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <button
                     onClick={() => openSheetUpdate(selected)}
                     disabled={sheetUpdating}
-                    className="min-h-11 rounded-full border border-[#071421] bg-[#071421] px-4 text-sm font-semibold text-white transition hover:bg-[#243560] disabled:opacity-50"
+                    className="min-h-11 rounded-full border border-[#071421] bg-[#071421] px-4 text-sm font-semibold text-white transition hover:bg-[#071421] disabled:opacity-50"
                   >
                     Update sheet
                   </button>
@@ -5286,26 +5286,26 @@ function PhoneTab({
             )}
             <div className="mb-1.5 flex items-center gap-4 border-b border-slate-100">
               <div className="flex shrink-0 gap-4">
-              <button onClick={() => setComposeChannel('sms')} className={`min-h-8 shrink-0 border-b-2 px-0 text-[13px] font-medium transition ${composeChannel === 'sms' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
+              <button onClick={() => setComposeChannel('sms')} className={`min-h-8 shrink-0 border-b-2 px-0 text-xs font-medium transition ${composeChannel === 'sms' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
                 SMS {!selected.phone && <span className="ml-1 text-red-400">no #</span>}
               </button>
-              <button onClick={() => setComposeChannel('email')} className={`min-h-8 shrink-0 border-b-2 px-0 text-[13px] font-medium transition ${composeChannel === 'email' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
+              <button onClick={() => setComposeChannel('email')} className={`min-h-8 shrink-0 border-b-2 px-0 text-xs font-medium transition ${composeChannel === 'email' ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500'}`}>
                 Email {!selected.email && <span className="ml-1 text-red-400">no email</span>}
               </button>
               </div>
-              <button onClick={() => void handleAiReply()} disabled={aiReplyLoading} className="min-h-8 shrink-0 text-[13px] font-medium text-slate-600 transition hover:text-[#071421] disabled:opacity-50">
+              <button onClick={() => void handleAiReply()} disabled={aiReplyLoading} className="min-h-8 shrink-0 text-xs font-medium text-slate-600 transition hover:text-[#071421] disabled:opacity-50">
                 {aiReplyLoading ? 'Drafting…' : 'Suggest reply'}
               </button>
               {composeChannel === 'sms' && (
-                <button onClick={() => setScheduleMode(current => !current)} className={`min-h-8 text-[13px] font-medium ${scheduleMode ? 'text-[#071421]' : 'text-slate-500'}`}>
+                <button onClick={() => setScheduleMode(current => !current)} className={`min-h-8 text-xs font-medium ${scheduleMode ? 'text-[#071421]' : 'text-slate-500'}`}>
                   {scheduleMode ? 'Cancel schedule' : 'Schedule'}
                 </button>
               )}
               <details className="relative ml-auto shrink-0">
-                <summary className="flex min-h-8 cursor-pointer list-none items-center text-[13px] font-medium text-slate-500">More</summary>
-                <div className="absolute right-0 z-30 mt-1 grid w-72 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg">
+                <summary className="flex min-h-8 cursor-pointer list-none items-center text-xs font-medium text-slate-500">More</summary>
+                <div className="absolute right-0 z-30 mt-1 grid w-72 gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
               {composeChannel === 'sms' && <div className="text-xs leading-5 text-slate-500">Sending from {displayReplyNumber(selectedThreadFromNumber)}</div>}
-              <label className="flex min-h-11 items-center justify-between gap-2 rounded-[7px] border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:text-xs">
+              <label className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-500 lg:text-xs">
                 Stage
                 <select
                   value={selected.normalized_stage || 'target'}
@@ -5337,7 +5337,7 @@ function PhoneTab({
             {mediaUrls.length > 0 && (
               <div className="scrollbar-hidden mb-2 flex gap-2 overflow-x-auto">
                 {mediaUrls.map(url => (
-                  <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[12px] border border-slate-200 bg-slate-50">
+                  <div key={url} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                     {isVideoUrl(url) ? (
                       <div className="flex h-full items-center justify-center text-xs font-semibold text-slate-500">Video</div>
                     ) : isImageUrl(url) ? (
@@ -5366,7 +5366,7 @@ function PhoneTab({
                     <button onClick={() => setScheduledAt(defaultScheduledReplyTime(aiSuggestion || selected.playbook))} className="min-h-10 text-sm font-medium text-slate-600">Use suggested time</button>
                   </div>
                 )}
-                <div className="flex items-end gap-1.5 rounded-[24px] bg-[#f1f3f5] p-1">
+                <div className="flex items-end gap-1.5 rounded-3xl bg-[#f9fafb] p-1">
                   <input
                     ref={mediaInputRef}
                     type="file"
@@ -5403,9 +5403,9 @@ function PhoneTab({
                     rows={1}
                     placeholder={selected.phone ? 'Message…' : 'No phone'}
                     disabled={!selected.phone}
-                    className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-[#071421] outline-none placeholder:text-slate-500 disabled:opacity-40" />
+                    className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm leading-6 text-[#071421] outline-none placeholder:text-slate-500 disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (scheduleMode && !scheduledAt)}
-                    className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
+                    className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-xs font-semibold text-white disabled:opacity-35">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
                   <div className={`pl-14 text-xs font-medium ${voiceError ? 'text-rose-600' : 'text-slate-500'}`}>
@@ -5416,7 +5416,7 @@ function PhoneTab({
             ) : (
               <div className="space-y-2">
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
-                  className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm" />
+                  className="min-h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
                   <button
                     onClick={toggleVoiceDictation}
@@ -5427,7 +5427,7 @@ function PhoneTab({
                     {voiceListening ? '■' : '🎙'}
                   </button>
                   <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder={selected.email ? 'Write a clear partnership email…' : 'No email'} disabled={!selected.email}
-                    className="max-h-64 min-h-[120px] flex-1 resize-y rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
+                    className="max-h-64 min-h-[120px] flex-1 resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
                     className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
@@ -5722,26 +5722,26 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
                 {c.city && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{c.city}</span>}
               </div>
               {c.affiliate_partner_id && (
-                <div className="mt-2 flex items-center gap-1.5 rounded-[8px] border border-emerald-200 bg-emerald-50 px-2.5 py-1.5">
+                <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5">
                   <span className="text-[11px] font-semibold text-emerald-700">🔗 Has affiliate portal</span>
                 </div>
               )}
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-[10px] bg-slate-50 p-2">
+                <div className="rounded-xl bg-slate-50 p-2">
                   <div className="text-[11px] font-semibold uppercase text-slate-500">Next Action</div>
                   <div className={`mt-0.5 truncate font-medium ${nextAction?.overdue ? 'text-amber-600' : 'text-[#071421]'}`}>{nextAction ? `${nextAction.label} · ${fmtDate(nextAction.due)}` : '—'}</div>
                 </div>
-                <div className="rounded-[10px] bg-slate-50 p-2">
+                <div className="rounded-xl bg-slate-50 p-2">
                   <div className="text-[11px] font-semibold uppercase text-slate-500">Referral Code</div>
                   <div className="mt-0.5 truncate font-medium text-emerald-700">{referralCode || '—'}</div>
                 </div>
-                <div className="rounded-[10px] bg-slate-50 p-2">
+                <div className="rounded-xl bg-slate-50 p-2">
                   <div className="text-[11px] font-semibold uppercase text-slate-500">Referrals</div>
                   <div className="mt-0.5 font-medium text-[#071421]">{c.referred_lead_count ?? 0}</div>
                 </div>
-                {c.phone && <div className="rounded-[10px] bg-slate-50 p-2"><div className="text-[11px] font-semibold uppercase text-slate-500">Phone</div><div className="mt-0.5 font-medium text-[#071421]">{c.phone}</div></div>}
-                {c.email && <div className="rounded-[10px] bg-slate-50 p-2 col-span-2 truncate"><div className="text-[11px] font-semibold uppercase text-slate-500">Email</div><div className="mt-0.5 font-medium text-[#071421] truncate">{c.email}</div></div>}
-                <div className="rounded-[10px] bg-slate-50 p-2">
+                {c.phone && <div className="rounded-xl bg-slate-50 p-2"><div className="text-[11px] font-semibold uppercase text-slate-500">Phone</div><div className="mt-0.5 font-medium text-[#071421]">{c.phone}</div></div>}
+                {c.email && <div className="rounded-xl bg-slate-50 p-2 col-span-2 truncate"><div className="text-[11px] font-semibold uppercase text-slate-500">Email</div><div className="mt-0.5 font-medium text-[#071421] truncate">{c.email}</div></div>}
+                <div className="rounded-xl bg-slate-50 p-2">
                   <div className="text-[11px] font-semibold uppercase text-slate-500">Last Touch</div>
                   <div className={`mt-0.5 font-medium ${!warm ? 'text-amber-600' : 'text-[#071421]'}`}>{daysSince !== null ? `${daysSince}d ago` : '—'}{!warm && ' ⚠️'}</div>
                 </div>
@@ -5751,7 +5751,7 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
         })}
       </div>
       {visible.length === 0 && (
-        <div className="rounded-[16px] border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
           No partners match this view.
         </div>
       )}
@@ -5824,7 +5824,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-[16px] bg-white shadow-none flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-none flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
           <div>
             <div className="text-sm font-semibold text-[var(--app-ink)]">Bulk SMS</div>
@@ -5888,15 +5888,15 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
                 <div className="crm-label mb-2">Preview</div>
                 {previewStats && (
                   <div className="mb-3 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-2">
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2">
                       <div className="text-lg font-semibold text-emerald-800">{previewStats.will_send}</div>
                       <div className="text-[11px] font-semibold uppercase text-emerald-700">Will send</div>
                     </div>
-                    <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-2">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
                       <div className="text-lg font-semibold text-slate-700">{previewStats.skipped_prior_sms}</div>
                       <div className="text-[11px] font-semibold uppercase text-slate-500">Already texted</div>
                     </div>
-                    <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-2">
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-2">
                       <div className="text-lg font-semibold text-amber-800">{previewStats.no_phone}</div>
                       <div className="text-[11px] font-semibold uppercase text-amber-700">No phone</div>
                     </div>
@@ -5904,7 +5904,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
                 )}
                 <div className="space-y-2">
                   {preview.map((p, i) => (
-                    <div key={i} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                    <div key={i} className="rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                       <div className="text-[11px] font-semibold text-[var(--app-muted)]">{p.name} · {p.phone}</div>
                       <div className="mt-1 text-sm text-[var(--app-ink)] whitespace-pre-wrap">{p.message}</div>
                     </div>
@@ -5914,7 +5914,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             )}
 
             {skippedPriorSmsSamples.length > 0 && (
-              <div className="rounded-[10px] border border-slate-200 bg-slate-50 p-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="text-xs font-semibold text-slate-700">Skipped because they already have an outbound SMS</div>
                 <div className="mt-2 space-y-1">
                   {skippedPriorSmsSamples.map((sample, index) => (
@@ -5927,7 +5927,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
             )}
 
             {invalidPhoneSamples.length > 0 && (
-              <div className="rounded-[10px] border border-amber-200 bg-amber-50 p-3">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                 <div className="text-xs font-semibold text-amber-800">Skipped invalid numbers before sending</div>
                 <div className="mt-2 space-y-1">
                   {invalidPhoneSamples.map((sample, index) => (
@@ -5948,7 +5948,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
                   <button onClick={() => setSelectedIds(new Set())} className="text-[11px] text-[var(--app-muted)] hover:underline">None</button>
                 </div>
               </div>
-              <div className="max-h-32 overflow-y-auto rounded-[8px] border border-[var(--app-line)] divide-y divide-[var(--app-line)]">
+              <div className="max-h-32 overflow-y-auto rounded-lg border border-[var(--app-line)] divide-y divide-[var(--app-line)]">
                 {withPhone.slice(0, 20).map(c => (
                   <label key={c.id} className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-[var(--app-bg)]">
                     <input type="checkbox" checked={selectedIds.has(c.id)}
@@ -6172,7 +6172,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-      <div className="flex h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-[18px] bg-white shadow-none sm:h-[min(92dvh,900px)] sm:rounded-[18px]">
+      <div className="flex h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-[18px] bg-white shadow-none sm:h-[min(92dvh,900px)] sm:rounded-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--app-line)] px-4 py-4 sm:px-6">
           <div>
             <div className="text-lg font-semibold text-[var(--app-ink)]">Prepare partnership outreach</div>
@@ -6195,7 +6195,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                 <div>
                   <label className="crm-label">CSV file</label>
                   <input type="file" accept=".csv,text/csv" onChange={e => { void handleFile(e.target.files?.[0] || null) }}
-                    className="mt-1 block w-full text-sm text-[var(--app-muted)] file:mr-3 file:rounded-[10px] file:border-0 file:bg-[var(--app-ink)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" />
+                    className="mt-1 block w-full text-sm text-[var(--app-muted)] file:mr-3 file:rounded-xl file:border-0 file:bg-[var(--app-ink)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" />
                   <div className="mt-2 text-sm leading-5 text-[var(--app-muted)]">{fileName || 'Upload the London or Kitchener–Waterloo realtor CSV.'}</div>
                 </div>
 
@@ -6295,12 +6295,12 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                   </div>
                 </div>
 
-                <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-xs leading-5 text-[var(--app-muted)]">
+                <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-xs leading-5 text-[var(--app-muted)]">
                   Sends from {selectedMarketConfig.label}: {senderNumbers.map(formatPhoneDisplay).join(', ')}. Smart Encoding is active. Uses primary phone only, duplicate checks, and Toronto working hours.
                 </div>
 
                 {selectedCities.length > 0 && (
-                  <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-3">
+                  <div className="rounded-xl border border-[var(--app-line)] bg-white p-3">
                     <div className="text-xs font-semibold text-[var(--app-ink)]">{segmentLabel || 'Selected segment'} includes {selectedCities.length} cit{selectedCities.length === 1 ? 'y' : 'ies'}</div>
                     <div className="mt-2 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
                       {selectedCities.slice(0, 24).map(c => (
@@ -6313,7 +6313,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
               </div>
 
               <div className="min-h-0 space-y-4 overflow-visible p-4 pb-8 md:overflow-y-auto md:overscroll-contain sm:p-6 sm:pb-10">
-                <div className="rounded-[14px] border border-[var(--app-line)] bg-white p-4">
+                <div className="rounded-2xl border border-[var(--app-line)] bg-white p-4">
                   <div className="flex flex-wrap items-end justify-between gap-2">
                     <div>
                       <label className="text-base font-semibold text-[var(--app-ink)]">Message</label>
@@ -6324,34 +6324,34 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                     </div>
                   </div>
                   <textarea value={template} onChange={e => { setTemplate(e.target.value); setPreview(null) }} rows={6}
-                    className="crm-input mt-3 min-h-[160px] max-h-[280px] resize-y bg-white text-[15px] leading-6" />
+                    className="crm-input mt-3 min-h-[160px] max-h-[280px] resize-y bg-white text-sm leading-6" />
                   <div className="mt-2 text-sm leading-5 text-[var(--app-muted)]">The city is personalized from each CSV row. London contacts say London; Kitchener and Waterloo contacts keep their correct city.</div>
                 </div>
 
-                {error && <div className="rounded-[10px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+                {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
                 {preview && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 p-3 text-center">
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center">
                         <div className="text-xl font-semibold text-emerald-800">{preview.would_schedule}</div>
                         <div className="text-[11px] font-bold uppercase text-emerald-700">Will schedule</div>
                       </div>
-                      <div className="rounded-[10px] border border-slate-200 bg-slate-50 p-3 text-center">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
                         <div className="text-xl font-semibold text-slate-800">{preview.existing_skipped_no_repeat}</div>
                         <div className="text-[11px] font-bold uppercase text-slate-500">Existing skipped</div>
                       </div>
-                      <div className="rounded-[10px] border border-amber-200 bg-amber-50 p-3 text-center">
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center">
                         <div className="text-xl font-semibold text-amber-800">{preview.no_primary_phone + preview.invalid_phone}</div>
                         <div className="text-[11px] font-bold uppercase text-amber-700">No usable primary</div>
                       </div>
-                      <div className="rounded-[10px] border border-sky-200 bg-sky-50 p-3 text-center">
+                      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-center">
                         <div className="text-xl font-semibold text-sky-800">{preview.days_to_finish}</div>
                         <div className="text-[11px] font-bold uppercase text-sky-700">Business days</div>
                       </div>
                     </div>
 
-                    <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-3">
+                    <div className="rounded-xl border border-[var(--app-line)] bg-white p-3">
                       <div className="text-xs font-semibold text-[var(--app-ink)]">Dry-run details</div>
                       <div className="mt-2 grid gap-1 text-xs text-[var(--app-muted)] sm:grid-cols-2">
                         <div>Total selected rows: {preview.total_input}</div>
@@ -6367,7 +6367,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                       <div className="crm-label mb-2">Sample scheduled messages</div>
                       <div className="space-y-2">
                         {(preview.preview || []).map((item, index) => (
-                          <div key={`${item.phone}-${index}`} className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+                          <div key={`${item.phone}-${index}`} className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
                             <div className="flex flex-wrap justify-between gap-2 text-sm font-semibold text-[var(--app-muted)]">
                               <span>{item.name} · {item.city || segmentLabel} · {item.phone}</span>
                               <span>{item.from_number} · {fmtDateTime(item.scheduled_at)}</span>
@@ -6406,8 +6406,8 @@ function urgencyBar(contact: Contact): string {
     ? Math.floor((Date.now() - new Date(contact.last_touch_at).getTime()) / 86400000)
     : 999
   if (contact.sequence_paused && !contact.decision) return 'bg-[var(--app-accent)]'   // responded — act now
-  if (daysSince >= 7) return 'bg-[#c9754e]'                                             // overdue
-  if (daysSince >= 3) return 'bg-[#d0a24d]'                                             // due soon
+  if (daysSince >= 7) return 'bg-[#8a6800]'                                             // overdue
+  if (daysSince >= 3) return 'bg-[#c99700]'                                             // due soon
   return 'bg-[var(--app-line)]'                                                          // fresh
 }
 
@@ -6432,7 +6432,7 @@ function QueueContactCard({ contact, onSelect, onCall, batchLabel }: {
     : null
 
   return (
-    <div className={`rounded-[14px] border p-4 shadow-sm transition hover:shadow-md ${urgencyCardBorder(contact)}`}>
+    <div className={`rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${urgencyCardBorder(contact)}`}>
       <div className={`mb-3 h-1 rounded-full ${urgencyBar(contact)}`} />
 
       <div className="flex items-start justify-between gap-3">
@@ -6474,7 +6474,7 @@ function QueueContactCard({ contact, onSelect, onCall, batchLabel }: {
       </div>
 
       {contact.latest_touch_note && (
-        <div className="mt-2 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[11px] text-[var(--app-muted)] line-clamp-2">
+        <div className="mt-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[11px] text-[var(--app-muted)] line-clamp-2">
           {contact.latest_touch_note.slice(0, 120)}
         </div>
       )}
@@ -6482,22 +6482,22 @@ function QueueContactCard({ contact, onSelect, onCall, batchLabel }: {
       <div className="mt-3 grid grid-cols-4 gap-1.5">
         {contact.phone && (
           <button onClick={() => onCall(contact)}
-            className="flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
+            className="flex-1 rounded-lg border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
             📞 Call
           </button>
         )}
         {contact.phone && (
           <button onClick={() => window.open(`sms:${contact.phone}`)}
-            className="flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
+            className="flex-1 rounded-lg border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition">
             💬 SMS
           </button>
         )}
         <button onClick={() => onSelect(contact)}
-          className={`${contact.phone ? '' : 'col-span-2'} flex-1 rounded-[8px] border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition`}>
+          className={`${contact.phone ? '' : 'col-span-2'} flex-1 rounded-lg border border-[var(--app-line)] py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition`}>
           Open
         </button>
         <button onClick={() => onSelect(contact)}
-          className="flex-1 rounded-[8px] bg-[var(--app-accent)] py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
+          className="flex-1 rounded-lg bg-[var(--app-accent)] py-1.5 text-xs font-semibold text-white hover:opacity-90 transition">
           Log
         </button>
       </div>
@@ -6569,7 +6569,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
   return (
     <div className="space-y-6">
       {dialer.status === 'ringing' && (
-        <div className="rounded-[16px] border border-emerald-200 bg-emerald-50 p-4">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Incoming partnership call</div>
@@ -6583,7 +6583,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
         </div>
       )}
       {dialer.error && (
-        <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
           {dialer.error}
         </div>
       )}
@@ -6592,8 +6592,8 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
         <div>
           <h2 className="text-xl font-semibold text-[var(--app-ink)]">Outbound Queue</h2>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${urgentCount > 0 ? 'border border-[rgba(201,117,78,0.12)] bg-[#f6ece7] text-[#955941]' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>
-              <span className={`h-2 w-2 rounded-full ${urgentCount > 0 ? 'bg-[#c9754e]' : 'bg-[var(--app-accent)]'}`} />
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${urgentCount > 0 ? 'border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] text-[#8a6800]' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>
+              <span className={`h-2 w-2 rounded-full ${urgentCount > 0 ? 'bg-[#8a6800]' : 'bg-[var(--app-accent)]'}`} />
               {urgentCount > 0 ? `${urgentCount} need attention` : 'Queue clear'}
             </span>
             {filtered.length !== contacts.length && (
@@ -6669,9 +6669,9 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
       {overdue.length > 0 && (
         <div>
           <div className="mb-3 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#c9754e]" />
+            <span className="h-2 w-2 rounded-full bg-[#8a6800]" />
             <span className="text-sm font-semibold text-[var(--app-ink)]">Gone Silent 5d+</span>
-            <span className="rounded-full border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] px-2 py-0.5 text-[11px] font-bold text-[#955941]">{overdue.length}</span>
+            <span className="rounded-full border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] px-2 py-0.5 text-[11px] font-bold text-[#8a6800]">{overdue.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {overdue.slice(0, Math.min(10, queueLimit)).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
@@ -6694,7 +6694,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
       )}
 
       {responded.length === 0 && overdue.length === 0 && callFirst.length === 0 && (
-        <div className="rounded-[16px] border border-dashed border-[var(--app-line)] bg-white p-16 text-center">
+        <div className="rounded-2xl border border-dashed border-[var(--app-line)] bg-white p-16 text-center">
           <div className="text-3xl">✅</div>
           <div className="mt-4 text-sm font-semibold text-[var(--app-ink)]">Queue is clear</div>
           <div className="mt-1 text-xs text-[var(--app-muted)]">Import a batch to start working contacts</div>
@@ -6781,7 +6781,7 @@ function AdminCommandCenter({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[18px] border border-[var(--app-line)] bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-[var(--app-line)] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--app-muted)]">Owner command center</div>
@@ -6798,38 +6798,38 @@ function AdminCommandCenter({
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-5">
-          <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+          <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
             <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
             <div className="mt-1 text-xl font-semibold text-[var(--app-ink)]">{loading ? '-' : totals.contacts}</div>
           </div>
-          <div className="rounded-[12px] border border-amber-200 bg-amber-50 p-3">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
             <div className="text-[11px] font-bold uppercase text-amber-700">Need reply</div>
             <div className="mt-1 text-xl font-semibold text-amber-800">{loading ? '-' : totals.needsReply}</div>
           </div>
-          <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-3">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
             <div className="text-[11px] font-bold uppercase text-emerald-700">SMS sent / today</div>
             <div className="mt-1 text-xl font-semibold text-emerald-800">{loading ? '-' : `${totals.sentTotal} / ${totals.sentToday}`}</div>
           </div>
-          <div className="rounded-[12px] border border-sky-200 bg-sky-50 p-3">
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
             <div className="text-[11px] font-bold uppercase text-sky-700">Queued</div>
             <div className="mt-1 text-xl font-semibold text-sky-800">{loading ? '-' : totals.queued}</div>
           </div>
-          <div className="rounded-[12px] border border-teal-200 bg-teal-50 p-3">
+          <div className="rounded-xl border border-teal-200 bg-teal-50 p-3">
             <div className="text-[11px] font-bold uppercase text-teal-700">Partners</div>
             <div className="mt-1 text-xl font-semibold text-teal-800">{loading ? '-' : totals.activePartners}</div>
           </div>
         </div>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <button onClick={() => onOpenInbox()} className="rounded-[12px] border border-rose-200 bg-rose-50 p-3 text-left transition hover:bg-rose-100">
+          <button onClick={() => onOpenInbox()} className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-left transition hover:bg-rose-100">
             <div className="text-[11px] font-bold uppercase text-rose-700">Positive replies not handled</div>
             <div className="mt-1 text-2xl font-semibold text-rose-800">{loading ? '-' : totals.unhandledPositive}</div>
           </button>
-          <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+          <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
             <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Partner referrals</div>
             <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{loading ? '-' : totals.referrals}</div>
           </div>
-          <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+          <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
             <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Booked partner revenue</div>
             <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{loading ? '-' : formatCadFromCents(totals.bookedRevenueCents)}</div>
           </div>
@@ -6838,7 +6838,7 @@ function AdminCommandCenter({
 
       <div className="grid gap-4 lg:grid-cols-2">
         {marketStats.map(item => (
-          <div key={item.market.id} className="rounded-[16px] border border-[var(--app-line)] bg-white p-4 shadow-sm">
+          <div key={item.market.id} className="rounded-2xl border border-[var(--app-line)] bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -6860,41 +6860,41 @@ function AdminCommandCenter({
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.contacts}</div>
               </div>
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Responses</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.responded}</div>
               </div>
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Partners</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.activePartners}</div>
               </div>
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Meetings</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.meetings}</div>
               </div>
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">No reply</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.noResponse}</div>
               </div>
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Campaigns</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.activeCampaigns || item.batches}</div>
               </div>
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Referrals</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.referrals}</div>
               </div>
-              <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
+              <div className="rounded-xl bg-[var(--app-bg)] p-3">
                 <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Revenue</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{formatCadFromCents(item.bookedRevenueCents)}</div>
               </div>
             </div>
 
-            <div className="mt-4 rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
+            <div className="mt-4 rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
               <div className="grid gap-2 text-xs text-[var(--app-muted)] sm:grid-cols-2">
                 <div><span className="font-semibold text-[var(--app-ink)]">{item.sentTotal}</span> sent all-time</div>
                 <div><span className="font-semibold text-[var(--app-ink)]">{item.sentToday}</span> sent today</div>
@@ -7080,11 +7080,11 @@ function PartnershipEngineInner() {
   }, [isDexaOttawaView, router, searchParams])
 
   return (
-    <div className={inboxActive ? 'h-full overflow-hidden bg-white' : 'min-h-screen bg-[var(--app-bg,#f0f2f5)]'}>
+    <div className={inboxActive ? 'h-full overflow-hidden bg-white' : 'min-h-screen bg-[var(--app-bg,#f9fafb)]'}>
       <div className={inboxActive ? 'mx-0 h-full max-w-none overflow-hidden px-0 py-0' : 'mx-auto max-w-6xl px-4 py-8 sm:px-6'}>
         <div className={`${inboxActive ? 'hidden' : 'flex'} mb-6 items-center justify-between`}>
           <div>
-            <h1 className="text-2xl font-semibold text-[#14213d]">{isDexaOttawaView ? 'Dexa Relationship CRM' : 'Relationship CRM'}</h1>
+            <h1 className="text-2xl font-semibold text-[#071421]">{isDexaOttawaView ? 'Dexa Relationship CRM' : 'Relationship CRM'}</h1>
             <a href="/marketing/fulfilment" className="mt-2 inline-block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold">Fulfil promises · email drafts</a>
             <p className="mt-0.5 text-sm text-[var(--app-muted)]">
               {batchesLoading ? '—' : batches.length} batch{batches.length !== 1 ? 'es' : ''} · {contactsLoading ? '—' : contacts.length} contacts
@@ -7093,14 +7093,14 @@ function PartnershipEngineInner() {
           </div>
         </div>
 
-        <div className={`${inboxActive ? 'hidden' : 'flex'} ${inboxActive ? 'mb-2 gap-1 rounded-[14px] p-1' : 'mb-6 gap-1 rounded-[16px] p-1.5'} border border-[var(--app-line)] bg-[var(--app-panel,white)]`}>
+        <div className={`${inboxActive ? 'hidden' : 'flex'} ${inboxActive ? 'mb-2 gap-1 rounded-2xl p-1' : 'mb-6 gap-1 rounded-2xl p-1.5'} border border-[var(--app-line)] bg-[var(--app-panel,white)]`}>
           {visibleTabs.map(t => (
             <button key={t.key} onClick={() => handleTabChange(t.key)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold transition ${tab === t.key ? 'bg-[var(--app-ink)] text-white shadow-sm' : 'text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
               {t.icon && <span>{t.icon}</span>}
               <span className="hidden sm:inline">{t.label}</span>
               {t.key === 'queue' && queueCount > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'}`}>{queueCount}</span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(138,104,0,0.12)] bg-[#f7f4ed] text-[#8a6800]'}`}>{queueCount}</span>
               )}
               {t.key === 'phone' && needsReplyCount > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>{needsReplyCount}</span>
@@ -7111,7 +7111,7 @@ function PartnershipEngineInner() {
             <button
               type="button"
               onClick={() => router.push('/marketing/listing-activity')}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]`}
             >
               <span>Listing Activity</span>
             </button>

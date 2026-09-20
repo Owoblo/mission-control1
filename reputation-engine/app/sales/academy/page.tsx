@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { Check, Command, LayoutGrid, Mic, Quote, Sparkles, Star, TrendingUp, Zap } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type {
   AcademyFlashcard,
   AcademyLesson,
@@ -43,55 +45,55 @@ const LESSON_TYPE_LABELS: Record<AcademyLesson['type'], string> = {
 }
 
 const MODULE_VISUALS: Record<string, {
-  icon: string
+  icon: LucideIcon
   eyebrow: string
   solidBg: string
   accentClass: string
 }> = {
   'star-framework': {
-    icon: '✦',
+    icon: Sparkles,
     eyebrow: 'Call system',
     solidBg: 'bg-amber-50',
     accentClass: 'text-amber-700',
   },
   'estimate-builder': {
-    icon: '▣',
+    icon: LayoutGrid,
     eyebrow: 'Quoting',
     solidBg: 'bg-emerald-50',
     accentClass: 'text-emerald-700',
   },
   'closing-playbook': {
-    icon: '↗',
+    icon: TrendingUp,
     eyebrow: 'Closing',
     solidBg: 'bg-orange-50',
     accentClass: 'text-orange-700',
   },
   'fast-lane-billing': {
-    icon: '⚡',
+    icon: Zap,
     eyebrow: 'Billing',
     solidBg: 'bg-yellow-50',
     accentClass: 'text-amber-800',
   },
   'tonality-lab': {
-    icon: '◉',
+    icon: Mic,
     eyebrow: 'Voice lab',
     solidBg: 'bg-indigo-50',
     accentClass: 'text-indigo-700',
   },
   'phrase-bank': {
-    icon: '❝',
+    icon: Quote,
     eyebrow: 'Language',
     solidBg: 'bg-violet-50',
     accentClass: 'text-violet-700',
   },
   'crm-rhythm': {
-    icon: '⌘',
+    icon: Command,
     eyebrow: 'Workflow',
     solidBg: 'bg-sky-50',
     accentClass: 'text-sky-700',
   },
   'call-review-lab': {
-    icon: '◌',
+    icon: Star,
     eyebrow: 'Coaching',
     solidBg: 'bg-teal-50',
     accentClass: 'text-teal-700',
@@ -100,7 +102,7 @@ const MODULE_VISUALS: Record<string, {
 
 function getModuleVisual(moduleId: string) {
   return MODULE_VISUALS[moduleId] || {
-    icon: '◼',
+    icon: LayoutGrid,
     eyebrow: 'Course',
     solidBg: 'bg-slate-50',
     accentClass: 'text-slate-700',
@@ -286,8 +288,8 @@ function ModuleIllustration({
             {module.title}
           </div>
         </div>
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-white/85 text-2xl text-[var(--app-ink)] shadow-sm">
-          {visual.icon}
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/85 text-[var(--app-ink)] shadow-sm">
+          {(() => { const VisualIcon = visual.icon; return <VisualIcon size={22} /> })()}
         </div>
       </div>
     </div>
@@ -312,7 +314,7 @@ function FlashcardGrid({
             key={card.id}
             type="button"
             onClick={() => onToggle(card.id)}
-            className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 text-left transition hover:border-[var(--app-ink)] hover:bg-[var(--app-bg)]"
+            className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-4 text-left transition hover:border-[var(--app-ink)] hover:bg-[var(--app-bg)]"
           >
             <div className="mb-2 flex items-center justify-between gap-3">
               <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
@@ -345,7 +347,7 @@ function PracticePromptCard({
   onStop: () => void
 }) {
   return (
-    <div className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+    <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Practice prompt</div>
@@ -360,19 +362,19 @@ function PracticePromptCard({
         </button>
       </div>
 
-      <div className="mt-4 rounded-[14px] border border-[var(--app-line)] bg-white px-4 py-3 text-sm font-semibold text-[var(--app-ink)]">
+      <div className="mt-4 rounded-2xl border border-[var(--app-line)] bg-white px-4 py-3 text-sm font-semibold text-[var(--app-ink)]">
         "{prompt.targetLine}"
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {prompt.strongExample ? (
-          <div className="rounded-[14px] bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
+          <div className="rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">Strong delivery</div>
             <div className="mt-2">{prompt.strongExample}</div>
           </div>
         ) : null}
         {prompt.weakExample ? (
-          <div className="rounded-[14px] bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+          <div className="rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-800">
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">Weak delivery</div>
             <div className="mt-2">{prompt.weakExample}</div>
           </div>
@@ -388,7 +390,7 @@ function PracticePromptCard({
       </div>
 
       {recordingUrl ? (
-        <div className="mt-4 rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+        <div className="mt-4 rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
           <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Playback</div>
           <audio controls className="mt-3 w-full" src={recordingUrl} />
         </div>
@@ -442,7 +444,7 @@ function CoursePathRow({
                 </span>
               ) : null}
             </div>
-            <div className="mt-2 text-[18px] font-semibold leading-6 text-[var(--app-ink)]">{module.title}</div>
+            <div className="mt-2 text-lg font-semibold leading-6 text-[var(--app-ink)]">{module.title}</div>
             <div className="mt-1 max-w-2xl text-sm leading-6 text-[var(--app-muted)]">
               {module.description}
             </div>
@@ -498,7 +500,7 @@ function LabShelfCard({
               </span>
             ) : null}
           </div>
-          <div className="mt-2 text-[16px] font-semibold leading-5 text-[var(--app-ink)]">{module.title}</div>
+          <div className="mt-2 text-base font-semibold leading-5 text-[var(--app-ink)]">{module.title}</div>
           <div className="mt-2 text-sm leading-6 text-[var(--app-muted)]">{module.description}</div>
           <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--app-muted)]">
             <span>{module.lessons.length} lessons</span>
@@ -877,7 +879,7 @@ export default function SalesAcademyPage() {
         {(lesson.type === 'card' || lesson.type === 'video') && lesson.points?.length ? (
           <div className="grid gap-3 md:grid-cols-2">
             {lesson.points.map(point => (
-              <div key={point} className="rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
+              <div key={point} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
                 {point}
               </div>
             ))}
@@ -887,7 +889,7 @@ export default function SalesAcademyPage() {
         {lesson.type === 'acronym' && lesson.steps?.length ? (
           <div className="grid gap-3 md:grid-cols-2">
             {lesson.steps.map(step => (
-              <div key={step.letter} className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
+              <div key={step.letter} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--app-ink)] text-sm font-semibold text-white">
                     {step.letter}
@@ -896,7 +898,7 @@ export default function SalesAcademyPage() {
                     <div className="text-sm font-semibold text-[var(--app-ink)]">{step.title}</div>
                     <div className="mt-1 text-sm leading-6 text-[var(--app-muted)]">{step.summary}</div>
                     {step.talkTrack ? (
-                      <div className="mt-3 rounded-[12px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm italic text-[var(--app-ink)]">
+                      <div className="mt-3 rounded-xl border border-[var(--app-line)] bg-white px-3 py-2 text-sm italic text-[var(--app-ink)]">
                         "{step.talkTrack}"
                       </div>
                     ) : null}
@@ -909,12 +911,12 @@ export default function SalesAcademyPage() {
 
         {lesson.type === 'scenario' && lesson.scenario ? (
           <div className="space-y-4">
-            <div className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] p-5">
+            <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Scenario drill</div>
               <div className="mt-3 text-sm font-semibold text-[var(--app-ink)]">Customer says:</div>
               <div className="mt-1 text-sm italic text-[var(--app-ink)]">"{lesson.scenario.customerLine}"</div>
               <div className="mt-3 text-sm leading-6 text-[var(--app-muted)]">{lesson.scenario.setup}</div>
-              <div className="mt-4 rounded-[14px] bg-white px-4 py-3 text-sm font-semibold text-[var(--app-ink)]">{lesson.scenario.prompt}</div>
+              <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[var(--app-ink)]">{lesson.scenario.prompt}</div>
             </div>
             <div className="grid gap-3">
               {lesson.scenario.options.map(option => {
@@ -924,7 +926,7 @@ export default function SalesAcademyPage() {
                     key={option.id}
                     type="button"
                     onClick={() => recordScenario(activeModule!, lesson, option.id)}
-                    className={`rounded-[18px] border p-4 text-left transition ${
+                    className={`rounded-2xl border p-4 text-left transition ${
                       selected
                         ? option.isBest
                           ? 'border-emerald-300 bg-emerald-50'
@@ -939,7 +941,7 @@ export default function SalesAcademyPage() {
               })}
             </div>
             {activeScenarioChoice ? (
-              <div className={`rounded-[16px] px-4 py-3 text-sm leading-6 ${
+              <div className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
                 activeScenarioChoice.isBest ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
               }`}>
                 {activeScenarioChoice.outcome}
@@ -954,11 +956,11 @@ export default function SalesAcademyPage() {
 
         {lesson.type === 'practice' && lesson.practice ? (
           <div className="space-y-4">
-            <div className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] p-5 text-sm leading-6 text-[var(--app-muted)]">
+            <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-5 text-sm leading-6 text-[var(--app-muted)]">
               {lesson.practice.intro}
             </div>
             {practiceError ? (
-              <div className="rounded-[16px] bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 {practiceError}
               </div>
             ) : null}
@@ -976,18 +978,18 @@ export default function SalesAcademyPage() {
                 ))}
               </div>
               <div className="space-y-4">
-                <div className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-bg)] p-5">
+                <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-5">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Self-check checklist</div>
                   <div className="mt-4 space-y-3">
                     {lesson.practice.checklist.map(item => (
-                      <div key={item} className="rounded-[14px] border border-[var(--app-line)] bg-white p-4 text-sm leading-6 text-[var(--app-ink)]">
+                      <div key={item} className="rounded-2xl border border-[var(--app-line)] bg-white p-4 text-sm leading-6 text-[var(--app-ink)]">
                         {item}
                       </div>
                     ))}
                   </div>
                 </div>
                 {lesson.practice.outro ? (
-                  <div className="rounded-[18px] border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.06)] p-5 text-sm leading-6 text-[var(--app-ink)]">
+                  <div className="rounded-2xl border border-[rgba(15,106,83,0.18)] bg-[rgba(15,106,83,0.06)] p-5 text-sm leading-6 text-[var(--app-ink)]">
                     {lesson.practice.outro}
                   </div>
                 ) : null}
@@ -998,7 +1000,7 @@ export default function SalesAcademyPage() {
 
         {lesson.type === 'video' ? (
           lesson.videoUrl ? (
-            <div className="overflow-hidden rounded-[18px] border border-[var(--app-line)]">
+            <div className="overflow-hidden rounded-2xl border border-[var(--app-line)]">
               <iframe
                 src={lesson.videoUrl}
                 className="aspect-video w-full"
@@ -1008,7 +1010,7 @@ export default function SalesAcademyPage() {
               />
             </div>
           ) : (
-            <div className="rounded-[18px] border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-5 py-8 text-sm text-[var(--app-muted)]">
+            <div className="rounded-2xl border border-dashed border-[var(--app-line)] bg-[var(--app-bg)] px-5 py-8 text-sm text-[var(--app-muted)]">
               {lesson.videoPlaceholder || 'Video slot ready for a future walkthrough.'}
             </div>
           )
@@ -1026,7 +1028,7 @@ export default function SalesAcademyPage() {
               <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(15,106,83,0.18)] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-accent)]">
                 Mission Control Academy
               </div>
-              <h1 className="mt-4 font-display text-[30px] font-semibold tracking-tight text-[var(--app-ink)]">
+              <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-[var(--app-ink)]">
                 Follow the path. Do not guess where to start.
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">
@@ -1034,17 +1036,17 @@ export default function SalesAcademyPage() {
                 in order, then sharpen edge cases inside labs and coaching.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-[18px] border border-white bg-white/90 p-4">
+                <div className="rounded-2xl border border-white bg-white/90 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 1</div>
                   <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">Read First</div>
                   <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">Brand, standards, locations, and how the company operates.</div>
                 </div>
-                <div className="rounded-[18px] border border-white bg-white/90 p-4">
+                <div className="rounded-2xl border border-white bg-white/90 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 2</div>
                   <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">Core Path</div>
                   <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">STAR, estimating, closing, billing, tonality, and CRM rhythm.</div>
                 </div>
-                <div className="rounded-[18px] border border-white bg-white/90 p-4">
+                <div className="rounded-2xl border border-white bg-white/90 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 3</div>
                   <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">Labs</div>
                   <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">Scenarios, reviews, drills, and future stress-test coaching.</div>
@@ -1060,15 +1062,15 @@ export default function SalesAcademyPage() {
                 <Link href="/SOPs/mission-control-map.html" target="_blank" className="crm-button">System Map</Link>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-[16px] border border-white bg-white/90 p-4">
+                <div className="rounded-2xl border border-white bg-white/90 p-4">
                   <div className="text-xl font-semibold text-[var(--app-ink)]">{overallCompletion}%</div>
                   <div className="mt-1 text-xs text-[var(--app-muted)]">Required path complete</div>
                 </div>
-                <div className="rounded-[16px] border border-white bg-white/90 p-4">
+                <div className="rounded-2xl border border-white bg-white/90 p-4">
                   <div className="text-xl font-semibold text-[var(--app-ink)]">{completedModules}</div>
                   <div className="mt-1 text-xs text-[var(--app-muted)]">Courses finished</div>
                 </div>
-                <div className="rounded-[16px] border border-white bg-white/90 p-4">
+                <div className="rounded-2xl border border-white bg-white/90 p-4">
                   <div className="text-xl font-semibold text-[var(--app-ink)]">{scenarioWins}</div>
                   <div className="mt-1 text-xs text-[var(--app-muted)]">Scenario wins</div>
                 </div>
@@ -1085,7 +1087,7 @@ export default function SalesAcademyPage() {
                     : 'Required path is current. Use the labs and reviews to sharpen edge cases.'}
                 </div>
                 {saveMessage ? (
-                  <div className={`mt-4 rounded-[12px] px-3 py-2 text-xs ${
+                  <div className={`mt-4 rounded-xl px-3 py-2 text-xs ${
                     saveState === 'local'
                       ? 'bg-amber-50 text-amber-700'
                       : saveState === 'synced'
@@ -1106,7 +1108,7 @@ export default function SalesAcademyPage() {
                   </div>
                   <div className="mt-4 space-y-2">
                     {latestRelease.points.slice(0, 3).map(point => (
-                      <div key={point} className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-sm leading-6 text-[var(--app-ink)]">
+                      <div key={point} className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-sm leading-6 text-[var(--app-ink)]">
                         {point}
                       </div>
                     ))}
@@ -1203,7 +1205,7 @@ export default function SalesAcademyPage() {
                   const selected = module.id === activeModule.id
                   const moduleProgress = progress[module.id] || getDefaultProgress(module.id)
                   return (
-                    <div key={module.id} className={`rounded-[18px] border p-2 ${selected ? 'border-[var(--app-ink)] bg-white' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
+                    <div key={module.id} className={`rounded-2xl border p-2 ${selected ? 'border-[var(--app-ink)] bg-white' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
                       <button type="button" onClick={() => openModule(module.id)} className="w-full text-left">
                         <div className="flex items-center justify-between gap-3 px-2 py-2">
                           <div className="min-w-0">
@@ -1220,7 +1222,7 @@ export default function SalesAcademyPage() {
                             const sectionLessons = getSectionLessons(module, section.id)
                             const sectionPercent = getSectionCompletionPercent(module, moduleProgress, section.id)
                             return (
-                              <div key={section.id} className={`rounded-[14px] border ${sectionSelected ? 'border-[var(--app-ink)] bg-[var(--app-bg)]' : 'border-[var(--app-line)] bg-white'}`}>
+                              <div key={section.id} className={`rounded-2xl border ${sectionSelected ? 'border-[var(--app-ink)] bg-[var(--app-bg)]' : 'border-[var(--app-line)] bg-white'}`}>
                                 <button
                                   type="button"
                                   onClick={() => openSection(module, section.id)}
@@ -1244,14 +1246,14 @@ export default function SalesAcademyPage() {
                                           key={lesson.id}
                                           type="button"
                                           onClick={() => openLesson(module, lesson.id)}
-                                          className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2 text-left transition ${
+                                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition ${
                                             isActive ? 'bg-[var(--app-ink)] text-white' : 'hover:bg-[var(--app-bg)]'
                                           }`}
                                         >
                                           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
                                             isActive ? 'bg-white/15 text-white' : done ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--app-wash)] text-[var(--app-muted)]'
                                           }`}>
-                                            {done ? '✓' : index + 1}
+                                            {done ? <Check size={14} /> : index + 1}
                                           </div>
                                           <div className="min-w-0">
                                             <div className={`truncate text-sm font-medium ${isActive ? 'text-white' : 'text-[var(--app-ink)]'}`}>{lesson.title}</div>
@@ -1349,7 +1351,7 @@ export default function SalesAcademyPage() {
                 <div className="mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">
                   {LESSON_TYPE_LABELS[activeLesson.type]}
                 </div>
-                <h1 className="mt-1 text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">{activeLesson.title}</h1>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--app-ink)]">{activeLesson.title}</h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">{activeLesson.summary}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
@@ -1428,7 +1430,7 @@ export default function SalesAcademyPage() {
                 <div className="mt-4 h-2 rounded-full bg-[var(--app-wash)]">
                   <div className="h-2 rounded-full bg-[var(--app-accent)]" style={{ width: `${activeSectionCompletion}%` }} />
                 </div>
-                <div className="mt-4 rounded-[14px] bg-[var(--app-wash)] p-4">
+                <div className="mt-4 rounded-2xl bg-[var(--app-wash)] p-4">
                   <div className="text-sm font-semibold text-[var(--app-ink)]">Last opened</div>
                   <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">{formatRelativeDate(activeProgress.lastOpenedAt)}</div>
                 </div>
@@ -1441,18 +1443,18 @@ export default function SalesAcademyPage() {
                     <button
                       type="button"
                       onClick={() => openLesson(activeModule, nextLesson.id)}
-                      className="w-full rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-left transition hover:border-[var(--app-ink)]"
+                      className="w-full rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-left transition hover:border-[var(--app-ink)]"
                     >
                       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Next lesson</div>
                       <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{nextLesson.title}</div>
                       <div className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{nextLesson.summary}</div>
                     </button>
                   ) : (
-                    <div className="rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-muted)]">
+                    <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-muted)]">
                       This course is at the last lesson. Mark it complete, then move to the next course in the path.
                     </div>
                   )}
-                  <div className="rounded-[16px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
+                  <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm leading-6 text-[var(--app-ink)]">
                     {nextRequired
                       ? `Next required course after this path: ${nextRequired.title}.`
                       : 'Required courses are current. Use the labs and coaching modules for reinforcement.'}
@@ -1463,13 +1465,13 @@ export default function SalesAcademyPage() {
               <div className="crm-panel p-5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Tools and links</div>
                 <div className="mt-4 space-y-2">
-                  <Link href="/sales/read-first" className="block rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-sm font-medium text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">Read First</Link>
-                  <Link href="/sales/leads" className="block rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-sm font-medium text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">Open live leads</Link>
-                  <Link href="/sales/activity" className="block rounded-[14px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-sm font-medium text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">Live feed</Link>
+                  <Link href="/sales/read-first" className="block rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-sm font-medium text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">Read First</Link>
+                  <Link href="/sales/leads" className="block rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-sm font-medium text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">Open live leads</Link>
+                  <Link href="/sales/activity" className="block rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-3 text-sm font-medium text-[var(--app-ink)] transition hover:border-[var(--app-ink)]">Live feed</Link>
                 </div>
                 <div className="mt-4 space-y-2">
                   {managerGuide.map(point => (
-                    <div key={point} className="rounded-[14px] border border-[var(--app-line)] bg-white p-3 text-xs leading-5 text-[var(--app-ink)]">
+                    <div key={point} className="rounded-2xl border border-[var(--app-line)] bg-white p-3 text-xs leading-5 text-[var(--app-ink)]">
                       {point}
                     </div>
                   ))}

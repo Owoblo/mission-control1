@@ -37,28 +37,28 @@ function buildBookingConfirmationEmail(name: string, moveDate?: string, originCi
   return {
     subject: `Your Move is Confirmed — Saturn Star Moving`,
     html: `
-<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;">
+<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#071421;">
   <div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;">
     <div style="color:#C99700;font-size:24px;font-weight:700;letter-spacing:-0.5px;">Saturn Star Moving</div>
-    <div style="color:#ffffff80;font-size:13px;margin-top:4px;">Your Trusted Moving Partner</div>
+    <div style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px;">Your Trusted Moving Partner</div>
   </div>
   <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;">
     <h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — your move is confirmed!</h1>
-    <p style="color:#555;margin:0 0 24px;line-height:1.6;">We have everything locked in on our end. Here's your booking summary:</p>
-    <div style="background:#f8f9fb;border-radius:8px;padding:20px;margin-bottom:24px;">
+    <p style="color:#667085;margin:0 0 24px;line-height:1.6;">We have everything locked in on our end. Here's your booking summary:</p>
+    <div style="background:#f9fafb;border-radius:8px;padding:20px;margin-bottom:24px;">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-        <span style="color:#888;font-size:13px;">Move Date</span>
+        <span style="color:#667085;font-size:13px;">Move Date</span>
         <span style="font-weight:600;font-size:13px;">${dateLine}</span>
       </div>
       <div style="display:flex;justify-content:space-between;">
-        <span style="color:#888;font-size:13px;">Route</span>
+        <span style="color:#667085;font-size:13px;">Route</span>
         <span style="font-weight:600;font-size:13px;">${route}</span>
       </div>
     </div>
-    <p style="color:#555;margin:0 0 24px;line-height:1.6;font-size:14px;">Our team will reach out 48 hours before your move with crew details and a final confirmation. In the meantime, don't hesitate to reach out.</p>
+    <p style="color:#667085;margin:0 0 24px;line-height:1.6;font-size:14px;">Our team will reach out 48 hours before your move with crew details and a final confirmation. In the meantime, don't hesitate to reach out.</p>
     <div style="background:#071421;border-radius:8px;padding:16px;text-align:center;">
       <div style="color:#C99700;font-weight:700;font-size:15px;">Questions? We're here.</div>
-      <div style="color:#ffffffb0;font-size:13px;margin-top:4px;">${SATURN_STAR_PHONE} &nbsp;·&nbsp; ${SATURN_STAR_EMAIL}</div>
+      <div style="color:rgba(255,255,255,0.69);font-size:13px;margin-top:4px;">${SATURN_STAR_PHONE} &nbsp;·&nbsp; ${SATURN_STAR_EMAIL}</div>
     </div>
   </div>
 </div>`.trim(),

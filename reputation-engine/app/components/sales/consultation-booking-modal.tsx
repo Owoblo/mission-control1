@@ -200,7 +200,7 @@ export function ConsultationBookingModal({ lead, salesUsers, onClose, onConfirm 
 
             <button
               onClick={() => setStep('brief')}
-              className="w-full rounded-[10px] bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#071421] transition-colors"
+              className="w-full rounded-xl bg-[#071421] py-2.5 text-sm font-semibold text-white hover:bg-[#071421] transition-colors"
             >
               Preview Pre-Visit Brief →
             </button>
@@ -212,16 +212,16 @@ export function ConsultationBookingModal({ lead, salesUsers, onClose, onConfirm 
               value={brief}
               readOnly
               rows={14}
-              className="w-full rounded-[10px] border border-slate-200 bg-slate-50 px-3 py-3 text-[11px] font-mono text-slate-700 resize-none"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-[11px] font-mono text-slate-700 resize-none"
             />
             <div className="flex gap-3">
-              <button onClick={() => setStep('book')} className="flex-1 rounded-[10px] border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+              <button onClick={() => setStep('book')} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                 ← Edit Details
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={!date}
-                className="flex-2 flex-1 rounded-[10px] bg-[#C99700] py-2.5 text-sm font-bold text-[#071421] hover:bg-[#e09420] disabled:opacity-50 transition-colors"
+                className="flex-2 flex-1 rounded-xl bg-[#C99700] py-2.5 text-sm font-bold text-[#071421] hover:bg-[#c99700] disabled:opacity-50 transition-colors"
               >
                 Book Consultation {sendSms ? '+ Send SMS' : ''}
               </button>

@@ -243,7 +243,7 @@ export default function CampaignsPage() {
 
       {/* Add modal */}
       {addOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,27,56,0.55)', backdropFilter: 'blur(2px)' }} onClick={e => { if (e.target === e.currentTarget) setAddOpen(false) }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(7,20,33,0.55)', backdropFilter: 'blur(2px)' }} onClick={e => { if (e.target === e.currentTarget) setAddOpen(false) }}>
           <div className="w-full max-w-md rounded-xl bg-white shadow-none overflow-hidden">
             <div className="bg-[#071421] px-6 py-5" style={{ borderBottom: '2px solid #C99700' }}>
               <h2 className="font-bold text-white">Log Direct Mail Batch</h2>

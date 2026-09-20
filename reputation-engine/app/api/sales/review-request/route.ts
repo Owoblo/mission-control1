@@ -158,14 +158,14 @@ function buildReviewEmailHtml(firstName: string, quoteNumber: string | undefined
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#f0f2f5;font-family:ui-sans-serif,system-ui,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:32px 16px;">
+<body style="margin:0;padding:0;background:#f9fafb;font-family:ui-sans-serif,system-ui,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:32px 16px;">
 <tr><td align="center">
 <table width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">
   <tr>
     <td style="background:#071421;border-radius:12px 12px 0 0;padding:32px 36px 28px;">
       <div style="font-size:20px;font-weight:800;color:#ffffff;">${brandName}</div>
-      <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${website} · ${phone}</div>
+      <div style="font-size:12px;color:#667085;margin-top:2px;">${website} · ${phone}</div>
       <div style="height:2px;background:#C99700;margin-top:20px;"></div>
     </td>
   </tr>
@@ -173,7 +173,7 @@ function buildReviewEmailHtml(firstName: string, quoteNumber: string | undefined
     <td style="background:#ffffff;padding:36px;">
       <p style="font-size:28px;margin:0 0 8px;">🌟</p>
       <p style="font-size:22px;font-weight:800;color:#071421;margin:0 0 16px;">Thank you, ${firstName}!</p>
-      <p style="font-size:15px;color:#475569;line-height:1.7;margin:0 0 24px;">
+      <p style="font-size:15px;color:#071421;line-height:1.7;margin:0 0 24px;">
         It was truly a pleasure working with you${quoteNumber ? ` (${quoteNumber})` : ''}. We hope your move went smoothly and you're loving your new space!
       </p>
       <p style="font-size:15px;color:#071421;font-weight:600;margin:0 0 20px;">
@@ -189,18 +189,18 @@ function buildReviewEmailHtml(firstName: string, quoteNumber: string | undefined
           </td>
         </tr>
       </table>
-      <div style="background:#f8fafc;border-radius:10px;padding:20px;border-left:4px solid #C99700;margin-bottom:24px;">
+      <div style="background:#f9fafb;border-radius:10px;padding:20px;border-left:4px solid #C99700;margin-bottom:24px;">
         <p style="margin:0;font-size:14px;color:#071421;font-weight:600;">🎁 Referral Bonus</p>
-        <p style="margin:8px 0 0;font-size:13px;color:#64748b;line-height:1.6;">
+        <p style="margin:8px 0 0;font-size:13px;color:#667085;line-height:1.6;">
           Know someone who needs to move? Send them our way and you'll both get <strong>$25 off</strong>. Just have them mention your name when they call!
         </p>
       </div>
-      <p style="font-size:13px;color:#94a3b8;margin:0;">With gratitude,<br/><strong style="color:#071421;">The ${brandName} team</strong></p>
+      <p style="font-size:13px;color:#667085;margin:0;">With gratitude,<br/><strong style="color:#071421;">The ${brandName} team</strong></p>
     </td>
   </tr>
   <tr>
     <td style="background:#071421;border-radius:0 0 12px 12px;padding:20px 36px;text-align:center;">
-      <div style="font-size:11px;color:#64748b;">${brandName} · ${phone} · <a href="https://${website}" style="color:#C99700;text-decoration:none;">${website}</a></div>
+      <div style="font-size:11px;color:#667085;">${brandName} · ${phone} · <a href="https://${website}" style="color:#C99700;text-decoration:none;">${website}</a></div>
     </td>
   </tr>
 </table>

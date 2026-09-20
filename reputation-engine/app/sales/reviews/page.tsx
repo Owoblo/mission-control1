@@ -131,21 +131,21 @@ export default function ReviewsWorkspacePage() {
     <div className="crm-shell space-y-6">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">Customer Reviews</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--app-ink)]">Customer Reviews</h1>
           <p className="mt-2 text-sm text-[var(--app-muted)]">Manual customer-experience checklist, review proof, testimonials, and follow-up.</p>
         </div>
         <button onClick={() => void refresh()} className="crm-button">Refresh</button>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">
-        <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Customers</div><div className="mt-2 text-2xl font-semibold">{jobs.length}</div></div>
-        <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Core complete</div><div className="mt-2 text-2xl font-semibold">{completeCount}</div></div>
-        <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Google proof</div><div className="mt-2 text-2xl font-semibold">{jobs.filter(job => job.reviewProofAssets?.some(asset => asset.platform === 'google')).length}</div></div>
-        <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Videos</div><div className="mt-2 text-2xl font-semibold">{jobs.filter(job => job.reviewProofAssets?.some(asset => asset.platform === 'video')).length}</div></div>
+        <div className="rounded-xl border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Customers</div><div className="mt-2 text-2xl font-semibold">{jobs.length}</div></div>
+        <div className="rounded-xl border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Core complete</div><div className="mt-2 text-2xl font-semibold">{completeCount}</div></div>
+        <div className="rounded-xl border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Google proof</div><div className="mt-2 text-2xl font-semibold">{jobs.filter(job => job.reviewProofAssets?.some(asset => asset.platform === 'google')).length}</div></div>
+        <div className="rounded-xl border border-[var(--app-line)] bg-white p-4"><div className="crm-label">Videos</div><div className="mt-2 text-2xl font-semibold">{jobs.filter(job => job.reviewProofAssets?.some(asset => asset.platform === 'video')).length}</div></div>
       </section>
 
       <input value={query} onChange={event => setQuery(event.target.value)} className="crm-input w-full max-w-xl" placeholder="Search customer, origin, phone, email, or profile…" />
-      {error ? <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
       {loading ? <div className="py-16 text-center text-sm text-[var(--app-muted)]">Loading customer review records…</div> : (
         <div className="space-y-3">
@@ -154,7 +154,7 @@ export default function ReviewsWorkspacePage() {
             const open = activeId === job.id
             const proof = job.reviewProofAssets || []
             return (
-              <article key={job.id} className="overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white">
+              <article key={job.id} className="overflow-hidden rounded-xl border border-[var(--app-line)] bg-white">
                 <button onClick={() => setActiveId(open ? null : job.id)} className="flex w-full items-center justify-between gap-4 p-4 text-left hover:bg-[var(--app-bg)]">
                   <div className="min-w-0">
                     <div className="font-semibold text-[var(--app-ink)]">{job.customerName}</div>
@@ -171,11 +171,11 @@ export default function ReviewsWorkspacePage() {
                   <div className="border-t border-[var(--app-line)] p-5">
                     <div className="grid gap-5 xl:grid-cols-2">
                       <div className="space-y-4">
-                        <div className="rounded-[10px] border border-[var(--app-line)] p-4">
+                        <div className="rounded-xl border border-[var(--app-line)] p-4">
                           <Track compact title="Google review" status={cx.googleStatus} onStatus={value => void patchChecklist(job, { googleStatus: value })} uploading={uploadingKey === `${job.id}:google`} onUpload={files => void uploadProof(job, 'google', files)} />
                           {job.googleReviewUrl ? <LinkActions label={`${job.googleProfileLocation || 'Matched'} direct review link`} url={job.googleReviewUrl} copyKey={`${job.id}:google-link`} copiedKey={copiedKey} onCopy={copyLink} /> : <div className="mt-3 text-xs text-amber-700">No Google review link has been matched yet.</div>}
                         </div>
-                        <div className="rounded-[10px] border border-[var(--app-line)] p-4">
+                        <div className="rounded-xl border border-[var(--app-line)] p-4">
                           <div className="flex items-center justify-between gap-3"><div className="font-semibold">Yelp</div><select value={cx.yelpAccountStatus} onChange={event => void patchChecklist(job, { yelpAccountStatus: event.target.value as YelpAccountStatus, yelpStatus: event.target.value === 'no' ? 'not_applicable' : cx.yelpStatus })} className="crm-input max-w-[180px] text-xs">{YELP_ACCOUNT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
                           <div className="mt-3"><Track compact title="Yelp follow-up" status={cx.yelpStatus} onStatus={value => void patchChecklist(job, { yelpStatus: value })} uploading={uploadingKey === `${job.id}:yelp`} onUpload={files => void uploadProof(job, 'yelp', files)} /></div>
                           {REVIEW_LINKS.yelp ? <LinkActions label="Yelp link" url={REVIEW_LINKS.yelp} copyKey={`${job.id}:yelp-link`} copiedKey={copiedKey} onCopy={copyLink} /> : null}
@@ -185,7 +185,7 @@ export default function ReviewsWorkspacePage() {
                       </div>
 
                       <div className="space-y-4">
-                        <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm">
+                        <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4 text-sm">
                           <div><span className="text-[var(--app-muted)]">Phone:</span> {job.customerPhone || '—'}</div>
                           <div className="mt-1"><span className="text-[var(--app-muted)]">Email:</span> {job.customerEmail || '—'}</div>
                           <div className="mt-1"><span className="text-[var(--app-muted)]">Google:</span> {job.googleProfileLocation || 'Not selected'}</div>
@@ -195,7 +195,7 @@ export default function ReviewsWorkspacePage() {
                         <label className="block"><span className="crm-label mb-2 block">Private feedback</span><textarea defaultValue={job.feedbackComment || ''} onBlur={event => void patchJob(job, { feedbackComment: event.target.value, customerExperience: { ...cx, privateFeedbackStatus: event.target.value.trim() ? 'completed' : cx.privateFeedbackStatus, updatedAt: new Date().toISOString() } })} className="crm-input min-h-[110px] w-full resize-y" placeholder="What went well? What could we improve?" /></label>
                         <div className="grid gap-3 sm:grid-cols-2"><label><span className="crm-label mb-2 block">Next follow-up</span><input type="date" value={cx.nextFollowUpAt || ''} onChange={event => void patchChecklist(job, { nextFollowUpAt: event.target.value })} className="crm-input w-full" /></label><label><span className="crm-label mb-2 block">Owner</span><input value={cx.assignedOwner || ''} onChange={event => setJobs(current => current.map(item => item.id === job.id ? { ...item, customerExperience: { ...cx, assignedOwner: event.target.value } } : item))} onBlur={event => void patchChecklist(job, { assignedOwner: event.target.value })} className="crm-input w-full" placeholder="Team member" /></label></div>
                         <label className="block"><span className="crm-label mb-2 block">Working notes</span><textarea value={cx.notes || ''} onChange={event => setJobs(current => current.map(item => item.id === job.id ? { ...item, customerExperience: { ...cx, notes: event.target.value } } : item))} onBlur={event => void patchChecklist(job, { notes: event.target.value })} className="crm-input min-h-[90px] w-full resize-y" placeholder="Manual follow-up notes…" /></label>
-                        <div><div className="crm-label mb-2">Saved evidence ({proof.length})</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{proof.map(asset => <a key={asset.id} href={asset.url} target="_blank" rel="noreferrer" className="rounded-[8px] border border-[var(--app-line)] p-2 text-xs hover:border-[#C99700]"><div className="font-semibold capitalize">{asset.platform?.replace('_', ' ') || 'Other'}</div><div className="mt-1 truncate text-[var(--app-muted)]">{asset.filename}</div></a>)}</div></div>
+                        <div><div className="crm-label mb-2">Saved evidence ({proof.length})</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{proof.map(asset => <a key={asset.id} href={asset.url} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--app-line)] p-2 text-xs hover:border-[#C99700]"><div className="font-semibold capitalize">{asset.platform?.replace('_', ' ') || 'Other'}</div><div className="mt-1 truncate text-[var(--app-muted)]">{asset.filename}</div></a>)}</div></div>
                         {savingId === job.id ? <div className="text-xs text-[var(--app-muted)]">Saving…</div> : null}
                       </div>
                     </div>
@@ -212,9 +212,9 @@ export default function ReviewsWorkspacePage() {
 }
 
 function Track({ title, status, onStatus, onUpload, uploading, accept = 'image/*,video/*', compact = false }: { title: string; status: ReviewTrackStatus; onStatus: (value: ReviewTrackStatus) => void; onUpload: (files: FileList | null) => void; uploading: boolean; accept?: string; compact?: boolean }) {
-  return <div className={compact ? '' : 'rounded-[10px] border border-[var(--app-line)] p-4'}><div className="flex flex-wrap items-center justify-between gap-3"><div className="font-semibold text-[var(--app-ink)]">{title}</div><div className="flex items-center gap-2"><select value={status} onChange={event => onStatus(event.target.value as ReviewTrackStatus)} className="crm-input max-w-[145px] text-xs">{TRACK_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><label className="crm-button cursor-pointer text-xs">{uploading ? 'Uploading…' : 'Upload'}<input type="file" accept={accept} multiple disabled={uploading} className="sr-only" onChange={event => onUpload(event.target.files)} /></label></div></div></div>
+  return <div className={compact ? '' : 'rounded-xl border border-[var(--app-line)] p-4'}><div className="flex flex-wrap items-center justify-between gap-3"><div className="font-semibold text-[var(--app-ink)]">{title}</div><div className="flex items-center gap-2"><select value={status} onChange={event => onStatus(event.target.value as ReviewTrackStatus)} className="crm-input max-w-[145px] text-xs">{TRACK_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><label className="crm-button cursor-pointer text-xs">{uploading ? 'Uploading…' : 'Upload'}<input type="file" accept={accept} multiple disabled={uploading} className="sr-only" onChange={event => onUpload(event.target.files)} /></label></div></div></div>
 }
 
 function LinkActions({ label, url, copyKey, copiedKey, onCopy }: { label: string; url: string; copyKey: string; copiedKey: string | null; onCopy: (key: string, url: string) => Promise<void> }) {
-  return <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[8px] bg-[var(--app-bg)] px-3 py-2"><div className="min-w-0 flex-1 truncate text-xs text-[var(--app-muted)]" title={url}>{label}</div><div className="flex gap-2"><a href={url} target="_blank" rel="noreferrer" className="rounded-[7px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[#C99700]">Open</a><button onClick={() => void onCopy(copyKey, url)} className="rounded-[7px] bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white">{copiedKey === copyKey ? 'Copied' : 'Copy'}</button></div></div>
+  return <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--app-bg)] px-3 py-2"><div className="min-w-0 flex-1 truncate text-xs text-[var(--app-muted)]" title={url}>{label}</div><div className="flex gap-2"><a href={url} target="_blank" rel="noreferrer" className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[#C99700]">Open</a><button onClick={() => void onCopy(copyKey, url)} className="rounded-lg bg-[#071421] px-3 py-1.5 text-xs font-semibold text-white">{copiedKey === copyKey ? 'Copied' : 'Copy'}</button></div></div>
 }

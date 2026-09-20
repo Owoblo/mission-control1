@@ -1,5 +1,6 @@
 'use client'
 
+import { X } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -408,8 +409,8 @@ export default function SalesDashboardPage() {
         <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             {dashboardMode === 'rep'
-              ? <h1 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">Sales Rep Dashboard</h1>
-              : <h2 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-[28px]">Sales environment</h2>}
+              ? <h1 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-2xl">Sales Rep Dashboard</h1>
+              : <h2 className="font-display text-[2rem] font-semibold tracking-tight text-[var(--app-ink)] md:text-2xl">Sales environment</h2>}
             <div className="mt-2 text-sm text-[var(--app-muted)]">
               {dashboardMode === 'rep'
                 ? 'Start with the required actions queue. Everything else should help you close or unblock leads faster.'
@@ -425,7 +426,7 @@ export default function SalesDashboardPage() {
           </div>
         </section>
 
-        {error ? <div className="rounded-[4px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
+        {error ? <div className="rounded border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
         <div className="grid gap-0 border border-[var(--app-line)] bg-[var(--app-panel)] md:grid-cols-4">
           <button
@@ -469,7 +470,7 @@ export default function SalesDashboardPage() {
         </div>
 
         {workflowHidden ? (
-        <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3">
+        <section className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="text-sm font-semibold text-[var(--app-ink)]">Simple Workflow hidden</div>
@@ -483,14 +484,14 @@ export default function SalesDashboardPage() {
                 setWorkflowHidden(false)
                 writeLocalStorageFlag('ss_workflow_hidden', false)
               }}
-              className="shrink-0 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
+              className="shrink-0 rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] transition hover:border-[var(--app-ink)]"
             >
               Show simple workflow
             </button>
           </div>
         </section>
         ) : (
-        <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+        <section className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
           <div className="flex flex-col gap-3 border-b border-[var(--app-line)] pb-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="font-display text-[1.35rem] font-semibold tracking-tight text-[var(--app-ink)]">Simple Workflow</h2>
@@ -513,14 +514,14 @@ export default function SalesDashboardPage() {
           {loading ? (
             <div className="grid gap-4 pt-5 lg:grid-cols-2">
               {['New', 'Working', 'Waiting', 'Booked'].map(label => (
-                <div key={label} className="rounded-[10px] border border-dashed border-[var(--app-line)] px-4 py-10 text-center text-sm text-[var(--app-muted)]">
+                <div key={label} className="rounded-xl border border-dashed border-[var(--app-line)] px-4 py-10 text-center text-sm text-[var(--app-muted)]">
                   Loading {label.toLowerCase()} queue...
                 </div>
               ))}
             </div>
           ) : (
             <div className="grid gap-4 pt-5 lg:grid-cols-2">
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+              <div className="rounded-xl border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">New</div>
@@ -545,7 +546,7 @@ export default function SalesDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+              <div className="rounded-xl border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">Working</div>
@@ -573,7 +574,7 @@ export default function SalesDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+              <div className="rounded-xl border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">Waiting</div>
@@ -601,7 +602,7 @@ export default function SalesDashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-[10px] border border-[var(--app-line)] bg-white">
+              <div className="rounded-xl border border-[var(--app-line)] bg-white">
                 <div className="flex items-center justify-between border-b border-[var(--app-line)] px-4 py-3">
                   <div>
                     <div className="text-sm font-semibold text-[var(--app-ink)]">Booked</div>
@@ -633,7 +634,7 @@ export default function SalesDashboardPage() {
         <button
           type="button"
           onClick={toggleAdvancedDashboard}
-          className="flex w-full items-center justify-between rounded-[10px] border border-[var(--app-line)] bg-white px-4 py-3 text-left transition hover:border-[var(--app-ink)]"
+          className="flex w-full items-center justify-between rounded-xl border border-[var(--app-line)] bg-white px-4 py-3 text-left transition hover:border-[var(--app-ink)]"
         >
           <div>
             <div className="text-sm font-semibold text-[var(--app-ink)]">Advanced queues and call stats</div>
@@ -705,7 +706,7 @@ export default function SalesDashboardPage() {
             ) : null}
 
             {loading ? (
-              <div className="rounded-[4px] border border-[rgba(228,226,220,1)] bg-white px-4 py-16 text-center text-sm text-[var(--app-muted)]">Loading dashboard...</div>
+              <div className="rounded border border-[rgba(247,244,237,1)] bg-white px-4 py-16 text-center text-sm text-[var(--app-muted)]">Loading dashboard...</div>
             ) : (
               <>
             <section>
@@ -714,18 +715,18 @@ export default function SalesDashboardPage() {
                   <span className="text-[var(--app-muted)] text-sm">{actionsCollapsed ? '▶' : '▼'}</span>
                   Today&apos;s Required Actions
                 </h2>
-                <span className="rounded-[4px] border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">
+                <span className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">
                   {requiredActions.length} prioritized
                 </span>
               </button>
               {!actionsCollapsed && requiredActions.length === 0 ? (
-                <div className="rounded-[8px] border border-dashed border-[var(--app-line)] px-5 py-12 text-center text-sm text-[var(--app-muted)]">
+                <div className="rounded-lg border border-dashed border-[var(--app-line)] px-5 py-12 text-center text-sm text-[var(--app-muted)]">
                   No required actions right now.
                 </div>
               ) : !actionsCollapsed ? (
                 <div className="grid gap-2 xl:grid-cols-2">
                   {requiredActions.map(({ lead, quote, guidance }) => (
-                    <div key={lead.id} className={`rounded-[8px] border bg-[var(--app-panel)] px-3 py-2.5 ${guidance.action.goldenMoment ? 'border-orange-300 shadow-[0_4px_12px_rgba(249,115,22,0.08)]' : guidance.heat.tone === 'risk' ? 'border-rose-200' : 'border-[var(--app-line)]'}`}>
+                    <div key={lead.id} className={`rounded-lg border bg-[var(--app-panel)] px-3 py-2.5 ${guidance.action.goldenMoment ? 'border-orange-300 shadow-[0_4px_12px_rgba(201,151,0,0.08)]' : guidance.heat.tone === 'risk' ? 'border-rose-200' : 'border-[var(--app-line)]'}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-[var(--app-ink)] truncate">{lead.name}</div>
@@ -756,17 +757,17 @@ export default function SalesDashboardPage() {
                         </div>
                       )}
 
-                      <div className="mt-2 rounded-[6px] bg-[#071421]/5 px-2.5 py-2">
+                      <div className="mt-2 rounded-lg bg-[#071421]/5 px-2.5 py-2">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#071421]/50">Next Action</div>
                         <div className="mt-0.5 text-xs font-semibold text-[#071421]">{guidance.action.nextAction}</div>
                       </div>
 
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        <button onClick={() => void handleActionCta(lead, quote, guidance.action.primaryCta.key)} className="rounded-[6px] bg-[var(--app-ink)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#071421]">
+                        <button onClick={() => void handleActionCta(lead, quote, guidance.action.primaryCta.key)} className="rounded-lg bg-[var(--app-ink)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#071421]">
                           {guidance.action.primaryCta.label}
                         </button>
                         {guidance.action.secondaryCtas.slice(0, 2).map(cta => (
-                          <button key={cta.key} onClick={() => void handleActionCta(lead, quote, cta.key)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                          <button key={cta.key} onClick={() => void handleActionCta(lead, quote, cta.key)} className="rounded-lg border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                             {cta.label}
                           </button>
                         ))}
@@ -779,14 +780,14 @@ export default function SalesDashboardPage() {
 
             {dashboardMode === 'rep' ? (
               <div className="grid gap-6 lg:grid-cols-2">
-                <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                <section className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                   <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
                     <h2 className="font-display text-xl font-semibold text-[var(--app-ink)]">Hot Close Opportunities</h2>
                     <span className="text-xs text-[var(--app-muted)]">{hotCloseOpportunities.length}</span>
                   </div>
                   <div className="space-y-3">
                     {hotCloseOpportunities.length === 0 ? <div className="text-sm text-[var(--app-muted)]">No hot close opportunities right now.</div> : hotCloseOpportunities.map(({ lead, quote, guidance }) => (
-                      <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block rounded-[8px] border border-[var(--app-line)] px-4 py-3 hover:border-orange-300 hover:bg-orange-50/30">
+                      <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block rounded-lg border border-[var(--app-line)] px-4 py-3 hover:border-orange-300 hover:bg-orange-50/30">
                         <div className="flex items-center justify-between gap-3">
                           <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
                           <span className="text-xs font-semibold text-orange-700">{guidance.heat.label} {guidance.heat.score}</span>
@@ -798,14 +799,14 @@ export default function SalesDashboardPage() {
                   </div>
                 </section>
 
-                <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                <section className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                   <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
                     <h2 className="font-display text-xl font-semibold text-[var(--app-ink)]">New Inbound Leads</h2>
                     <span className="text-xs text-[var(--app-muted)]">{newInboundLeads.length}</span>
                   </div>
                   <div className="space-y-3">
                     {newInboundLeads.length === 0 ? <div className="text-sm text-[var(--app-muted)]">No fresh inbound leads waiting right now.</div> : newInboundLeads.map(({ lead, guidance }) => (
-                      <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block rounded-[8px] border border-[var(--app-line)] px-4 py-3 hover:border-[var(--app-ink)]">
+                      <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block rounded-lg border border-[var(--app-line)] px-4 py-3 hover:border-[var(--app-ink)]">
                         <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
                         <div className="mt-1 text-sm text-[var(--app-muted)]">{guidance.sourceLabel} · {guidance.action.reason}</div>
                         <div className="mt-1 text-xs text-[var(--app-muted)]">{formatRelativeTime(lead.createdAt)}</div>
@@ -814,14 +815,14 @@ export default function SalesDashboardPage() {
                   </div>
                 </section>
 
-                <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                <section className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                   <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
                     <h2 className="font-display text-xl font-semibold text-[var(--app-ink)]">Quote Views Needing Follow-up</h2>
                     <span className="text-xs text-[var(--app-muted)]">{quoteViewFollowUps.length}</span>
                   </div>
                   <div className="space-y-3">
                     {quoteViewFollowUps.length === 0 ? <div className="text-sm text-[var(--app-muted)]">No active quote-view triggers right now.</div> : quoteViewFollowUps.map(({ lead, quote, guidance }) => (
-                      <div key={lead.id} className="rounded-[8px] border border-orange-200 bg-orange-50/40 px-4 py-3">
+                      <div key={lead.id} className="rounded-lg border border-orange-200 bg-orange-50/40 px-4 py-3">
                         <div className="flex items-center justify-between gap-2">
                           <Link href={`/sales/leads/${lead.id}`} className="font-medium text-[var(--app-ink)] hover:underline">{lead.name}</Link>
                           <span className="text-xs font-semibold text-orange-700">{quote?.viewedAt ? formatRelativeTime(quote.viewedAt) : 'Just viewed'}</span>
@@ -832,14 +833,14 @@ export default function SalesDashboardPage() {
                   </div>
                 </section>
 
-                <section className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                <section className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                   <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
                     <h2 className="font-display text-xl font-semibold text-[var(--app-ink)]">My Follow-ups Due</h2>
                     <span className="text-xs text-[var(--app-muted)]">{followUpFocus.length}</span>
                   </div>
                   <div className="space-y-3">
                     {followUpFocus.length === 0 ? <div className="text-sm text-[var(--app-muted)]">All caught up.</div> : followUpFocus.map(({ lead, guidance }) => (
-                      <div key={lead.id} className="rounded-[8px] border border-[var(--app-line)] px-4 py-3">
+                      <div key={lead.id} className="rounded-lg border border-[var(--app-line)] px-4 py-3">
                         <div className="flex items-center justify-between gap-2">
                           <Link href={`/sales/leads/${lead.id}`} className="font-medium text-[var(--app-ink)] hover:underline">{lead.name}</Link>
                           <button onClick={() => void dismissTask(lead)} className="text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)]">Done</button>
@@ -864,7 +865,7 @@ export default function SalesDashboardPage() {
                   </div>
                   <div className="relative ml-2 before:absolute before:bottom-0 before:left-[15px] before:top-0 before:w-px before:bg-[var(--app-line)]">
                     {liveFeed.map(item => (
-                      <Link key={item.id} href={item.href} className="relative -ml-2 block rounded-[4px] py-3 pl-10 transition hover:bg-[#f5f5f5]">
+                      <Link key={item.id} href={item.href} className="relative -ml-2 block rounded py-3 pl-10 transition hover:bg-[#f9fafb]">
                         <div className="absolute left-[7px] top-4 flex h-[17px] w-[17px] items-center justify-center rounded-full border border-[var(--app-line)] bg-white">
                           <span className={`h-1.5 w-1.5 rounded-full ${item.tone === 'accepted' ? 'bg-[var(--app-accent)]' : item.tone === 'viewed' ? 'bg-[var(--app-warm)]' : item.tone === 'new' ? 'bg-[var(--app-warm)]' : 'bg-stone-300'}`} />
                         </div>
@@ -881,7 +882,7 @@ export default function SalesDashboardPage() {
                 </section>
 
                 <section className="col-span-12 space-y-6 lg:col-span-4">
-                  <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                  <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                     <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
                       <h2 className="font-display text-xl font-semibold text-[var(--app-ink)]">{dashboardMode === 'manager' ? 'Unassigned Leads' : 'Pending Deposits'}</h2>
                       <span className="text-xs text-[var(--app-muted)]">{dashboardMode === 'manager' ? unassignedLeads.length : pendingDeposits.length}</span>
@@ -890,7 +891,7 @@ export default function SalesDashboardPage() {
                       {(dashboardMode === 'manager' ? unassignedLeads : pendingDeposits).length === 0 ? (
                         <div className="text-sm text-[var(--app-muted)]">No items right now.</div>
                       ) : (dashboardMode === 'manager' ? unassignedLeads : pendingDeposits).map(({ lead, quote, guidance }) => (
-                        <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block rounded-[8px] border border-[var(--app-line)] px-4 py-3 hover:border-[var(--app-ink)]">
+                        <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block rounded-lg border border-[var(--app-line)] px-4 py-3 hover:border-[var(--app-ink)]">
                           <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
                           <div className="mt-1 text-sm text-[var(--app-muted)]">{guidance.action.nextAction}</div>
                           <div className="mt-1 text-xs text-[var(--app-muted)]">{quote?.total ? formatMoney(quote.total) : guidance.stageLabel}</div>
@@ -899,7 +900,7 @@ export default function SalesDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
+                  <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] p-5">
                     <div className="mb-3 flex items-center justify-between border-b border-[var(--app-line)] pb-2">
                       <h2 className="font-display text-xl font-semibold text-[var(--app-ink)]">Expiring Quotes</h2>
                       <span className="text-xs text-[var(--app-muted)]">{expiringQuotes.length}</span>
@@ -909,7 +910,7 @@ export default function SalesDashboardPage() {
                         const days = daysUntilExpiry(quote)
                         const lead = quote.leadId ? leads.find(item => item.id === quote.leadId) : undefined
                         return (
-                          <Link key={quote.id} href={`/sales/quotes/${quote.id}`} className="block rounded-[8px] border border-amber-100 bg-amber-50/50 px-4 py-3 hover:border-amber-200">
+                          <Link key={quote.id} href={`/sales/quotes/${quote.id}`} className="block rounded-lg border border-amber-100 bg-amber-50/50 px-4 py-3 hover:border-amber-200">
                             <div className="font-medium text-[var(--app-ink)]">{quote.number}</div>
                             <div className="mt-1 text-sm text-[var(--app-muted)]">{lead?.name || 'Unknown'}</div>
                             <div className="mt-1 text-xs text-amber-700">{days === 0 ? 'Expires today' : days === 1 ? 'Expires tomorrow' : `${days}d left`}</div>
@@ -936,7 +937,7 @@ export default function SalesDashboardPage() {
                 <h2 className="text-base font-semibold text-[var(--app-ink)]">{drilldown.title}</h2>
                 <p className="text-xs text-[var(--app-muted)]">{drilldown.subtitle}</p>
               </div>
-              <button onClick={() => setDrilldown(null)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setDrilldown(null)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]" aria-label="Close"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
               {drilldownLoading ? (
