@@ -838,13 +838,19 @@ function AcceptBlock({
   // Not yet accepted
   if (variant === 'sticky') {
     return (
-      <div className="flex items-center gap-2">
-        <button onClick={onDecline} disabled={declining} className="rounded-lg border border-[#071421]/20 px-3 py-2 text-xs font-medium text-[#071421]/40 hover:border-[#071421]/40 disabled:opacity-40">
-          {declining ? '...' : 'Decline'}
-        </button>
-        <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="rounded-lg bg-[#071421] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
-          {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit')}
-        </button>
+      <div className="flex items-center gap-3">
+        <div className="text-right">
+          <div className="text-sm font-black tracking-tight text-[#071421]">{formatMoney(quote.total)}</div>
+          <div className="text-[10px] font-medium text-[#071421]/50">incl. HST</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onDecline} disabled={declining} className="min-h-[44px] rounded-lg border border-[#071421]/20 px-3 py-2 text-xs font-medium text-[#071421]/40 hover:border-[#071421]/40 disabled:opacity-40">
+            {declining ? '...' : 'Decline'}
+          </button>
+          <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="min-h-[44px] rounded-lg bg-[#071421] px-5 py-2 text-xs font-bold text-white hover:bg-[#243460] disabled:opacity-50">
+            {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : 'Accept & Pay Deposit')}
+          </button>
+        </div>
       </div>
     )
   }
@@ -976,6 +982,7 @@ function QuoteAcceptPageInner() {
   const [accepted, setAccepted] = useState(false)
   const [declined, setDeclined] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [quoteExpired, setQuoteExpired] = useState(false)
   const [stripeLoading, setStripeLoading] = useState(false)
   const [lineItemsOpen, setLineItemsOpen] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
@@ -997,6 +1004,14 @@ function QuoteAcceptPageInner() {
         if (previewMode) params.set('preview', '1')
         const r = await fetch(`/api/public/quotes/${encodeURIComponent(id)}?${params.toString()}`, { cache: 'no-store' })
         const payload = await r.json()
+        if (payload?.expired) {
+          // The quote's validity window passed: show the branded expired state,
+          // never the bookable UI.
+          setQuote(payload.quote || null)
+          setQuoteExpired(true)
+          setLoading(false)
+          return
+        }
         if (!r.ok) throw new Error(payload?.error || 'Failed to load quote')
         setQuote(payload.quote)
         setClientName(payload.client?.name || payload.lead?.name || '')
@@ -1035,6 +1050,7 @@ function QuoteAcceptPageInner() {
         body: JSON.stringify({ token, termsAccepted: true, scopeConfirmed: true, termsVersion: QUOTE_TERMS_VERSION }),
       })
       const payload = await r.json()
+      if (payload?.expired) { setQuoteExpired(true); return }
       if (!r.ok) throw new Error(payload?.error || 'Failed to accept quote')
       setQuote(payload.quote)
       setAccepted(true)
@@ -1056,6 +1072,7 @@ function QuoteAcceptPageInner() {
         body: JSON.stringify({ token, action: 'decline' }),
       })
       const payload = await r.json()
+      if (payload?.expired) { setQuoteExpired(true); return }
       if (!r.ok) throw new Error(payload?.error || 'Failed to decline quote')
       setQuote(payload.quote)
       setAccepted(false)
@@ -1103,6 +1120,32 @@ function QuoteAcceptPageInner() {
       </div>
     </div>
   )
+
+  if (quoteExpired) {
+    const expiredBrand = quote ? quoteBrand(quote) : null
+    const expiredPhone = expiredBrand?.phone || ''
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED] p-6">
+        <div className="w-full max-w-md rounded-2xl border border-[#071421]/15 bg-white p-8 text-center shadow-sm">
+          {expiredBrand && <div className="flex justify-center"><LogoMark size={52} dark={false} brand={expiredBrand} /></div>}
+          <div className="mt-4 text-xl font-black tracking-tight text-[#071421]">This quote has expired</div>
+          <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#071421]/60">
+            {quote ? <>This estimate was valid until {expiryDate(quote)} and can no longer be booked online.</> : 'This estimate can no longer be booked online.'}
+            {' '}Call or text us and we&apos;ll prepare a fresh quote at today&apos;s pricing.
+          </p>
+          {expiredPhone && (
+            <a
+              href={`tel:${expiredPhone.replace(/[^\d+]/g, '')}`}
+              className="mt-6 flex min-h-[48px] items-center justify-center rounded-xl bg-[#071421] px-6 text-base font-bold text-white"
+            >
+              Call or text {expiredPhone}
+            </a>
+          )}
+          {quote?.number && <div className="mt-3 text-xs text-[#071421]/40">Quote {quote.number}</div>}
+        </div>
+      </div>
+    )
+  }
 
   if (error || !quote) return (
     <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED] p-6">
@@ -1164,7 +1207,7 @@ function QuoteAcceptPageInner() {
   })
 
   // ── Fast Lane view — hourly rate quote, no inventory/photos, direct to Stripe ──
-  const DEPOSIT = 100
+  const DEPOSIT = quote.deposit > 0 ? quote.deposit : 100
   const isFastLane = searchParams.get('fastlane') === '1'
   if (isFastLane) {
     const lineItem = quote.lineItems?.[0]
@@ -1178,9 +1221,12 @@ function QuoteAcceptPageInner() {
     const rate = String(quote.hourlyRateOverride || rateDesc.match(/\$(\d+)\/hr/)?.[1] || '')
     const minimumHours = Number(quote.minimumBillableHours || 0) || (rangeMatch ? parseFloat(rangeMatch[1]) : 0)
     const maximumHours = Number(quote.maximumEstimatedHours || 0) || (rangeMatch ? parseFloat(rangeMatch[2]) : minimumHours)
-    const minimumTotal = quote.total || (rate ? Math.round(parseInt(rate, 10) * minimumHours * 1.13) : 0)
+    // Derive the HST rate from the quote itself when present; 13% is only the last-resort fallback.
+    const hstRate = quote.subtotal > 0 && quote.hst >= 0 ? quote.hst / quote.subtotal : 0.13
+    const hstPct = Math.round(hstRate * 100)
+    const minimumTotal = quote.total || (rate ? Math.round(parseInt(rate, 10) * minimumHours * (1 + hstRate)) : 0)
     const maximumTotal = rate && maximumHours > minimumHours
-      ? Math.round(parseInt(rate, 10) * maximumHours * 1.13)
+      ? Math.round(parseInt(rate, 10) * maximumHours * (1 + hstRate))
       : minimumTotal
 
     return (
@@ -1228,7 +1274,7 @@ function QuoteAcceptPageInner() {
                       ${minimumTotal.toLocaleString()}
                     </div>
                     <div className="mt-1 text-[11px] text-[#071421]/50">
-                      Based on a {minimumHours}-hour minimum at ${rate}/hr + 13% HST
+                      Based on a {minimumHours}-hour minimum at ${rate}/hr + {hstPct}% HST
                     </div>
                     {maximumHours > minimumHours ? (
                       <div className="mt-2 text-[11px] font-medium text-[#071421]/70">
@@ -1398,6 +1444,12 @@ function QuoteAcceptPageInner() {
                 <span className="text-xs font-bold text-white">Move Day is TODAY</span>
               </div>
             )}
+
+            {/* The real total, tax-included, within the first viewport */}
+            <div className="mb-8 inline-flex items-center gap-3 rounded-xl bg-[#C99700] px-4 py-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#071421]/70">Total incl. HST</span>
+              <span className="text-2xl font-black tracking-tight text-[#071421]">{formatMoney(quote.total)}</span>
+            </div>
             </div>
 
             {/* Route / single service location */}
@@ -1711,11 +1763,11 @@ function QuoteAcceptPageInner() {
                 <span className="text-xs font-semibold">−{formatMoney(quote.discountAmount!)}</span>
               </div>
             )}
-            {/* Subtotal is the hero — anchors customer on pre-tax price */}
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">{bundledMove ? 'Flat-rate move investment' : 'Estimated relocation total'}</div>
-            <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.subtotal)}</div>
+            {/* The hero number is always the tax-inclusive total — one rule everywhere */}
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">{bundledMove ? 'Flat-rate total' : 'Estimated total'} · including HST</div>
+            <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.total)}</div>
             <div className="mt-4 flex justify-center gap-2 text-xs text-white/35">
-              <span>HST {formatMoney(quote.hst)}</span><span>·</span><span>{formatMoney(quote.total)} inclusive</span>
+              <span>{formatMoney(quote.subtotal)} before tax</span><span>·</span><span>HST {formatMoney(quote.hst)}</span>
             </div>
           </div>
         </div>
