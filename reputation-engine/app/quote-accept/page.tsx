@@ -196,7 +196,7 @@ function LogoMark({ size = 32, dark = false, brand = SATURN_STAR_BRAND }: { size
 }
 
 function Stars({ count }: { count: number }) {
-  return <span className="text-[#C99700]">{'★'.repeat(count)}</span>
+  return <span className="text-[#8a6800]">{'★'.repeat(count)}</span>
 }
 
 function expiryDate(quote: PublicQuote): string {
@@ -528,7 +528,7 @@ function InventoryIntelligence({
               {items.map((item, index) => {
                 const name = item.name || item.item || 'Item'
                 const qty = Number(item.qty || 1)
-                return <div key={`${name}-${index}`} className="flex items-center justify-between gap-4 text-sm"><span className="text-[#071421]/75"><span className="mr-2 text-[#C99700]">✓</span>{name}</span>{qty > 1 && <span className="text-xs font-semibold text-[#667085]">×{qty}</span>}</div>
+                return <div key={`${name}-${index}`} className="flex items-center justify-between gap-4 text-sm"><span className="text-[#071421]/75"><span className="mr-2 text-[#8a6800]">✓</span>{name}</span>{qty > 1 && <span className="text-xs font-semibold text-[#667085]">×{qty}</span>}</div>
               })}
             </div>
           </div>
@@ -568,7 +568,7 @@ function ScopeOfWork({ scope }: { scope: CustomerQuoteScope }) {
                   <CareIcon className="h-6 w-6" strokeWidth={1.8} aria-hidden="true" />
                 </div>
                 <div className="min-w-0 pt-0.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#C99700]">{categoryLabel[plan.category]}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a6800]">{categoryLabel[plan.category]}</div>
                   <div className="mt-1.5 text-base font-bold text-[#071421]">{plan.item}</div>
                   <div className="mt-1 text-xs leading-5 text-[#667085]">{plan.service}</div>
                 </div>
@@ -788,11 +788,11 @@ function AcceptBlock({
 
   if (declined) {
     return variant === 'sticky' ? (
-      <div className="rounded-lg border border-[#071421]/20 bg-[#071421]/5 px-4 py-2 text-xs font-semibold text-[#071421]/50">Quote Declined</div>
+      <div className="rounded-lg border border-[#071421]/20 bg-[#071421]/5 px-4 py-2 text-xs font-semibold text-[#071421]/60">Quote Declined</div>
     ) : (
       <div className="rounded-xl border border-[#071421]/15 bg-[#071421]/5 p-6 text-center">
         <div className="text-sm font-semibold text-[#071421]/60 mb-1">Quote Declined</div>
-        <div className="text-xs text-[#071421]/40">If you change your mind, call or text us at {brand.phone}.</div>
+        <div className="text-xs text-[#071421]/60">If you change your mind, call or text us at {brand.phone}.</div>
       </div>
     )
   }
@@ -827,7 +827,7 @@ function AcceptBlock({
       ) : (
         <div className="rounded-xl border-2 border-[#071421] bg-white p-6 text-center">
           <div className="text-sm font-bold text-[#071421] mb-1">Estimate Approved</div>
-          <div className="text-xs text-[#071421]/50">We&apos;ll coordinate billing using {paymentTermsLabel(quote.paymentTerms).toLowerCase()}.</div>
+          <div className="text-xs text-[#071421]/60">We&apos;ll coordinate billing using {paymentTermsLabel(quote.paymentTerms).toLowerCase()}.</div>
         </div>
       )
     }
@@ -843,7 +843,7 @@ function AcceptBlock({
       <div className="rounded-xl border-2 border-[#071421] bg-white p-6">
         <div className="text-center mb-5">
           <div className="text-sm font-bold text-[#071421] mb-1">Quote Accepted — Secure Your Date</div>
-          <div className="text-xs text-[#071421]/50">Pay your deposit to lock in your move.</div>
+          <div className="text-xs text-[#071421]/60">Pay your deposit to lock in your move.</div>
         </div>
         <button
           onClick={payOrRequestTerms}
@@ -852,7 +852,7 @@ function AcceptBlock({
         >
           {stripeLoading ? 'Redirecting to payment...' : `Pay Deposit Online — ${formatMoney(quote.deposit)}`}
         </button>
-        <div className="mt-3 rounded-lg border border-[#071421]/10 bg-[#071421]/5 p-3 text-xs text-[#071421]/50 text-center">
+        <div className="mt-3 rounded-lg border border-[#071421]/10 bg-[#071421]/5 p-3 text-xs text-[#071421]/60 text-center">
           {brand.email ? <>Prefer e-Transfer or cash? Send to <strong>{brand.email}</strong> and reply to confirm.</> : <>Prefer e-Transfer or cash? Call or text <strong>{brand.phone}</strong> to arrange payment.</>}
         </div>
       </div>
@@ -865,10 +865,10 @@ function AcceptBlock({
       <div className="flex items-center gap-3">
         <div className="text-right">
           <div className="text-sm font-black tracking-tight text-[#071421]">{formatMoney(quote.total)}</div>
-          <div className="text-[11px] font-medium text-[#071421]/50">incl. HST</div>
+          <div className="text-[11px] font-medium text-[#071421]/60">incl. HST</div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onDecline} disabled={declining} className="min-h-[44px] rounded-lg border border-[#071421]/20 px-3 py-2 text-xs font-medium text-[#071421]/40 hover:border-[#071421]/40 disabled:opacity-40">
+          <button onClick={onDecline} disabled={declining} className="min-h-[44px] rounded-lg border border-[#071421]/20 px-3 py-2 text-xs font-medium text-[#071421]/60 hover:border-[#071421]/40 disabled:opacity-40">
             {declining ? '...' : 'Decline'}
           </button>
           <button onClick={invoiceStyleTerms ? acceptOrRequestTerms : payOrRequestTerms} disabled={invoiceStyleTerms ? accepting : stripeLoading} className="min-h-[44px] rounded-lg bg-[#071421] px-5 py-2 text-xs font-bold text-white hover:bg-[#071421] disabled:opacity-50">
@@ -898,7 +898,7 @@ function AcceptBlock({
         <button
           onClick={acceptOrRequestTerms}
           disabled={accepting}
-          className="mt-4 text-xs text-white/30 hover:text-white/60 disabled:opacity-40"
+          className="mt-4 text-xs text-white/60 hover:text-white/80 disabled:opacity-40"
         >
           {accepting ? 'Confirming...' : 'Accept without card (E-Transfer/Cash)'}
         </button>
@@ -906,7 +906,7 @@ function AcceptBlock({
       <button
         onClick={onDecline}
         disabled={declining}
-        className="mt-2 text-xs text-white/20 hover:text-white/40 disabled:opacity-40"
+        className="mt-2 text-xs text-white/60 hover:text-white/80 disabled:opacity-40"
       >
         {declining ? 'Updating...' : 'Decline this quote'}
       </button>
@@ -1142,7 +1142,7 @@ function QuoteAcceptPageInner() {
     <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED]">
       <div className="flex flex-col items-center gap-3">
         <div className="h-9 w-9 animate-pulse rounded-xl bg-[#071421]/10" />
-        <div className="text-xs text-[#071421]/40 tracking-wider uppercase">Loading your quote...</div>
+        <div className="text-xs text-[#071421]/60 tracking-wider uppercase">Loading your quote...</div>
       </div>
     </div>
   )
@@ -1167,7 +1167,7 @@ function QuoteAcceptPageInner() {
               Call or text {expiredPhone}
             </a>
           )}
-          {quote?.number && <div className="mt-3 text-xs text-[#071421]/40">Quote {quote.number}</div>}
+          {quote?.number && <div className="mt-3 text-xs text-[#071421]/60">Quote {quote.number}</div>}
         </div>
       </div>
     )
@@ -1266,7 +1266,7 @@ function QuoteAcceptPageInner() {
           <div className="mb-6 flex items-center gap-3">
             <LogoMark size={36} brand={brand} />
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/40">{brand.name}</div>
+              <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/60">{brand.name}</div>
               <div className="text-sm font-semibold text-[#071421]">Your Moving Quote</div>
             </div>
           </div>
@@ -1289,7 +1289,7 @@ function QuoteAcceptPageInner() {
 
               {/* Rate card */}
               <div className="rounded-2xl bg-white border border-[#071421]/10 shadow-sm p-5 mb-4">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/40 mb-3">Your quote</div>
+                <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/60 mb-3">Your quote</div>
                 <div className="text-xl font-black text-[#071421] mb-1">{rateDesc}</div>
                 {maximumHours > minimumHours ? (
                   <div className="text-sm text-[#071421]/60 mb-4">Most jobs in this lane take about {minimumHours}-{maximumHours} hours</div>
@@ -1299,11 +1299,11 @@ function QuoteAcceptPageInner() {
 
                 {rate && minimumHours > 0 && (
                   <div className="rounded-xl bg-[#F7F4ED] p-4">
-                    <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/40 mb-2">Minimum charge (incl. HST)</div>
+                    <div className="text-[11px] font-bold uppercase tracking-widest text-[#071421]/60 mb-2">Minimum charge (incl. HST)</div>
                     <div className="text-2xl font-black text-[#071421]">
                       ${minimumTotal.toLocaleString()}
                     </div>
-                    <div className="mt-1 text-[11px] text-[#071421]/50">
+                    <div className="mt-1 text-[11px] text-[#071421]/60">
                       Based on a {minimumHours}-hour minimum at ${rate}/hr + {hstPct}% HST
                     </div>
                     {maximumHours > minimumHours ? (
@@ -1360,7 +1360,7 @@ function QuoteAcceptPageInner() {
                   {invoiceStyleTerms ? (accepting ? 'Approving...' : 'Approve Estimate') : (stripeLoading ? 'Redirecting...' : `Book Now — Pay $${DEPOSIT} Deposit`)}
                 </button>
                 {!invoiceStyleTerms ? (
-                  <div className="mt-3 text-[11px] text-white/30">
+                  <div className="mt-3 text-[11px] text-white/60">
                     {brand.email ? `Prefer e-Transfer? Send to ${brand.email} and reply to confirm.` : `Prefer e-Transfer? Call or text ${brand.phone} to arrange payment.`}
                   </div>
                 ) : null}
@@ -1372,13 +1372,13 @@ function QuoteAcceptPageInner() {
                   <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
                     <Stars count={r.stars} />
                     <div className="mt-1 text-xs text-[#071421]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
-                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/40">{r.name}</div>
+                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/60">{r.name}</div>
                   </div>
                 )) : DEXA_REVIEWS.slice(0, 2).map((r, i) => (
                   <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
                     <Stars count={r.stars} />
                     <div className="mt-1 text-xs text-[#071421]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
-                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/40">{r.name}</div>
+                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/60">{r.name}</div>
                   </div>
                 ))}
                 {brand.logo === 'dexa' && DEXA_REVIEWS.length === 0 && (
@@ -1390,7 +1390,7 @@ function QuoteAcceptPageInner() {
                 )}
               </div>
 
-              <div className="mt-6 text-center text-xs text-[#071421]/40">
+              <div className="mt-6 text-center text-xs text-[#071421]/60">
                 Questions? Call or text <strong>{brand.phone}</strong>{brand.website ? ` · ${brand.website}` : ''}
               </div>
             </>
@@ -1410,7 +1410,7 @@ function QuoteAcceptPageInner() {
             <LogoMark size={28} brand={brand} />
             <div>
               <div className="text-xs font-black tracking-tight text-[#071421]">{brand.shortName}</div>
-              <div className="text-[11px] font-medium text-[#071421]/40 tracking-wide">MOVING</div>
+              <div className="text-[11px] font-medium text-[#071421]/60 tracking-wide">MOVING</div>
             </div>
           </div>
           <AcceptBlock
@@ -1453,7 +1453,7 @@ function QuoteAcceptPageInner() {
               <LogoMark size={64} dark brand={brand} />
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white">{brand.name}</div>
-                <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/40">Your moving estimate · {marketLabel}</div>
+                <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/60">Your moving estimate · {marketLabel}</div>
               </div>
             </div>
 
@@ -1501,7 +1501,7 @@ function QuoteAcceptPageInner() {
               <div>
                 <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/35">{isSingleLocationLaborOnly ? 'Work location' : 'Origin'}</div>
                 <div className="text-lg font-bold leading-tight text-white">{quote.originCity || (isSingleLocationLaborOnly ? 'Service address' : 'Origin')}</div>
-                {quote.originAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.originAddress}</div>}
+                {quote.originAddress && <div className="mt-1 text-xs leading-5 text-white/60">{quote.originAddress}</div>}
               </div>
               {!isSingleLocationLaborOnly && <div className="flex justify-center">
                 <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
@@ -1515,7 +1515,7 @@ function QuoteAcceptPageInner() {
                 ) : (
                   <>
                     <div className="text-lg font-bold leading-tight text-white">{quote.destCity || 'Destination'}</div>
-                    {quote.destAddress && <div className="mt-1 text-xs leading-5 text-white/40">{quote.destAddress}</div>}
+                    {quote.destAddress && <div className="mt-1 text-xs leading-5 text-white/60">{quote.destAddress}</div>}
                   </>
                 )}
               </div>}
@@ -1556,7 +1556,7 @@ function QuoteAcceptPageInner() {
             <div className={`text-xs font-bold mb-0.5 ${isBindingEstimate ? 'text-[#071421]' : 'text-[#071421]'}`}>
               {isBindingEstimate ? (quote.scopeStatus === 'provisional' ? 'Scope-Based Estimate · Confirmation Pending' : 'Scope-Based Flat Rate') : 'Hourly Estimate'}
             </div>
-            <div className="text-xs leading-5 text-[#071421]/50">
+            <div className="text-xs leading-5 text-[#071421]/60">
               {isBindingEstimate
                 ? quote.scopeStatus === 'provisional'
                   ? 'This estimate is ready to review. Confirm the highlighted inventory and access details with our team before the scope is finalized.'
@@ -1578,7 +1578,7 @@ function QuoteAcceptPageInner() {
 
         {hasInventory && (
           <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Before you continue</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[#8a6800]">Before you continue</div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">Hidden areas and loose contents.</h2>
             <p className="mt-2 text-sm leading-6 text-[#071421]/60">This records what was reviewed with you—including areas that are empty or do not apply—so the moving plan reflects the same agreed scope.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1594,7 +1594,7 @@ function QuoteAcceptPageInner() {
 
         {confirmedAccessProfiles.length > 0 && (
           <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Access included in your moving plan</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[#8a6800]">Access included in your moving plan</div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">From each room to the truck.</h2>
             <p className="mt-2 text-sm leading-6 text-[#071421]/60">Your quoted scope includes the parking, carrying route, stairs, elevators, and normal building procedures confirmed below.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -1612,20 +1612,20 @@ function QuoteAcceptPageInner() {
 
         {operationalTimeBudget && operationalTimeBudget.totalCrewClockTime > 0 && (
           <section className="mb-12 rounded-2xl border border-[#071421]/15 bg-white p-6 sm:p-8">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">Your service window</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-[#8a6800]">Your service window</div>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#071421]">A schedule built around the actual job.</h2>
             <p className="mt-2 text-sm leading-6 text-[#071421]/60">This range accounts for the listed inventory, confirmed access, included services, transportation, and a normal operating allowance. Your price remains based on the agreed scope—not a customer-facing hourly calculation.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {operationalTimeBudget.stops.map(stop => (
                 <div key={stop.stopId} className="rounded-xl border border-[#071421]/10 bg-[#F7F4ED] px-4 py-4">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#C99700]">{stop.role === 'dropoff' ? 'Destination services' : stop.role === 'storage' ? 'Storage services' : 'Origin services'}</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#8a6800]">{stop.role === 'dropoff' ? 'Destination services' : stop.role === 'storage' ? 'Storage services' : 'Origin services'}</div>
                   <div className="mt-1 font-bold text-[#071421]">{stop.label}</div>
                   <div className="mt-2 text-sm text-[#071421]/60">Approximately {stop.customerRange.minHours}–{stop.customerRange.maxHours} hours</div>
                 </div>
               ))}
               {operationalTimeBudget.transportationTime > 0 && (
                 <div className="rounded-xl border border-[#071421]/10 bg-[#F7F4ED] px-4 py-4">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#C99700]">Transportation</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#8a6800]">Transportation</div>
                   <div className="mt-1 font-bold text-[#071421]">Confirmed route plan</div>
                   <div className="mt-2 text-sm text-[#071421]/60">Approximately {operationalTimeBudget.transportationTime} hours in the operating plan</div>
                 </div>
@@ -1666,16 +1666,16 @@ function QuoteAcceptPageInner() {
                         <span className="text-sm font-semibold text-[#071421]">{leg.label}</span>
                         <span className="rounded-full bg-[#C99700]/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#071421]">{typeLabel}</span>
                         {leg.scheduledDate && (
-                          <span className="text-[11px] text-[#071421]/40">{new Date(leg.scheduledDate + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
+                          <span className="text-[11px] text-[#071421]/60">{new Date(leg.scheduledDate + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
                         )}
                       </div>
-                      <div className="mt-1.5 flex items-center gap-2 text-xs text-[#071421]/50">
+                      <div className="mt-1.5 flex items-center gap-2 text-xs text-[#071421]/60">
                         <span className="truncate">{origin}</span>
-                        <svg className="h-3 w-3 shrink-0 text-[#C99700]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        <svg className="h-3 w-3 shrink-0 text-[#8a6800]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                         <span className="truncate">{dest}</span>
                       </div>
                       {(leg.distanceKm || customerLegNote) && (
-                        <div className="mt-1 text-[11px] text-[#071421]/35">
+                        <div className="mt-1 text-[11px] text-[#071421]/60">
                           {leg.distanceKm ? `${leg.distanceKm} km${!isBindingEstimate && leg.driveHours ? ` · ${leg.driveHours}h drive` : ''}` : ''}
                           {leg.distanceKm && customerLegNote ? ' · ' : ''}
                           {customerLegNote}
@@ -1735,7 +1735,7 @@ function QuoteAcceptPageInner() {
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
                           <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#C99700]">{isBindingEstimate ? `Stage ${i + 1}` : phase.time}</span>
+                            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6800]">{isBindingEstimate ? `Stage ${i + 1}` : phase.time}</span>
                             <span className="text-xs font-semibold text-[#071421]/70">{phase.title}</span>
                           </div>
                           <div className="mt-1 text-sm leading-5 text-[#667085]">{isBindingEstimate ? flatRateTimelineDetail(phase.title, crewSize, trucks, customerScope.assemblyItems) : phase.detail}</div>
@@ -1755,7 +1755,7 @@ function QuoteAcceptPageInner() {
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Your move investment</div>
             {!bundledMove && <button
               onClick={() => setLineItemsOpen(v => !v)}
-              className="text-[11px] font-semibold uppercase tracking-wide text-white/40 hover:text-white"
+              className="text-[11px] font-semibold uppercase tracking-wide text-white/60 hover:text-white"
             >
               {lineItemsOpen ? 'Hide breakdown' : 'See breakdown'}
             </button>}
@@ -1765,7 +1765,7 @@ function QuoteAcceptPageInner() {
           <div className="grid grid-cols-[1fr_auto] gap-4 px-8 py-6 text-sm sm:px-12">
             <div>
               <div className="font-semibold text-white">{serviceLabel}</div>
-              <div className="mt-1 text-xs text-white/40">
+              <div className="mt-1 text-xs text-white/60">
                 {crewSize}-person professional team · {trucks} truck{trucks > 1 ? 's' : ''}{!bundledMove && hours ? ` · ~${hours} hrs` : bundledMove ? ' · planned execution' : ''}
               </div>
             </div>
@@ -1796,7 +1796,7 @@ function QuoteAcceptPageInner() {
               </div>
             )}
             {/* The hero number is always the tax-inclusive total — one rule everywhere */}
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">{bundledMove ? 'Flat-rate total' : 'Estimated total'} · including HST</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">{bundledMove ? 'Flat-rate total' : 'Estimated total'} · including HST</div>
             <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.total)}</div>
             <div className="mt-4 flex justify-center gap-2 text-xs text-white/35">
               <span>{formatMoney(quote.subtotal)} before tax</span><span>·</span><span>HST {formatMoney(quote.hst)}</span>
@@ -1811,7 +1811,7 @@ function QuoteAcceptPageInner() {
           </div>
           {invoiceStyleTerms ? (
             <div className="px-5 py-4">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-[#C99700] mb-1">Terms</div>
+              <div className="text-[11px] font-bold uppercase tracking-widest text-[#8a6800] mb-1">Terms</div>
               <div className="text-2xl font-black text-[#071421]">{paymentTermsLabel(quote.paymentTerms)}</div>
               <div className="mt-2 text-xs leading-5 text-[#071421]/45">
                 Approving this estimate confirms the scope and terms. {brand.name} will coordinate billing, invoice details, or purchase-order requirements with your office contact.
@@ -1835,10 +1835,10 @@ function QuoteAcceptPageInner() {
             {!invoiceStyleTerms && <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#071421]/55"><span>Total including HST: <strong className="text-[#071421]">{formatMoney(quote.total)}</strong></span><span>−</span><span>deposit: <strong className="text-[#071421]">{formatMoney(quote.deposit)}</strong></span><span>=</span><span>remaining balance: <strong className="text-[#071421]">{formatMoney(quote.balance)}</strong></span></div>}
             <div className="flex flex-wrap gap-1.5">
               {['Cash', 'e-Transfer', 'Credit Card', 'Debit'].map(m => (
-                <span key={m} className="rounded-full border border-[#071421]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#071421]/50">{m}</span>
+                <span key={m} className="rounded-full border border-[#071421]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#071421]/60">{m}</span>
               ))}
             </div>
-            <div className="mt-1.5 text-[11px] text-[#071421]/30">No card or administration surcharge{brand.email ? ` · e-Transfer also available at ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
+            <div className="mt-1.5 text-[11px] text-[#071421]/60">No card or administration surcharge{brand.email ? ` · e-Transfer also available at ${brand.email}` : ` · Contact ${brand.phone} for e-Transfer details`}</div>
           </div>
         </div>
 
@@ -2018,13 +2018,13 @@ function QuoteAcceptPageInner() {
           <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
             <LogoMark size={48} dark brand={brand} />
             <div className="mt-3 text-sm font-bold tracking-tight text-white">{brand.shortName}</div>
-            <div className="mt-3 text-xs leading-6 text-white/40">
+            <div className="mt-3 text-xs leading-6 text-white/60">
               {marketLabel}<br />
               <a href={brand.phoneHref} className="text-white/50 hover:text-white">{brand.phone}</a>
               {brand.email ? <>{' · '}<a href={`mailto:${brand.email}`} className="text-white/50 hover:text-white">{brand.email}</a></> : null}
               {brand.website ? <>{' · '}<a href={`https://${brand.website}`} className="text-white/50 hover:text-white">{brand.website}</a></> : null}
             </div>
-            <div className="mt-2 text-[11px] text-white/20">Valid until {expiryDate(quote)}</div>
+            <div className="mt-2 text-[11px] text-white/60">Valid until {expiryDate(quote)}</div>
           </div>
         </div>
 
@@ -2049,7 +2049,7 @@ export default function QuoteAcceptPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#F7F4ED]">
         <div className="flex flex-col items-center gap-3">
           <div className="h-9 w-9 animate-pulse rounded-xl bg-[#071421]/10" />
-          <div className="text-xs text-[#071421]/40 tracking-wider uppercase">Loading...</div>
+          <div className="text-xs text-[#071421]/60 tracking-wider uppercase">Loading...</div>
         </div>
       </div>
     }>

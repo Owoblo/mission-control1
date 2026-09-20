@@ -190,7 +190,7 @@ function ContractorsContent() {
     <main className="crm-shell space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[.18em] text-[#C99700]">
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-[#8a6800]">
             Operations
           </p>
           <h1 className="font-display text-2xl font-bold text-[#071421]">
