@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from 'next'
+import { Inter, Manrope } from 'next/font/google'
 import { Suspense } from 'react'
 import { AppShell } from '@/app/components/app-shell'
 import { PWAInit } from '@/app/components/pwa-init'
 import './globals.css'
+
+const inter = Inter({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-inter', display: 'swap' })
+const manrope = Manrope({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-manrope', display: 'swap' })
 
 export const metadata: Metadata = {
   title: 'Saturn Star OS',
@@ -33,13 +37,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet" />
         <link rel="apple-touch-icon" href="/icon-192.png?v=3" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className="min-h-screen">
+      <body className={`min-h-screen ${inter.variable} ${manrope.variable}`}>
         <Suspense fallback={children}>
           <AppShell>{children}</AppShell>
         </Suspense>

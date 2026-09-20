@@ -4069,15 +4069,15 @@ export default function SalesLeadDetailPage() {
             </div>
 
             <div className="mt-5 grid gap-px border border-[var(--app-line)] bg-[var(--app-line)] sm:grid-cols-4">
-              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Environment</div><div className="mt-1 text-sm font-semibold text-[#071421]">{operatingStageMeta.environment}</div></div>
-              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Last meaningful contact</div><div className="mt-1 text-sm font-semibold text-[#071421]">{leadGuidance?.latestActivity.at ? formatRelativeTime(leadGuidance.latestActivity.at) : 'No activity recorded'}</div></div>
-              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Source</div><div className="mt-1 text-sm font-semibold text-[#071421]">{lead.source || 'Not recorded'}</div></div>
-              <div className="bg-white p-3"><div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Risk</div><div className={`mt-1 text-sm font-semibold ${operatingExceptions.some(item => item.severity === 'urgent') ? 'text-rose-700' : operatingExceptions.length ? 'text-amber-700' : 'text-emerald-700'}`}>{operatingExceptions.some(item => item.severity === 'urgent') ? 'Intervention required' : operatingExceptions.length ? `${operatingExceptions.length} exception${operatingExceptions.length === 1 ? '' : 's'}` : 'No clear exception'}</div></div>
+              <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Environment</div><div className="mt-1 text-sm font-semibold text-[#071421]">{operatingStageMeta.environment}</div></div>
+              <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Last meaningful contact</div><div className="mt-1 text-sm font-semibold text-[#071421]">{leadGuidance?.latestActivity.at ? formatRelativeTime(leadGuidance.latestActivity.at) : 'No activity recorded'}</div></div>
+              <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Source</div><div className="mt-1 text-sm font-semibold text-[#071421]">{lead.source || 'Not recorded'}</div></div>
+              <div className="bg-white p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Risk</div><div className={`mt-1 text-sm font-semibold ${operatingExceptions.some(item => item.severity === 'urgent') ? 'text-rose-700' : operatingExceptions.length ? 'text-amber-700' : 'text-emerald-700'}`}>{operatingExceptions.some(item => item.severity === 'urgent') ? 'Intervention required' : operatingExceptions.length ? `${operatingExceptions.length} exception${operatingExceptions.length === 1 ? '' : 's'}` : 'No clear exception'}</div></div>
             </div>
           </div>
 
           <aside className="border-t border-[var(--app-line)] bg-[#fbfaf6] p-5 xl:border-l xl:border-t-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a6800]">What must happen next</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a6800]">What must happen next</div>
             <div className="mt-3 text-base font-semibold leading-6 text-[#071421]">{operatingExceptions[0]?.action || leadGuidance?.action.nextAction || 'Keep the operational record current'}</div>
             <p className="mt-2 text-sm leading-5 text-[var(--app-muted)]">{operatingExceptions[0]?.detail || leadGuidance?.salesLanguage || 'No blocking exception is visible from the current record.'}</p>
             {leadGuidance ? <div className="mt-5 space-y-2">
@@ -4122,12 +4122,14 @@ export default function SalesLeadDetailPage() {
 
       <PromiseTracker lead={lead} onUpdated={nextLead => applyLeadSnapshot(nextLead, { hydrateForm: false })} />
 
+      <div id="section-opportunity-network" className="scroll-mt-16">
       <OpportunityNetworkWorkspace
         key={`${lead.id}:${lead.opportunityContext?.updatedAt || 'new'}`}
         lead={lead}
         disabled={!canEditCurrentLead}
         onUpdated={nextLead => applyLeadSnapshot(nextLead, { hydrateForm: false })}
       />
+      </div>
 
       {/* ── Sticky jump nav ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 hidden overflow-x-auto border-y border-[var(--app-line)] bg-[var(--app-panel-strong)] px-3 md:block">
@@ -4156,7 +4158,7 @@ export default function SalesLeadDetailPage() {
         <div className="border-l-2 border-[#C99700] bg-white px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a6800]">Inventory parsed from customer text · review required</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a6800]">Inventory parsed from customer text · review required</div>
               <p className="mt-1 text-sm text-[var(--app-muted)]">
                 {textParsedInventoryReviewItems.length} automatically captured item{textParsedInventoryReviewItems.length === 1 ? '' : 's'} must be checked before the inventory is treated as confirmed.
               </p>
@@ -4217,10 +4219,10 @@ export default function SalesLeadDetailPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[var(--app-ink)] truncate">
                   <span className="truncate">{displayLeadName}</span>
-                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)] shrink-0">{leadGuidance.stageLabel}</span>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${leadGuidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' : leadGuidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{leadGuidance.heat.label} · {leadGuidance.heat.score}</span>
-                  {spamSignal.isSpam && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold shrink-0 text-amber-700" title={spamSignal.reason}>Possible Spam</span>}
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold shrink-0 ${autoSaveMeta.tone}`}>{autoSaveMeta.label}</span>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)] shrink-0">{leadGuidance.stageLabel}</span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold shrink-0 ${leadGuidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' : leadGuidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>{leadGuidance.heat.label} · {leadGuidance.heat.score}</span>
+                  {spamSignal.isSpam && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold shrink-0 text-amber-700" title={spamSignal.reason}>Possible Spam</span>}
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold shrink-0 ${autoSaveMeta.tone}`}>{autoSaveMeta.label}</span>
                 </div>
                 <button onClick={toggleGuidancePanel} className="shrink-0 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-xs font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)]">▼ Expand</button>
               </div>
@@ -4229,10 +4231,10 @@ export default function SalesLeadDetailPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--app-ink)]">
                   <span className={`truncate ${leadCommandBarCompact ? 'text-sm' : 'text-base'}`}>{displayLeadName}</span>
-                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{leadGuidance.stageLabel}</span>
-                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">{leadGuidance.branchLabel}</span>
-                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">Owner: {leadGuidance.ownerLabel}</span>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{leadGuidance.stageLabel}</span>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-muted)]">{leadGuidance.branchLabel}</span>
+                  <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-muted)]">Owner: {leadGuidance.ownerLabel}</span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
                     leadGuidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' :
                     leadGuidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' :
                     leadGuidance.heat.tone === 'warm' ? 'border-amber-200 bg-amber-50 text-amber-700' :
@@ -4241,12 +4243,12 @@ export default function SalesLeadDetailPage() {
                   }`}>
                     {leadGuidance.heat.label} · {leadGuidance.heat.score}
                   </span>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${autoSaveMeta.tone}`}>{autoSaveMeta.label}</span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${autoSaveMeta.tone}`}>{autoSaveMeta.label}</span>
                   {leadGuidance.action.goldenMoment ? (
-                    <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
+                    <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
                   ) : null}
                   {leadCommandBarCompact && leadGuidance.ownerLabel === 'Unassigned' ? (
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">No owner</span>
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">No owner</span>
                   ) : null}
                 </div>
 
@@ -4276,7 +4278,7 @@ export default function SalesLeadDetailPage() {
                 ) : null}
 
                 <div className={`rounded-[10px] bg-[#071421]/5 ${leadCommandBarCompact ? 'mt-2 px-3 py-2' : 'mt-3 px-4 py-3'}`}>
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#071421]/60">Next Action</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#071421]/60">Next Action</div>
                   <div className={`mt-1 font-semibold text-[#071421] ${leadCommandBarCompact ? 'text-xs' : 'text-sm'}`}>{leadGuidance.action.nextAction}</div>
                   {!leadCommandBarCompact ? (
                     <div className="mt-1 text-sm text-[#071421]/70">{leadGuidance.salesLanguage}</div>
@@ -4354,7 +4356,7 @@ export default function SalesLeadDetailPage() {
             ← Back
           </button>
           <h1 className="font-display text-base font-semibold text-[var(--app-ink)]">{displayLeadName}</h1>
-          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${
+          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] ${
             lead.stage === 'customer_success' ? 'bg-sky-100 text-sky-700' :
             lead.stage === 'completed' ? 'bg-indigo-100 text-indigo-700' :
             lead.stage === 'booked' ? 'bg-emerald-100 text-emerald-700' :
@@ -4367,27 +4369,27 @@ export default function SalesLeadDetailPage() {
             {SALES_LEAD_STAGES.find(s => s.id === lead.stage)?.label || lead.stage}
           </span>
           {lead.contextFlag ? (
-            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-semibold text-sky-700">
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700">
               {LEAD_CONTEXT_FLAGS.find(f => f.id === lead.contextFlag)?.label || lead.contextFlag}
             </span>
           ) : null}
           {lead.leadKind === 'realtor_opportunity' ? (
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
               Listing Opportunity
             </span>
           ) : null}
           {lead.leadKind === 'partner_opportunity' ? (
-            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-semibold text-sky-700">
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700">
               Partner Sales Handoff
             </span>
           ) : null}
           {lead.branch ? (
-            <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-[10px] font-semibold text-stone-700">
+            <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-[11px] font-semibold text-stone-700">
               {getSalesBranchLabel(lead.branch)}
             </span>
           ) : null}
           {lead.leadKind === 'realtor_opportunity' ? (
-            <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--app-ink)]">
+            <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--app-ink)]">
               Active contact: {lead.primaryContactRole === 'customer' ? 'Client' : getListingSideContactRoleLabel(lead.realtorContactKind)}
             </span>
           ) : null}
@@ -4402,7 +4404,7 @@ export default function SalesLeadDetailPage() {
             Owner: {leadOwnerName}
           </span>
           {!canEditCurrentLead ? (
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
               View only
             </span>
           ) : null}
@@ -4415,7 +4417,7 @@ export default function SalesLeadDetailPage() {
             </div>
           ) : null}
           {lead.stage === 'estimate_scheduled' && lead.estimateDate ? (
-            <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[10px] font-semibold text-violet-700">
+            <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-semibold text-violet-700">
               {lead.consultationTriggerReason ? '🏠 Consultation' : 'Estimate'}: {formatDate(lead.estimateDate)}{lead.estimateTime ? ` @ ${lead.estimateTime}` : ''}
               {lead.consultationAssignedManagerName ? ` — ${lead.consultationAssignedManagerName}` : ''}
             </span>
@@ -4678,7 +4680,7 @@ export default function SalesLeadDetailPage() {
                         finally { setSaving(false) }
                       })()}
                       disabled={saving}
-                      className="mt-3 w-full rounded-[6px] border border-amber-300 bg-amber-100 px-3 py-1.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-200 disabled:opacity-60"
+                      className="mt-3 w-full rounded-[6px] border border-amber-300 bg-amber-100 px-3 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-200 disabled:opacity-60"
                     >
                       {saving ? '🔍 Searching…' : '🔍 Search Listing Contact'}
                     </button>
@@ -4687,7 +4689,7 @@ export default function SalesLeadDetailPage() {
                   {lead.realtorOutreachStartedAt && (
                     <div className="mt-2 flex items-center gap-2 rounded-[6px] border border-emerald-200 bg-emerald-50 px-2.5 py-2">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                      <div className="text-[10px] text-emerald-800">
+                      <div className="text-[11px] text-emerald-800">
                         <span className="font-semibold">Pitched</span>
                         {lead.realtorLastTouchAt
                           ? ` · last touch ${formatRelativeTime(lead.realtorLastTouchAt)}`
@@ -4698,7 +4700,7 @@ export default function SalesLeadDetailPage() {
                   {canHandleCurrentLeadCommunication && lead.primaryContactRole === 'realtor' && lead.realtorPhone && (
                     <button
                       onClick={() => openRealtorPitchSms()}
-                      className="mt-2 w-full rounded-[6px] border border-amber-400 bg-amber-200 px-3 py-1.5 text-[10px] font-semibold text-amber-900 hover:bg-amber-300 transition-colors"
+                      className="mt-2 w-full rounded-[6px] border border-amber-400 bg-amber-200 px-3 py-1.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-300 transition-colors"
                     >
                       {lead.realtorOutreachStartedAt ? '📱 Follow Up — Send SMS' : `📱 Pitch ${getListingSideContactRoleLabel(lead.realtorContactKind)} — Send SMS`}
                     </button>
@@ -4848,11 +4850,11 @@ export default function SalesLeadDetailPage() {
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-rose-700">Internal Time Impact</label>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-rose-700">Internal Time Impact</label>
                         <input type="number" min="0" step="0.5" value={onsiteDeltaHours} onChange={e => setOnsiteDeltaHours(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 1.5" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-rose-700">Flat-Rate Adjustment ($)</label>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-rose-700">Flat-Rate Adjustment ($)</label>
                         <input type="number" min="0" value={onsiteExtraCost} onChange={e => setOnsiteExtraCost(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 250" />
                       </div>
                     </div>
@@ -4873,7 +4875,7 @@ export default function SalesLeadDetailPage() {
                 {/* Change log */}
                 {quote?.changeLog && quote.changeLog.length > 0 && (
                   <div className="rounded-[10px] border border-amber-200 bg-amber-50 p-3 space-y-2">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Quote Revisions ({quote.changeLog.length})</div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Quote Revisions ({quote.changeLog.length})</div>
                     {quote.changeLog.map(entry => (
                       <div key={entry.id} className="text-[11px] text-amber-900 border-t border-amber-200 pt-1.5">
                         <div className="flex items-center justify-between gap-2">
@@ -4881,7 +4883,7 @@ export default function SalesLeadDetailPage() {
                           <span className="text-amber-600 shrink-0">{new Date(entry.changedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
                         </div>
                         {entry.note && <div className="text-amber-700 mt-0.5">{entry.note}</div>}
-                        <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-amber-600 text-[10px]">
+                        <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-amber-600 text-[11px]">
                           {entry.previousTotal !== undefined && entry.newTotal !== undefined && (
                             <span>{formatMoney(entry.previousTotal)} → {formatMoney(entry.newTotal)}</span>
                           )}
@@ -4927,16 +4929,16 @@ export default function SalesLeadDetailPage() {
                     <div className="crm-label">Post-Job Outcome</div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Hours</label>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Hours</label>
                         <input type="number" min="0" step="0.5" value={outcomeActualHours} onChange={e => setOutcomeActualHours(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 4.5" />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Crew</label>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Actual Crew</label>
                         <input type="number" min="1" max="10" value={outcomeActualCrew} onChange={e => setOutcomeActualCrew(e.target.value)} className="crm-input w-full text-xs" placeholder="e.g. 3" />
                       </div>
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Customer Rating</label>
+                      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Customer Rating</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map(star => (
                           <button key={star} type="button" disabled={!canEditCurrentLead} onClick={() => setOutcomeRating(star)} className={`text-xl transition ${outcomeRating >= star ? 'text-amber-400' : 'text-stone-300'}`}>★</button>
@@ -5025,7 +5027,7 @@ export default function SalesLeadDetailPage() {
                             {receiptBusy ? 'Sending...' : 'Resend Deposit Receipt'}
                           </button>
                           {receiptNotice ? (
-                            <div className="mt-2 rounded-[6px] bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                            <div className="mt-2 rounded-[6px] bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
                               {receiptNotice}
                             </div>
                           ) : null}
@@ -5038,7 +5040,7 @@ export default function SalesLeadDetailPage() {
                           <div className="font-semibold">
                             {hasStoredPaymentCard ? `Balance card on file — ${storedPaymentCardLabel}` : 'No saved card on file for automatic balance charging'}
                           </div>
-                          <div className="mt-1 text-[10px] opacity-80">
+                          <div className="mt-1 text-[11px] opacity-80">
                             {hasStoredPaymentCard
                               ? 'Use the balance action below to charge without opening Stripe Dashboard.'
                               : 'If this deposit was cash, e-transfer, or cheque, take a card by phone now if you want to charge the balance later.'}
@@ -5067,7 +5069,7 @@ export default function SalesLeadDetailPage() {
                             })()
                             if (totalPaid <= 0) return null
                             return (
-                              <div className="rounded-[6px] bg-slate-50 border border-slate-200 px-3 py-2 text-[10px] space-y-0.5">
+                              <div className="rounded-[6px] bg-slate-50 border border-slate-200 px-3 py-2 text-[11px] space-y-0.5">
                                 <div className="flex justify-between text-[var(--app-muted)]">
                                   <span>Deposit charged</span>
                                   <span className="font-semibold text-[var(--app-ink)]">{formatMoney(depositPaid)}</span>
@@ -5134,7 +5136,7 @@ export default function SalesLeadDetailPage() {
                               {sendInvoiceBusy ? '...' : 'Send Invoice'}
                             </button>
                           </div>
-                          <div className="text-[10px] text-[var(--app-muted)]">
+                          <div className="text-[11px] text-[var(--app-muted)]">
                             Quoted balance: {formatMoney(quote.balance)} — adjust if actual hours differ
                           </div>
                         </div>
@@ -5163,7 +5165,7 @@ export default function SalesLeadDetailPage() {
                         {hasStoredPaymentCard ? (
                           <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                             <div className="font-semibold">Saved card on file — {storedPaymentCardLabel}</div>
-                            <div className="mt-1 text-[10px] text-emerald-700">You can charge the deposit now without sending the customer back to the payment link.</div>
+                            <div className="mt-1 text-[11px] text-emerald-700">You can charge the deposit now without sending the customer back to the payment link.</div>
                           </div>
                         ) : null}
                         <button
@@ -5264,11 +5266,11 @@ export default function SalesLeadDetailPage() {
                       </summary>
                       <div className="space-y-2 border-t border-[var(--app-line)] p-3">
                         <label className="block">
-                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Decision / check-in date</span>
+                          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Decision / check-in date</span>
                           <input type="date" min={new Date().toISOString().slice(0, 10)} value={tentativeDecisionDate} onChange={event => setTentativeDecisionDate(event.target.value)} className="crm-input bg-white text-xs" />
                         </label>
                         <label className="block">
-                          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Why tentative?</span>
+                          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Why tentative?</span>
                           <select value={tentativeReason} onChange={event => setTentativeReason(event.target.value as typeof tentativeReason)} className="crm-input bg-white text-xs">
                             {Object.entries(TENTATIVE_REASON_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                           </select>
@@ -5348,7 +5350,7 @@ export default function SalesLeadDetailPage() {
                   >
                     {creatingQuote ? 'Building...' : '+ Add Separate Job'}
                   </button>
-                  <div className="mt-2 text-[10px] leading-4 text-[var(--app-muted)]">
+                  <div className="mt-2 text-[11px] leading-4 text-[var(--app-muted)]">
                     Use conjoint move inside the estimate for two pickups going to one destination. Add a separate job only for another date, commercial work, standalone junk, or a different booking.
                   </div>
                 </div>
@@ -5358,12 +5360,12 @@ export default function SalesLeadDetailPage() {
               {/* Linked jobs panel */}
               {additionalQuotes.length > 0 && (
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-1.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">All Linked Jobs</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">All Linked Jobs</div>
                   {quote && (
                     <Link href={`/sales/quotes/${quote.id}`} className="flex items-center justify-between rounded-[6px] bg-white px-3 py-2 text-xs hover:bg-[var(--app-panel)]">
                       <span className="min-w-0 font-medium text-[var(--app-ink)]">
                         <span className="block truncate">{getQuoteOptionLabel(quote)}</span>
-                        <span className="block text-[10px] text-[var(--app-muted)]">{quote.number}</span>
+                        <span className="block text-[11px] text-[var(--app-muted)]">{quote.number}</span>
                       </span>
                       <span className="text-[var(--app-muted)] capitalize">{quote.moveType || 'residential'} · {quote.status}</span>
                     </Link>
@@ -5372,25 +5374,26 @@ export default function SalesLeadDetailPage() {
                     <div key={aq.id} className="flex items-center gap-2 rounded-[6px] bg-white px-3 py-2 text-xs">
                       <Link href={`/sales/quotes/${aq.id}`} className="min-w-0 flex-1 hover:underline">
                         <span className="block truncate font-medium text-[var(--app-ink)]">{getQuoteOptionLabel(aq)}</span>
-                        <span className="block text-[10px] text-[var(--app-muted)] capitalize">{aq.number} · {aq.moveType || 'residential'} · {aq.status}</span>
+                        <span className="block text-[11px] text-[var(--app-muted)] capitalize">{aq.number} · {aq.moveType || 'residential'} · {aq.status}</span>
                       </Link>
                       {aq.status === 'draft' && !aq.acceptedAt && !aq.depositPaidAt ? (
                         <button
                           type="button"
                           onClick={() => void removeLinkedQuote(aq)}
                           disabled={!canEditCurrentLead || creatingQuote}
-                          className="rounded-[6px] bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700 disabled:opacity-50"
+                          className="rounded-[6px] bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 disabled:opacity-50"
                           title="Remove this unused draft linked job"
                         >
                           Remove
                         </button>
                       ) : (
-                        <span className="rounded-[6px] bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">Locked</span>
+                        <span className="rounded-[6px] bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">Locked</span>
                       )}
                     </div>
                   ))}
                 </div>
               )}
+              <div id="section-quote" className="scroll-mt-16">
               <OperatingPlanPanel lead={lead} quote={quote} onSaved={next => {
                 inventoryPersistRevisionRef.current += 1
                 if (inventoryPersistTimerRef.current) clearTimeout(inventoryPersistTimerRef.current)
@@ -5402,6 +5405,8 @@ export default function SalesLeadDetailPage() {
                 setParkingNotes(next.parkingNotes || '')
                 setQuoteMoveTime(next.moveTime || quote?.moveTime || '')
               }} />
+              </div>
+              <div id="section-inventory" className="scroll-mt-16">
               <InventoryVerificationPanel
                 lead={lead}
                 canEditCurrentLead={canEditCurrentLead}
@@ -5412,20 +5417,21 @@ export default function SalesLeadDetailPage() {
                 onGenerateLinkOnly={() => void generateSurveyLinkOnly()}
                 onRemoveMedia={handleRemoveMedia}
               />
-              <details className="group rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
+              </div>
+              <details id="section-media" className="group scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)]">
                 <summary className="cursor-pointer list-none p-3">
                   <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Rep Media Upload</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Rep Media Upload</div>
                     <div className="mt-1 text-xs text-[var(--app-muted)]">
                       Upload customer photos, videos, or receipts directly into this lead so inventory proof and job expenses stay with the same timeline.
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)]">
+                    <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-muted)]">
                       {(lead.mediaAssets || []).length} file{(lead.mediaAssets || []).length === 1 ? '' : 's'}
                     </div>
-                    <div className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)]">
+                    <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-muted)]">
                       {(lead.mediaAssets || []).filter(asset => asset.category === 'receipt' || asset.source === 'receipt_upload').length} receipt{(lead.mediaAssets || []).filter(asset => asset.category === 'receipt' || asset.source === 'receipt_upload').length === 1 ? '' : 's'}
                     </div>
                     <span className="text-[var(--app-muted)] transition group-open:rotate-180">⌄</span>
@@ -5535,12 +5541,12 @@ export default function SalesLeadDetailPage() {
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Auto-Nudges</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Auto-Nudges</div>
                       <div className="mt-1 text-xs text-[var(--app-muted)]">
                         Business-hours only. Never more than one per lead per day. Suppressed after a recent rep touch or customer reply.
                       </div>
                     </div>
-                    <div className="rounded-full bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)]">
+                    <div className="rounded-full bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-muted)]">
                       {automationLoading ? 'Refreshing…' : `${automationJobs.length} scheduled`}
                     </div>
                   </div>
@@ -5603,7 +5609,7 @@ export default function SalesLeadDetailPage() {
                   ) : null}
 
                   <div className="mt-3">
-                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Scheduled Nudges</div>
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Scheduled Nudges</div>
                     <div className="space-y-2">
                       {automationJobs.length > 0 ? (
                         automationJobs.map(job => (
@@ -5618,7 +5624,7 @@ export default function SalesLeadDetailPage() {
                               type="button"
                               disabled={!canControlLeadAutomation || automationSavingKey === job.id}
                               onClick={() => void cancelLeadAutomationJob(job.id)}
-                              className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                              className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
                             >
                               {automationSavingKey === job.id ? 'Cancelling…' : 'Cancel'}
                             </button>
@@ -5636,7 +5642,7 @@ export default function SalesLeadDetailPage() {
 
                 {/* Follow-up date quick setter */}
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
-                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                     Follow-up {followUpDate ? `— ${formatDate(followUpDate)}` : '— not set'}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-2">
@@ -5653,7 +5659,7 @@ export default function SalesLeadDetailPage() {
                           setFollowUpDate(d.toISOString().slice(0, 10))
                           if (!followUpStatus) setFollowUpStatus('pending')
                         }}
-                        className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-medium text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] disabled:opacity-50"
+                        className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-medium text-[var(--app-ink)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] disabled:opacity-50"
                       >
                         {label}
                       </button>
@@ -5665,7 +5671,7 @@ export default function SalesLeadDetailPage() {
                           setFollowUpDate('')
                           if (followUpStatus === 'pending') setFollowUpStatus('')
                         }}
-                        className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-medium text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+                        className="rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-100 disabled:opacity-50"
                       >
                         Clear
                       </button>
@@ -5818,7 +5824,7 @@ export default function SalesLeadDetailPage() {
               </fieldset>
 
               <div className={`rounded-[10px] border px-3 py-3 ${autoSaveMeta.tone}`}>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.12em]">Lead Sync</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em]">Lead Sync</div>
                 <div className="mt-1 text-sm font-semibold">{autoSaveMeta.label}</div>
                 <div className="mt-1 text-[11px] leading-5">{autoSaveMeta.detail}</div>
                 {autoSaveState === 'error' ? (
@@ -6007,8 +6013,8 @@ export default function SalesLeadDetailPage() {
           <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
             <div className="flex items-start justify-between gap-3">
               <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Why was this lead lost?</h2>
-              {aiLossLoading && <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500 animate-pulse">AI reading…</span>}
-              {!aiLossLoading && aiLossSuggested && <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">AI pre-filled</span>}
+              {aiLossLoading && <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-500 animate-pulse">AI reading…</span>}
+              {!aiLossLoading && aiLossSuggested && <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-600">AI pre-filled</span>}
             </div>
             <p className="mt-1 text-xs text-[var(--app-muted)]">Select a reason below — the lead won&apos;t be moved until you click &quot;Mark as Lost&quot;.</p>
             <p className="mt-1 text-sm text-[var(--app-muted)]">Required before marking as lost. Helps improve your close rate over time.</p>
@@ -6155,7 +6161,7 @@ export default function SalesLeadDetailPage() {
                   <h2 className="text-base font-bold text-white">Confirm Job — {lead?.name}</h2>
                   <p className="mt-0.5 text-xs text-slate-300">Deposit required to lock in this booking.</p>
                 </div>
-                <button onClick={closeConfirmJobModal} className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white transition-colors">✕</button>
+                <button onClick={closeConfirmJobModal} className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-white/10 hover:text-white transition-colors">✕</button>
               </div>
             </div>
 
@@ -6210,7 +6216,7 @@ export default function SalesLeadDetailPage() {
                     </div>
                   ) : null}
                   <label className="block">
-                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Deposit Amount</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Deposit Amount</span>
                     <input
                       type="number"
                       value={confirmJobDeposit}
@@ -6220,7 +6226,7 @@ export default function SalesLeadDetailPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Payment Method</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Payment Method</span>
                     <select value={confirmJobDepositMethod} onChange={e => setConfirmJobDepositMethod(e.target.value)} className="crm-input mt-1.5 w-full">
                       {DEPOSIT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>

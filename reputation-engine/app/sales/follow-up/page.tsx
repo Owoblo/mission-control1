@@ -362,14 +362,14 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
             <Link href={`/sales/leads/${lead.id}`} className="text-sm font-semibold text-[var(--app-ink)] hover:text-[var(--app-accent)] transition">
               {lead.name || lead.phone || 'Unknown'}
             </Link>
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${stageColor(lead.stage)}`}>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${stageColor(lead.stage)}`}>
               {lead.stage?.replace(/_/g, ' ')}
             </span>
-            <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${statusMeta.cls}`}>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${statusMeta.cls}`}>
               {statusMeta.label}
             </span>
             {(overdue || dueToday) && (
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${tone.flag}`}>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${tone.flag}`}>
                 {tone.label}
               </span>
             )}
@@ -384,14 +384,14 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
           </div>
         </div>
         {/* Contact age */}
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${ageBadge.cls}`}>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${ageBadge.cls}`}>
           {ageBadge.label}
         </span>
       </div>
 
       {/* Next follow-up */}
       {lead.followUpDate && (
-        <div className={`mt-2 text-[10px] font-medium ${overdue ? 'text-[#9b5a3c]' : dueToday ? 'text-[#9a5a00]' : 'text-[var(--app-muted)]'}`}>
+        <div className={`mt-2 text-[11px] font-medium ${overdue ? 'text-[#9b5a3c]' : dueToday ? 'text-[#9a5a00]' : 'text-[var(--app-muted)]'}`}>
           {overdue ? `Follow-up was ${Math.abs(fuDays)}d ago` : dueToday ? 'Follow up today' : `Follow up ${formatDate(lead.followUpDate)}`}
         </div>
       )}
@@ -400,7 +400,7 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
       <div className="mt-2">
         <button
           onClick={() => void fetchAiBrief()}
-          className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--app-accent)] hover:opacity-80 transition"
+          className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--app-accent)] hover:opacity-80 transition"
         >
           <span>{briefOpen ? '▼' : '▶'}</span>
           {aiBusy ? 'Building brief…' : aiBullets ? 'Pre-call brief' : 'Load pre-call brief'}
@@ -417,7 +417,7 @@ function LeadCard({ lead, quote, onNote }: { lead: CRMLead; quote?: CRMQuote | n
             {/* AI talking points */}
             {aiBullets && aiBullets.length > 0 && (
               <div className="border-t border-[var(--app-line)] pt-2 space-y-1.5">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--app-accent)]">AI talking points</div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--app-accent)]">AI talking points</div>
                 {aiBullets.map((b, i) => (
                   <div key={i} className="flex gap-2 text-[11px] text-[var(--app-ink)] leading-relaxed">
                     <span className="shrink-0 text-[var(--app-accent)]">•</span>
@@ -656,7 +656,7 @@ export default function FollowUpWallPage() {
           >
             {tab.label}
             {tab.count > 0 && (
-              <span className={`rounded-full px-1.5 text-[9px] font-bold ${
+              <span className={`rounded-full px-1.5 text-[11px] font-bold ${
                 filter === tab.id
                   ? 'bg-white/20 text-white'
                   : tab.id === 'overdue' ? 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'

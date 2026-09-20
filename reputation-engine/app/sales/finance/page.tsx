@@ -452,11 +452,11 @@ export default function FinancePage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-[#071421]">{row.entry.workerName}</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                           {CREW_PAYOUT_STATUS_LABELS[row.entry.payoutStatus || 'submitted']}
                         </span>
                         {row.branch ? (
-                          <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">
+                          <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-muted)]">
                             {row.branch}
                           </span>
                         ) : null}
@@ -524,11 +524,11 @@ export default function FinancePage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-[#071421]">{receipt.leadName}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${receipt.linkedCostId ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${receipt.linkedCostId ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                           {receipt.linkedCostId ? 'Linked' : 'Needs cost'}
                         </span>
                         {receipt.branch ? (
-                          <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">
+                          <span className="rounded-full bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-muted)]">
                             {receipt.branch}
                           </span>
                         ) : null}
@@ -583,7 +583,7 @@ export default function FinancePage() {
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="font-semibold text-[#071421]">{job.name}</span>
                           {job.moveDate && <span className="text-xs text-[var(--app-muted)]">Move: {job.moveDate}</span>}
-                          <span title={job.moneyState.explanation} className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${job.moneyState.requiresAttention ? 'border-amber-300 bg-amber-50 text-amber-800' : job.moneyState.status === 'paid_in_full' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>{job.moneyState.label}</span>
+                          <span title={job.moneyState.explanation} className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${job.moneyState.requiresAttention ? 'border-amber-300 bg-amber-50 text-amber-800' : job.moneyState.status === 'paid_in_full' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>{job.moneyState.label}</span>
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                           <span className="text-[var(--app-muted)]">Revenue (pre-tax): <span className="font-semibold text-[#071421]">{formatMoney(job.quoteAmount)}</span></span>
@@ -612,7 +612,7 @@ export default function FinancePage() {
                         {job.warnings.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {job.warnings.map(warning => (
-                              <span key={warning} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                              <span key={warning} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
                                 {warning}
                               </span>
                             ))}
@@ -628,7 +628,7 @@ export default function FinancePage() {
                                 <span className="font-semibold text-[#071421]">{formatMoney(c.amount_cents / 100)}</span>
                                 {c.description && <span className="text-[var(--app-muted)]">· {c.description}</span>}
                                 {c.linkedReceiptCount ? (
-                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                                     {c.linkedReceiptCount} receipt{c.linkedReceiptCount === 1 ? '' : 's'}
                                   </span>
                                 ) : null}

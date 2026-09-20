@@ -55,6 +55,28 @@ const inventory_verification_1 = require("../../lib/inventory-verification");
     strict_1.default.equal(updatedInventory[2].source, 'customer_verification');
     strict_1.default.equal(updatedInventory[2].room, 'Garage');
 });
+(0, node_test_1.default)('inventory verification remains authoritative when a rep adds items later', () => {
+    const original = [
+        { id: 'sofa', room: 'Living Room', name: 'Sofa', size: '3 seat', qty: 1, included: true, source: 'mls' },
+        { id: 'desk', room: 'Office / Den', name: 'Desk', size: 'standard', qty: 1, included: true, source: 'mls' },
+    ];
+    const keyMap = (0, inventory_verification_1.buildInventoryVerificationChoiceKeyMap)(original);
+    const verification = {
+        itemChoices: [
+            { itemKey: keyMap.get(0) || '', decision: 'not_going', updatedAt: '2026-08-06T18:20:30.489Z' },
+            { itemKey: keyMap.get(1) || '', decision: 'going', updatedAt: '2026-08-06T18:20:30.489Z' },
+        ],
+    };
+    const staleCrmInventory = [
+        ...original,
+        { id: 'manual_grill', room: 'Outdoor', name: 'Natural gas barbecue', qty: 1, included: true, source: 'manual' },
+    ];
+    const reconciled = (0, inventory_verification_1.applyInventoryVerificationToInventory)(staleCrmInventory, verification);
+    strict_1.default.equal(reconciled.find(item => item.id === 'sofa')?.included, false);
+    strict_1.default.equal(reconciled.find(item => item.id === 'sofa')?.status, 'excluded');
+    strict_1.default.equal(reconciled.find(item => item.id === 'desk')?.included, true);
+    strict_1.default.equal(reconciled.find(item => item.id === 'manual_grill')?.included, true);
+});
 (0, node_test_1.default)('inventory verification activity surfaces the latest customer edits with item context', () => {
     const inventory = [
         { id: 'item_1', room: 'Living Room', name: 'Sectional Sofa', qty: 1, included: true, source: 'mls' },

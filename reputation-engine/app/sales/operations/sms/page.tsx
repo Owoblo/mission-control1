@@ -239,7 +239,7 @@ export default function OpsSmsPage() {
                 <span className="shrink-0 text-[11px] text-slate-500">{timeAgo(thread.lastAt)}</span>
               </div>
               <div className="mt-1 truncate text-sm leading-[1.5] text-slate-600">{thread.lastBody}</div>
-              {thread.unread && <div className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">New</div>}
+              {thread.unread && <div className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">New</div>}
             </button>
           ))}
         </div>
@@ -296,7 +296,7 @@ export default function OpsSmsPage() {
                           )}
                         </div>
                       ))}
-                      <div className={`mt-1 text-[10px] ${isOutbound ? 'text-white/60' : 'text-slate-500'}`}>{timeAgo(msg.created_at)}</div>
+                      <div className={`mt-1 text-[11px] ${isOutbound ? 'text-white/60' : 'text-slate-500'}`}>{timeAgo(msg.created_at)}</div>
                     </div>
                   </div>
                 )
@@ -312,9 +312,9 @@ export default function OpsSmsPage() {
                     {f.type.startsWith('image/') ? (
                       <img src={URL.createObjectURL(f)} alt={f.name} className="h-16 w-16 rounded-[6px] object-cover" />
                     ) : (
-                      <div className="h-16 w-16 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[10px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,12)}</div>
+                      <div className="h-16 w-16 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[11px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,12)}</div>
                     )}
-                    <button onClick={() => setMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-xl bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">×</button>
+                    <button onClick={() => setMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-xl bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center">×</button>
                   </div>
                 ))}
               </div>
@@ -337,7 +337,7 @@ export default function OpsSmsPage() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendReply() } }}
                   placeholder={mediaFiles.length > 0 ? 'Add a caption (optional)...' : 'Message...'}
                   rows={2}
-                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white md:text-sm"
+                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] outline-none transition placeholder:text-slate-500 focus:border-slate-300 focus:bg-white md:text-sm"
                 />
                 <button
                   onClick={() => void sendReply()}

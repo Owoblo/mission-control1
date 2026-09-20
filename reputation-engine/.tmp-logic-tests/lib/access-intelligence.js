@@ -100,7 +100,8 @@ function deriveAccessComplexityAssessment(lead) {
         });
     }
     const extraMinutes = signals.reduce((sum, signal) => sum + signal.minutes, 0);
-    const status = !knownSignals && signals.length === 0
+    const confirmedRoutes = Boolean(lead.originAccess?.trim() && lead.destAccess?.trim());
+    const status = !confirmedRoutes && signals.length === 0
         ? 'unknown'
         : signals.some(signal => signal.severity === 'high_risk')
             ? 'high_risk'
@@ -115,9 +116,9 @@ function deriveAccessComplexityAssessment(lead) {
                 ? 'Access risk'
                 : 'Access unknown';
     const summary = status === 'clear'
-        ? 'House-style access detected. No extra access time expected.'
+        ? 'Origin and destination access documented. No additional setup constraints detected.'
         : status === 'unknown'
-            ? 'Access has not been inferred yet. Add addresses or run address intelligence.'
+            ? 'Document both carrying routes before treating access as confirmed.'
             : signals.map(signal => `${signal.label} (+${signal.minutes} min)`).join(' · ');
     return {
         status,
@@ -125,7 +126,7 @@ function deriveAccessComplexityAssessment(lead) {
         extraMinutes,
         extraHours: roundQuarterHour(extraMinutes / 60),
         accessAutoClear: status === 'clear',
-        parkingAutoClear: status === 'clear' || (knownSignals && factors.originParkingOk !== false && factors.destParkingOk !== false && factors.personBOriginParkingOk !== false),
+        parkingAutoClear: Boolean(parkingNotes) && status === 'clear' && factors.originParkingOk !== false && factors.destParkingOk !== false && factors.personBOriginParkingOk !== false,
         signals,
         summary,
     };

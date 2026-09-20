@@ -33,7 +33,7 @@ function StatPill({ value, label, accent }: { value: string | number; label: str
   return (
     <div className="text-center">
       <div className={`text-lg font-bold ${accent || 'text-[#071421]'}`}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-[var(--app-muted)]">{label}</div>
+      <div className="text-[11px] uppercase tracking-wider text-[var(--app-muted)]">{label}</div>
     </div>
   )
 }
@@ -73,10 +73,10 @@ export default function RepsPage() {
                   <div className="text-xs text-[var(--app-muted)]">{rep.totalLeads} leads total</div>
                 </div>
                 {i === 0 && data.reps.length > 1 && rep.repName !== 'Unassigned' && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Top Performer</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Top Performer</span>
                 )}
                 {rep.hotLeads > 0 && (
-                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">🔥 {rep.hotLeads} Hot</span>
+                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">🔥 {rep.hotLeads} Hot</span>
                 )}
               </div>
               <div className="text-right">
@@ -100,7 +100,7 @@ export default function RepsPage() {
               {/* Lost reasons */}
               {rep.topLostReasons.length > 0 && (
                 <div>
-                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Top Lost Reasons</div>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Top Lost Reasons</div>
                   <div className="space-y-1">
                     {rep.topLostReasons.map(({ reason, count }) => (
                       <div key={reason} className="flex items-center justify-between text-sm">
@@ -115,7 +115,7 @@ export default function RepsPage() {
               {/* Move type breakdown */}
               {Object.keys(rep.moveTypeCounts).length > 0 && (
                 <div>
-                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Booked Move Types</div>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Booked Move Types</div>
                   <div className="space-y-1">
                     {Object.entries(rep.moveTypeCounts).sort(([, a], [, b]) => b - a).map(([type, count]) => (
                       <div key={type} className="flex items-center justify-between text-sm">

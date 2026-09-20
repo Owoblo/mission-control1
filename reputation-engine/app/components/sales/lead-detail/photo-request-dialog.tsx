@@ -101,7 +101,7 @@ export function PhotoRequestDialog({
         ) : (
           <>
             <div className="mt-3 space-y-2">
-              <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">
                 {partyBLabel} phone number
               </label>
               <input

@@ -12,7 +12,8 @@ const sales_quote_sms_1 = require("../../lib/sales-quote-sms");
         quoteNumber: 'QT-2026-0706-LM',
         acceptUrl: 'https://go.quote2move.com/quote-accept?id=qt_123',
     });
-    strict_1.default.match(body, /estimate QT-2026-0706-LM is ready/);
+    strict_1.default.match(body, /estimate is ready/);
+    strict_1.default.doesNotMatch(body, /QT-2026-0706-LM/);
     strict_1.default.match(body, /Please review the full estimate here/);
     strict_1.default.doesNotMatch(body, /\$\d/);
     strict_1.default.doesNotMatch(body, /deposit/i);
@@ -29,4 +30,14 @@ const sales_quote_sms_1 = require("../../lib/sales-quote-sms");
     strict_1.default.doesNotMatch(body, /\$\d/);
     strict_1.default.doesNotMatch(body, /deposit/i);
     strict_1.default.doesNotMatch(body, /reply yes/i);
+});
+(0, node_test_1.default)('manual Ottawa quote SMS uses the supplied Dexa brand', () => {
+    const body = (0, sales_quote_sms_1.buildManualQuoteSmsDraft)({
+        firstName: 'Alex',
+        quoteNumber: 'QT-OTTAWA-1',
+        acceptUrl: 'https://go.quote2move.com/quote-accept?id=qt_ottawa',
+        brandName: 'Dexa Movers',
+    });
+    strict_1.default.match(body, /your Dexa Movers estimate is ready/);
+    strict_1.default.doesNotMatch(body, /Saturn Star/i);
 });

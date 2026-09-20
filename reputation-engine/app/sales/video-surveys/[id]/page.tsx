@@ -134,7 +134,7 @@ export default function RepresentativeVideoSurveyPage() {
           <Link href={session ? `/sales/leads/${session.leadId}` : '/sales'} className="text-xs text-white/60 hover:text-white">← Back to lead</Link>
           <div className="mt-1 flex items-center gap-3">
             <h1 className="font-semibold">Video Survey Studio</h1>
-            {session && <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold">{videoSurveyStatusLabel(session.status)}</span>}
+            {session && <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold">{videoSurveyStatusLabel(session.status)}</span>}
           </div>
         </div>
         <div className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${
@@ -192,7 +192,7 @@ export default function RepresentativeVideoSurveyPage() {
               <span className={`h-2.5 w-2.5 rounded-full ${isVideoSurveyParticipantPresent(presence.customer) ? 'bg-emerald-500' : 'animate-pulse bg-amber-500'}`} />
               {isVideoSurveyParticipantPresent(presence.customer) ? 'Customer joined — walkthrough is live' : 'You are in the room — waiting for the customer'}
             </div>
-            <p className="mt-1 text-[10px] leading-4 text-slate-600">
+            <p className="mt-1 text-[11px] leading-4 text-slate-600">
               {isVideoSurveyParticipantPresent(presence.customer)
                 ? 'Guide them room by room and mark anything that needs attention.'
                 : 'Keep this page open. The status will update automatically when they join.'}
@@ -204,14 +204,14 @@ export default function RepresentativeVideoSurveyPage() {
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-semibold">Walkthrough processing</h3>
-                  <p className="mt-0.5 text-[10px] text-slate-500">Updates automatically after the call ends.</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">Updates automatically after the call ends.</p>
                 </div>
                 {analysis && <span className="text-xs font-semibold text-[#0b7055]">{Math.round(Number(analysis.progress || 0))}%</span>}
               </div>
               <div className="mt-3 space-y-2">
                 {processingStages.map(stage => (
                   <div key={stage.key} className="flex items-center gap-2 text-xs">
-                    <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold ${
+                    <span className={`grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold ${
                       stage.state === 'complete'
                         ? 'bg-emerald-100 text-emerald-700'
                         : stage.state === 'active'
@@ -230,7 +230,7 @@ export default function RepresentativeVideoSurveyPage() {
           {playbackUrl && (
             <div className="mt-5">
               <h3 className="text-sm font-semibold">Watch the walkthrough</h3>
-              <p className="mt-1 text-[10px] leading-4 text-slate-500">Review the recording alongside the AI draft and your timestamped notes.</p>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">Review the recording alongside the AI draft and your timestamped notes.</p>
               <video controls preload="metadata" className="mt-3 aspect-video w-full rounded-xl bg-black" src={playbackUrl}>
                 Your browser does not support video playback.
               </video>
@@ -269,7 +269,7 @@ export default function RepresentativeVideoSurveyPage() {
                   <div className="mt-1 text-slate-500">{String(marker.room || '')}{marker.note ? ` · ${String(marker.note)}` : ''}</div>
                 </div>
               ))}
-              {markers.length === 0 && <div className="text-xs text-slate-400">No markers yet.</div>}
+              {markers.length === 0 && <div className="text-xs text-slate-500">No markers yet.</div>}
             </div>
           </div>
           <VideoSurveyReviewPanel sessionId={id} />

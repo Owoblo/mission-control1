@@ -58,7 +58,6 @@ const BASE_NAV = [
   { environment: 'Operations', href: '/sales/contractors', label: 'Contractors', match: (p: string) => p.startsWith('/sales/contractors'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/partner-operations', label: 'Partner Ops', match: (p: string) => p.startsWith('/sales/partner-operations'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/partner-simulations', label: 'Simulations', match: (p: string) => p.startsWith('/sales/partner-simulations'), roles: ['owner', 'manager', 'operations_lead'] },
-  { environment: 'Operations', href: '/sales/performance', label: 'System Health', match: (p: string) => p.startsWith('/sales/performance'), roles: ['owner', 'manager'] },
   { environment: 'Live', href: '/sales/operations/sms', label: 'Ops SMS', match: (p: string) => p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Care', href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
@@ -411,7 +410,7 @@ export function SalesHeader() {
           {/* ── Brand strip — slim full-width horizontal ───────────────── */}
           <div className={`hidden lg:flex items-center border-b border-[var(--app-line)] ${sidebarCollapsed ? 'h-14 justify-center px-0' : 'h-14 gap-2.5 px-4'}`}>
             <Link href={homeHref} className={`flex min-w-0 items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0'}`}>
-              {isDexaView ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[#071421] text-[9px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={32} height={32} className="shrink-0 object-contain" priority />}
+              {isDexaView ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[#071421] text-[11px] font-black tracking-tight text-white" aria-label="Dexa Movers">DEXA</span> : <Image src="/brand/saturn-star-icon-full-color.png" alt="Saturn Star" width={32} height={32} className="shrink-0 object-contain" priority />}
               {!sidebarCollapsed && (
                 <span className="truncate text-sm font-bold tracking-tight text-[var(--app-ink)]">{isDexaView ? 'Dexa OS' : 'Saturn Star OS'}</span>
               )}
@@ -462,7 +461,7 @@ export function SalesHeader() {
                 >
                   🔔
                   {notifTotal > 0 && (
-                    <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+                    <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
                       {notifTotal > 9 ? '9+' : notifTotal}
                     </span>
                   )}
@@ -501,7 +500,7 @@ export function SalesHeader() {
               >
                 🔔
                 {notifTotal > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
                     {notifTotal > 9 ? '9+' : notifTotal}
                   </span>
                 )}
@@ -568,13 +567,13 @@ export function SalesHeader() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{item.title}</div>
-                              <div className="shrink-0 text-[10px] text-[var(--app-muted)]">{timeAgo(item.time)}</div>
+                              <div className="shrink-0 text-[11px] text-[var(--app-muted)]">{timeAgo(item.time)}</div>
                             </div>
                             <div className="mt-0.5 truncate text-xs text-[var(--app-muted)]">
                               {item.branchLabel ? `${item.branchLabel} • ` : ''}{item.preview}
                             </div>
                             <div className="mt-1 flex items-center gap-2">
-                              <span className={`rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] ${
+                              <span className={`rounded-[4px] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.1em] ${
                                 item.type === 'lead'  ? 'bg-emerald-50 text-emerald-700' :
                                 item.type === 'sms'   ? 'bg-sky-50 text-sky-700' :
                                 item.type === 'email' ? 'bg-amber-50 text-amber-700' :
@@ -582,8 +581,8 @@ export function SalesHeader() {
                               }`}>
                                 {item.type === 'lead' ? 'New Lead' : item.type === 'sms' ? 'SMS' : item.type === 'email' ? 'Email' : 'Alert'}
                               </span>
-                              {item.phone && <span className="text-[10px] text-[var(--app-muted)]">{item.phone}</span>}
-                              {item.leadId && <span className="text-[10px] text-[var(--app-muted)]">→ In pipeline</span>}
+                              {item.phone && <span className="text-[11px] text-[var(--app-muted)]">{item.phone}</span>}
+                              {item.leadId && <span className="text-[11px] text-[var(--app-muted)]">→ In pipeline</span>}
                             </div>
                           </div>
                         </button>
@@ -617,7 +616,7 @@ export function SalesHeader() {
                 return (
                   <React.Fragment key={item.href}>
                   {(!index || visibleNavItems[index - 1]?.environment !== item.environment) && !sidebarCollapsed && (
-                    <div className="hidden px-3 pb-1 pt-4 text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)] first:pt-1 lg:block">
+                    <div className="hidden px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-muted)] first:pt-1 lg:block">
                       {item.environment}
                     </div>
                   )}
@@ -716,7 +715,7 @@ export function SalesHeader() {
                             </div>
                           </button>
                           <div className="ml-auto flex shrink-0 flex-col items-end gap-1.5">
-                            <div className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">
+                            <div className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">
                               {lead.stage}
                             </div>
                           </div>

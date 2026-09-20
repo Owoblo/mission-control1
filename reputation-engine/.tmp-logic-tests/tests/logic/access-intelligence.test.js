@@ -6,8 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = __importDefault(require("node:test"));
 const access_intelligence_1 = require("../../lib/access-intelligence");
-(0, node_test_1.default)('access intelligence auto-clears simple house-style access', () => {
+(0, node_test_1.default)('access intelligence clears documented simple routes', () => {
     const assessment = (0, access_intelligence_1.deriveAccessComplexityAssessment)({
+        originAccess: 'Ground level, direct doorway', destAccess: 'Ground level, direct doorway', parkingNotes: 'Driveway at each address',
         jobFactors: {
             originFloors: 1,
             originHasElevator: false,
@@ -67,4 +68,10 @@ const access_intelligence_1 = require("../../lib/access-intelligence");
     strict_1.default.equal(assessment.status, 'unknown');
     strict_1.default.equal(assessment.accessAutoClear, false);
     strict_1.default.equal(assessment.parkingAutoClear, false);
+});
+(0, node_test_1.default)('inferred single-floor defaults cannot establish confirmed access', () => {
+    const result = (0, access_intelligence_1.deriveAccessComplexityAssessment)({ jobFactors: { originFloors: 1, destFloors: 1, originParkingOk: true, destParkingOk: true } });
+    strict_1.default.equal(result.status, 'unknown');
+    strict_1.default.equal(result.accessAutoClear, false);
+    strict_1.default.equal(result.parkingAutoClear, false);
 });

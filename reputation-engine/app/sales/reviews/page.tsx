@@ -161,8 +161,8 @@ export default function ReviewsWorkspacePage() {
                     <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{job.moveFrom || 'Origin unavailable'} · {job.googleProfileLocation || 'Profile not selected'}</div>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusClass(cx.googleStatus)}`}>Google</span>
-                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusClass(cx.privateFeedbackStatus)}`}>Experience</span>
+                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusClass(cx.googleStatus)}`}>Google</span>
+                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusClass(cx.privateFeedbackStatus)}`}>Experience</span>
                     <span className="text-[var(--app-muted)]">{open ? '−' : '+'}</span>
                   </div>
                 </button>

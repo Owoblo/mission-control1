@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
+import { ConfirmDialog } from '@/app/components/confirm-dialog'
 
 type Payload = { offer: { status: string; moveDate?: string; arrivalWindow?: string; originCity: string; destinationCity: string; estimatedHoursMin?: number; estimatedHoursMax?: number; suggestedTruck?: string; crewSize?: number; requiredServiceTags: string[]; accessSummary: Record<string, string>; scopeNotes?: string; sanitizedBriefing?: string; offeredPayout: number; currency: string; expiresAt?: string }; recipient: { status: string; companyName?: string; contactName?: string } }
 
@@ -10,6 +11,7 @@ export default function ContractorOfferPage({ params }: { params: Promise<{ toke
   const [message, setMessage] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmingDecline, setConfirmingDecline] = useState(false)
   useEffect(() => { fetch(`/api/contractor/offers/${token}`, { cache: 'no-store' }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error); setData(body) }).catch(error => setMessage(error.message)) }, [token])
   async function respond(action: 'accept' | 'decline' | 'discussion') {
     setBusy(true); setMessage('')
@@ -24,6 +26,16 @@ export default function ContractorOfferPage({ params }: { params: Promise<{ toke
     {data.offer.sanitizedBriefing && <section className="rounded-2xl border bg-white p-5"><h2 className="font-bold text-[#071421]">Sanitized crew briefing</h2><pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-6 text-slate-600">{data.offer.sanitizedBriefing}</pre></section>}
     <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Offered payout</p><p className="mt-1 text-3xl font-bold text-emerald-900">{data.offer.currency} ${data.offer.offeredPayout.toFixed(2)}</p>{data.offer.expiresAt && <p className="mt-2 text-xs text-emerald-700">Respond by {new Date(data.offer.expiresAt).toLocaleString()}</p>}</section>
     {message && <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">{message}</div>}
-    {!closed && <><textarea value={note} onChange={event => setNote(event.target.value)} placeholder="Optional note or question" className="min-h-24 w-full rounded-xl border border-slate-300 p-3 text-sm"/><div className="grid gap-3 sm:grid-cols-3"><button disabled={busy} onClick={() => respond('accept')} className="rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white">Accept</button><button disabled={busy} onClick={() => respond('discussion')} className="rounded-xl bg-[#071421] px-4 py-3 font-bold text-white">Ask a question</button><button disabled={busy} onClick={() => respond('decline')} className="rounded-xl border border-rose-200 bg-white px-4 py-3 font-bold text-rose-700">Decline</button></div></>}
+    {!closed && <><textarea value={note} onChange={event => setNote(event.target.value)} placeholder="Optional note or question" className="min-h-24 w-full rounded-xl border border-slate-300 p-3 text-sm"/><div className="grid gap-3 sm:grid-cols-3"><button disabled={busy} onClick={() => respond('accept')} className="rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white">Accept</button><button disabled={busy} onClick={() => respond('discussion')} className="rounded-xl bg-[#071421] px-4 py-3 font-bold text-white">Ask a question</button><button disabled={busy} onClick={() => setConfirmingDecline(true)} className="rounded-xl border border-rose-200 bg-white px-4 py-3 font-bold text-rose-700">Decline</button></div></>}
+    <ConfirmDialog
+      open={confirmingDecline}
+      title="Decline this job?"
+      message={`Turning down this offer releases it to the next contractor. The payout of ${data.offer.currency} $${data.offer.offeredPayout.toFixed(2)} goes back into the pool.`}
+      confirmLabel="Decline offer"
+      destructive
+      busy={busy}
+      onConfirm={() => { setConfirmingDecline(false); void respond('decline') }}
+      onCancel={() => setConfirmingDecline(false)}
+    />
   </div></main>
 }

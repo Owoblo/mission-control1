@@ -87,42 +87,28 @@ function recalculateQuoteFromActuals(quote, input) {
         nextSubtotal = actualSubtotal;
         adjustmentMode = 'non_binding_actuals';
     }
-    else if (actualSubtotal > nextSubtotal) {
-        if (!justification) {
-            return {
-                requiresJustification: true,
-                hourlyRate,
-                actualSubtotal,
-                nonBinding,
-            };
-        }
-        nextSubtotal = actualSubtotal;
-        adjustmentMode = 'binding_override';
-    }
-    const hst = roundMoney(nextSubtotal * 0.13);
-    const total = roundMoney(nextSubtotal + hst);
+    const hst = nonBinding ? roundMoney(nextSubtotal * 0.13) : quote.hst;
+    const total = nonBinding ? roundMoney(nextSubtotal + hst) : quote.total;
     const paid = getQuotePaidSoFar(quote, input.lead);
     const balance = Math.max(0, roundMoney(total - paid.totalPaid));
     const notePrefix = adjustmentMode === 'hourly_minimum'
         ? `Actuals synced from completed move. ${minimumBillableHours}h minimum applied.`
         : nonBinding
             ? 'Actuals synced from completed move.'
-            : adjustmentMode === 'binding_override'
-                ? 'Binding estimate override approved from completed move.'
-                : 'Actuals recorded for completed move.';
+            : 'Actuals recorded for completed move.';
     const hoursNote = adjustmentMode === 'hourly_minimum' && minimumBilledHours !== actualHours
         ? `${actualHours}h worked, billed ${minimumBilledHours}h`
         : `${actualHours}h`;
     const note = `${notePrefix} ${hoursNote} at ${hourlyRate.toFixed(2)}/hr${justification ? ` — ${justification}` : ''}`;
     const updatedQuote = {
         ...quote,
-        crewSize: input.actualCrew || quote.crewSize,
+        crewSize: quote.crewSize,
         subtotal: nextSubtotal,
         hst,
         total,
         balance,
-        priceOverrideTotal: adjustmentMode === 'binding_override' ? total : quote.priceOverrideTotal,
-        priceOverrideReason: adjustmentMode === 'binding_override' ? justification : quote.priceOverrideReason,
+        priceOverrideTotal: quote.priceOverrideTotal,
+        priceOverrideReason: quote.priceOverrideReason,
         internalNotes: appendInternalNote(quote.internalNotes, note),
     };
     return {

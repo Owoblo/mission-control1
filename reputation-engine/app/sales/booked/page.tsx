@@ -228,9 +228,9 @@ export default function BookedJobsPage() {
                               {dayLabel(days)}
                             </span>
                             {lead.paymentStatus === 'deposit_received' ? (
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Deposit ✓</span>
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Deposit ✓</span>
                             ) : (
-                              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">No Deposit</span>
+                              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">No Deposit</span>
                             )}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-[var(--app-muted)]">

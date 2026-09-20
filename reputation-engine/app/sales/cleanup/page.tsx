@@ -104,7 +104,7 @@ export default function CleanupPage() {
       )}
 
       {loading ? (
-        <div className="text-slate-400 text-sm py-8 text-center">Scanning leads…</div>
+        <div className="text-slate-500 text-sm py-8 text-center">Scanning leads…</div>
       ) : candidates.length === 0 ? (
         <div className="rounded-xl bg-slate-50 border border-slate-200 p-10 text-center text-slate-500">
           <div className="text-3xl mb-2">✨</div>
@@ -155,20 +155,20 @@ export default function CleanupPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-[#071421] text-sm">{c.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500 uppercase tracking-wide">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500 uppercase tracking-wide">
                       {SOURCE_LABELS[c.source] || c.source}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500 uppercase tracking-wide">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500 uppercase tracking-wide">
                       {c.stage}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-0.5">
+                  <div className="text-xs text-slate-500 mt-0.5">
                     {c.phone || c.email || 'No contact info'}
                     {c.createdAt && ` · Added ${new Date(c.createdAt).toLocaleDateString()}`}
                   </div>
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {c.reasons.map(r => (
-                      <span key={r} className="rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-[10px] font-medium">
+                      <span key={r} className="rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-[11px] font-medium">
                         {r}
                       </span>
                     ))}

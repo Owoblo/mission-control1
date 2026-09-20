@@ -33,6 +33,145 @@ function makeLead(overrides = {}) {
         ...overrides,
     };
 }
+(0, node_test_1.default)('deposit policy uses 30% locally, 50% long-distance, and invoices commercial work', () => {
+    strict_1.default.equal((0, sales_1.getDefaultDepositRate)('residential'), 0.3);
+    strict_1.default.equal((0, sales_1.getDefaultDepositRate)('labor-only'), 0.3);
+    strict_1.default.equal((0, sales_1.getDefaultDepositRate)('packing'), 0.3);
+    strict_1.default.equal((0, sales_1.getDefaultDepositRate)('long-distance'), 0.5);
+    strict_1.default.equal((0, sales_1.getDefaultDepositRate)('commercial'), 0);
+});
+(0, node_test_1.default)('labour-only estimates omit truck requirements from the quote', () => {
+    const result = (0, sales_1.estimateLeadQuote)(makeLead({ moveType: 'labor-only' }), { quoteType: 'labor_only' });
+    strict_1.default.equal(result.truckCount, 0);
+    strict_1.default.equal(result.lineItems[0]?.description, 'Labor-Only Moving Crew');
+    strict_1.default.doesNotMatch(result.lineItems[0]?.details || '', /truck/i);
+});
+(0, node_test_1.default)('quote line-item reconciliation is stable when the estimate is unchanged', () => {
+    const current = [
+        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+    ];
+    const reconciled = (0, sales_1.reconcileEstimatedQuoteLineItems)(current, [
+        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+    ]);
+    strict_1.default.equal(reconciled, current, 'an unchanged estimate must preserve the state reference');
+});
+(0, node_test_1.default)('quote line-item reconciliation updates calculated rows and preserves manual rows', () => {
+    const manual = { description: 'Piano handling', details: 'Upright piano', amount: 250 };
+    const current = [
+        { description: 'Full-Service Moving', details: '3 professional movers', amount: 2400 },
+        manual,
+    ];
+    const reconciled = (0, sales_1.reconcileEstimatedQuoteLineItems)(current, [
+        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+    ]);
+    strict_1.default.deepEqual(reconciled, [
+        { description: 'Full-Service Moving', details: '4 professional movers', amount: 3552.5 },
+        manual,
+    ]);
+});
+(0, node_test_1.default)('rep-entered specialty pricing survives automatic estimate recalculation', () => {
+    const manualSpecialty = {
+        description: 'Specialty Item Handling',
+        details: 'Upright piano — rep confirmed',
+        amount: 275,
+        pricingSource: 'manual',
+    };
+    const reconciled = (0, sales_1.reconcileEstimatedQuoteLineItems)([
+        { description: 'Full-Service Moving', details: '3 movers', amount: 2400 },
+        manualSpecialty,
+    ], [
+        { description: 'Full-Service Moving', details: '4 movers', amount: 3552.5 },
+        { description: 'Specialty Item Handling', details: 'Upright piano', amount: 0 },
+    ]);
+    strict_1.default.deepEqual(reconciled, [
+        { description: 'Full-Service Moving', details: '4 movers', amount: 3552.5 },
+        manualSpecialty,
+    ]);
+});
+(0, node_test_1.default)('quote line-item reconciliation protects local and long-distance locked prices', () => {
+    for (const description of [
+        'Moving Services — Agreed Rate',
+        'Long-Distance Moving Service — All Inclusive',
+    ]) {
+        const current = [{ description, details: 'Rep-approved fixed price', amount: 3000 }];
+        const reconciled = (0, sales_1.reconcileEstimatedQuoteLineItems)(current, [
+            { description: 'Full-Service Moving', details: 'Calculated price', amount: 5000 },
+        ]);
+        strict_1.default.equal(reconciled, current);
+    }
+});
+(0, node_test_1.default)('small hourly moves include dispatch base and short-notice priority pricing', () => {
+    const moveDate = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+    const estimate = (0, sales_1.estimateLeadQuote)(makeLead({ moveDate }), {
+        quoteType: 'standard',
+        routeContext: {
+            pricingStatus: 'ready',
+            routeCategory: 'local',
+            billableDriveHours: 0.5,
+            operationalDriveHours: 0.5,
+            billableDistanceKm: 15,
+            operationalDistanceKm: 15,
+        },
+    });
+    strict_1.default.equal(estimate.lineItems.find(item => item.description === 'Move readiness & dispatch base')?.amount, 100);
+    strict_1.default.equal(estimate.lineItems.find(item => item.description === 'Priority booking surcharge')?.amount, 200);
+    strict_1.default.equal(estimate.pricingBreakdown.internalCostEstimate.commissionCost, 0);
+});
+(0, node_test_1.default)('long-distance pricing stays within the selected one-way truck capacity band', () => {
+    const routeContext = {
+        pricingStatus: 'ready',
+        routeCategory: 'long-distance',
+        originToDestinationHours: 20,
+        returnTripHours: 0,
+        billableDriveHours: 20,
+        operationalDriveHours: 20,
+        billableDistanceKm: 2000,
+        operationalDistanceKm: 2000,
+    };
+    const overrides = {
+        quoteType: 'long_distance',
+        crewSize: 3,
+        longDistanceTruckCost: 4200,
+        longDistanceGasCost: 1800,
+        longDistanceInsuranceCost: 300,
+        longDistanceMiscCost: 250,
+        longDistanceMarkupRate: 40,
+        routeContext,
+    };
+    const partialTruck = (0, sales_1.estimateLeadQuote)(makeLead({ totalCubicFeet: 600, totalWeightLbs: 3000 }), overrides);
+    const fullTruck = (0, sales_1.estimateLeadQuote)(makeLead({ totalCubicFeet: 1600, totalWeightLbs: 6000 }), overrides);
+    strict_1.default.equal(partialTruck.truckCount, 1);
+    strict_1.default.equal(fullTruck.truckCount, 1, 'long-distance quote type must use the 1,700 cu ft capacity even when the lead began as residential');
+    strict_1.default.equal(fullTruck.estimatedHours, partialTruck.estimatedHours);
+    strict_1.default.equal(fullTruck.subtotal, partialTruck.subtotal);
+});
+(0, node_test_1.default)('premium scope follows inventory evidence and never invents TV mounting', () => {
+    const base = makeLead({
+        surveyCompletedAt: '2026-08-13T18:00:00.000Z',
+        inventory: [
+            { name: 'King Bed Frame', room: 'Bedroom', qty: 1, cubicFeet: 55, weightLbs: 180, included: true, source: 'survey_ai' },
+            { name: '65-inch TV', room: 'Living Room', qty: 1, cubicFeet: 8, weightLbs: 45, included: true, source: 'survey_ai' },
+        ],
+    });
+    const standardTv = (0, sales_1.estimateLeadQuote)(base, { quoteType: 'standard' });
+    strict_1.default.ok(standardTv.lineItems.some(item => item.description === 'Moving Boxes — As Many As Needed'));
+    strict_1.default.ok(!standardTv.lineItems.some(item => /Professional Packing|Professional Unpacking/.test(item.description)));
+    strict_1.default.ok(standardTv.lineItems.some(item => item.description === 'Inventory-Specific Disassembly & Reassembly'));
+    strict_1.default.ok(standardTv.lineItems.some(item => item.description === 'TV Protection'));
+    strict_1.default.ok(!standardTv.lineItems.some(item => item.description === 'Wall-Mounted TV Dismount & Remount'));
+    const mountedTv = (0, sales_1.estimateLeadQuote)({
+        ...base,
+        inventory: base.inventory?.map(item => /tv/i.test(item.name || '') ? { ...item, notes: 'wall-mounted TV visible in customer photo' } : item),
+    }, { quoteType: 'standard' });
+    strict_1.default.ok(mountedTv.lineItems.some(item => item.description === 'Wall-Mounted TV Dismount & Remount'));
+});
+(0, node_test_1.default)('packing preference alone does not silently add packing to the quote', () => {
+    const estimate = (0, sales_1.estimateLeadQuote)(makeLead({
+        surveyCompletedAt: '2026-08-13T18:00:00.000Z',
+        jobFactors: { packingPreference: 'full_service' },
+    }), { quoteType: 'standard' });
+    strict_1.default.ok(!estimate.lineItems.some(item => /Professional Packing|Professional Unpacking/.test(item.description)));
+});
 (0, node_test_1.default)('estimateLeadQuote prices storage, storage delivery, and secondary stop legs distinctly', () => {
     const lead = makeLead();
     const factors = {
@@ -129,6 +268,19 @@ function makeLead(overrides = {}) {
     strict_1.default.match(estimate.lineItems[2].description, /\[Leg 3\] Boyfriend Drop/);
     strict_1.default.match(estimate.lineItems[2].details || '', /same load, extra stop on route/i);
     strict_1.default.match(estimate.lineItems[2].details || '', /30% of the overall shipment/i);
+    strict_1.default.ok(estimate.pricingBreakdown.moveIntelligence?.risks.some(risk => risk.includes('3 operational legs')));
+    strict_1.default.ok(estimate.pricingBreakdown.moveIntelligence?.questions.some(question => question.id === 'storage-access:leg_storage'));
+});
+(0, node_test_1.default)('estimateLeadQuote ignores an empty multi-leg placeholder row', () => {
+    const lead = makeLead();
+    const direct = (0, sales_1.estimateLeadQuote)(lead, { quoteType: 'standard' });
+    const withPlaceholder = (0, sales_1.estimateLeadQuote)(lead, {
+        quoteType: 'standard',
+        legs: [{ id: 'blank', label: '', type: 'move' }],
+    });
+    strict_1.default.equal(withPlaceholder.total, direct.total);
+    strict_1.default.equal(withPlaceholder.estimatedHours, direct.estimatedHours);
+    strict_1.default.equal(withPlaceholder.lineItems.some(line => /^\[Leg /.test(line.description)), false);
 });
 (0, node_test_1.default)('estimateLeadQuote keeps standard moving jobs at a two-mover minimum', () => {
     const lead = makeLead({
@@ -201,7 +353,8 @@ function makeLead(overrides = {}) {
     const cost = estimate.pricingBreakdown.internalCostEstimate;
     strict_1.default.equal(cost.commercialDirectCost, 275);
     strict_1.default.ok((cost.commercialMarkupAmount || 0) > 0);
-    strict_1.default.ok(estimate.lineItems.some(item => item.description === 'Commercial logistics markup'));
+    strict_1.default.ok(!estimate.lineItems.some(item => item.description === 'Commercial logistics markup'));
+    strict_1.default.match(estimate.lineItems[0].details || '', /commercial coordination and scope management included/i);
     strict_1.default.equal(estimate.deposit, 0);
     strict_1.default.equal(estimate.balance, estimate.total);
     strict_1.default.equal(cost.totalCost, cost.laborCost + cost.truckOpsCost + (cost.commissionCost || 0) + (cost.suppliesCost || 0) + 275);

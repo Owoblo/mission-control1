@@ -649,8 +649,8 @@ function parseConversationAppointmentSuggestion(contact: Contact, context?: stri
 
 function StageBadge({ stage }: { stage: string }) {
   const meta = PARTNERSHIP_STAGE_META[stage as keyof typeof PARTNERSHIP_STAGE_META]
-  if (!meta) return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-500">{stage}</span>
-  return <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${meta.color}`}>{meta.label}</span>
+  if (!meta) return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500">{stage}</span>
+  return <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.color}`}>{meta.label}</span>
 }
 
 function stageLabel(stage?: string | null) {
@@ -664,14 +664,14 @@ function TierBadge({ tier }: { tier?: number | null }) {
     2: 'bg-sky-100 text-sky-700',
     3: 'bg-slate-100 text-slate-600',
   }
-  return <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${styles[tier] ?? 'bg-slate-100 text-slate-500'}`}>T{tier}</span>
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${styles[tier] ?? 'bg-slate-100 text-slate-500'}`}>T{tier}</span>
 }
 
 function CategoryBadge({ categoryId }: { categoryId?: string | null }) {
   const meta = getCategoryMeta(categoryId)
   if (!meta) return null
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${meta.color}`}>
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.color}`}>
       {meta.icon} {meta.label}
     </span>
   )
@@ -686,9 +686,9 @@ function InstantlyBadge({ status }: { status?: string | null }) {
     clicked: 'bg-cyan-100 text-cyan-700',
     replied: 'bg-emerald-100 text-emerald-700',
     bounced: 'bg-rose-100 text-rose-700',
-    removed: 'bg-slate-100 text-slate-400',
+    removed: 'bg-slate-100 text-slate-500',
   }
-  return <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${styles[status] ?? 'bg-slate-100 text-slate-500'}`}>✉ {status}</span>
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${styles[status] ?? 'bg-slate-100 text-slate-500'}`}>✉ {status}</span>
 }
 
 function ChannelIcon({ channel, direction }: { channel: string; direction?: string }) {
@@ -1277,13 +1277,13 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                 {contact.instantly_status && <InstantlyBadge status={contact.instantly_status} />}
               </div>
               <div className="mt-1 text-sm text-slate-500">{contact.title ? `${contact.title} · ` : ''}{partnerCompanyLabel(contact)} · {relationshipStageLabel(contact)}</div>
-              <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
+              <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-500">
                 {contact.phone && <a href={`tel:${contact.phone}`} className="hover:text-[#071421]">📞 {contact.phone}</a>}
                 {contact.email && <a href={`mailto:${contact.email}`} className="hover:text-[#071421]">✉️ {contact.email}</a>}
                 {contact.city && <span>📍 {contact.city}</span>}
               </div>
             </div>
-            <button onClick={onClose} className="ml-2 shrink-0 rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
+            <button onClick={onClose} className="ml-2 shrink-0 rounded-xl p-2 text-slate-500 hover:bg-slate-100">✕</button>
           </div>
 
           {/* Action buttons */}
@@ -1326,36 +1326,36 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
 
           <div className="hidden">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Owner</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Owner</div>
               <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{owner}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Category</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Category</div>
               <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{contact.industry || contact.category || 'Uncategorized'}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Account</div>
               <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{partnerCompanyLabel(contact)}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Temperature</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Temperature</div>
               <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{partnerTemperatureLabel(contact.relationship_temperature)}</div>
             </div>
             <div className={`col-span-2 rounded-xl border px-3 py-2 ${nextAction?.overdue ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Next Action</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Next Action</div>
                   <div className="mt-1 truncate text-xs font-semibold text-[#071421]">{nextAction?.label || 'No next action set'}</div>
                 </div>
                 <div className={`shrink-0 text-xs font-semibold ${nextAction?.overdue ? 'text-amber-700' : 'text-slate-500'}`}>{nextAction?.due ? fmtDate(nextAction.due) : '—'}</div>
               </div>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-emerald-700/70">Referral Code</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700/70">Referral Code</div>
               <div className="mt-1 truncate text-xs font-bold text-emerald-800">{referralCode || 'Not assigned'}</div>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Referrals</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Referrals</div>
               <div className="mt-1 text-xs font-bold text-[#071421]">{referralCount} captured</div>
             </div>
           </div>
@@ -1382,7 +1382,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                 <div className="crm-eyebrow">Relationship</div>
                 <div className="mt-3 text-lg font-semibold text-[#14213d]">{relationshipStageLabel(contact)}</div>
                 <div className="mt-2 text-sm text-[var(--app-muted)]">{partnerTemperatureLabel(contact.relationship_temperature)} momentum</div>
-                {contact.tags && contact.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{contact.tags.map(tag => <span key={tag} className="rounded-full border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] text-[var(--app-muted)]">{tag}</span>)}</div>}
+                {contact.tags && contact.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{contact.tags.map(tag => <span key={tag} className="rounded-full border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] text-[var(--app-muted)]">{tag}</span>)}</div>}
               </section>
               <section className="border-t border-[var(--app-line)] pt-5 text-sm">
                 <div className="crm-eyebrow">Contact</div>
@@ -1401,7 +1401,7 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
           {/* Upcoming appointments */}
           {upcoming.length > 0 && (
             <div className="border-b border-slate-100 px-5 py-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Upcoming</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Upcoming</div>
               <div className="space-y-2">
                 {upcoming.map(a => (
                   <div key={a.id} className="flex items-center justify-between rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2.5">
@@ -1410,8 +1410,8 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                       <div className="text-xs text-slate-500">{fmtDateTime(a.scheduled_at)} · {a.duration_minutes}min · {a.channel}</div>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => updateApptStatus(a.id, 'completed')} className="rounded-lg px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100">Done</button>
-                      <button onClick={() => updateApptStatus(a.id, 'cancelled')} className="rounded-lg px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-100">Cancel</button>
+                      <button onClick={() => updateApptStatus(a.id, 'completed')} className="rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100">Done</button>
+                      <button onClick={() => updateApptStatus(a.id, 'cancelled')} className="rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-500 hover:bg-slate-100">Cancel</button>
                     </div>
                   </div>
                 ))}
@@ -1433,11 +1433,11 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
 
           {/* Timeline */}
           <div className="px-5 py-5 md:px-7">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Timeline</div>
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Timeline</div>
             {loading ? (
-              <div className="py-8 text-center text-xs text-slate-400">Loading…</div>
+              <div className="py-8 text-center text-xs text-slate-500">Loading…</div>
             ) : touches.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">No activity yet.</div>
+              <div className="py-8 text-center text-xs text-slate-500">No activity yet.</div>
             ) : (
               <div className="space-y-2">
                 {touches.map(t => {
@@ -1450,26 +1450,26 @@ function ContactDrawer({ contact, lists, onClose, onRefresh }: {
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-semibold text-[#071421]">{s.label}</span>
-                            {s.auto && <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">Auto</span>}
-                            {isInbound && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700">Inbound</span>}
+                            {s.auto && <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">Auto</span>}
+                            {isInbound && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">Inbound</span>}
                           </div>
-                          <span className="shrink-0 text-[10px] text-slate-400">{fmtDate(t.created_at)} {fmtTime(t.created_at)}</span>
+                          <span className="shrink-0 text-[11px] text-slate-500">{fmtDate(t.created_at)} {fmtTime(t.created_at)}</span>
                         </div>
                         {s.body && <div className="mt-0.5 text-xs text-slate-600 line-clamp-3">{s.body}</div>}
-                        {t.outcome_code && <div className="mt-1 text-[10px] font-semibold uppercase text-slate-400">{t.outcome_code.replace(/_/g, ' ')}</div>}
+                        {t.outcome_code && <div className="mt-1 text-[11px] font-semibold uppercase text-slate-500">{t.outcome_code.replace(/_/g, ' ')}</div>}
                       </div>
                     </div>
                   )
                 })}
                 {past.length > 0 && (
                   <div className="pt-1">
-                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-300">Past Appointments</div>
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-300">Past Appointments</div>
                     {past.map(a => (
                       <div key={a.id} className="flex items-center gap-3 rounded-[14px] border border-slate-100 bg-slate-50 p-3">
                         <span className="text-base">📅</span>
                         <div>
                           <div className="text-xs font-semibold text-slate-600">{a.title}</div>
-                          <div className="text-[10px] text-slate-400">{fmtDateTime(a.scheduled_at)} · <span className={a.status === 'completed' ? 'text-emerald-600' : 'text-slate-400'}>{a.status}</span></div>
+                          <div className="text-[11px] text-slate-500">{fmtDateTime(a.scheduled_at)} · <span className={a.status === 'completed' ? 'text-emerald-600' : 'text-slate-500'}>{a.status}</span></div>
                         </div>
                       </div>
                     ))}
@@ -1555,7 +1555,7 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
       <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-none">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold text-[#071421]">New Batch</h3>
-          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
+          <button onClick={onClose} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100">✕</button>
         </div>
         <form onSubmit={submit} className="mt-4 space-y-3">
 
@@ -1589,7 +1589,7 @@ function NewBatchModal({ onClose, onDone }: { onClose: () => void; onDone: (batc
           {/* Suggested cold call script */}
           {category && PARTNER_CATEGORIES[category] && (
             <div className="rounded-[10px] border border-[#071421]/10 bg-[#f8f9fc] px-3 py-2">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Opening line</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Opening line</div>
               <div className="text-xs text-slate-600 italic">"{PARTNER_CATEGORIES[category].suggestedScript}"</div>
             </div>
           )}
@@ -1657,7 +1657,7 @@ function MarkMailedModal({ batch, onClose, onDone }: { batch: Batch; onClose: ()
             <h3 className="text-base font-semibold text-[#071421]">Mark as Mailed</h3>
             <p className="mt-0.5 text-sm text-slate-500">{batch.name}</p>
           </div>
-          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
+          <button onClick={onClose} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100">✕</button>
         </div>
         <div className="mt-5 space-y-4">
           <div>
@@ -1666,7 +1666,7 @@ function MarkMailedModal({ batch, onClose, onDone }: { batch: Batch; onClose: ()
               className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-[#071421] outline-none focus:border-[#071421]" />
           </div>
           <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Auto-sequence fires:</div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Auto-sequence fires:</div>
             <div className="flex justify-between"><span className="text-slate-600">✉️ Email</span><span className="font-semibold text-[#071421]">{fmtDate(emailDate)}</span></div>
             <div className="flex justify-between"><span className="text-slate-600">💬 SMS</span><span className="font-semibold text-[#071421]">{fmtDate(smsDate)}</span></div>
           </div>
@@ -1736,7 +1736,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
             <h3 className="text-base font-semibold text-[#071421]">Import Contacts</h3>
             <p className="mt-0.5 text-sm text-slate-500">{batch.name}</p>
           </div>
-          <button onClick={onClose} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100">✕</button>
+          <button onClick={onClose} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100">✕</button>
         </div>
         {rows.length === 0 ? (
           <div className="mt-6">
@@ -1744,7 +1744,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
               className="cursor-pointer rounded-[18px] border-2 border-dashed border-slate-300 p-10 text-center hover:border-[#071421]">
               <div className="text-2xl">📄</div>
               <div className="mt-2 text-sm font-medium text-slate-600">Click to upload CSV</div>
-              <div className="mt-1 text-xs text-slate-400">Name, Email, Phone, Company, City…</div>
+              <div className="mt-1 text-xs text-slate-500">Name, Email, Phone, Company, City…</div>
             </div>
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
           </div>
@@ -1754,7 +1754,7 @@ function CsvImportModal({ batch, onClose, onDone }: { batch: Batch; onClose: () 
             <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto">
               {FIELDS.map(field => (
                 <div key={field}>
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{field}</label>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{field}</label>
                   <select value={mapping[field] ?? ''} onChange={e => setMapping(m => ({ ...m, [field]: e.target.value }))}
                     className="mt-0.5 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-[#071421] outline-none">
                     <option value="">— skip —</option>
@@ -1868,7 +1868,7 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
                         <div className="truncate">{reply ? 'Reply thoughtfully to their latest message' : next?.label || 'Review and choose the next respectful action'}</div>
                         <div className="mt-1 text-xs text-[var(--app-muted)]">{reply ? 'Conversation waiting' : next?.due ? `Due ${fmtDate(next.due)}` : relationshipStageLabel(contact)}</div>
                       </div>
-                      <span className={`w-fit rounded-full border px-2.5 py-1 text-[10px] font-semibold ${next?.overdue ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-[#d8c28d] bg-[#fbf6e9] text-[#7c6025]'}`}>{reply ? 'Needs reply' : next?.overdue ? 'Promise due' : partnerTemperatureLabel(contact.relationship_temperature)}</span>
+                      <span className={`w-fit rounded-full border px-2.5 py-1 text-[11px] font-semibold ${next?.overdue ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-[#d8c28d] bg-[#fbf6e9] text-[#7c6025]'}`}>{reply ? 'Needs reply' : next?.overdue ? 'Promise due' : partnerTemperatureLabel(contact.relationship_temperature)}</span>
                     </button>
                   )
                 })}
@@ -1921,7 +1921,7 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-semibold capitalize text-[#14213d]">{item.market}</div>
-                <span className="text-[10px] font-semibold text-[#9a762f]">View conversations →</span>
+                <span className="text-[11px] font-semibold text-[#9a762f]">View conversations →</span>
               </div>
               <div className="mt-4 grid grid-cols-4 gap-3 text-xs text-[var(--app-muted)]">
                 <span><strong className="block text-lg font-semibold text-[#14213d]">{item.active}</strong>active</span>
@@ -1966,7 +1966,7 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
           { label: 'Partners Won', value: totalPartners, color: 'text-emerald-700' },
         ].map(s => (
           <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{s.label}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{s.label}</div>
             <div className={`mt-2 text-4xl font-bold tracking-tight ${s.color}`}>{loading ? '—' : s.value}</div>
           </div>
         ))}
@@ -1995,7 +1995,7 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
         </div>
 
         {loading ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading…</div>
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Loading…</div>
         ) : batches.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <div className="text-3xl">📬</div>
@@ -2024,9 +2024,9 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-[#071421]">{batch.name}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${batch.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{batch.status}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${batch.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{batch.status}</span>
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
+                      <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-500">
                         {batch.industry && <span>{batch.industry}</span>}
                         {batch.city && <span>{batch.city}</span>}
                         <span>{batch.total_contacts} contacts</span>
@@ -2048,19 +2048,19 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                       </div>
                       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                         <div className="rounded-[14px] bg-emerald-50 p-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Sent today</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Sent today</div>
                           <div className="mt-1 text-xl font-bold text-emerald-800">{smsSentToday}</div>
                         </div>
                         <div className="rounded-[14px] bg-amber-50 p-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">Left today</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">Left today</div>
                           <div className="mt-1 text-xl font-bold text-amber-800">{smsPendingToday}</div>
                         </div>
                         <div className="rounded-[14px] bg-slate-50 p-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Sent total</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Sent total</div>
                           <div className="mt-1 text-xl font-bold text-[#071421]">{smsSent}</div>
                         </div>
                         <div className="rounded-[14px] bg-slate-50 p-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Remaining</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Remaining</div>
                           <div className="mt-1 text-xl font-bold text-[#071421]">{smsPending}</div>
                         </div>
                       </div>
@@ -2077,18 +2077,18 @@ function OverviewTab({ batches, contacts, loading, onRefresh, onTabChange }: {
                   {!isSmsCampaign && mailed && (
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       <div className="rounded-[14px] bg-slate-50 p-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mailed</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Mailed</div>
                         <div className="mt-1 text-sm font-semibold text-[#071421]">{fmtDate(batch.mail_sent_date)}</div>
                       </div>
                       <div className={`rounded-[14px] p-3 ${emailDays !== null && emailDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">✉️ Email</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">✉️ Email</div>
                         <div className="mt-1 text-sm font-semibold text-[#071421]">{emailDays !== null && emailDays <= 0 ? '✅ Sent' : fmtDate(emailDate)}</div>
-                        {emailDays !== null && emailDays > 0 && <div className="text-[10px] text-amber-600 font-semibold">in {emailDays}d</div>}
+                        {emailDays !== null && emailDays > 0 && <div className="text-[11px] text-amber-600 font-semibold">in {emailDays}d</div>}
                       </div>
                       <div className={`rounded-[14px] p-3 ${smsDays !== null && smsDays <= 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">💬 SMS</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">💬 SMS</div>
                         <div className="mt-1 text-sm font-semibold text-[#071421]">{smsDays !== null && smsDays <= 0 ? '✅ Sent' : fmtDate(smsDate)}</div>
-                        {smsDays !== null && smsDays > 0 && <div className="text-[10px] text-amber-600 font-semibold">in {smsDays}d</div>}
+                        {smsDays !== null && smsDays > 0 && <div className="text-[11px] text-amber-600 font-semibold">in {smsDays}d</div>}
                       </div>
                     </div>
                   )}
@@ -2200,7 +2200,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
             <h2 className="text-sm font-semibold text-[#071421]">Field visits</h2>
             <p className="text-xs text-slate-500">{fieldVisitContacts.length} contact{fieldVisitContacts.length !== 1 ? 's' : ''} marked for cards, flyers, or meetings</p>
           </div>
-          <div className="hidden text-xs font-semibold text-slate-400 sm:block">{fieldVisitCities.slice(0, 4).join(' · ')}</div>
+          <div className="hidden text-xs font-semibold text-slate-500 sm:block">{fieldVisitCities.slice(0, 4).join(' · ')}</div>
         </div>
         {fieldVisitContacts.length > 0 ? (
           <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
@@ -2212,14 +2212,14 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
                     <div className="truncate text-sm font-semibold text-[#071421]">{c.name}</div>
                     <div className="mt-0.5 truncate text-xs text-slate-500">{c.company || 'No brokerage'}</div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">{c.city || 'No city'}</span>
+                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">{c.city || 'No city'}</span>
                 </div>
                 {c.latest_inbound_note && <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{c.latest_inbound_note}</div>}
               </button>
             ))}
           </div>
         ) : (
-          <div className="mt-3 rounded-[16px] border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-400">
+          <div className="mt-3 rounded-[16px] border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-500">
             Tap Postcards or Meeting in the inbox to build this list.
           </div>
         )}
@@ -2251,19 +2251,19 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
         </div>
         <div className="flex-1 overflow-y-auto">
           {lists.length === 0 ? (
-            <div className="p-6 text-center text-xs text-slate-400">No lists yet.</div>
+            <div className="p-6 text-center text-xs text-slate-500">No lists yet.</div>
           ) : lists.map(list => (
             <button key={list.id} onClick={() => loadListContacts(list)}
               className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition ${selectedList?.id === list.id ? 'bg-slate-50' : ''}`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-[#071421] truncate">{list.name}</span>
                 <div className="flex items-center gap-1">
-                  {list.tier && <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${tierColors[list.tier]}`}>T{list.tier}</span>}
+                  {list.tier && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${tierColors[list.tier]}`}>T{list.tier}</span>}
                   <button onClick={e => { e.stopPropagation(); deleteList(list.id) }}
                     className="rounded px-1 text-slate-300 hover:text-rose-500 text-xs">✕</button>
                 </div>
               </div>
-              <div className="mt-0.5 text-xs text-slate-400">{list.contact_count} contacts</div>
+              <div className="mt-0.5 text-xs text-slate-500">{list.contact_count} contacts</div>
             </button>
           ))}
         </div>
@@ -2272,7 +2272,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
       {/* Right: contacts in list */}
       <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden">
         {!selectedList ? (
-          <div className="flex flex-1 items-center justify-center text-slate-400">
+          <div className="flex flex-1 items-center justify-center text-slate-500">
             <div className="text-center">
               <div className="text-3xl">📋</div>
               <div className="mt-3 text-sm font-medium">Select a list</div>
@@ -2284,7 +2284,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="font-semibold text-[#071421]">{selectedList.name}</div>
-                  <div className="text-xs text-slate-400">{listContacts.length} contacts</div>
+                  <div className="text-xs text-slate-500">{listContacts.length} contacts</div>
                 </div>
                 <div className="relative flex-1 max-w-xs">
                   <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="Add contact by name…"
@@ -2295,7 +2295,7 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
                         <button key={c.id} onClick={() => addContactToList(c)}
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0">
                           <div className="font-medium text-[#071421]">{c.name}</div>
-                          <div className="text-xs text-slate-400">{c.company ?? c.industry ?? ''}</div>
+                          <div className="text-xs text-slate-500">{c.company ?? c.industry ?? ''}</div>
                         </button>
                       ))}
                     </div>
@@ -2307,9 +2307,9 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
             </div>
             <div className="flex-1 overflow-y-auto">
               {loadingContacts ? (
-                <div className="p-8 text-center text-sm text-slate-400">Loading…</div>
+                <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
               ) : listContacts.length === 0 ? (
-                <div className="p-10 text-center text-sm text-slate-400">No contacts in this list. Search above to add one.</div>
+                <div className="p-10 text-center text-sm text-slate-500">No contacts in this list. Search above to add one.</div>
               ) : listContacts
                 .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.company ?? '').toLowerCase().includes(search.toLowerCase()))
                 .map(c => (
@@ -2319,10 +2319,10 @@ function ListsTab({ contacts, onSelectContact }: { contacts: Contact[]; onSelect
                         <span className="text-sm font-semibold text-[#071421] truncate">{c.name}</span>
                         <TierBadge tier={c.outreach_tier} />
                       </div>
-                      <div className="text-xs text-slate-400 truncate">{c.company ?? c.industry ?? ''} {c.city ? `· ${c.city}` : ''}</div>
+                      <div className="text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''} {c.city ? `· ${c.city}` : ''}</div>
                     </div>
                     <StageBadge stage={(c as Contact & { normalized_stage: string }).normalized_stage ?? c.stage ?? ''} />
-                    <button onClick={() => removeContactFromList(c.id)} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition">Remove</button>
+                    <button onClick={() => removeContactFromList(c.id)} className="rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition">Remove</button>
                   </div>
                 ))
               }
@@ -2419,7 +2419,7 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
               </div>
               <div className="space-y-2">
                 {colContacts.length === 0 ? (
-                  <div className={`rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-400 transition ${dropTarget === col.key ? 'border-[#071421] bg-white text-[#071421]' : ''}`}>Drop here</div>
+                  <div className={`rounded-[14px] border border-dashed border-slate-200 bg-white/50 p-4 text-center text-xs text-slate-500 transition ${dropTarget === col.key ? 'border-[#071421] bg-white text-[#071421]' : ''}`}>Drop here</div>
                 ) : colContacts.map(c => {
                   const nextAction = getNextPartnerAction(c)
                   const referralCode = getPartnerReferralCode(c)
@@ -2435,16 +2435,16 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                         <TierBadge tier={c.outreach_tier} />
                       </div>
                       <div className="mt-0.5 text-xs text-slate-500 truncate">{c.company ?? c.industry ?? ''}</div>
-                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
+                      <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
                         <span>{c.city ?? ''}</span>
                         {movingId === c.id ? <span>Saving…</span> : c.last_touch_at && <span>{timeAgo(c.last_touch_at)}</span>}
                       </div>
                       {(nextAction || referralCode) && (
-                        <div className="mt-2 space-y-1 rounded-[10px] bg-slate-50 px-2 py-1.5 text-[10px]">
+                        <div className="mt-2 space-y-1 rounded-[10px] bg-slate-50 px-2 py-1.5 text-[11px]">
                           {nextAction && (
                             <div className="flex items-center justify-between gap-2">
                               <span className="truncate font-semibold text-slate-600">{nextAction.label}</span>
-                              <span className={nextAction.overdue ? 'font-semibold text-amber-700' : 'text-slate-400'}>{fmtDate(nextAction.due)}</span>
+                              <span className={nextAction.overdue ? 'font-semibold text-amber-700' : 'text-slate-500'}>{fmtDate(nextAction.due)}</span>
                             </div>
                           )}
                           {referralCode && (
@@ -2453,12 +2453,12 @@ function PipelineTab({ contacts, onSelect, onStageChange }: {
                         </div>
                       )}
                       <div className="mt-1.5 flex items-center gap-1 flex-wrap">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(getInboxStatus(c))}`}>
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${inboxStatusClass(getInboxStatus(c))}`}>
                           {inboxStatusLabel(getInboxStatus(c))}
                         </span>
                         {c.instantly_status && <InstantlyBadge status={c.instantly_status} />}
                         {c.decision && (
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.decision === 'agreed' ? 'bg-emerald-100 text-emerald-700' : c.decision === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.decision === 'agreed' ? 'bg-emerald-100 text-emerald-700' : c.decision === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
                             {c.decision}
                           </span>
                         )}
@@ -2642,7 +2642,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
           <button key={bucket.key} onClick={() => setFilter(bucket.key)}
             className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filter === bucket.key ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}>
             {bucket.label}
-            {counts[bucket.key] > 0 && <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] ${filter === bucket.key ? 'bg-white/20 text-white' : 'bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>{counts[bucket.key]}</span>}
+            {counts[bucket.key] > 0 && <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[11px] ${filter === bucket.key ? 'bg-white/20 text-white' : 'bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>{counts[bucket.key]}</span>}
           </button>
         ))}
       </div>
@@ -2664,12 +2664,12 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
                     <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{item.contact.name}</div>
                     <div className="mt-0.5 truncate text-xs text-[var(--app-muted)]">{item.contact.company || item.contact.city || item.contact.phone || 'No company'}</div>
                   </div>
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${replyBucketClass(item.bucket)}`}>{replyBucketLabel(item.bucket)}</span>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${replyBucketClass(item.bucket)}`}>{replyBucketLabel(item.bucket)}</span>
                 </div>
                 <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
                   {summarizeTouch(item.latest_touch.channel, item.latest_touch.direction, item.latest_touch.notes).body || 'No message body saved.'}
                 </div>
-                <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--app-muted)]">
+                <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--app-muted)]">
                   <span>{String(item.latest_touch.channel || 'reply').toUpperCase()}</span>
                   <span>{timeAgo(item.latest_touch.created_at)}</span>
                 </div>
@@ -2688,7 +2688,7 @@ function RepliesTab({ onSelectContact, onOpenThread }: {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-xl font-semibold text-[var(--app-ink)]">{selected.contact.name}</h3>
                     <StageBadge stage={selected.contact.normalized_stage} />
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${replyBucketClass(selected.bucket)}`}>{replyBucketLabel(selected.bucket)}</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${replyBucketClass(selected.bucket)}`}>{replyBucketLabel(selected.bucket)}</span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--app-muted)]">
                     {selected.contact.company && <span>{selected.contact.company}</span>}
@@ -4729,7 +4729,7 @@ function PhoneTab({
               </div>
               <button
                 onClick={() => { if (!sheetUpdating) setSheetUpdateOpen(false) }}
-                className="rounded-full p-2 text-slate-400 hover:bg-slate-100"
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
               >
                 x
               </button>
@@ -4738,7 +4738,7 @@ function PhoneTab({
               <div className="mt-4 space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Status / action</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status / action</span>
                     <select
                       value={sheetForm.action}
                       onChange={e => setSheetForm(form => form ? { ...form, action: e.target.value as SheetUpdateForm['action'] } : form)}
@@ -4751,7 +4751,7 @@ function PhoneTab({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">List / sheet target</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">List / sheet target</span>
                     <input
                       value={sheetForm.sheetTarget}
                       onChange={e => setSheetForm(form => form ? { ...form, sheetTarget: e.target.value } : form)}
@@ -4762,7 +4762,7 @@ function PhoneTab({
                 </div>
 
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Remarks / next step</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Remarks / next step</span>
                   <textarea
                     value={sheetForm.sheetNote}
                     onChange={e => setSheetForm(form => form ? { ...form, sheetNote: e.target.value } : form)}
@@ -4773,7 +4773,7 @@ function PhoneTab({
                 </label>
 
                 <div className="rounded-[16px] border border-slate-200 bg-white p-3">
-                  <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Partner context</div>
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Partner context</div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[
                       ['name', 'Name', sheetForm.name],
@@ -4806,7 +4806,7 @@ function PhoneTab({
                 </div>
 
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Extra instruction</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Extra instruction</span>
                   <textarea
                     value={sheetInstruction}
                     onChange={e => setSheetInstruction(e.target.value)}
@@ -4952,7 +4952,7 @@ function PhoneTab({
               </button>
             ))}
           </div>
-          {replyLoading && <div className="mt-2 text-[11px] text-slate-400">Loading replies...</div>}
+          {replyLoading && <div className="mt-2 text-[11px] text-slate-500">Loading replies...</div>}
         </div>
         <div className="flex-1 overflow-y-auto">
           {sorted.map(c => {
@@ -4967,17 +4967,17 @@ function PhoneTab({
                     <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${selectedId === c.id ? 'bg-[#111827] text-white' : 'bg-slate-100 text-slate-700'}`}>{c.name.charAt(0)}</span>
                     <div className="min-w-0">
                       <div className={`truncate text-[15px] font-semibold ${selectedId === c.id ? 'text-[#111827]' : 'text-[#071421]'}`}>{c.name}</div>
-                      <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-slate-600' : 'text-slate-400'}`}>{c.company ?? c.industry ?? c.city ?? 'Partner contact'}</div>
+                      <div className={`mt-0.5 truncate text-xs ${selectedId === c.id ? 'text-slate-600' : 'text-slate-500'}`}>{c.company ?? c.industry ?? c.city ?? 'Partner contact'}</div>
                     </div>
                     <TierBadge tier={c.outreach_tier} />
                     {recentSalesByContact.has(c.id) && (
-                      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Recent sale</span>
+                      <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Recent sale</span>
                     )}
                     {c.priority === 'high' && <span className="shrink-0 text-sm text-[#b88a25]" title="Priority relationship">★</span>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {unread && selectedId !== c.id && <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
-                    <span className={`text-[11px] ${selectedId === c.id ? 'text-slate-500' : 'text-slate-400'}`}>{timeAgo(c.latest_inbound_at || c.last_touch_at)}</span>
+                    <span className={`text-[11px] ${selectedId === c.id ? 'text-slate-500' : 'text-slate-500'}`}>{timeAgo(c.latest_inbound_at || c.last_touch_at)}</span>
                   </div>
                 </div>
                 {p?.body && <div className={`mt-2 line-clamp-2 text-sm leading-[1.5] lg:text-[13px] ${selectedId === c.id ? 'text-slate-700' : 'text-slate-600'}`}>{truncateText(p.body, 150)}</div>}
@@ -4985,7 +4985,7 @@ function PhoneTab({
                   <span className={`shrink-0 font-semibold ${status === 'context' ? 'text-rose-700' : status === 'needs_reply' ? 'text-amber-700' : 'text-slate-600'}`}>{inboxStatusLabel(status)}</span>
                   <span className="text-slate-300">·</span>
                   <span className="shrink-0 text-slate-500">{sourceBadge(c)}</span>
-                  {c.playbook?.intent && <span className="truncate text-slate-400">{c.playbook.intent.replace(/_/g, ' ')}</span>}
+                  {c.playbook?.intent && <span className="truncate text-slate-500">{c.playbook.intent.replace(/_/g, ' ')}</span>}
                 </div>
               </button>
             )
@@ -4995,7 +4995,7 @@ function PhoneTab({
 
       {/* Detail panel */}
       {!selected ? (
-        <div className="flex flex-1 items-center justify-center text-slate-400">
+        <div className="flex flex-1 items-center justify-center text-slate-500">
           <div className="text-center"><div className="text-4xl">📱</div><div className="mt-3 text-sm font-medium">{deepLinkError || (selectedFromQuery ? 'Loading the requested contact…' : 'Select a contact')}</div></div>
         </div>
       ) : (
@@ -5025,7 +5025,7 @@ function PhoneTab({
                 className={`flex h-10 w-10 items-center justify-center rounded-lg border text-lg transition disabled:opacity-50 ${
                   selected.priority === 'high'
                     ? 'border-[#d5b45f] bg-[#fffaf0] text-[#9a7014]'
-                    : 'border-slate-200 bg-white text-slate-400 hover:border-slate-400 hover:text-[#071421]'
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:text-[#071421]'
                 }`}
                 title={selected.priority === 'high' ? 'Remove from Priority' : 'Add to Priority'}
                 aria-label={selected.priority === 'high' ? 'Remove from Priority' : 'Add to Priority'}
@@ -5345,10 +5345,10 @@ function PhoneTab({
                     ) : (
                       <a href={mediaPlaybackUrl(url)} target="_blank" rel="noreferrer" className="flex h-full flex-col items-center justify-center px-1 text-center">
                         <span className="text-lg">📎</span>
-                        <span className="mt-0.5 line-clamp-2 text-[9px] font-semibold leading-3 text-slate-500">{mediaFileName(url)}</span>
+                        <span className="mt-0.5 line-clamp-2 text-[11px] font-semibold leading-3 text-slate-500">{mediaFileName(url)}</span>
                       </a>
                     )}
-                    <button onClick={() => setMediaUrls(current => current.filter(item => item !== url))} className="absolute right-1 top-1 rounded-xl bg-black/60 px-1.5 text-[10px] text-white">x</button>
+                    <button onClick={() => setMediaUrls(current => current.filter(item => item !== url))} className="absolute right-1 top-1 rounded-xl bg-black/60 px-1.5 text-[11px] text-white">x</button>
                   </div>
                 ))}
               </div>
@@ -5403,7 +5403,7 @@ function PhoneTab({
                     rows={1}
                     placeholder={selected.phone ? 'Message…' : 'No phone'}
                     disabled={!selected.phone}
-                    className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-[#071421] outline-none placeholder:text-slate-400 disabled:opacity-40" />
+                    className="max-h-28 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-[#071421] outline-none placeholder:text-slate-500 disabled:opacity-40" />
                   <button onClick={handleSend} disabled={sending || mediaUploading || !selected.phone || (scheduleMode && !scheduledAt)}
                     className="min-h-10 shrink-0 rounded-full bg-[#071421] px-4 text-[13px] font-semibold text-white disabled:opacity-35">{sending ? '…' : scheduleMode ? 'Schedule' : 'Send'}</button>
                 </div>
@@ -5468,7 +5468,7 @@ function PhoneTab({
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#071421] text-base font-bold text-white">{selected.name.charAt(0)}</div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold text-[#071421]">{selected.name}</div>
-                <div className="truncate text-xs text-slate-400">{partnerCompanyLabel(selected)}</div>
+                <div className="truncate text-xs text-slate-500">{partnerCompanyLabel(selected)}</div>
               </div>
               <button
                 onClick={() => setPartnerInfoCollapsed(true)}
@@ -5480,7 +5480,7 @@ function PhoneTab({
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               <StageBadge stage={selected.normalized_stage} />
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600">{sourceBadge(selected)}</span>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">{sourceBadge(selected)}</span>
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -5508,7 +5508,7 @@ function PhoneTab({
             <div className="mt-5 space-y-3">
               <RelationshipRecord contactId={selected.id} />
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Account</div>
                 <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
                   <div className="text-sm font-semibold text-[#071421]">{partnerCompanyLabel(selected)}</div>
                   <div className="mt-1 text-xs text-slate-500">
@@ -5516,11 +5516,11 @@ function PhoneTab({
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rounded-lg bg-slate-50 px-2 py-2">
-                      <div className="text-[10px] font-semibold uppercase text-slate-400">Company referrals</div>
+                      <div className="text-[11px] font-semibold uppercase text-slate-500">Company referrals</div>
                       <div className="mt-0.5 text-sm font-bold text-[#071421]">{selected.partner_company_referral_count ?? selected.partner_company?.total_referrals ?? 0}</div>
                     </div>
                     <div className="rounded-lg bg-slate-50 px-2 py-2">
-                      <div className="text-[10px] font-semibold uppercase text-slate-400">Revenue</div>
+                      <div className="text-[11px] font-semibold uppercase text-slate-500">Revenue</div>
                       <div className="mt-0.5 text-sm font-bold text-[#071421]">{formatCadFromCents(selected.partner_company_booked_revenue_cents || selected.partner_company?.total_revenue_cents || 0)}</div>
                     </div>
                   </div>
@@ -5534,8 +5534,8 @@ function PhoneTab({
 
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Stage</div>
-                  {stageSaving && <span className="text-[10px] font-semibold text-slate-400">Saving...</span>}
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Stage</div>
+                  {stageSaving && <span className="text-[11px] font-semibold text-slate-500">Saving...</span>}
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {REPLY_DESK_STAGE_ACTIONS.map(stage => (
@@ -5546,14 +5546,14 @@ function PhoneTab({
                       className={`min-h-11 rounded-xl border px-2 py-2 text-left transition disabled:opacity-50 ${selected.normalized_stage === stage.key ? quickActionClass(stage.tone, true) : quickActionClass(stage.tone, stageSaving === stage.key)}`}
                     >
                       <span className="block text-[11px] font-semibold leading-4">{stage.label}</span>
-                      <span className={`mt-0.5 block text-[10px] font-medium leading-4 ${selected.normalized_stage === stage.key || stageSaving === stage.key ? 'text-white/75' : 'text-slate-400'}`}>{stage.helper}</span>
+                      <span className={`mt-0.5 block text-[11px] font-medium leading-4 ${selected.normalized_stage === stage.key || stageSaving === stage.key ? 'text-white/75' : 'text-slate-500'}`}>{stage.helper}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Partner links</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Partner links</div>
                 <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                   <div className="break-all text-xs font-semibold leading-5 text-emerald-900">{partnerPackageUrl(selected)}</div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -5575,12 +5575,12 @@ function PhoneTab({
                   </a>
                 </div>
                 <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase text-slate-400">Client quote link</div>
+                  <div className="text-[11px] font-semibold uppercase text-slate-500">Client quote link</div>
                   <div className="mt-0.5 break-all text-xs font-medium text-slate-600">{partnerQuoteUrl(selected)}</div>
                 </div>
               </div>
 
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Partner details</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Partner details</div>
               {[
                 ['Name', selected.name],
                 ['Phone', selected.phone || '—'],
@@ -5595,14 +5595,14 @@ function PhoneTab({
                 ['Next follow-up', selected.next_follow_up ? fmtDate(selected.next_follow_up) : '—'],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-slate-50 px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase text-slate-400">{label}</div>
+                  <div className="text-[11px] font-semibold uppercase text-slate-500">{label}</div>
                   <div className="mt-0.5 break-words text-sm font-medium text-[#071421]">{value}</div>
                 </div>
               ))}
             </div>
 
             <div className="mt-5 space-y-2">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Log action</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Log action</div>
               <div className="grid grid-cols-2 gap-2">
                 {INBOX_QUICK_ACTIONS.map(action => (
                   <button
@@ -5618,7 +5618,7 @@ function PhoneTab({
             </div>
 
             <div className="mt-5 rounded-xl bg-slate-50 p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Notes</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Notes</div>
               <div className="mt-2 text-sm leading-5 text-slate-600">
                 {selected.latest_inbound_note ? truncateText(selected.latest_inbound_note, 180) : 'No partner notes yet.'}
               </div>
@@ -5717,32 +5717,32 @@ function PartnersTab({ contacts, onSelect }: { contacts: Contact[]; onSelect: (c
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${inboxStatusClass(status)}`}>{inboxStatusLabel(status)}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${inboxStatusClass(status)}`}>{inboxStatusLabel(status)}</span>
                 <StageBadge stage={c.normalized_stage} />
-                {c.city && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{c.city}</span>}
+                {c.city && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{c.city}</span>}
               </div>
               {c.affiliate_partner_id && (
                 <div className="mt-2 flex items-center gap-1.5 rounded-[8px] border border-emerald-200 bg-emerald-50 px-2.5 py-1.5">
-                  <span className="text-[10px] font-semibold text-emerald-700">🔗 Has affiliate portal</span>
+                  <span className="text-[11px] font-semibold text-emerald-700">🔗 Has affiliate portal</span>
                 </div>
               )}
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-[10px] bg-slate-50 p-2">
-                  <div className="text-[9px] font-semibold uppercase text-slate-400">Next Action</div>
+                  <div className="text-[11px] font-semibold uppercase text-slate-500">Next Action</div>
                   <div className={`mt-0.5 truncate font-medium ${nextAction?.overdue ? 'text-amber-600' : 'text-[#071421]'}`}>{nextAction ? `${nextAction.label} · ${fmtDate(nextAction.due)}` : '—'}</div>
                 </div>
                 <div className="rounded-[10px] bg-slate-50 p-2">
-                  <div className="text-[9px] font-semibold uppercase text-slate-400">Referral Code</div>
+                  <div className="text-[11px] font-semibold uppercase text-slate-500">Referral Code</div>
                   <div className="mt-0.5 truncate font-medium text-emerald-700">{referralCode || '—'}</div>
                 </div>
                 <div className="rounded-[10px] bg-slate-50 p-2">
-                  <div className="text-[9px] font-semibold uppercase text-slate-400">Referrals</div>
+                  <div className="text-[11px] font-semibold uppercase text-slate-500">Referrals</div>
                   <div className="mt-0.5 font-medium text-[#071421]">{c.referred_lead_count ?? 0}</div>
                 </div>
-                {c.phone && <div className="rounded-[10px] bg-slate-50 p-2"><div className="text-[9px] font-semibold uppercase text-slate-400">Phone</div><div className="mt-0.5 font-medium text-[#071421]">{c.phone}</div></div>}
-                {c.email && <div className="rounded-[10px] bg-slate-50 p-2 col-span-2 truncate"><div className="text-[9px] font-semibold uppercase text-slate-400">Email</div><div className="mt-0.5 font-medium text-[#071421] truncate">{c.email}</div></div>}
+                {c.phone && <div className="rounded-[10px] bg-slate-50 p-2"><div className="text-[11px] font-semibold uppercase text-slate-500">Phone</div><div className="mt-0.5 font-medium text-[#071421]">{c.phone}</div></div>}
+                {c.email && <div className="rounded-[10px] bg-slate-50 p-2 col-span-2 truncate"><div className="text-[11px] font-semibold uppercase text-slate-500">Email</div><div className="mt-0.5 font-medium text-[#071421] truncate">{c.email}</div></div>}
                 <div className="rounded-[10px] bg-slate-50 p-2">
-                  <div className="text-[9px] font-semibold uppercase text-slate-400">Last Touch</div>
+                  <div className="text-[11px] font-semibold uppercase text-slate-500">Last Touch</div>
                   <div className={`mt-0.5 font-medium ${!warm ? 'text-amber-600' : 'text-[#071421]'}`}>{daysSince !== null ? `${daysSince}d ago` : '—'}{!warm && ' ⚠️'}</div>
                 </div>
               </div>
@@ -5860,7 +5860,7 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
               <div className="mt-1 flex flex-wrap gap-2">
                 {['{{firstName}}', '{{name}}', '{{company}}', '{{brokerage}}', '{{city}}', '{{zone}}', '{{industry}}'].map(tag => (
                   <button key={tag} onClick={() => setTemplate(t => t + tag)}
-                    className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[10px] font-mono text-[var(--app-muted)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]">
+                    className="rounded-full border border-[var(--app-line)] px-2 py-0.5 text-[11px] font-mono text-[var(--app-muted)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]">
                     {tag}
                   </button>
                 ))}
@@ -5890,22 +5890,22 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
                   <div className="mb-3 grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-2">
                       <div className="text-lg font-semibold text-emerald-800">{previewStats.will_send}</div>
-                      <div className="text-[10px] font-semibold uppercase text-emerald-700">Will send</div>
+                      <div className="text-[11px] font-semibold uppercase text-emerald-700">Will send</div>
                     </div>
                     <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-2">
                       <div className="text-lg font-semibold text-slate-700">{previewStats.skipped_prior_sms}</div>
-                      <div className="text-[10px] font-semibold uppercase text-slate-500">Already texted</div>
+                      <div className="text-[11px] font-semibold uppercase text-slate-500">Already texted</div>
                     </div>
                     <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-2">
                       <div className="text-lg font-semibold text-amber-800">{previewStats.no_phone}</div>
-                      <div className="text-[10px] font-semibold uppercase text-amber-700">No phone</div>
+                      <div className="text-[11px] font-semibold uppercase text-amber-700">No phone</div>
                     </div>
                   </div>
                 )}
                 <div className="space-y-2">
                   {preview.map((p, i) => (
                     <div key={i} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-                      <div className="text-[10px] font-semibold text-[var(--app-muted)]">{p.name} · {p.phone}</div>
+                      <div className="text-[11px] font-semibold text-[var(--app-muted)]">{p.name} · {p.phone}</div>
                       <div className="mt-1 text-sm text-[var(--app-ink)] whitespace-pre-wrap">{p.message}</div>
                     </div>
                   ))}
@@ -5944,8 +5944,8 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
               <div className="flex items-center justify-between mb-2">
                 <label className="crm-label">Recipients ({selected.filter(c => c.phone).length} with phone)</label>
                 <div className="flex gap-2">
-                  <button onClick={() => setSelectedIds(new Set(withPhone.map(c => c.id)))} className="text-[10px] text-[var(--app-accent)] hover:underline">All with phone</button>
-                  <button onClick={() => setSelectedIds(new Set())} className="text-[10px] text-[var(--app-muted)] hover:underline">None</button>
+                  <button onClick={() => setSelectedIds(new Set(withPhone.map(c => c.id)))} className="text-[11px] text-[var(--app-accent)] hover:underline">All with phone</button>
+                  <button onClick={() => setSelectedIds(new Set())} className="text-[11px] text-[var(--app-muted)] hover:underline">None</button>
                 </div>
               </div>
               <div className="max-h-32 overflow-y-auto rounded-[8px] border border-[var(--app-line)] divide-y divide-[var(--app-line)]">
@@ -5955,10 +5955,10 @@ function BulkSmsModal({ contacts, onClose }: { contacts: Contact[]; onClose: () 
                       onChange={e => { const next = new Set(selectedIds); e.target.checked ? next.add(c.id) : next.delete(c.id); setSelectedIds(next) }}
                       className="rounded" />
                     <span className="text-sm text-[var(--app-ink)] truncate">{c.name}</span>
-                    <span className="text-[10px] text-[var(--app-muted)] ml-auto">{c.company || c.city || ''}</span>
+                    <span className="text-[11px] text-[var(--app-muted)] ml-auto">{c.company || c.city || ''}</span>
                   </label>
                 ))}
-                {withPhone.length > 20 && <div className="px-3 py-1.5 text-[10px] text-[var(--app-muted)]">+ {withPhone.length - 20} more</div>}
+                {withPhone.length > 20 && <div className="px-3 py-1.5 text-[11px] text-[var(--app-muted)]">+ {withPhone.length - 20} more</div>}
               </div>
             </div>
           </div>
@@ -6304,9 +6304,9 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                     <div className="text-xs font-semibold text-[var(--app-ink)]">{segmentLabel || 'Selected segment'} includes {selectedCities.length} cit{selectedCities.length === 1 ? 'y' : 'ies'}</div>
                     <div className="mt-2 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
                       {selectedCities.slice(0, 24).map(c => (
-                        <span key={c} className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">{c}</span>
+                        <span key={c} className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-muted)]">{c}</span>
                       ))}
-                      {selectedCities.length > 24 && <span className="px-1 py-0.5 text-[10px] text-[var(--app-muted)]">+{selectedCities.length - 24}</span>}
+                      {selectedCities.length > 24 && <span className="px-1 py-0.5 text-[11px] text-[var(--app-muted)]">+{selectedCities.length - 24}</span>}
                     </div>
                   </div>
                 )}
@@ -6335,19 +6335,19 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 p-3 text-center">
                         <div className="text-xl font-semibold text-emerald-800">{preview.would_schedule}</div>
-                        <div className="text-[10px] font-bold uppercase text-emerald-700">Will schedule</div>
+                        <div className="text-[11px] font-bold uppercase text-emerald-700">Will schedule</div>
                       </div>
                       <div className="rounded-[10px] border border-slate-200 bg-slate-50 p-3 text-center">
                         <div className="text-xl font-semibold text-slate-800">{preview.existing_skipped_no_repeat}</div>
-                        <div className="text-[10px] font-bold uppercase text-slate-500">Existing skipped</div>
+                        <div className="text-[11px] font-bold uppercase text-slate-500">Existing skipped</div>
                       </div>
                       <div className="rounded-[10px] border border-amber-200 bg-amber-50 p-3 text-center">
                         <div className="text-xl font-semibold text-amber-800">{preview.no_primary_phone + preview.invalid_phone}</div>
-                        <div className="text-[10px] font-bold uppercase text-amber-700">No usable primary</div>
+                        <div className="text-[11px] font-bold uppercase text-amber-700">No usable primary</div>
                       </div>
                       <div className="rounded-[10px] border border-sky-200 bg-sky-50 p-3 text-center">
                         <div className="text-xl font-semibold text-sky-800">{preview.days_to_finish}</div>
-                        <div className="text-[10px] font-bold uppercase text-sky-700">Business days</div>
+                        <div className="text-[11px] font-bold uppercase text-sky-700">Business days</div>
                       </div>
                     </div>
 
@@ -6442,18 +6442,18 @@ function QueueContactCard({ contact, onSelect, onCall, batchLabel }: {
               {contact.name}
             </button>
             {batchLabel && (
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                 {batchLabel}
               </span>
             )}
             {contact.category && <CategoryBadge categoryId={contact.category} />}
             {!contact.category && contact.outreach_tier && (
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${contact.outreach_tier === 1 ? 'border border-amber-200 bg-amber-50 text-amber-700' : contact.outreach_tier === 2 ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${contact.outreach_tier === 1 ? 'border border-amber-200 bg-amber-50 text-amber-700' : contact.outreach_tier === 2 ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
                 T{contact.outreach_tier}
               </span>
             )}
             {contact.instantly_status && (
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${contact.instantly_status === 'replied' ? 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : contact.instantly_status === 'opened' ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${contact.instantly_status === 'replied' ? 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : contact.instantly_status === 'opened' ? 'border border-sky-200 bg-sky-50 text-sky-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
                 ✉ {contact.instantly_status}
               </span>
             )}
@@ -6466,7 +6466,7 @@ function QueueContactCard({ contact, onSelect, onCall, batchLabel }: {
         </div>
         <div className="shrink-0 text-right">
           {daysSince !== null && (
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${daysSince === 0 ? 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : daysSince <= 3 ? 'border border-amber-200 bg-amber-50 text-amber-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${daysSince === 0 ? 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]' : daysSince <= 3 ? 'border border-amber-200 bg-amber-50 text-amber-700' : 'border border-[var(--app-line)] bg-[var(--app-wash)] text-[var(--app-muted)]'}`}>
               {daysSince === 0 ? 'Today' : `${daysSince}d ago`}
             </span>
           )}
@@ -6657,7 +6657,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
           <div className="mb-3 flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[var(--app-accent)]" />
             <span className="text-sm font-semibold text-[var(--app-ink)]">Responded — Act Now</span>
-            <span className="rounded-full border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-accent)]">{responded.length}</span>
+            <span className="rounded-full border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--app-accent)]">{responded.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {responded.slice(0, queueLimit).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
@@ -6671,7 +6671,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
           <div className="mb-3 flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#c9754e]" />
             <span className="text-sm font-semibold text-[var(--app-ink)]">Gone Silent 5d+</span>
-            <span className="rounded-full border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] px-2 py-0.5 text-[10px] font-bold text-[#955941]">{overdue.length}</span>
+            <span className="rounded-full border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] px-2 py-0.5 text-[11px] font-bold text-[#955941]">{overdue.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {overdue.slice(0, Math.min(10, queueLimit)).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
@@ -6685,7 +6685,7 @@ function QueueTab({ contacts, batches, onSelect, onScheduleCampaign }: {
           <div className="mb-3 flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-slate-400" />
             <span className="text-sm font-semibold text-[var(--app-ink)]">Call First — Tier 1 Priority</span>
-            <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-wash)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-muted)]">{callFirst.length}</span>
+            <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-wash)] px-2 py-0.5 text-[11px] font-bold text-[var(--app-muted)]">{callFirst.length}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {callFirst.slice(0, queueLimit).map(c => <QueueContactCard key={c.id} contact={c} batchLabel={c.batch_id ? batchMeta.get(c.batch_id)?.label : undefined} onSelect={onSelect} onCall={handleCall} />)}
@@ -6799,38 +6799,38 @@ function AdminCommandCenter({
 
         <div className="mt-5 grid gap-3 sm:grid-cols-5">
           <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-            <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
+            <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
             <div className="mt-1 text-xl font-semibold text-[var(--app-ink)]">{loading ? '-' : totals.contacts}</div>
           </div>
           <div className="rounded-[12px] border border-amber-200 bg-amber-50 p-3">
-            <div className="text-[10px] font-bold uppercase text-amber-700">Need reply</div>
+            <div className="text-[11px] font-bold uppercase text-amber-700">Need reply</div>
             <div className="mt-1 text-xl font-semibold text-amber-800">{loading ? '-' : totals.needsReply}</div>
           </div>
           <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-3">
-            <div className="text-[10px] font-bold uppercase text-emerald-700">SMS sent / today</div>
+            <div className="text-[11px] font-bold uppercase text-emerald-700">SMS sent / today</div>
             <div className="mt-1 text-xl font-semibold text-emerald-800">{loading ? '-' : `${totals.sentTotal} / ${totals.sentToday}`}</div>
           </div>
           <div className="rounded-[12px] border border-sky-200 bg-sky-50 p-3">
-            <div className="text-[10px] font-bold uppercase text-sky-700">Queued</div>
+            <div className="text-[11px] font-bold uppercase text-sky-700">Queued</div>
             <div className="mt-1 text-xl font-semibold text-sky-800">{loading ? '-' : totals.queued}</div>
           </div>
           <div className="rounded-[12px] border border-teal-200 bg-teal-50 p-3">
-            <div className="text-[10px] font-bold uppercase text-teal-700">Partners</div>
+            <div className="text-[11px] font-bold uppercase text-teal-700">Partners</div>
             <div className="mt-1 text-xl font-semibold text-teal-800">{loading ? '-' : totals.activePartners}</div>
           </div>
         </div>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <button onClick={() => onOpenInbox()} className="rounded-[12px] border border-rose-200 bg-rose-50 p-3 text-left transition hover:bg-rose-100">
-            <div className="text-[10px] font-bold uppercase text-rose-700">Positive replies not handled</div>
+            <div className="text-[11px] font-bold uppercase text-rose-700">Positive replies not handled</div>
             <div className="mt-1 text-2xl font-semibold text-rose-800">{loading ? '-' : totals.unhandledPositive}</div>
           </button>
           <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-            <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Partner referrals</div>
+            <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Partner referrals</div>
             <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{loading ? '-' : totals.referrals}</div>
           </div>
           <div className="rounded-[12px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-            <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Booked partner revenue</div>
+            <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Booked partner revenue</div>
             <div className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{loading ? '-' : formatCadFromCents(totals.bookedRevenueCents)}</div>
           </div>
         </div>
@@ -6844,10 +6844,10 @@ function AdminCommandCenter({
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-lg font-semibold text-[var(--app-ink)]">{item.market.label}</h3>
                   {item.needsReply > 0 && (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{item.needsReply} need reply</span>
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">{item.needsReply} need reply</span>
                   )}
                   {item.unhandledPositive > 0 && (
-                    <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700">{item.unhandledPositive} unassigned positive</span>
+                    <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700">{item.unhandledPositive} unassigned positive</span>
                   )}
                 </div>
                 <div className="mt-1 text-xs text-[var(--app-muted)]">
@@ -6861,35 +6861,35 @@ function AdminCommandCenter({
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Contacts</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.contacts}</div>
               </div>
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Responses</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Responses</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.responded}</div>
               </div>
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Partners</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Partners</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.activePartners}</div>
               </div>
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Meetings</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Meetings</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.meetings}</div>
               </div>
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">No reply</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">No reply</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.noResponse}</div>
               </div>
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Campaigns</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Campaigns</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.activeCampaigns || item.batches}</div>
               </div>
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Referrals</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Referrals</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{item.referrals}</div>
               </div>
               <div className="rounded-[10px] bg-[var(--app-bg)] p-3">
-                <div className="text-[10px] font-bold uppercase text-[var(--app-muted)]">Revenue</div>
+                <div className="text-[11px] font-bold uppercase text-[var(--app-muted)]">Revenue</div>
                 <div className="mt-1 text-lg font-semibold text-[var(--app-ink)]">{formatCadFromCents(item.bookedRevenueCents)}</div>
               </div>
             </div>
@@ -7100,10 +7100,10 @@ function PartnershipEngineInner() {
               {t.icon && <span>{t.icon}</span>}
               <span className="hidden sm:inline">{t.label}</span>
               {t.key === 'queue' && queueCount > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'}`}>{queueCount}</span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(201,117,78,0.12)] bg-[#f5ece7] text-[#955941]'}`}>{queueCount}</span>
               )}
               {t.key === 'phone' && needsReplyCount > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>{needsReplyCount}</span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${tab === t.key ? 'bg-white/20 text-white' : 'border border-[rgba(15,106,83,0.12)] bg-[var(--app-accent-soft)] text-[var(--app-accent)]'}`}>{needsReplyCount}</span>
               )}
             </button>
           ))}

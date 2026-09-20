@@ -67,7 +67,7 @@ export function PWAInit() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-white">Install Saturn Star OS</div>
-          <div className="text-xs text-slate-400">Keep the dialer running in the background</div>
+          <div className="text-xs text-slate-500">Keep the dialer running in the background</div>
         </div>
         <div className="flex items-center gap-2">
           <button

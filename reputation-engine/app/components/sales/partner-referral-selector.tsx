@@ -142,7 +142,7 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
       <div className="rounded-[4px] border border-[#d8c477] bg-[#fffdf5] px-3 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#8a6800]">Connected partnership record</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#8a6800]">Connected partnership record</div>
             <div className="mt-1 truncate text-sm font-semibold text-[#071421]">{value.name}</div>
             <div className="mt-0.5 text-xs text-[#5d5642]">
               {[value.company, CATEGORY_LIST.find(item => item.id === value.category)?.label || value.category, value.city, partnerServiceAreaForCity(value.city)].filter(Boolean).join(' · ')}
@@ -207,14 +207,14 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
             <div className="relative">
               <input className="crm-input w-full" placeholder="Search company / brokerage" value={createForm.company} onChange={event => void searchCompanies(event.target.value)} onFocus={() => companyOptions.length > 0 && setCompanyOpen(true)} autoComplete="off" />
               {companyOpen && <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded border border-slate-200 bg-white shadow-xl">
-                {companyOptions.map(company => <button key={company.id} type="button" onMouseDown={() => { setCreateForm(current => ({ ...current, company: company.name, partnerCompanyId: company.id })); setCompanyOpen(false) }} className="block w-full px-3 py-2 text-left hover:bg-slate-50"><span className="block text-xs font-semibold text-slate-900">{company.name}</span><span className="block text-[10px] text-slate-500">{[company.city, company.industry].filter(Boolean).join(' · ')}</span></button>)}
-                <button type="button" onMouseDown={() => setCompanyOpen(false)} className="block w-full border-t px-3 py-2 text-left text-[10px] font-semibold text-[#8a6800]">Use “{createForm.company}” as a new brokerage</button>
+                {companyOptions.map(company => <button key={company.id} type="button" onMouseDown={() => { setCreateForm(current => ({ ...current, company: company.name, partnerCompanyId: company.id })); setCompanyOpen(false) }} className="block w-full px-3 py-2 text-left hover:bg-slate-50"><span className="block text-xs font-semibold text-slate-900">{company.name}</span><span className="block text-[11px] text-slate-500">{[company.city, company.industry].filter(Boolean).join(' · ')}</span></button>)}
+                <button type="button" onMouseDown={() => setCompanyOpen(false)} className="block w-full border-t px-3 py-2 text-left text-[11px] font-semibold text-[#8a6800]">Use “{createForm.company}” as a new brokerage</button>
               </div>}
-              {createForm.partnerCompanyId && <div className="mt-1 text-[10px] font-semibold text-emerald-700">Existing brokerage selected — contact will be linked.</div>}
+              {createForm.partnerCompanyId && <div className="mt-1 text-[11px] font-semibold text-emerald-700">Existing brokerage selected — contact will be linked.</div>}
             </div>
             <input className="crm-input" placeholder="Email" value={createForm.email} onChange={event => setCreateForm(current => ({ ...current, email: event.target.value }))} />
             <input className="crm-input" placeholder="Phone" value={createForm.phone} onChange={event => setCreateForm(current => ({ ...current, phone: event.target.value }))} />
-            <label className="col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[#5d5642]">
+            <label className="col-span-2 text-[11px] font-semibold uppercase tracking-wider text-[#5d5642]">
               Municipality and operating area
               <select className="crm-input mt-1 w-full" value={createForm.city} onChange={event => setCreateForm(current => ({ ...current, city: event.target.value }))}>
                 <option value="">Select municipality</option>
@@ -236,7 +236,7 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
         </div>
       ) : null}
       {error ? <div className="text-xs text-rose-700">{error}</div> : null}
-      <div className="text-[10px] leading-4 text-[var(--app-muted)]">Searches the full partnership database, including records not yet contacted or shown in active outreach.</div>
+      <div className="text-[11px] leading-4 text-[var(--app-muted)]">Searches the full partnership database, including records not yet contacted or shown in active outreach.</div>
     </div>
   )
 }

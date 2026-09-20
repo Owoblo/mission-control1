@@ -2,9 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.suggestPartnershipReply = suggestPartnershipReply;
 exports.partnershipDispositionFromSuggestion = partnershipDispositionFromSuggestion;
+const partner_business_cards_1 = require("@/lib/partner-business-cards");
+const ottawa_mjs_1 = require("@/lib/partnership-core/ottawa.mjs");
 const runtime_1 = require("@/lib/server/runtime");
 const partnership_sms_1 = require("@/lib/server/partnership-sms");
 const partnership_lines_1 = require("@/lib/partnership-lines");
+const partnership_lead_detection_1 = require("@/lib/server/partnership-lead-detection");
+const LOCATION_QUESTION_RE = /\b(where\s+(?:(?:are|r)\s+)?(?:you|u)(?:\s+(?:located|based))?|(?:your|physical|street|office|warehouse)\s+(?:location|address)|what\s+areas?\s+do\s+you\s+(?:cover|serve)|do\s+you\s+(?:cover|serve))\b/i;
+const PHYSICAL_ADDRESS_RE = /\b(?:address|office|warehouse|pickup|pick.up|visit)\b/i;
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const TIME_RE = /\b(?:mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|tomorrow|today|next week|this week|morning|afternoon|evening|noon|\d{1,2}(?::\d{2})?\s?(?:am|pm)|anytime|any time|between\s+\d)/i;
 const ADDRESS_RE = /\b\d{1,6}\s+[A-Za-z0-9.' -]+(?:street|st\.?|road|rd\.?|avenue|ave\.?|blvd\.?|boulevard|drive|dr\.?|court|ct\.?|lane|ln\.?|way|crescent|cres\.?|trail|parkway|pkwy\.?|unit|suite|ste\.?)\b[^.\n]*/i;
@@ -23,14 +28,39 @@ const PHONE_RE = /(?:\+?1[\s.-]?)?(?:\(?[2-9]\d{2}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b
 const SECONDARY_CONTACT_RE = /\b(?:reach out to|ask for|contact|call|speak to|talk to|connect with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:[^.\n]{0,80})/i;
 const LEAD_DISPOSITION_RE = /\b(?:client|clients|buyer|buyers|seller|sellers|they|he|she).{0,80}\b(?:not|n't|no longer|already|won't|will not|don't|do not).{0,80}\b(?:using|use|need|need a|need movers?|moving|mover|movers|furniture|move)|\b(?:vacant|no furniture|already moved|found movers?|not moving|move cancelled|deal fell through|closing fell through)\b/i;
 function cleanText(value) {
-    return String(value || '').replace(/\s+/g, ' ').trim();
+    return String(value || '').replace(/^Inbound SMS:\s*/i, '').replace(/\s+/g, ' ').trim();
 }
 function firstName(contact) {
     const name = cleanText(contact.name);
-    return name.split(/\s+/)[0] || 'there';
+    const beforeDescriptor = name.split(/\s+-\s+|\s*:\s*/)[0].trim();
+    const tokens = beforeDescriptor.split(/\s+/).filter(Boolean);
+    const titledPerson = name.match(/^([A-Z][a-z.'-]+)\s+[A-Z][a-z.'-]+(?:\s+[A-Z][a-z.'-]+)?\s+(?:Mortgage|Mortgage Agent|Mortgage Broker|Realtor|Real Estate Agent)\b/);
+    if (titledPerson)
+        return titledPerson[1];
+    if (tokens.length >= 2 && !/\b(mortgage|staging|stager|interior|design|realty|real estate|law|moving|movers|team|group|inc|ltd|corp|corporation|brokerage)\b/i.test(beforeDescriptor)) {
+        return tokens[0];
+    }
+    return 'there';
 }
 function naturalNameSuffix(name) {
     return name && name.toLowerCase() !== 'there' ? `, ${name}` : '';
+}
+function normalizedName(value) {
+    return cleanText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function isBusinessOnlyContact(contact) {
+    const name = normalizedName(contact.name);
+    const company = normalizedName(contact.company);
+    if (!name)
+        return true;
+    if (/^[A-Z][a-z.'-]+\s+[A-Z][a-z.'-]+(?:\s+[A-Z][a-z.'-]+)?\s+(?:Mortgage|Mortgage Agent|Mortgage Broker|Realtor|Real Estate Agent)\b/.test(cleanText(contact.name)))
+        return false;
+    const descriptorFree = cleanText(contact.name).split(/\s+-\s+|\s*:\s*/)[0].trim();
+    if (descriptorFree.split(/\s+/).filter(Boolean).length >= 2 && !/\b(mortgage|staging|stager|interior|design|realty|real estate|law|moving|movers|team|group|inc|ltd|corp|corporation|brokerage)\b/i.test(descriptorFree))
+        return false;
+    if (company && name === company)
+        return true;
+    return /\b(mortgage|staging|stager|interior|design|realty|real estate|law|lawyers|moving|movers|team|group|inc|ltd|corp|corporation|brokerage)\b/i.test(name);
 }
 function slugify(value) {
     return cleanText(value)
@@ -171,6 +201,7 @@ function extractFields(text) {
         asks_website: WEBSITE_RE.test(text),
         asks_share_number: SHARE_NUMBER_RE.test(text),
         asks_identity_confirmation: IDENTITY_CONFIRMATION_RE.test(text),
+        asks_name: /\b(?:what(?:'s| is)\s+(?:your|the)\s+name|who am i texting|who is this)\b/i.test(text),
         asks_references: REFERENCES_RE.test(text),
         ...(referredContactName ? { referred_person_name: referredContactName } : {}),
         ...(referredPhone ? { referred_person_phone: referredPhone } : {}),
@@ -185,6 +216,10 @@ function detectIntent(text, contact, touches = []) {
     const risk_flags = [];
     const decision = cleanText(contact.decision).toLowerCase();
     const stage = cleanText(contact.stage).toLowerCase();
+    if (/\b(this|the) number (?:does not|doesn'?t|cannot|can'?t) (?:accept|receive|support) (?:sms|text) messages?\b/i.test(text) ||
+        /\b(?:sms|text) messages? (?:are|is) not (?:accepted|supported|available)\b/i.test(text)) {
+        return { intent: 'wrong_number', confidence: 0.98, risk_flags: ['automated_carrier_reply', 'sms_unavailable'] };
+    }
     if (decision === 'opted_out' || (0, partnership_sms_1.isOptOutText)(text))
         return { intent: 'stop_opt_out', confidence: 0.98, risk_flags };
     if (CONTEXT_CLARIFICATION_RE.test(text)) {
@@ -204,6 +239,9 @@ function detectIntent(text, contact, touches = []) {
         return { intent: 'confirms_identity', confidence: 0.82, risk_flags };
     if (SECONDARY_CONTACT_RE.test(text) && (PHONE_RE.test(text) || /\b(assistant|front desk|reception|office manager|admin)\b/i.test(text)))
         return { intent: 'refers_to_another_contact', confidence: 0.88, risk_flags };
+    const leadSignal = (0, partnership_lead_detection_1.detectPartnershipLeadSignal)(text);
+    if (leadSignal.is_lead)
+        return { intent: 'partner_lead_received', confidence: 0.94, risk_flags: [...risk_flags, 'sales_handoff_required'] };
     if (LEAD_DISPOSITION_RE.test(text))
         return { intent: 'lead_disposition_update', confidence: 0.84, risk_flags };
     if (REFERENCES_RE.test(text) && /\b(add|include|send|share|have|provide|couple)\b/i.test(text))
@@ -214,6 +252,8 @@ function detectIntent(text, contact, touches = []) {
         return { intent: 'asks_referral_program', confidence: 0.86, risk_flags };
     if (SOCIAL_MEDIA_RE.test(text))
         return { intent: 'asks_social_media', confidence: 0.86, risk_flags };
+    if (LOCATION_QUESTION_RE.test(text))
+        return { intent: 'asks_contact_info', confidence: 0.9, risk_flags };
     if (CARD_OR_FLYER_REQUEST_RE.test(text))
         return { intent: 'send_card_or_flyer_media', confidence: 0.9, risk_flags };
     if ((WEBSITE_RE.test(text) || SHARE_NUMBER_RE.test(text)) && /\b(email|e-mail|website|web site|number|phone|share|client|clients)\b/i.test(text)) {
@@ -273,11 +313,21 @@ function localRepMeetingLine() {
 }
 function draftFromRules(input) {
     const { contact, touches, intent, extracted, config, latestText } = input;
+    const askForName = isBusinessOnlyContact(contact) && !extracted.asks_name && [
+        'asks_for_pricing',
+        'asks_for_email',
+        'asks_contact_info',
+        'asks_social_media',
+        'asks_references',
+    ].includes(intent);
     const packageConfigured = hasPackage(config);
     const digitalSent = wasSent(touches, /\b(digital package|referral program|rate card|flyer|package link)\s*:\s*https?:\/\//i);
     const referralMentioned = digitalSent || wasSent(touches, /\b(referral|commission|incentive)\b/i);
     const canSendPackageNow = packageConfigured && packagePermissionGranted(touches, latestText, intent);
-    const name = firstName(contact);
+    // Directory records often store the business title in `name`. Do not turn
+    // that into a fake person's first name in a reply. Ask for the decision
+    // maker's name when it is genuinely unknown.
+    const name = isBusinessOnlyContact(contact) ? 'there' : firstName(contact);
     const nameSuffix = naturalNameSuffix(name);
     const knownEmail = extracted.email || latestEmailInHistory(touches);
     const risk_flags = [];
@@ -357,6 +407,15 @@ function draftFromRules(input) {
         recommended_action = 'draft_reply';
         quick_action = 'needs_follow_up';
     }
+    else if (intent === 'partner_lead_received') {
+        const identityQuestion = isBusinessOnlyContact(contact)
+            ? 'What name should I save this number under?'
+            : 'What is the client\'s best contact number?';
+        draft = `Thanks${nameSuffix}. That sounds like a potential client job. I will have our sales team follow up with you directly to collect the client details and scope. ${identityQuestion}`;
+        recommended_action = 'human_review';
+        quick_action = 'needs_follow_up';
+        risk_flags.push('sales_handoff_required');
+    }
     else if (intent === 'lead_disposition_update') {
         draft = `Thanks for the update${nameSuffix}, no worries at all. Appreciate you keeping us in mind. If another client needs movers later, I can send a simple package with our info and quote link.`;
         recommended_action = 'draft_reply';
@@ -430,12 +489,16 @@ function draftFromRules(input) {
     else if (packageConfigured && !canSendPackageNow && !['stop_opt_out', 'wrong_number', 'not_interested'].includes(intent)) {
         risk_flags.push('package_permission_needed');
     }
+    if (askForName && draft && !/what(?:'s| is)\s+(?:your|the)\s+name/i.test(draft)) {
+        draft = `${draft} By the way, who should I save this number under?`;
+        risk_flags.push('name_capture_requested');
+    }
     const hasDeliveryLocation = Boolean(extracted.address || extracted.brokerage_location);
     const physicalDelivery = hasDeliveryLocation && extracted.time_window
         ? 'ready_to_schedule'
         : hasDeliveryLocation
             ? 'need_time'
-            : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'asks_context', 'confirms_identity', 'asks_for_references', 'refers_to_another_contact', 'lead_disposition_update'].includes(intent)
+            : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'asks_context', 'confirms_identity', 'asks_for_references', 'refers_to_another_contact', 'partner_lead_received', 'lead_disposition_update'].includes(intent)
                 ? 'not_needed'
                 : 'need_address';
     const meeting = intent === 'wants_meeting'
@@ -600,7 +663,31 @@ async function suggestPartnershipReply(input) {
             rationale: 'No inbound text was available to draft from.',
         };
     }
+    if (detected.intent === 'asks_contact_info' && LOCATION_QUESTION_RE.test(latestText)) {
+        const card = (0, partner_business_cards_1.findPartnerBusinessCard)(input.contact.city);
+        const needsAddress = PHYSICAL_ADDRESS_RE.test(latestText);
+        const area = card ? ((0, ottawa_mjs_1.isOttawa)(input.contact.city) && card.city !== 'Ottawa' ? `${card.city}, Ottawa` : card.city) : null;
+        // A service-area statement is not evidence of a physical branch. Never let
+        // optional model refinement turn this into an invented office/address.
+        return {
+            ...fallback,
+            extracted: { ...extracted, asks_service_area: true },
+            recommended_action: needsAddress || !area ? 'human_review' : 'draft_reply',
+            draft_sms: needsAddress || !area ? '' : `We cover ${area} and surrounding areas.`,
+            draft_email_subject: undefined,
+            draft_email_body: undefined,
+            suggested_media_urls: [],
+            risk_flags: needsAddress ? ['verified_physical_address_required'] : !area ? ['service_area_confirmation_required'] : [],
+            rationale: needsAddress ? 'Confirm a real physical address before answering.' : !area ? 'Confirm the partner service area before localizing.' : 'Answer the local coverage question directly using the configured service city. Do not imply a physical office or add a package pitch.',
+        };
+    }
     if (input.skipAi)
+        return fallback;
+    // Known, high-confidence intents already have approved deterministic copy.
+    // Reserve model calls for ambiguity, missing context, or risky conversations.
+    const aiRequiredFlags = new Set(['short_or_ambiguous_reply', 'needs_context_review', 'mentions_automation', 'resend_previous_context', 'verified_physical_address_required', 'service_area_confirmation_required']);
+    const needsAi = fallback.confidence < 0.84 || fallback.risk_flags.some(flag => aiRequiredFlags.has(flag)) || fallback.intent === 'positive_vague';
+    if (!needsAi)
         return fallback;
     return refineWithOpenAi({ contact: input.contact, touches: input.touches, latestText, config, fallback, canSendPackageNow });
 }
@@ -616,6 +703,7 @@ function partnershipDispositionFromSuggestion(result) {
         confirms_identity: 'Confirm identity and continue package/email follow-up based on prior permission.',
         asks_for_references: 'Add verified reviews/references to package before sending.',
         refers_to_another_contact: 'Create or call secondary contact and link it back to this partner.',
+        partner_lead_received: 'Pause partner outreach, create a partner-opportunity handoff, and have sales call the referring partner before quoting.',
         lead_disposition_update: 'Update referred lead disposition; keep partner warm without pushing.',
         asks_for_email: 'Capture email and send package after approval.',
         asks_for_pricing: 'Send rate card/package after approval; do not invent exact pricing.',
@@ -626,7 +714,7 @@ function partnershipDispositionFromSuggestion(result) {
         gives_address: 'Confirm address and collect best time or front-desk instruction.',
         warm_acknowledgement: 'Light follow-up only; avoid pushing unless package permission exists.',
         positive_vague: 'Use prior thread context before sending; manual review if ambiguous.',
-        not_interested: 'Close as not interested and stop outreach unless they re-engage.',
+        not_interested: 'Pause automated outreach respectfully. Do not mark opted out or lost unless they explicitly ask not to be contacted.',
         wrong_number: 'Mark wrong number and stop outreach to this phone.',
         stop_opt_out: 'Mark opted out and stop messaging.',
         needs_human_review: 'Human review required before reply.',
@@ -642,6 +730,7 @@ function partnershipDispositionFromSuggestion(result) {
         confirms_identity: 'identity_confirmation',
         asks_for_references: 'asks_references',
         refers_to_another_contact: 'secondary_contact_referral',
+        partner_lead_received: 'partner_lead_received',
         lead_disposition_update: 'lead_disposition_update',
         asks_for_email: 'asks_for_email',
         asks_for_pricing: 'asks_pricing',
@@ -652,7 +741,7 @@ function partnershipDispositionFromSuggestion(result) {
         gives_address: 'gives_address',
         warm_acknowledgement: 'warm_acknowledgement',
         positive_vague: 'positive_vague',
-        not_interested: 'replied_negative',
+        not_interested: 'polite_decline',
         wrong_number: 'wrong_number',
         stop_opt_out: 'opt_out',
         needs_human_review: 'needs_human_review',

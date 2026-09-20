@@ -626,7 +626,7 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Your home — {info.listingPhotos.length} listing photos</p>
-              <p className="text-[10px] text-gray-400">Swipe to browse · tap to enlarge</p>
+              <p className="text-[11px] text-gray-400">Swipe to browse · tap to enlarge</p>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none' }}>
               {info.listingPhotos.map((photo, index) => (
@@ -642,7 +642,7 @@ export default function SurveyPage(props: { params: Promise<{ token: string }> }
                 </a>
               ))}
             </div>
-            <p className="mt-1.5 text-[10px] text-gray-400">
+            <p className="mt-1.5 text-[11px] text-gray-400">
               {info.listingPhotos.length} photos · Flag the address above if this is not your home.
             </p>
           </div>

@@ -48,7 +48,7 @@ function ReceiptInner() {
               {brand.logoPath ? <Image src={brand.logoPath} alt={brand.fullName} width={260} height={87} className="h-auto w-[210px] sm:w-[260px]" priority /> : <div className="text-2xl font-extrabold text-white">{brand.fullName}</div>}
               <p className="mt-3 text-xs text-white/60">{brand.tagline}</p>
             </div>
-            <div className="rounded-full bg-[#C99700] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#071421]">Payment received</div>
+            <div className="rounded-full bg-[#C99700] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#071421]">Payment received</div>
           </div>
         </header>
 

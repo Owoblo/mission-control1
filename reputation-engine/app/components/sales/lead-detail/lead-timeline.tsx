@@ -178,7 +178,7 @@ export function LeadTimeline({
             onClick={() => void syncCalls()}
             disabled={syncing}
             title="Pull latest calls from Twilio — captures calls made by any rep"
-            className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)] transition hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] disabled:opacity-50"
+            className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-muted)] transition hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] disabled:opacity-50"
           >
             {syncing ? '↻ Syncing…' : '↻ Sync calls'}
           </button>
@@ -188,7 +188,7 @@ export function LeadTimeline({
               onClick={() => void transcribeCalls()}
               disabled={transcribing}
               title="Transcribe recordings that are already saved but missing transcript text"
-              className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-muted)] transition hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] disabled:opacity-50"
+              className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-muted)] transition hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] disabled:opacity-50"
             >
               {transcribing ? 'Transcribing…' : `Transcribe ${pendingTranscriptionCount}`}
             </button>
@@ -205,7 +205,7 @@ export function LeadTimeline({
               key={value}
               type="button"
               onClick={() => setFilter(value as TimelineFilter)}
-              className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+              className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${
                 filter === value
                   ? 'border-[var(--app-accent)] bg-[rgba(15,106,83,0.08)] text-[var(--app-accent)]'
                   : 'border-[var(--app-line)] bg-white text-[var(--app-muted)]'

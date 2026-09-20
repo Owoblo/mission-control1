@@ -108,15 +108,15 @@ function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'
         </div>
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-[#071421]">{lead.name}</div>
-          <div className="truncate text-xs text-slate-400">{[lead.email, lead.phone].filter(Boolean).join(' · ')}</div>
+          <div className="truncate text-xs text-slate-500">{[lead.email, lead.phone].filter(Boolean).join(' · ')}</div>
         </div>
       </div>
 
       {/* Card input */}
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Card Details</label>
-          <div className="flex items-center gap-1 text-[10px] text-slate-300">
+          <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Card Details</label>
+          <div className="flex items-center gap-1 text-[11px] text-slate-300">
             <svg width="11" height="13" viewBox="0 0 11 13" fill="none"><path d="M5.5 0L0 2.6V6c0 3.3 2.3 6.3 5.5 7C8.7 12.3 11 9.3 11 6V2.6L5.5 0z" fill="#94a3b8"/></svg>
             Encrypted by Stripe
           </div>
@@ -164,9 +164,9 @@ function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'
               className="sr-only"
             />
             <div className={`text-sm font-semibold ${chargeNow ? 'text-white' : 'text-[#071421]'}`}>
-              Charge {depositPct}% deposit now — <span className={chargeNow ? 'text-[#C99700]' : ''}>{formatMoney(quote.deposit)}</span>
+              Charge {depositPct}% deposit now — <span className={chargeNow ? 'text-[var(--app-warm)]' : ''}>{formatMoney(quote.deposit)}</span>
             </div>
-            <div className={`mt-0.5 text-xs ${chargeNow ? 'text-slate-300' : 'text-slate-400'}`}>
+            <div className={`mt-0.5 text-xs ${chargeNow ? 'text-slate-300' : 'text-slate-500'}`}>
               {chargeNow
                 ? `Remaining ${formatMoney(quote.balance)} charged after the job from saved card.`
                 : 'Card saved on file only — charge deposit later from the lead page.'}
@@ -242,7 +242,7 @@ function AccountScopedCardForm(props: Omit<Props, 'open'>) {
   if (!setup || !stripePromise) return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-10">
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#071421] border-t-transparent" />
-      <p className="text-xs text-slate-400">Connecting to the branch Stripe account…</p>
+      <p className="text-xs text-slate-500">Connecting to the branch Stripe account…</p>
     </div>
   )
   return (
@@ -277,7 +277,7 @@ export function CollectCardModal({ open, lead, quote, onClose, onSuccess }: Prop
             </div>
             <button
               onClick={onClose}
-              className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+              className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-white/10 hover:text-white transition-colors"
             >
               ✕
             </button>

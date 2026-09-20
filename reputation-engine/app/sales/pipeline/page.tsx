@@ -36,7 +36,7 @@ function HeatTag({ label, score, tone }: { label: string; score: number; tone: '
           : tone === 'dormant'
             ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
             : 'border-slate-200 bg-slate-50 text-slate-600'
-  return <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${classes}`}>{label} {score}</span>
+  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${classes}`}>{label} {score}</span>
 }
 
 const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
@@ -562,7 +562,7 @@ function SalesPipelineContent() {
                 : 'border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--app-muted)] opacity-50'
             }`}
           >
-            {emoji} {label} {count > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${filterAttention === key ? 'bg-white/20' : 'bg-[var(--app-wash)]'}`}>{count}</span>}
+            {emoji} {label} {count > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterAttention === key ? 'bg-white/20' : 'bg-[var(--app-wash)]'}`}>{count}</span>}
           </button>
         ))}
       </section>
@@ -725,7 +725,7 @@ function SalesPipelineContent() {
                       <span className="font-semibold text-[var(--app-ink)] truncate min-w-0">{lead.name}</span>
                       {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                       {guidance?.action.goldenMoment ? (
-                        <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
+                        <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">QUOTE VIEWED NOW</span>
                       ) : null}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--app-muted)]">
@@ -808,13 +808,13 @@ function SalesPipelineContent() {
                   </div>
 
                   <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-[var(--app-line)]">
-                    <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Call</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">SMS</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Open</button>
-                    <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Snooze</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Call</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">SMS</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Open</button>
+                    <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">Snooze</button>
                     <button
                       onClick={e => void removeLead(e, lead)}
-                      className="ml-auto px-1 text-[10px] text-[var(--app-muted)] hover:text-rose-600 transition"
+                      className="ml-auto px-1 text-[11px] text-[var(--app-muted)] hover:text-rose-600 transition"
                     >
                       {deleteBusyId === lead.id ? '…' : '✕'}
                     </button>
@@ -852,7 +852,7 @@ function SalesPipelineContent() {
                         <div className="mt-1 text-xs text-[var(--app-muted)]">{lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.phone}</div>
                         {lead.opportunityContext?.waitingFor ? <div className="mt-1 text-[11px] text-[#8a6800]">Waiting for: {lead.opportunityContext.waitingFor}</div> : null}
                       </div>
-                      <span className={`shrink-0 rounded-[6px] px-2 py-1 text-[10px] font-semibold ${STAGE_COLORS[lead.stage] || 'bg-gray-50 text-gray-600'}`}>
+                      <span className={`shrink-0 rounded-[6px] px-2 py-1 text-[11px] font-semibold ${STAGE_COLORS[lead.stage] || 'bg-gray-50 text-gray-600'}`}>
                         {COLUMN_LABELS[lead.stage]}
                       </span>
                     </div>
@@ -895,7 +895,7 @@ function SalesPipelineContent() {
                     return (
                       <div key={lead.id} draggable onDragStart={() => handleDragStart(lead.id)} onDragEnd={handleDragEnd}
                         className={`group relative rounded-[8px] border bg-[var(--app-panel)] transition hover:border-[var(--app-ink)] ${guidance?.action.goldenMoment ? 'border-orange-300 bg-orange-50/40 shadow-sm' : COLUMN_ACCENT[column.stage] || 'border-[var(--app-line)]'} ${isDragging ? 'opacity-40 ring-2 ring-[var(--app-accent)]' : 'cursor-grab active:cursor-grabbing'}`}>
-                        <div className="absolute left-2 top-1/2 -translate-y-1/2 select-none text-[10px] text-[var(--app-line)] hover:text-[var(--app-muted)]">⠿</div>
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 select-none text-[11px] text-[var(--app-line)] hover:text-[var(--app-muted)]">⠿</div>
                         <button onClick={e => void removeLead(e, lead)} className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700">
                           {deleteBusyId === lead.id ? '…' : '✕'}
                         </button>
@@ -906,33 +906,33 @@ function SalesPipelineContent() {
                                 <div className="truncate text-sm font-semibold text-[var(--app-ink)]">{lead.name}</div>
                                 {guidance ? <HeatTag label={guidance.heat.label} score={guidance.heat.score} tone={guidance.heat.tone} /> : null}
                                 {lead.stage === 'tentative' && lead.followUpDate && new Date(lead.followUpDate) <= new Date() && (
-                                  <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[9px] font-bold text-white">CALL TODAY</span>
+                                  <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[11px] font-bold text-white">CALL TODAY</span>
                                 )}
                                 {guidance?.action.goldenMoment ? (
-                                  <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[9px] font-bold text-orange-800">HOT: CUSTOMER IS REVIEWING QUOTE</span>
+                                  <span className="rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-[11px] font-bold text-orange-800">HOT: CUSTOMER IS REVIEWING QUOTE</span>
                                 ) : null}
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--app-muted)]">
                                 <span>{lead.moveDate ? formatDate(lead.moveDate) : 'Date TBD'} · {lead.moveType || 'Move TBD'}</span>
-                                {lead.moveDateFlexible && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Pending close</span>}
-                                {lead.branch && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700">{getSalesBranchLabel(lead.branch)}</span>}
-                                {lead.leadKind === 'realtor_opportunity' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Realtor Lead</span>}
-                                {lead.leadKind === 'partner_opportunity' && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">Partner Sales Handoff</span>}
+                                {lead.moveDateFlexible && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Pending close</span>}
+                                {lead.branch && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-700">{getSalesBranchLabel(lead.branch)}</span>}
+                                {lead.leadKind === 'realtor_opportunity' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Realtor Lead</span>}
+                                {lead.leadKind === 'partner_opportunity' && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Partner Sales Handoff</span>}
                               </div>
                             </div>
-                            <span className="mr-5 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">{guidance?.heat.score || lead.leadScore || 0}</span>
+                            <span className="mr-5 rounded-[4px] bg-[rgba(15,106,83,0.08)] px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-accent)]">{guidance?.heat.score || lead.leadScore || 0}</span>
                           </div>
                           <div className="mt-3 flex items-center justify-between text-xs text-[var(--app-muted)]">
                             <span>{lead.originAddress || lead.originCity || 'Origin TBD'} → {lead.destAddress || lead.destCity || 'Destination TBD'}</span>
                             <span>{quote ? formatMoney(quote.total) : 'Est. pending'}</span>
                           </div>
                           {lead.opportunityContext?.summary ? <div className="mt-3 border-l-2 border-[#C99700] pl-2 text-[11px] leading-4 text-[#344054]">{lead.opportunityContext.summary}</div> : null}
-                          {lead.leadKind === 'partner_opportunity' ? <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-900"><div className="font-semibold">Partner event</div><div>{lead.partnerLeadSummary || 'Call the referring partner first and collect the referred customer details.'}</div>{lead.partnerLeadSignal ? <div className="mt-1 text-[10px] font-medium uppercase tracking-wide">Signal: {lead.partnerLeadSignal} · Priority: {lead.partnerLeadPriority || 'normal'}</div> : null}</div> : null}
+                          {lead.leadKind === 'partner_opportunity' ? <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-900"><div className="font-semibold">Partner event</div><div>{lead.partnerLeadSummary || 'Call the referring partner first and collect the referred customer details.'}</div>{lead.partnerLeadSignal ? <div className="mt-1 text-[11px] font-medium uppercase tracking-wide">Signal: {lead.partnerLeadSignal} · Priority: {lead.partnerLeadPriority || 'normal'}</div> : null}</div> : null}
                           <div className="mt-2 text-[11px] text-[var(--app-ink)]">
                             <span className="font-semibold">Next:</span> {lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.intelligence?.nextAction || 'Review lead'}
                           </div>
-                          {lead.opportunityContext?.waitingFor ? <div className="mt-1 truncate text-[10px] text-[#8a6800]">Waiting for: {lead.opportunityContext.waitingFor}</div> : null}
-                          {guidance?.action.reason ? <div className="mt-1 truncate text-[10px] text-[var(--app-muted)]">{guidance.action.reason}</div> : null}
+                          {lead.opportunityContext?.waitingFor ? <div className="mt-1 truncate text-[11px] text-[#8a6800]">Waiting for: {lead.opportunityContext.waitingFor}</div> : null}
+                          {guidance?.action.reason ? <div className="mt-1 truncate text-[11px] text-[var(--app-muted)]">{guidance.action.reason}</div> : null}
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
                             <span>{guidance?.latestActivity.at ? `${guidance.latestActivity.text} · ${formatRelativeTime(guidance.latestActivity.at)}` : lead.followUpDate ? `Follow up ${formatDate(lead.followUpDate)}` : 'No follow-up set'}</span>
                             <div className="flex items-center gap-1.5">
@@ -944,10 +944,10 @@ function SalesPipelineContent() {
                             </div>
                           </div>
                           <div className="mt-2 flex gap-1.5">
-                            <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">Call</button>
-                            <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">SMS</button>
-                            <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">Open</button>
-                            <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">Snooze</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'call', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Call</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'sms', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">SMS</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'open', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Open</button>
+                            <button onClick={event => void handleQuickAction(event, lead, 'snooze', quote)} className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">Snooze</button>
                           </div>
                         </Link>
                       </div>

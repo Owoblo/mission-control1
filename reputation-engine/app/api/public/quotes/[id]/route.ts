@@ -17,6 +17,7 @@ import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 import { sanitizeCustomerQuoteText } from '@/lib/customer-quote-content'
 import { preserveAcceptedScopeSnapshot } from '@/lib/server/accepted-scope-snapshot'
+import { isQuoteExpired } from '@/lib/quote-expiry'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
@@ -79,19 +80,8 @@ function isTokenValid(token: string | null, expected?: string) {
   return !!token && !!expected && token === expected
 }
 
-// A quote is expired when its validity window (validDays from createdAt, default 30)
-// has passed. Quotes in terminal states keep working as receipts/history — expiry
-// only blocks new customer actions (view-as-bookable, accept, decline).
-function isQuoteExpired(quote: CRMQuote): boolean {
-  if (quote.status === 'accepted' || quote.status === 'invoiced' || quote.status === 'declined' || quote.acceptedAt) return false
-  if (!quote.createdAt) return false
-  const created = new Date(quote.createdAt.length === 10 ? `${quote.createdAt}T12:00:00` : quote.createdAt)
-  if (Number.isNaN(created.getTime())) return false
-  const validDays = quote.validDays && quote.validDays > 0 ? quote.validDays : 30
-  const expiresAt = new Date(created)
-  expiresAt.setDate(expiresAt.getDate() + validDays)
-  return Date.now() > expiresAt.getTime()
-}
+// Quote expiry is enforced server-side: a stale price can never be accepted
+// or declined through the normal customer flow.
 
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;

@@ -507,7 +507,7 @@ function ContractorsContent() {
                   className="crm-input mt-1"
                   placeholder="Windsor, Essex County, London"
                 />
-                <span className="mt-1 block text-[10px] font-normal text-slate-500">
+                <span className="mt-1 block text-[11px] font-normal text-slate-500">
                   Cities or regions this contractor will serve.
                 </span>
               </label>

@@ -24,7 +24,7 @@ const move_policy_1 = require("../../lib/move-policy");
     strict_1.default.notEqual(pricedItem.status, 'excluded');
     strict_1.default.match(pricedItem.notes || '', /safe handling/i);
 });
-(0, node_test_1.default)('move policy still blocks hot tubs from normal moving scope', () => {
+(0, node_test_1.default)('move policy keeps hot tubs included as subcontractor-supported specialty handling', () => {
     const item = {
         name: 'Hot Tub',
         room: 'Backyard',
@@ -35,6 +35,7 @@ const move_policy_1 = require("../../lib/move-policy");
         source: 'manual',
     };
     const [pricedItem] = (0, move_policy_1.applyMovePolicyToInventory)([item]);
-    strict_1.default.equal(pricedItem.included, false);
-    strict_1.default.equal(pricedItem.exclusionReason, 'Hot tubs are not included. A separate specialty mover is required.');
+    strict_1.default.equal(pricedItem.included, true);
+    strict_1.default.notEqual(pricedItem.status, 'excluded');
+    strict_1.default.match(pricedItem.notes || '', /specialty subcontractor/i);
 });

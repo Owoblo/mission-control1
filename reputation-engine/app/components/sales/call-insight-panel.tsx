@@ -109,7 +109,7 @@ export function CallInsightPanel({
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-sm font-semibold text-[var(--app-ink)]">{callLabel}</div>
                   {badge ? (
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
                       moveReadiness === 'hot'
                         ? 'border-rose-200 bg-rose-50 text-rose-700'
                         : moveReadiness === 'warm'
@@ -142,7 +142,7 @@ export function CallInsightPanel({
           <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-4">
             <div className="flex flex-wrap items-center gap-2">
               <div className="crm-label">{title}</div>
-              <span className="text-[10px] font-semibold text-violet-500">Powered by Saturn Star AI</span>
+              <span className="text-[11px] font-semibold text-violet-500">Powered by Saturn Star AI</span>
             </div>
             {bullets.length ? (
               <ul className="mt-3 space-y-2 text-sm leading-6 text-stone-800">
@@ -165,7 +165,7 @@ export function CallInsightPanel({
         <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="crm-label">Transcript</div>
-            <span className="text-[10px] font-semibold text-[var(--app-muted)]">{transcriptLines.length ? `${transcriptLines.length} lines` : 'Pending'}</span>
+            <span className="text-[11px] font-semibold text-[var(--app-muted)]">{transcriptLines.length ? `${transcriptLines.length} lines` : 'Pending'}</span>
           </div>
           {transcriptLines.length ? (
             <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">

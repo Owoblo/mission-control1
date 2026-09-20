@@ -38,7 +38,7 @@ export function RelationshipRecord({ contactId }: { contactId: string }) {
     <div className="mt-4 border-t border-slate-100 pt-3">
       <h4 className="font-semibold text-slate-800">Recorded communication</h4>
       <div className="mt-2 grid grid-cols-2 gap-2">{[['sms', 'SMS / pictures'], ['email', 'Email'], ['phone', 'Calls'], ['direct_mail', 'Direct mail']].map(([key, label]) => <div key={key} className="rounded-lg bg-slate-50 p-2"><div className="font-medium">{label}</div><div className="mt-1 text-slate-500">{data.channels[key]?.outbound || 0} outbound · {data.channels[key]?.inbound || 0} inbound</div></div>)}</div>
-      <p className="mt-2 text-[10px] text-slate-500">{data.historyLimited ? 'Counts cover the latest 500 recorded events.' : 'Counts reflect CRM events, not delivery confirmation.'}</p>
+      <p className="mt-2 text-[11px] text-slate-500">{data.historyLimited ? 'Counts cover the latest 500 recorded events.' : 'Counts reflect CRM events, not delivery confirmation.'}</p>
     </div>
     <div className="mt-4 border-t border-slate-100 pt-3">
       <h4 className="font-semibold text-slate-800">Outstanding promises and fulfilment</h4>

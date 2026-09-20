@@ -531,7 +531,7 @@ export default function DialerHealthPage() {
                   ['Token expiry', formatTime(typeof snapshot.tokenExpiresAt === 'string' ? snapshot.tokenExpiresAt : null)],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
+                    <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
                     <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
                   </div>
                 ))}
@@ -556,7 +556,7 @@ export default function DialerHealthPage() {
               </div>
               {health?.metrics?.callsByRep?.length ? (
                 <div className="mt-4 space-y-2">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-[var(--app-muted)]">Calls by rep</div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-[var(--app-muted)]">Calls by rep</div>
                   {health.metrics.callsByRep.map(row => (
                     <div key={row.rep} className="flex items-center justify-between rounded-[8px] bg-[var(--app-bg)] px-3 py-2 text-sm">
                       <span>{row.rep}</span>
@@ -577,7 +577,7 @@ export default function DialerHealthPage() {
                   ['Rerouted', health?.metrics?.queueReroutedToday ?? 0],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
+                    <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
                     <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
                   </div>
                 ))}
@@ -613,7 +613,7 @@ export default function DialerHealthPage() {
                   ['Returned', health?.metrics?.warmTransfersReturnedToday ?? 0],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="rounded-[8px] bg-[var(--app-bg)] px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
+                    <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">{label}</div>
                     <div className="mt-1 font-medium text-[var(--app-ink)]">{value}</div>
                   </div>
                 ))}

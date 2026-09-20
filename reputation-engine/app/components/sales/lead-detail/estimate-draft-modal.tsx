@@ -123,9 +123,9 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
           {suggestions.map((s, i) => (
             <button key={i} type="button" onMouseDown={() => select(s)}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-[var(--app-bg)]">
-              <span className="text-[10px]">{s.placeType === 'apartment' ? '🏢' : '🏠'}</span>
+              <span className="text-[11px]">{s.placeType === 'apartment' ? '🏢' : '🏠'}</span>
               <span className="min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-[var(--app-ink)]">{s.label}</span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${s.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${s.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                 {s.countryCode === 'ca' ? 'Canada' : s.countryCode === 'us' ? 'USA' : s.country || 'Address'}
               </span>
             </button>
@@ -139,7 +139,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
 function AddressMapLinks({ address }: { address: string }) {
   if (!address.trim()) return null
   const query = encodeURIComponent(address.trim())
-  return <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] font-semibold">
+  return <div className="mt-1.5 flex flex-wrap gap-2 text-[11px] font-semibold">
     <a href={`https://www.google.com/maps/search/?api=1&query=${query}`} target="_blank" rel="noreferrer" className="text-[var(--app-accent)] hover:underline">Google Maps ↗</a>
     <a href={`https://maps.apple.com/?q=${query}`} target="_blank" rel="noreferrer" className="text-[var(--app-accent)] hover:underline">Apple Maps ↗</a>
   </div>
@@ -2755,9 +2755,9 @@ export function EstimateDraftModal({
               <span>· {effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs} lbs</span>
               {listingContextSummary ? <span>· MLS {listingContextSummary}</span> : null}
               {listingHighlights.length > 0 ? <span>· {listingHighlights.slice(0, 2).join(' · ')}</span> : null}
-              {routeBusy && <span className="text-[10px] text-[var(--app-muted)]">Calculating route...</span>}
+              {routeBusy && <span className="text-[11px] text-[var(--app-muted)]">Calculating route...</span>}
               {route && !routeBusy && (
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] ${
                   route.category === 'local' ? 'bg-emerald-50 text-emerald-700' :
                   route.category === 'medium' ? 'bg-amber-50 text-amber-700' :
                   'bg-rose-50 text-rose-700'
@@ -2768,7 +2768,7 @@ export function EstimateDraftModal({
                   }
                 </span>
               )}
-              {routeError && !routeBusy && <span className="text-[10px] text-rose-500">{routeError}</span>}
+              {routeError && !routeBusy && <span className="text-[11px] text-rose-500">{routeError}</span>}
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -2780,12 +2780,12 @@ export function EstimateDraftModal({
         <div className="sticky top-0 z-30 border-b border-[var(--app-line)] bg-white/95 px-4 py-3 backdrop-blur md:px-6">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Estimate view</span>
-              <span className="ml-2 text-[10px] text-[var(--app-muted)]">Both views save the same complete move context.</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Estimate view</span>
+              <span className="ml-2 text-[11px] text-[var(--app-muted)]">Both views save the same complete move context.</span>
             </div>
             <div className="flex rounded-[7px] border border-[var(--app-line)] bg-[var(--app-bg)] p-0.5">
-              <button type="button" onClick={() => chooseEstimateView('simple')} className={`rounded-[5px] px-3 py-1 text-[10px] font-semibold ${estimateView === 'simple' ? 'bg-white text-[var(--app-ink)] shadow-sm' : 'text-[var(--app-muted)]'}`}>Simple</button>
-              <button type="button" onClick={() => chooseEstimateView('guided')} className={`rounded-[5px] px-3 py-1 text-[10px] font-semibold ${estimateView === 'guided' ? 'bg-[#071421] text-white' : 'text-[var(--app-muted)]'}`}>Guided</button>
+              <button type="button" onClick={() => chooseEstimateView('simple')} className={`rounded-[5px] px-3 py-1 text-[11px] font-semibold ${estimateView === 'simple' ? 'bg-white text-[var(--app-ink)] shadow-sm' : 'text-[var(--app-muted)]'}`}>Simple</button>
+              <button type="button" onClick={() => chooseEstimateView('guided')} className={`rounded-[5px] px-3 py-1 text-[11px] font-semibold ${estimateView === 'guided' ? 'bg-[#071421] text-white' : 'text-[var(--app-muted)]'}`}>Guided</button>
             </div>
           </div>
           {estimateView === 'guided' ? <><div className="flex items-center gap-2 overflow-x-auto">
@@ -2812,9 +2812,9 @@ export function EstimateDraftModal({
           <div className="mt-2 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-xs font-semibold text-[var(--app-ink)]">{activeWorkflowStage?.label}</div>
-              <div className="truncate text-[10px] text-[var(--app-muted)]">{activeWorkflowStage?.description}</div>
+              <div className="truncate text-[11px] text-[var(--app-muted)]">{activeWorkflowStage?.description}</div>
             </div>
-            <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{activeWorkflowStage?.issueCount ? `${activeWorkflowStage.issueCount} item${activeWorkflowStage.issueCount === 1 ? '' : 's'} to confirm` : 'Stage complete'}</span>
+            <span className="shrink-0 text-[11px] text-[var(--app-muted)]">{activeWorkflowStage?.issueCount ? `${activeWorkflowStage.issueCount} item${activeWorkflowStage.issueCount === 1 ? '' : 's'} to confirm` : 'Stage complete'}</span>
           </div></> : <div className="text-xs text-[var(--app-muted)]">Everything is on one page. Review only what matters, then use the readiness summary before sending.</div>}
         </div>
 
@@ -2911,7 +2911,7 @@ export function EstimateDraftModal({
                           )}
                           {(intakeResult.recommendations?.nextBestActions?.length ?? 0) > 0 && (
                             <div className="space-y-0.5">
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">Next best actions</div>
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-violet-700">Next best actions</div>
                               {intakeResult.recommendations!.nextBestActions!.map((action, i) => (
                                 <div key={i} className="text-[11px] text-violet-800">• {action}</div>
                               ))}
@@ -2922,7 +2922,7 @@ export function EstimateDraftModal({
 
                       {(intakeResult.parties?.length ?? 0) > 0 && (
                         <div className="rounded-[6px] border border-slate-200 bg-white px-3 py-2.5 space-y-2">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pickup contexts</div>
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pickup contexts</div>
                           {intakeResult.parties!.map((party, i) => (
                             <div key={`${party.label}-${i}`} className="rounded-[6px] border border-slate-100 bg-slate-50 px-2.5 py-2">
                               <div className="flex items-start justify-between gap-2">
@@ -2930,14 +2930,14 @@ export function EstimateDraftModal({
                                   <div className="truncate text-[12px] font-semibold text-[#071421]">{party.label}</div>
                                   <div className="truncate text-[11px] text-slate-500">{party.pickupAddress || party.pickupCity || 'Address pending'}</div>
                                 </div>
-                                <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${party.missingInventory ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${party.missingInventory ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                                   {party.missingInventory ? 'Inventory pending' : 'Inventory known'}
                                 </span>
                               </div>
                               {(party.inventorySources?.length ?? 0) > 0 && (
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {party.inventorySources!.map(source => (
-                                    <span key={source} className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                    <span key={source} className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                                       {source.replace(/_/g, ' ')}
                                     </span>
                                   ))}
@@ -2950,7 +2950,7 @@ export function EstimateDraftModal({
 
                       {/* What will be filled */}
                       <div className="rounded-[6px] border border-sky-200 bg-sky-50 px-3 py-2.5 space-y-1.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Will fill in:</div>
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-sky-700">Will fill in:</div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-sky-800">
                           {intakeResult.scenarioType && <span>✓ Scenario: {intakeResult.scenarioType.replace(/_/g, ' ')}</span>}
                           {(intakeResult.parties?.length ?? 0) > 0 && <span>✓ Pickup contexts: {intakeResult.parties?.length}</span>}
@@ -2975,7 +2975,7 @@ export function EstimateDraftModal({
                       {/* Missing questions */}
                       {(intakeResult.missingInfo?.length ?? 0) > 0 && (
                         <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2.5 space-y-1">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Still need to ask:</div>
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Still need to ask:</div>
                           {intakeResult.missingInfo!.map((q, i) => (
                             <div key={i} className="text-[11px] text-amber-800">• {q}</div>
                           ))}
@@ -3000,7 +3000,7 @@ export function EstimateDraftModal({
                 <div className="mb-3 text-xs text-[var(--app-muted)]">Confirm the address first, then describe the actual route the crew will carry furniture.</div>
                 <div className={`grid gap-3 ${estimateView === 'simple' && !isLaborOnly ? 'sm:grid-cols-2' : ''}`}>
                   {(estimateView === 'simple' || activeStage === 'origin' || isLaborOnly) && <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{isLaborOnly ? 'Service address' : 'Origin'}</div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{isLaborOnly ? 'Service address' : 'Origin'}</div>
                     <AddressAutocompleteInput
                       value={originAddress || lead.originAddress || ''}
                       placeholder={isLaborOnly ? 'Where the labour is needed' : 'Origin address'}
@@ -3018,7 +3018,7 @@ export function EstimateDraftModal({
                     <AddressMapLinks address={originFull} />
                   </div>}
                   {!isLaborOnly && (estimateView === 'simple' || activeStage === 'destination') && <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Destination</div>
                     <AddressAutocompleteInput
                       value={destAddress || lead.destAddress || destCity || lead.destCity || ''}
                       placeholder="Destination address or city"
@@ -3053,8 +3053,8 @@ export function EstimateDraftModal({
                 {routeBusy && <div className="mt-2 text-xs text-[var(--app-muted)]">Calculating route…</div>}
                 <div className="mt-3 rounded-[8px] border border-[var(--app-line)] bg-white px-3 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Route Context</div>
-                    <div className="text-[10px] font-medium text-[var(--app-muted)]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Route Context</div>
+                    <div className="text-[11px] font-medium text-[var(--app-muted)]">
                       {route?.serviceAreaMode === 'open_market' ? `${originCity || lead.originCity || 'Origin'} open market` : `${getSalesBranchLabel(selectedBranch)} branch`}
                     </div>
                   </div>
@@ -3093,29 +3093,29 @@ export function EstimateDraftModal({
                   )}
                   {Boolean(routeError || route?.missingRequirements?.length) && (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" onClick={openRouteFixArea} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                      <button type="button" onClick={openRouteFixArea} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Edit address
                       </button>
-                      <button type="button" onClick={openRouteFixArea} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                      <button type="button" onClick={openRouteFixArea} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Search address
                       </button>
-                      <button type="button" onClick={focusManualKmOverride} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                      <button type="button" onClick={focusManualKmOverride} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Use manual km override
                       </button>
-                      <button type="button" onClick={saveAsRouteUnresolved} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                      <button type="button" onClick={saveAsRouteUnresolved} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                         Save as unresolved
                       </button>
                     </div>
                   )}
                   {crossBorderMove ? <div className="mt-3 rounded-[8px] border border-sky-200 bg-sky-50 p-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div><div className="text-xs font-semibold text-sky-950">Cross-border pricing protection</div><div className="mt-1 text-[10px] leading-4 text-sky-800">The estimate adds a mandatory $500 Cross-Border Logistics Premium when calculated. Add a separate capacity buffer only when crew availability, border timing, or execution risk justifies it.</div></div>
-                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800">{quoteLineItems.some(item => item.description === 'Cross-Border Logistics Premium' && item.amount === 500) ? '$500 included' : '$500 required at calculation'}</span>
+                      <div><div className="text-xs font-semibold text-sky-950">Cross-border pricing protection</div><div className="mt-1 text-[11px] leading-4 text-sky-800">The estimate adds a mandatory $500 Cross-Border Logistics Premium when calculated. Add a separate capacity buffer only when crew availability, border timing, or execution risk justifies it.</div></div>
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">{quoteLineItems.some(item => item.description === 'Cross-Border Logistics Premium' && item.amount === 500) ? '$500 included' : '$500 required at calculation'}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {[0, 250, 500, 750].map(amount => {
                         const selected = Number(quoteLineItems.find(item => item.description === 'Cross-Border Capacity & Risk Buffer')?.amount || 0) === amount
-                        return <button key={amount} type="button" onClick={() => setCrossBorderRiskBuffer(amount)} className={`rounded-[6px] border px-2.5 py-1.5 text-[10px] font-semibold ${selected ? 'border-[#071421] bg-[#071421] text-white' : 'border-sky-200 bg-white text-sky-900'}`}>{amount === 0 ? 'No extra buffer' : `Add ${formatMoney(amount)}`}</button>
+                        return <button key={amount} type="button" onClick={() => setCrossBorderRiskBuffer(amount)} className={`rounded-[6px] border px-2.5 py-1.5 text-[11px] font-semibold ${selected ? 'border-[#071421] bg-[#071421] text-white' : 'border-sky-200 bg-white text-sky-900'}`}>{amount === 0 ? 'No extra buffer' : `Add ${formatMoney(amount)}`}</button>
                       })}
                     </div>
                   </div> : null}
@@ -3183,7 +3183,7 @@ export function EstimateDraftModal({
               <div data-estimate-stage="plan" className="rounded-[10px] border border-sky-200 bg-sky-50 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700">Recommended operating setup</div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-700">Recommended operating setup</div>
                     <div className="mt-1 text-sm font-semibold text-sky-950">
                       {suggestTruckCount(
                         effectiveInventoryMetrics.totalCubicFeet,
@@ -3238,7 +3238,7 @@ export function EstimateDraftModal({
                       Keep the quote tied to business logistics: site contact, invoice/PO, access window, dock/elevator, COI, labeling, IT, and disposal.
                     </div>
                   </div>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-sky-700">Commercial</span>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-700">Commercial</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
@@ -3349,7 +3349,7 @@ export function EstimateDraftModal({
                     : 'border-sky-200 bg-sky-50'
               }`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--app-muted)]">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--app-muted)]">
                     {consultativeMovePlan.estimateMode === 'firm'
                       ? 'Firm estimate ready'
                       : consultativeMovePlan.estimateMode === 'locked_scope'
@@ -3357,7 +3357,7 @@ export function EstimateDraftModal({
                         : 'Planning estimate'}
                   </div>
                   {lead.moveDateFlexible ? (
-                    <span className="rounded-full border border-amber-300 bg-white px-2 py-1 text-[10px] font-semibold text-amber-900">
+                    <span className="rounded-full border border-amber-300 bg-white px-2 py-1 text-[11px] font-semibold text-amber-900">
                       Date remains flexible
                     </span>
                   ) : null}
@@ -3366,13 +3366,13 @@ export function EstimateDraftModal({
                 {(consultativeMovePlan.knownNow.length > 0 || consultativeMovePlan.finalizeLater.length > 0) ? (
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Known and priceable now</div>
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-800">Known and priceable now</div>
                       <div className="mt-1 space-y-1 text-[11px] leading-4 text-[var(--app-ink)]">
                         {consultativeMovePlan.knownNow.map(item => <div key={item}>✓ {item}</div>)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Finalize without restarting</div>
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Finalize without restarting</div>
                       <div className="mt-1 space-y-1 text-[11px] leading-4 text-[var(--app-ink)]">
                         {consultativeMovePlan.finalizeLater.map(item => <div key={item}>○ {item}</div>)}
                       </div>
@@ -3383,7 +3383,7 @@ export function EstimateDraftModal({
 
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="block">
-                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Closing / possession timing</span>
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Closing / possession timing</span>
                   <select value={jobFactors.destinationTiming || ''} onChange={e => {
                     const destinationTiming = (e.target.value || undefined) as JobFactors['destinationTiming']
                     if (destinationTiming === 'same_day' && jobFactors.temporaryStorageNeeded) {
@@ -3399,7 +3399,7 @@ export function EstimateDraftModal({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Packing preference</span>
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Packing preference</span>
                   <select value={jobFactors.packingPreference || ''} onChange={e => setFactor('packingPreference', (e.target.value || undefined) as never)} className="crm-input bg-white text-xs">
                     <option value="">Ask customer</option>
                     <option value="self">Self-pack</option>
@@ -3409,7 +3409,7 @@ export function EstimateDraftModal({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Cleaning preference</span>
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Cleaning preference</span>
                   <select value={jobFactors.cleaningPreference || ''} onChange={e => setFactor('cleaningPreference', (e.target.value || undefined) as never)} className="crm-input bg-white text-xs">
                     <option value="">Ask customer</option>
                     <option value="none">No cleaning needed</option>
@@ -3447,15 +3447,15 @@ export function EstimateDraftModal({
                   <div key={phase.id} className={`rounded-[7px] border p-2 ${
                     phase.status === 'included' ? 'border-emerald-200 bg-emerald-50' : phase.status === 'pending' ? 'border-amber-200 bg-amber-50' : 'border-[var(--app-line)] bg-white'
                   }`}>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--app-muted)]">{phase.label}</div>
-                    <div className="mt-1 text-[10px] leading-4 text-[var(--app-ink)]">{phase.summary}</div>
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--app-muted)]">{phase.label}</div>
+                    <div className="mt-1 text-[11px] leading-4 text-[var(--app-ink)]">{phase.summary}</div>
                   </div>
                 ))}
               </div>
 
               {consultativeMovePlan.questions.length > 0 && (
                 <div className="rounded-[7px] border border-sky-200 bg-sky-50 p-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-sky-800">Ask naturally—one at a time</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wide text-sky-800">Ask naturally—one at a time</div>
                   <div className="mt-1.5 space-y-1 text-xs text-sky-950">
                     {consultativeMovePlan.questions.map(question => <div key={question}>• {question}</div>)}
                   </div>
@@ -3464,7 +3464,7 @@ export function EstimateDraftModal({
 
               {consultativeMovePlan.nudges.length > 0 ? (
                 <div className="rounded-[7px] border border-violet-200 bg-violet-50 p-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-violet-800">CRM follow-through</div>
+                  <div className="text-[11px] font-bold uppercase tracking-wide text-violet-800">CRM follow-through</div>
                   <div className="mt-1.5 space-y-1.5 text-xs text-violet-950">
                     {consultativeMovePlan.nudges.map(nudge => (
                       <div key={nudge.key}>
@@ -3681,12 +3681,12 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-semibold text-emerald-900">🗑 Junk Removal Details</div>
-                    <button type="button" onClick={toggleJunk} className="text-[10px] text-emerald-600 hover:text-emerald-900">Remove</button>
+                    <button type="button" onClick={toggleJunk} className="text-[11px] text-emerald-600 hover:text-emerald-900">Remove</button>
                   </div>
 
                   {/* Junk pickup address — Google Places autocomplete */}
                   <div>
-                    <label className="text-[10px] font-semibold text-emerald-800">Junk pickup address</label>
+                    <label className="text-[11px] font-semibold text-emerald-800">Junk pickup address</label>
                     <div className="mt-1">
                       <AddressAutocompleteInput
                         value={junkAddress}
@@ -3695,16 +3695,16 @@ export function EstimateDraftModal({
                       />
                     </div>
                     {junkAddress && originAddress && junkAddress.trim().toLowerCase() !== originAddress.trim().toLowerCase() && (
-                      <div className="mt-1 text-[10px] text-emerald-700">Different from move origin ✓ — will be treated as a separate stop</div>
+                      <div className="mt-1 text-[11px] text-emerald-700">Different from move origin ✓ — will be treated as a separate stop</div>
                     )}
                     {junkAddress && originAddress && junkAddress.trim().toLowerCase() === originAddress.trim().toLowerCase() && (
-                      <div className="mt-1 text-[10px] text-emerald-600">Same as move origin — junk cleared before/after main move</div>
+                      <div className="mt-1 text-[11px] text-emerald-600">Same as move origin — junk cleared before/after main move</div>
                     )}
                   </div>
 
                   {/* Volume tier picker */}
                   <div>
-                    <label className="text-[10px] font-semibold text-emerald-800">How much junk?</label>
+                    <label className="text-[11px] font-semibold text-emerald-800">How much junk?</label>
                     <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                       {(Object.entries(JUNK_TIERS) as Array<[typeof junkVolumeTier, typeof JUNK_TIERS[string]]>).map(([tier, info]) => (
                         <button
@@ -3714,18 +3714,18 @@ export function EstimateDraftModal({
                           className={`rounded-[6px] border px-2.5 py-2 text-left text-[11px] transition ${junkVolumeTier === tier ? 'border-emerald-500 bg-white font-semibold text-emerald-800' : 'border-emerald-200 bg-white/60 text-emerald-700 hover:border-emerald-400'}`}
                         >
                           <div className="font-medium">{info.label}</div>
-                          {tier !== 'unknown' && <div className="mt-0.5 text-[10px] text-emerald-600">${info.price}</div>}
+                          {tier !== 'unknown' && <div className="mt-0.5 text-[11px] text-emerald-600">${info.price}</div>}
                         </button>
                       ))}
                     </div>
                     {junkVolumeTier !== 'unknown' && (
-                      <div className="mt-1.5 text-[10px] text-emerald-700">{JUNK_TIERS[junkVolumeTier].detail}</div>
+                      <div className="mt-1.5 text-[11px] text-emerald-700">{JUNK_TIERS[junkVolumeTier].detail}</div>
                     )}
                   </div>
 
                   {/* Price override */}
                   <div className="flex items-center gap-2">
-                    <label className="text-[10px] font-semibold text-emerald-800 shrink-0">Price</label>
+                    <label className="text-[11px] font-semibold text-emerald-800 shrink-0">Price</label>
                     <div className="flex items-center gap-1 rounded-[6px] border border-emerald-300 bg-white px-2 py-1">
                       <span className="text-xs text-emerald-700">$</span>
                       <input
@@ -3735,24 +3735,24 @@ export function EstimateDraftModal({
                         className="w-20 text-sm font-semibold text-[var(--app-ink)] focus:outline-none"
                       />
                     </div>
-                    <span className="text-[10px] text-emerald-600">Override if needed</span>
+                    <span className="text-[11px] text-emerald-600">Override if needed</span>
                   </div>
 
                   {/* Photo request */}
                   <div className="rounded-[6px] border border-dashed border-emerald-300 bg-white/60 p-2.5">
-                    <div className="text-[10px] font-semibold text-emerald-800 mb-1">📷 Request junk photos from customer</div>
-                    <div className="text-[10px] text-emerald-700 mb-2">Send them a link → they upload photos → AI estimates volume → you confirm the price.</div>
+                    <div className="text-[11px] font-semibold text-emerald-800 mb-1">📷 Request junk photos from customer</div>
+                    <div className="text-[11px] text-emerald-700 mb-2">Send them a link → they upload photos → AI estimates volume → you confirm the price.</div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => junkPhotoLink ? setJunkSmsDialogOpen(true) : void requestJunkPhotos()}
                         disabled={junkPhotoLinkBusy || !lead.phone}
-                        className="rounded-[5px] bg-emerald-600 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        className="rounded-[5px] bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                       >
                         {junkPhotoLinkBusy ? 'Generating…' : junkPhotoLink ? '✉ Send SMS again' : lead.phone ? '📷 Generate & send photo request' : 'No phone on file'}
                       </button>
                       {junkPhotoLink && (
-                        <button type="button" onClick={() => void navigator.clipboard.writeText(junkPhotoLink)} className="rounded-[5px] border border-emerald-400 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100">
+                        <button type="button" onClick={() => void navigator.clipboard.writeText(junkPhotoLink)} className="rounded-[5px] border border-emerald-400 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100">
                           Copy link
                         </button>
                       )}
@@ -3865,25 +3865,25 @@ export function EstimateDraftModal({
                   >
                     + Storage / Staged Move
                   </button>
-                  <span className="text-[10px] text-[var(--app-muted)]">Conjoint = separate households. Storage = same inventory across dates.</span>
+                  <span className="text-[11px] text-[var(--app-muted)]">Conjoint = separate households. Storage = same inventory across dates.</span>
                 </div>
               )}
 
               {legsEnabled && conjointMode && (
                 <div className="rounded-[8px] border border-purple-200 bg-purple-50 p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-700">Conjoint Move</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-purple-700">Conjoint Move</span>
                     <button
                       type="button"
                       onClick={() => onJobFactorsChange({ ...jobFactors, conjointMove: false })}
-                      className="ml-auto text-[10px] text-purple-500 hover:text-purple-800"
+                      className="ml-auto text-[11px] text-purple-500 hover:text-purple-800"
                     >
                       Remove template
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Person A name</div>
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-purple-600">Person A name</div>
                       <input
                         value={jobFactors.personALabel || ''}
                         onChange={e => setFactor('personALabel', e.target.value || undefined)}
@@ -3892,7 +3892,7 @@ export function EstimateDraftModal({
                       />
                     </div>
                     <div>
-                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Person B name</div>
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-purple-600">Person B name</div>
                       <input
                         value={jobFactors.personBLabel || ''}
                         onChange={e => setFactor('personBLabel', e.target.value || undefined)}
@@ -3901,7 +3901,7 @@ export function EstimateDraftModal({
                       />
                     </div>
                   </div>
-                  <div className="text-[10px] text-purple-600">
+                  <div className="text-[11px] text-purple-600">
                     Leg 1 picks up {jobFactors.personALabel || 'Person A'} · Leg 2 picks up {jobFactors.personBLabel || 'Person B'} then delivers everything. Tag inventory items below with A or B.
                   </div>
                 </div>
@@ -3913,7 +3913,7 @@ export function EstimateDraftModal({
                     <div key={leg.id} className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                       {/* Leg header */}
                       <div className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#071421] text-[9px] font-bold text-white shrink-0">{idx + 1}</span>
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#071421] text-[11px] font-bold text-white shrink-0">{idx + 1}</span>
                         <input
                           value={leg.label}
                           onChange={e => updateLeg(leg.id, { label: e.target.value })}
@@ -3932,7 +3932,7 @@ export function EstimateDraftModal({
                               label: labelIsDefault ? getLegDefaultLabel(newType, idx) : leg.label,
                             })
                           }}
-                          className="rounded-[4px] border border-[var(--app-line)] bg-white px-1.5 py-0.5 text-[10px] text-[var(--app-muted)]"
+                          className="rounded-[4px] border border-[var(--app-line)] bg-white px-1.5 py-0.5 text-[11px] text-[var(--app-muted)]"
                         >
                           {(Object.entries(LEG_TYPE_LABELS) as [QuoteLegType, string][]).map(([k, v]) => (
                             <option key={k} value={k}>{v}</option>
@@ -3946,7 +3946,7 @@ export function EstimateDraftModal({
                       {/* Origin / Dest */}
                       <div className="grid grid-cols-2 gap-1.5">
                         <div>
-                          <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">From</div>
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">From</div>
                           <AddressAutocompleteInput
                             value={leg.originAddress || ''}
                             placeholder="Origin address"
@@ -3954,7 +3954,7 @@ export function EstimateDraftModal({
                           />
                         </div>
                         <div>
-                          <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">To</div>
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">To</div>
                           <AddressAutocompleteInput
                             value={leg.destAddress || ''}
                             placeholder="Destination"
@@ -3965,7 +3965,7 @@ export function EstimateDraftModal({
 
                       {/* Storage leg smart hints */}
                       {leg.type === 'storage' && (
-                        <div className="rounded-[4px] bg-blue-50 border border-blue-200 px-2 py-1.5 text-[10px] text-blue-800 space-y-0.5">
+                        <div className="rounded-[4px] bg-blue-50 border border-blue-200 px-2 py-1.5 text-[11px] text-blue-800 space-y-0.5">
                           <div className="font-semibold">🏢 House → Storage rules:</div>
                           <div>✓ Disassemble only at pickup — no reassembly at storage</div>
                           <div>✓ Wrap all items for storage protection</div>
@@ -3973,7 +3973,7 @@ export function EstimateDraftModal({
                         </div>
                       )}
                       {leg.type === 'storage_delivery' && (
-                        <div className="rounded-[4px] bg-emerald-50 border border-emerald-200 px-2 py-1.5 text-[10px] text-emerald-800 space-y-0.5">
+                        <div className="rounded-[4px] bg-emerald-50 border border-emerald-200 px-2 py-1.5 text-[11px] text-emerald-800 space-y-0.5">
                           <div className="font-semibold">📦 Storage → House rules:</div>
                           <div>✓ Reassemble only at destination — no disassembly needed</div>
                           <div>✓ No rewrapping charge — items already wrapped in storage</div>
@@ -3981,7 +3981,7 @@ export function EstimateDraftModal({
                         </div>
                       )}
                       {leg.type === 'move' && idx > 0 && (legs[idx - 1]?.type === 'storage' || legs[idx - 1]?.type === 'storage_delivery') && (
-                        <div className="rounded-[4px] bg-amber-50 border border-amber-200 px-2 py-1.5 text-[10px] text-amber-800">
+                        <div className="rounded-[4px] bg-amber-50 border border-amber-200 px-2 py-1.5 text-[11px] text-amber-800">
                           Follows a storage leg — confirm if items need wrapping or disassembly.
                         </div>
                       )}
@@ -3989,31 +3989,31 @@ export function EstimateDraftModal({
                       {/* Route badge + date */}
                       <div className="flex items-center gap-2">
                         {legRoutes[leg.id] ? (
-                          <div className="flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[10px] text-sky-700 font-medium">
+                          <div className="flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[11px] text-sky-700 font-medium">
                             <span>{legRoutes[leg.id]!.distanceKm} km · {legRoutes[leg.id]!.driveHours}h drive</span>
                           </div>
                         ) : (leg.originAddress && leg.destAddress) ? (
-                          <div className="text-[10px] text-[var(--app-muted)]">Calculating route…</div>
+                          <div className="text-[11px] text-[var(--app-muted)]">Calculating route…</div>
                         ) : null}
                         <input
                           type="date"
                           value={leg.scheduledDate || ''}
                           onChange={e => updateLeg(leg.id, { scheduledDate: e.target.value })}
-                          className="ml-auto rounded-[4px] border border-[var(--app-line)] px-1.5 py-0.5 text-[10px] text-[var(--app-muted)]"
+                          className="ml-auto rounded-[4px] border border-[var(--app-line)] px-1.5 py-0.5 text-[11px] text-[var(--app-muted)]"
                         />
                       </div>
 
                       {conjointMode && idx < 2 ? (
                         <div className="rounded-[6px] border border-purple-200 bg-purple-50 px-2 py-1.5">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="text-[10px] font-semibold uppercase tracking-wide text-purple-700">Auto load share</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-purple-700">Auto load share</div>
                             <div className="text-[11px] font-semibold text-purple-900">
                               {idx === 0
                                 ? `${conjointMetrics.personASharePct}% · ${conjointMetrics.personACubicFeet} cu ft`
                                 : `${conjointMetrics.personBSharePct}% load · ${conjointMetrics.personBCubicFeet} cu ft`}
                             </div>
                           </div>
-                          <div className="mt-1 text-[10px] text-purple-700">
+                          <div className="mt-1 text-[11px] text-purple-700">
                             {idx === 0
                               ? `Calculated from ${jobFactors.personALabel || 'Person A'}'s tagged inventory. No manual percentage needed.`
                               : `Second pickup only loads ${jobFactors.personBLabel || 'Person B'}'s items, then unloads the combined ${conjointMetrics.totalCubicFeet} cu ft at destination.`}
@@ -4022,7 +4022,7 @@ export function EstimateDraftModal({
                       ) : (
                         <>
                           <div className="flex items-center gap-2 rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1.5">
-                            <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Shipment Share</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Shipment Share</div>
                             <input
                               type="number"
                               min={5}
@@ -4032,9 +4032,9 @@ export function EstimateDraftModal({
                               className="ml-auto w-16 rounded-[4px] border border-[var(--app-line)] bg-white px-2 py-1 text-right text-[11px] text-[var(--app-ink)] outline-none focus:border-[var(--app-accent)]"
                               placeholder={leg.type === 'delivery' ? '20' : '100'}
                             />
-                            <span className="text-[10px] text-[var(--app-muted)]">%</span>
+                            <span className="text-[11px] text-[var(--app-muted)]">%</span>
                           </div>
-                          <div className="text-[10px] text-[var(--app-muted)]">
+                          <div className="text-[11px] text-[var(--app-muted)]">
                             {leg.type === 'delivery'
                               ? 'For extra stops, set roughly how much of the shipment gets dropped here. The main stop uses the remaining share.'
                               : leg.type === 'junk'
@@ -4062,7 +4062,7 @@ export function EstimateDraftModal({
                     + Add Another Stop
                   </button>
 
-                  <div className="rounded-[6px] bg-sky-50 border border-sky-200 px-3 py-2 text-[10px] text-sky-800">
+                  <div className="rounded-[6px] bg-sky-50 border border-sky-200 px-3 py-2 text-[11px] text-sky-800">
                     Conjoint load shares are calculated from tagged inventory. Manual shares are only for custom extra stops, storage splits, or delivery drops.
                   </div>
                 </div>
@@ -4132,7 +4132,7 @@ export function EstimateDraftModal({
                         key={t}
                         type="button"
                         onClick={() => onMoveTimeChange?.(t)}
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors ${active ? 'bg-[#071421] text-white' : 'bg-white border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[#071421]'}`}
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold transition-colors ${active ? 'bg-[#071421] text-white' : 'bg-white border border-[var(--app-line)] text-[var(--app-muted)] hover:border-[#071421]'}`}
                       >
                         {labels[t]}
                       </button>
@@ -4174,14 +4174,14 @@ export function EstimateDraftModal({
                   <button
                     type="button"
                     onClick={() => void copyInventorySnapshot()}
-                    className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]"
+                    className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]"
                   >
                     {inventoryCopyNotice || 'Copy list'}
                   </button>
                 </div>
                 {textParsedInventoryItems.length > 0 ? (
                   <div className="mt-3 border-l-2 border-[#C99700] bg-white px-3 py-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a6800]">Inventory parsed from customer text · review required</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a6800]">Inventory parsed from customer text · review required</div>
                     <p className="mt-1 text-xs leading-5 text-[var(--app-muted)]">
                       The system captured {textParsedInventoryItems.length} item{textParsedInventoryItems.length === 1 ? '' : 's'} automatically. Confirm the names, quantities, rooms and dimensions before relying on the estimate.
                     </p>
@@ -4225,7 +4225,7 @@ export function EstimateDraftModal({
                       <div className="crm-kpi">
                         <div className="crm-label">Beds / Baths</div>
                         <div className="crm-value">{mlsBeds ?? '—'}bd · {mlsBaths ?? '—'}ba</div>
-                        <div className="text-[9px] text-emerald-700 mt-0.5">from MLS</div>
+                        <div className="text-[11px] text-emerald-700 mt-0.5">from MLS</div>
                       </div>
                     )
                   })()}
@@ -4242,7 +4242,7 @@ export function EstimateDraftModal({
                   const pctB = 100 - pctA
                   return (
                     <div className="mt-3 rounded-[8px] border border-purple-200 bg-purple-50 p-3 space-y-2">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-purple-700">Conjoint Volume Split</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-purple-700">Conjoint Volume Split</div>
                       <div className="flex items-center gap-2 text-[11px]">
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 font-semibold text-blue-800">
                           {jobFactors.personALabel || 'Person A'} · {aCuFt} cu ft ({pctA}%)
@@ -4263,7 +4263,7 @@ export function EstimateDraftModal({
                         }
                       </div>
                       {personBItems.length === 0 && inventory.length > 0 && (
-                        <div className="text-[10px] text-purple-600">Tag inventory items with A or B using the button on each item to see the volume split.</div>
+                        <div className="text-[11px] text-purple-600">Tag inventory items with A or B using the button on each item to see the volume split.</div>
                       )}
                       {(() => {
                         const personALabel = jobFactors.personALabel || 'Person A'
@@ -4304,7 +4304,7 @@ export function EstimateDraftModal({
                                   key={tab.id}
                                   type="button"
                                   onClick={() => setActiveConjointOwner(tab.id)}
-                                  className={`rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${
+                                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
                                     activeConjointOwner === tab.id
                                       ? tab.tone === 'blue'
                                         ? 'bg-blue-700 text-white'
@@ -4317,7 +4317,7 @@ export function EstimateDraftModal({
                                   {tab.label}
                                 </button>
                               ))}
-                              <span className="ml-auto text-[10px] font-semibold text-slate-500">
+                              <span className="ml-auto text-[11px] font-semibold text-slate-500">
                                 {scopedItems.length} item{scopedItems.length === 1 ? '' : 's'} · {scopedCuFt} cu ft
                               </span>
                             </div>
@@ -4325,15 +4325,15 @@ export function EstimateDraftModal({
                               <div className="mt-3 grid gap-2">
                                 <div className="rounded-[6px] border border-slate-200 bg-slate-50 px-2.5 py-2">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Intake for {selectedLabel}</span>
-                                    <span className="min-w-0 flex-1 truncate text-[10px] text-slate-600">{selectedAddress}</span>
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Intake for {selectedLabel}</span>
+                                    <span className="min-w-0 flex-1 truncate text-[11px] text-slate-600">{selectedAddress}</span>
                                   </div>
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     <button
                                       type="button"
                                       onClick={() => handleConjointMlsScan(selectedOwner, selectedAddress)}
                                       disabled={conjointMlsBusy === selectedOwner}
-                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
                                       {conjointMlsBusy === selectedOwner ? '…' : 'MLS / listing'}
                                     </button>
@@ -4341,7 +4341,7 @@ export function EstimateDraftModal({
                                       type="button"
                                       onClick={() => void handleConjointSurveyRequest(selectedOwner, selectedAddress)}
                                       disabled={conjointSurveyBusy === selectedOwner}
-                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
                                       {conjointSurveyBusy === selectedOwner ? '…' : 'Customer photos'}
                                     </button>
@@ -4353,7 +4353,7 @@ export function EstimateDraftModal({
                                         conjointUploadInputRef.current?.click()
                                       }}
                                       disabled={conjointUploadBusy}
-                                      className="rounded-[6px] bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
+                                      className="rounded-[6px] bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
                                       {conjointUploadBusy && conjointUploadOwner === selectedOwner ? 'Uploading…' : 'Rep upload'}
                                     </button>
@@ -4373,15 +4373,15 @@ export function EstimateDraftModal({
                                     />
                                   </div>
                                   {(conjointMlsNotice || conjointSurveyNotice || conjointUploadNotice) && (
-                                    <div className="mt-1.5 rounded-[6px] border border-slate-200 bg-white px-2.5 py-2 text-[10px] text-slate-600">
+                                    <div className="mt-1.5 rounded-[6px] border border-slate-200 bg-white px-2.5 py-2 text-[11px] text-slate-600">
                                       {conjointMlsNotice || conjointSurveyNotice || conjointUploadNotice}
                                     </div>
                                   )}
                                 </div>
                                 <div className="rounded-[6px] border border-slate-200 bg-white px-2.5 py-2">
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Photos for {selectedLabel}</div>
-                                    <div className="text-[10px] text-slate-500">{selectedPhotoUrls.length} photo{selectedPhotoUrls.length === 1 ? '' : 's'}</div>
+                                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Photos for {selectedLabel}</div>
+                                    <div className="text-[11px] text-slate-500">{selectedPhotoUrls.length} photo{selectedPhotoUrls.length === 1 ? '' : 's'}</div>
                                   </div>
                                   {selectedPhotoUrls.length > 0 ? (
                                     <div className="mt-2 grid grid-cols-5 gap-1.5">
@@ -4397,20 +4397,20 @@ export function EstimateDraftModal({
                                       ))}
                                     </div>
                                   ) : (
-                                    <div className="mt-2 rounded-[6px] border border-dashed border-slate-200 bg-slate-50 px-2.5 py-3 text-[10px] text-slate-500">
+                                    <div className="mt-2 rounded-[6px] border border-dashed border-slate-200 bg-slate-50 px-2.5 py-3 text-[11px] text-slate-500">
                                       No photos tied to {selectedLabel} yet. Use Customer photos or Rep upload on this tab.
                                     </div>
                                   )}
                                   {selectedOwner === 'person_a' && selectedReferencePhotos.length > 0 ? (
-                                    <div className="mt-1.5 text-[10px] text-blue-700">MLS listing photos are treated as {selectedLabel}'s pickup reference.</div>
+                                    <div className="mt-1.5 text-[11px] text-blue-700">MLS listing photos are treated as {selectedLabel}'s pickup reference.</div>
                                   ) : null}
                                 </div>
                                 <div className="rounded-[6px] border border-blue-100 bg-blue-50 px-2.5 py-2">
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Inventory for {selectedLabel}</div>
-                                    <div className="text-[10px] font-semibold text-blue-700">{scopedItems.length} item{scopedItems.length === 1 ? '' : 's'} · {scopedCuFt} cu ft</div>
+                                    <div className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Inventory for {selectedLabel}</div>
+                                    <div className="text-[11px] font-semibold text-blue-700">{scopedItems.length} item{scopedItems.length === 1 ? '' : 's'} · {scopedCuFt} cu ft</div>
                                   </div>
-                                  <div className="mt-1.5 text-[10px] leading-4 text-blue-800">
+                                  <div className="mt-1.5 text-[11px] leading-4 text-blue-800">
                                     Add quick items here, then use the source-of-truth inventory list below to remove items, move rooms, mark stays-behind, or switch owners.
                                   </div>
                                 </div>
@@ -4424,7 +4424,7 @@ export function EstimateDraftModal({
                                   <button
                                     type="button"
                                     onClick={() => addConjointCustomItem(selectedOwner)}
-                                    className="rounded-[6px] bg-[#071421] px-3 py-1.5 text-[10px] font-semibold text-white"
+                                    className="rounded-[6px] bg-[#071421] px-3 py-1.5 text-[11px] font-semibold text-white"
                                   >
                                     Add item
                                   </button>
@@ -4435,7 +4435,7 @@ export function EstimateDraftModal({
                                       key={preset.id}
                                       type="button"
                                       onClick={() => addConjointPresetItem(preset.id, selectedOwner)}
-                                      className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)]"
+                                      className="rounded-[6px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)]"
                                     >
                                       + {preset.label}
                                     </button>
@@ -4446,35 +4446,35 @@ export function EstimateDraftModal({
                                     type="button"
                                     onClick={() => assignUntaggedConjointItems(selectedOwner)}
                                     disabled={untaggedCount === 0}
-                                    className="rounded-[6px] bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-700 disabled:opacity-40"
+                                    className="rounded-[6px] bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 disabled:opacity-40"
                                   >
                                     Assign {untaggedCount} untagged to {selectedLabel}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => appendConjointScopeNote(selectedOwner, 'customer photos / MLS scan still need review before final quote')}
-                                    className="rounded-[6px] bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800"
+                                    className="rounded-[6px] bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800"
                                   >
                                     Mark photos needed
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => appendConjointScopeNote(selectedOwner, 'possible add-on scope: junk removal / donation / extra disposal')}
-                                    className="rounded-[6px] bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700"
+                                    className="rounded-[6px] bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700"
                                   >
                                     Add junk scope note
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => appendConjointScopeNote(selectedOwner, 'packing / wrapping scope needs custom confirmation')}
-                                    className="rounded-[6px] bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-800"
+                                    className="rounded-[6px] bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800"
                                   >
                                     Add packing note
                                   </button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="mt-3 grid gap-2 text-[10px] text-slate-600 sm:grid-cols-2">
+                              <div className="mt-3 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
                                 <div className="rounded-[6px] border border-slate-200 bg-slate-50 px-2.5 py-2">
                                   Use one combined quote when both pickups are part of one move day and one destination.
                                 </div>
@@ -4530,7 +4530,7 @@ export function EstimateDraftModal({
                     <span className="font-semibold text-[var(--app-ink)]">MLS property</span>
                     {lead.supabaseListing?.beds ? <span>🛏 <strong>{lead.supabaseListing.beds}</strong> bed{Number(lead.supabaseListing.beds) !== 1 ? 's' : ''}</span> : null}
                     {(lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms) ? <span>🚿 <strong>{lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms}</strong> bath{Number(lead.supabaseListing?.baths || lead.supabaseListing?.bathrooms) !== 1 ? 's' : ''}</span> : null}
-                    <span className="ml-auto text-[10px]">Use this to verify the bedroom count below matches</span>
+                    <span className="ml-auto text-[11px]">Use this to verify the bedroom count below matches</span>
                   </div>
                 ) : null}
 
@@ -4566,7 +4566,7 @@ export function EstimateDraftModal({
                         <summary className="flex cursor-pointer items-center justify-between px-3 py-2" style={{ listStyle: 'none' }}>
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-medium text-[var(--app-ink)]">{room}</div>
-                            {isDropTarget && <span className="text-[10px] font-semibold text-blue-600">Drop here</span>}
+                            {isDropTarget && <span className="text-[11px] font-semibold text-blue-600">Drop here</span>}
                           </div>
                           <div className="text-xs text-[var(--app-muted)]">{items.length} inventory lines · {roomCuFt} cu ft</div>
                         </summary>
@@ -4582,19 +4582,19 @@ export function EstimateDraftModal({
                               draggable
                               onDragStart={() => setDraggedItemIndex(el.index)}
                               onDragEnd={() => { setDraggedItemIndex(null); setDragOverRoom(null) }}
-                              className={`rounded-[6px] border px-2 py-2 text-xs cursor-grab active:cursor-grabbing transition-opacity ${draggedItemIndex === el.index ? 'opacity-40' : ''} ${forceExcluded ? 'border-slate-200 bg-slate-50 text-slate-400' : 'border-transparent bg-white text-[var(--app-muted)]'}`}
+                              className={`rounded-[6px] border px-2 py-2 text-xs cursor-grab active:cursor-grabbing transition-opacity ${draggedItemIndex === el.index ? 'opacity-40' : ''} ${forceExcluded ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-transparent bg-white text-[var(--app-muted)]'}`}
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <div className="min-w-0 flex items-start gap-1.5">
                                   <span className="mt-0.5 shrink-0 text-sm" title="Item type">
                                     {el.item.icon || '📦'}
                                   </span>
-                                  <span className="mt-0.5 shrink-0 text-[var(--app-muted)] text-[10px] select-none" title="Drag to move to another room">⠿</span>
+                                  <span className="mt-0.5 shrink-0 text-[var(--app-muted)] text-[11px] select-none" title="Drag to move to another room">⠿</span>
                                   <div className="min-w-0">
                                     <span className={`font-medium ${forceExcluded ? 'text-slate-500 line-through' : 'text-[var(--app-ink)]'}`}>{getInventoryDisplayLabel(el.item)}</span>
                                     {policyFinding ? (
                                       <div className="mt-1">
-                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                                           policyFinding.category === 'default_exclude'
                                             ? 'bg-slate-100 text-slate-700'
                                             : policyFinding.category === 'blocked'
@@ -4641,7 +4641,7 @@ export function EstimateDraftModal({
                                   <button
                                     type="button"
                                     onClick={() => onUpdateInventoryItem(el.index, 'owner', el.item.owner === 'person_b' ? 'person_a' : 'person_b')}
-                                    className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                                    className={`rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                                       el.item.owner === 'person_b'
                                         ? 'bg-purple-100 text-purple-800'
                                         : 'bg-blue-100 text-blue-800'
@@ -4658,7 +4658,7 @@ export function EstimateDraftModal({
                                   <button
                                     type="button"
                                     onClick={() => onUpdateInventoryItem(el.index, 'status', 'confirmed')}
-                                    className="rounded-[6px] bg-[#071421] px-2.5 py-1 text-[10px] font-semibold text-white"
+                                    className="rounded-[6px] bg-[#071421] px-2.5 py-1 text-[11px] font-semibold text-white"
                                   >
                                     Confirm parsed item
                                   </button>
@@ -4667,7 +4667,7 @@ export function EstimateDraftModal({
                                   type="button"
                                   disabled={policyFinding?.category === 'blocked' || policyFinding?.category === 'hazardous' || policyFinding?.category === 'manual_review'}
                                   onClick={() => onToggleInventoryItem(el.index)}
-                                  className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${forceExcluded ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}
+                                  className={`rounded-[6px] px-2.5 py-1 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${forceExcluded ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}
                                 >
                                   {policyFinding?.category === 'blocked' || policyFinding?.category === 'hazardous' || policyFinding?.category === 'manual_review'
                                     ? 'Policy flagged'
@@ -4678,34 +4678,34 @@ export function EstimateDraftModal({
                                 <button
                                   type="button"
                                   onClick={() => setTouchMoveItemIndex(current => current === el.index ? null : el.index)}
-                                  className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)]"
+                                  className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)]"
                                 >
                                   {touchMoveItemIndex === el.index ? 'Done moving' : 'Move to room'}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => onRemoveInventoryItem(el.index)}
-                                  className="rounded-[6px] bg-rose-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700"
+                                  className="rounded-[6px] bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700"
                                 >
                                   Remove
                                 </button>
                                 <div className="flex items-center gap-1 ml-auto">
-                                  <span className="text-[10px] text-[var(--app-muted)]">Room:</span>
+                                  <span className="text-[11px] text-[var(--app-muted)]">Room:</span>
                                   <select
                                     value={el.item.room || 'Other'}
                                     onChange={e => onUpdateInventoryItem(el.index, 'room', e.target.value)}
-                                    className="crm-input h-7 py-0 text-[10px] pr-6"
+                                    className="crm-input h-7 py-0 text-[11px] pr-6"
                                   >
                                     {DEFAULT_ROOM_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
                                   </select>
                                 </div>
                               </div>
                               {(el.item.exclusionReason || policyFinding?.customerNote) ? (
-                                <div className="mt-1 text-[10px] text-slate-500">{el.item.exclusionReason || policyFinding?.customerNote}</div>
+                                <div className="mt-1 text-[11px] text-slate-500">{el.item.exclusionReason || policyFinding?.customerNote}</div>
                               ) : null}
                               {touchMoveItemIndex === el.index ? (
                                 <div className="mt-2 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-2">
-                                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                                     Tap a room
                                   </div>
                                   <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -4717,7 +4717,7 @@ export function EstimateDraftModal({
                                           onUpdateInventoryItem(el.index, 'room', roomOption)
                                           setTouchMoveItemIndex(null)
                                         }}
-                                        className={`rounded-[6px] border px-2 py-1.5 text-left text-[10px] font-medium transition ${
+                                        className={`rounded-[6px] border px-2 py-1.5 text-left text-[11px] font-medium transition ${
                                           (el.item.room || 'Other') === roomOption
                                             ? 'border-[var(--app-accent)] bg-white text-[var(--app-ink)]'
                                             : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)]'
@@ -4741,12 +4741,12 @@ export function EstimateDraftModal({
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <div className="text-xs font-semibold text-amber-800">{area === 'Garage' ? '🚗' : '🏠'} {area} — not detected in photos</div>
-                          <div className="mt-0.5 text-[10px] text-amber-700">If there are items here, add them manually before sending the quote.</div>
+                          <div className="mt-0.5 text-[11px] text-amber-700">If there are items here, add them manually before sending the quote.</div>
                         </div>
                         <button
                           type="button"
                           onClick={() => onAddInventoryItems([{ id: `${area.toLowerCase()}-placeholder-${Date.now()}`, name: `${area} items`, item: `${area} items`, room: area, qty: 1, cubicFeet: 0, weightLbs: 0, included: true }])}
-                          className="shrink-0 rounded-[6px] bg-amber-100 px-2.5 py-1 text-[10px] font-semibold text-amber-800 hover:bg-amber-200"
+                          className="shrink-0 rounded-[6px] bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-200"
                         >
                           + Add {area}
                         </button>
@@ -4757,7 +4757,7 @@ export function EstimateDraftModal({
                   <div className="rounded-[10px] border border-[var(--app-line)] bg-white p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Starter Inventory</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Starter Inventory</div>
                         {starterPlan ? (
                           <>
                             <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{starterPlan.title}</div>
@@ -4830,21 +4830,21 @@ export function EstimateDraftModal({
                   </div>
                   {/* Quick-add preset buttons — boxes first, then matched presets */}
                   <div className="space-y-2 pt-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">📦 Boxes — ask every customer</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">📦 Boxes — ask every customer</div>
                     <div className="flex flex-wrap gap-1.5">
                       {['box-small','box-medium','box-large','box-xl','tv-box-32','tv-box-55','tv-box-70','mirror-box'].map(id => {
                         const p = presetMatches.find(x => x.id === id) || { id, label: id }
                         return <button key={id} onClick={() => onAddPreset(id)} className="crm-button text-xs py-1 px-2.5">+ {p.label}</button>
                       })}
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🏠 Appliances (opt-in)</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🏠 Appliances (opt-in)</div>
                     <div className="flex flex-wrap gap-1.5">
                       {['fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding'].map(id => {
                         const p = presetMatches.find(x => x.id === id) || { id, label: id }
                         return <button key={id} onClick={() => onAddPreset(id)} className="crm-button text-xs py-1 px-2.5">+ {p.label}</button>
                       })}
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🚗 Garage & Outdoor</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🚗 Garage & Outdoor</div>
                     <div className="flex flex-wrap gap-1.5">
                       {['tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].map(id => {
                         const p = presetMatches.find(x => x.id === id) || { id, label: id }
@@ -4853,13 +4853,13 @@ export function EstimateDraftModal({
                     </div>
                     {tvRecommendations.length > 0 && (
                       <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">TV Protection</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">TV Protection</div>
                         <div className="mt-2 space-y-2">
                           {tvRecommendations.map(rec => (
                             <div key={rec.key} className="flex items-center justify-between gap-3 rounded-[6px] border border-[var(--app-line)] px-2.5 py-2">
                               <div className="min-w-0">
                                 <div className="text-xs font-medium text-[var(--app-ink)]">{rec.itemLabel}</div>
-                                <div className="text-[10px] text-[var(--app-muted)]">
+                                <div className="text-[11px] text-[var(--app-muted)]">
                                   {rec.sizeLabel} · Recommended {rec.recommendedMaterial?.label || 'TV box'}{rec.recommendedMaterial ? ` · ${formatMoney(rec.recommendedMaterial.unitPrice)}` : ''}
                                 </div>
                               </div>
@@ -4867,7 +4867,7 @@ export function EstimateDraftModal({
                                 <button
                                   type="button"
                                   onClick={() => onAddPreset(rec.recommendedMaterial!.id)}
-                                  className="crm-button text-[10px] px-2.5 py-1"
+                                  className="crm-button text-[11px] px-2.5 py-1"
                                 >
                                   + Box
                                 </button>
@@ -4879,7 +4879,7 @@ export function EstimateDraftModal({
                     )}
                     {presetMatches.some(p => !['box-small','box-medium','box-large','box-xl','tv-box-32','tv-box-55','tv-box-70','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)) && (
                       <>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🛋️ Furniture</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] pt-1">🛋️ Furniture</div>
                         <div className="flex flex-wrap gap-1.5">
                           {presetMatches.filter(p => !['box-small','box-medium','box-large','box-xl','tv-box-32','tv-box-55','tv-box-70','mirror-box','fridge-standard','fridge-large','stove-freestanding','dishwasher','freezer-standalone','washer-freestanding','dryer-freestanding','tool-chest','lawn-mower-push','wheelbarrow','bicycle','garage-shelving','barbecue','patio-set','hot-tub','junk-item-large'].includes(p.id)).map(preset => (
                             <button key={preset.id} onClick={() => onAddPreset(preset.id)} className="crm-button text-xs py-1 px-2.5">+ {preset.label}</button>
@@ -4891,7 +4891,7 @@ export function EstimateDraftModal({
                   {/* Quick-add manual inventory — always visible */}
                   <div className="space-y-3">
                     <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Quick Add Item</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Quick Add Item</div>
                         <div className="grid grid-cols-[1fr_auto] gap-2">
                           <select
                             value={quickRoom}
@@ -4936,11 +4936,11 @@ export function EstimateDraftModal({
                           </button>
                         </div>
                         {quickLookupNote ? (
-                          <p className="text-[10px] text-emerald-700">✓ {quickLookupNote}</p>
+                          <p className="text-[11px] text-emerald-700">✓ {quickLookupNote}</p>
                         ) : quickLookupError ? (
-                          <p className="text-[10px] text-amber-700">{quickLookupError}</p>
+                          <p className="text-[11px] text-amber-700">{quickLookupError}</p>
                         ) : (
-                          <p className="text-[10px] text-[var(--app-muted)]">{quickLookupLoading ? '🔍 Looking up dimensions…' : 'Type any item — AI will estimate cu ft if not in our library.'}</p>
+                          <p className="text-[11px] text-[var(--app-muted)]">{quickLookupLoading ? '🔍 Looking up dimensions…' : 'Type any item — AI will estimate cu ft if not in our library.'}</p>
                         )}
                       </div>
                     </div>
@@ -4948,10 +4948,10 @@ export function EstimateDraftModal({
                     {/* ✨ Paste inventory list — AI bulk import */}
                     <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">✨ Paste Inventory List</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">✨ Paste Inventory List</div>
                         {pastePreview && (
                           <button type="button" onClick={() => { setPastePreview(null); setPasteText(''); setPasteError(null) }}
-                            className="text-[10px] text-[var(--app-muted)] hover:text-[var(--app-ink)]">Clear</button>
+                            className="text-[11px] text-[var(--app-muted)] hover:text-[var(--app-ink)]">Clear</button>
                         )}
                       </div>
                       {!pastePreview ? (
@@ -4963,13 +4963,13 @@ export function EstimateDraftModal({
                             rows={3}
                             className="crm-input resize-none text-xs"
                           />
-                          {pasteError && <p className="text-[10px] text-rose-600">{pasteError}</p>}
+                          {pasteError && <p className="text-[11px] text-rose-600">{pasteError}</p>}
                           <button type="button" onClick={() => void parseInventoryFromText()}
                             disabled={pasteLoading || !pasteText.trim()}
                             className="crm-button-dark w-full text-xs disabled:opacity-50">
                             {pasteLoading ? '✨ Analyzing…' : '✨ Parse & Pre-fill Inventory'}
                           </button>
-                          <p className="text-[10px] text-[var(--app-muted)]">AI matches items to our library, estimates cu ft for unknowns, pre-fills everything automatically.</p>
+                          <p className="text-[11px] text-[var(--app-muted)]">AI matches items to our library, estimates cu ft for unknowns, pre-fills everything automatically.</p>
                         </>
                       ) : (
                         <div className="space-y-2">
@@ -4982,14 +4982,14 @@ export function EstimateDraftModal({
                                     <span className="ml-1 font-normal text-[var(--app-muted)]">· {item.room}</span>
                                   )}
                                 </span>
-                                <span className={`text-[10px] font-semibold ${(item.cubicFeet ?? 0) === 0 ? 'text-amber-600' : 'text-emerald-700'}`}>
+                                <span className={`text-[11px] font-semibold ${(item.cubicFeet ?? 0) === 0 ? 'text-amber-600' : 'text-emerald-700'}`}>
                                   {(item.cubicFeet ?? 0) > 0 ? `${item.cubicFeet} cu ft` : 'Needs size/photo'}
                                   {(item as InventoryItem & { _source?: string })._source === 'preset' ? ' ✓' : (item as InventoryItem & { _source?: string })._source === 'ai_lookup' ? ' ~AI' : ''}
                                 </span>
                               </div>
                             ))}
                           </div>
-                          <p className="text-[10px] text-[var(--app-muted)]">
+                          <p className="text-[11px] text-[var(--app-muted)]">
                             {pastePreview.filter(i => (i as InventoryItem & { _source?: string })._source === 'preset').length} from library ·{' '}
                             {pastePreview.filter(i => (i as InventoryItem & { _source?: string })._source === 'ai_lookup').length} AI estimated
                             {pastePreview.filter(i => i.cubicFeet === 0).length > 0 && ` · ${pastePreview.filter(i => i.cubicFeet === 0).length} need verification`}
@@ -5007,7 +5007,7 @@ export function EstimateDraftModal({
               <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
                 <div className="crm-label">{conjointMode ? `${jobFactors.personALabel || 'Primary pickup'} MLS Listing Photos` : 'Listing Photos'}</div>
                 {conjointMode ? (
-                  <div className="mt-1 text-[10px] text-[var(--app-muted)]">These listing photos are tied to the primary pickup. Use each party tab for separate uploaded photos and inventory.</div>
+                  <div className="mt-1 text-[11px] text-[var(--app-muted)]">These listing photos are tied to the primary pickup. Use each party tab for separate uploaded photos and inventory.</div>
                 ) : null}
                 {listingPhotos.length > 0 ? (
                   <>
@@ -5027,7 +5027,7 @@ export function EstimateDraftModal({
                       ))}
                     </div>
                     {listingPhotos.length > 8 && (
-                      <div className="mt-1.5 text-[10px] text-[var(--app-muted)] text-right">{listingPhotos.length} photos total</div>
+                      <div className="mt-1.5 text-[11px] text-[var(--app-muted)] text-right">{listingPhotos.length} photos total</div>
                     )}
                   </>
                 ) : (
@@ -5041,7 +5041,7 @@ export function EstimateDraftModal({
               {!conjointMode && (customerPhotos?.length ?? 0) > 0 && (
                 <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-4">
                   <div className="crm-label text-emerald-800">Customer Photos <span className="ml-1 font-normal normal-case text-emerald-600">({customerPhotos!.length})</span></div>
-                  <div className="mt-2 text-[10px] text-emerald-700">Photos uploaded by the customer — use these to verify the AI inventory is correct.</div>
+                  <div className="mt-2 text-[11px] text-emerald-700">Photos uploaded by the customer — use these to verify the AI inventory is correct.</div>
                   <div className="mt-3 grid grid-cols-4 gap-1.5 max-h-64 overflow-y-auto pr-0.5">
                     {customerPhotos!.map((photo, index) => (
                       <button
@@ -5054,7 +5054,7 @@ export function EstimateDraftModal({
                       </button>
                     ))}
                   </div>
-                  <div className="mt-1.5 text-[10px] text-emerald-600">Click any photo to enlarge — use arrow keys to browse.</div>
+                  <div className="mt-1.5 text-[11px] text-emerald-600">Click any photo to enlarge — use arrow keys to browse.</div>
                 </div>
               )}
             </div>
@@ -5087,7 +5087,7 @@ export function EstimateDraftModal({
                   <div className="text-sm font-semibold text-sky-800">
                     🚚 {needsTwoTrucks ? 'Volume needs 2 trucks — pick an option to quote' : '2-trip zone — 3 options available'}
                   </div>
-                  <p className="mt-0.5 text-[10px] text-sky-700">Click any option to set the quote configuration automatically.</p>
+                  <p className="mt-0.5 text-[11px] text-sky-700">Click any option to set the quote configuration automatically.</p>
                   <div className="mt-2 grid grid-cols-3 gap-2">
 
                     {/* Option A — 2 trucks, 4 movers */}
@@ -5098,12 +5098,12 @@ export function EstimateDraftModal({
                       }}
                       className="rounded-[6px] border-2 border-sky-300 bg-white p-2.5 text-left hover:border-sky-500 transition"
                     >
-                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-sky-700">Option A — 2 Trucks</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-sky-700">Option A — 2 Trucks</div>
                       <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.multiTruckOption?.totalAmount ?? quoteModalTotals.subtotal)}</div>
-                      <div className="mt-0.5 text-[10px] text-sky-700">
+                      <div className="mt-0.5 text-[11px] text-sky-700">
                         4 movers · {flags.multiTruckOption?.totalHours ?? pricingBreakdown?.totalHours}h
                       </div>
-                      <div className="mt-1 text-[9px] text-slate-400">{flags.twoTripComparison.twoTruckSpecification} · both load in parallel — fastest</div>
+                      <div className="mt-1 text-[11px] text-slate-500">{flags.twoTripComparison.twoTruckSpecification} · both load in parallel — fastest</div>
                     </button>
 
                     {/* Option B — 1 truck, 3 movers, 2 trips (RECOMMENDED for local) */}
@@ -5121,12 +5121,12 @@ export function EstimateDraftModal({
                       }}
                       className="rounded-[6px] border-2 border-emerald-300 bg-white p-2.5 text-left hover:border-emerald-500 transition"
                     >
-                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Option B ★ Recommended</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Option B ★ Recommended</div>
                       <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.totalAmount)}</div>
-                      <div className="mt-0.5 text-[10px] text-emerald-700">
+                      <div className="mt-0.5 text-[11px] text-emerald-700">
                         3 movers · {flags.twoTripComparison.totalHours}h · {flags.twoTripComparison.oneTruckSpecification}, 2 trips
                       </div>
-                      <div className="mt-1 text-[9px] text-slate-400">
+                      <div className="mt-1 text-[11px] text-slate-500">
                         {flags.twoTripComparison.savings > 0
                           ? `Saves client ${formatMoney(flags.twoTripComparison.savings)} vs 2 trucks`
                           : 'More time but lower hourly rate'}
@@ -5148,17 +5148,17 @@ export function EstimateDraftModal({
                       }}
                       className="rounded-[6px] border border-slate-200 bg-white p-2.5 text-left hover:border-slate-400 transition"
                     >
-                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">Option C — 1 Trip</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Option C — 1 Trip</div>
                       <div className="mt-0.5 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.twoTripComparison.oneTripAmount)}</div>
-                      <div className="mt-0.5 text-[10px] text-slate-500">
+                      <div className="mt-0.5 text-[11px] text-slate-500">
                         3 movers · {flags.twoTripComparison.oneTripHours}h · {flags.twoTripComparison.oneTruckSpecification}, 1 trip
                       </div>
-                      <div className="mt-1 text-[9px] text-slate-400">Optimistic — conditional clause added if 2nd trip needed</div>
+                      <div className="mt-1 text-[11px] text-slate-500">Optimistic — conditional clause added if 2nd trip needed</div>
                     </button>
 
                   </div>
-                  <div className="mt-1 text-[10px] text-sky-700">Load basis: {flags.twoTripComparison.inventoryBasis}. Confirm the included inventory before sending.</div>
-                  <div className="mt-1.5 text-[10px] text-sky-700">
+                  <div className="mt-1 text-[11px] text-sky-700">Load basis: {flags.twoTripComparison.inventoryBasis}. Confirm the included inventory before sending.</div>
+                  <div className="mt-1.5 text-[11px] text-sky-700">
                     {needsTwoTrucks
                       ? 'Volume exceeds 1 truck safe-load limit. Option B is recommended for local moves — 2nd trip is often cheaper than 2 trucks.'
                       : 'Local move: all 3 options are viable. Option B is the balanced pick.'}
@@ -5172,17 +5172,17 @@ export function EstimateDraftModal({
                   <div className="text-sm font-semibold text-purple-800">📅 Full-day move ({pricingBreakdown?.totalHours}h) — consider 2-day split</div>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div className="rounded-[6px] border border-purple-200 bg-white p-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-700">Day 1 — Load</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-purple-700">Day 1 — Load</div>
                       <div className="mt-1 text-base font-bold text-[var(--app-ink)]">~{flags.twoDayMoveEstimate.day1Hours}h</div>
-                      <div className="mt-0.5 text-[10px] text-purple-700">Pack, wrap, load truck, drive to destination</div>
+                      <div className="mt-0.5 text-[11px] text-purple-700">Pack, wrap, load truck, drive to destination</div>
                     </div>
                     <div className="rounded-[6px] border border-purple-200 bg-white p-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-700">Day 2 — Unload</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-purple-700">Day 2 — Unload</div>
                       <div className="mt-1 text-base font-bold text-[var(--app-ink)]">~{flags.twoDayMoveEstimate.day2Hours}h</div>
-                      <div className="mt-0.5 text-[10px] text-purple-700">Unload, unwrap, place, assemble — fresh crew</div>
+                      <div className="mt-0.5 text-[11px] text-purple-700">Unload, unwrap, place, assemble — fresh crew</div>
                     </div>
                   </div>
-                  <div className="mt-1.5 text-[10px] text-purple-700">Same total price. Crew arrives fresh on Day 2 — less fatigue, lower damage risk, better customer experience.</div>
+                  <div className="mt-1.5 text-[11px] text-purple-700">Same total price. Crew arrives fresh on Day 2 — less fatigue, lower damage risk, better customer experience.</div>
                 </div>
               )}
 
@@ -5217,7 +5217,7 @@ export function EstimateDraftModal({
                   </div>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
                     <div className="rounded-[8px] border border-emerald-200 bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Packing Labor</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Packing Labor</div>
                       <div className="mt-1 text-base font-bold text-[var(--app-ink)]">{formatMoney(flags.packingDayEstimate.amountBeforeHst)}</div>
                       <div className="text-[11px] text-emerald-700">
                         {flags.packingDayEstimate.crewSize} packers · ~{flags.packingDayEstimate.hours}h · {formatMoney(flags.packingDayEstimate.total)} incl. HST
@@ -5225,7 +5225,7 @@ export function EstimateDraftModal({
                     </div>
                     {packingMaterialsEstimate ? (
                       <div className="rounded-[8px] border border-emerald-200 bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Packing Materials</div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Packing Materials</div>
                         <div className="mt-1 text-base font-bold text-[var(--app-ink)]">{formatMoney(packingMaterialsEstimate.subtotal)}</div>
                         <div className="text-[11px] text-emerald-700">
                           ~{packingMaterialsEstimate.plannedBoxes} planned boxes · deliver ~{packingMaterialsEstimate.recommendedDeliveryBoxes} total · {formatMoney(packingMaterialsEstimate.total)} incl. HST
@@ -5235,26 +5235,26 @@ export function EstimateDraftModal({
                   </div>
                   {packingMaterialsEstimate ? (
                     <div className="mt-2 rounded-[8px] border border-emerald-200 bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Materials Mix</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Materials Mix</div>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {packingMaterialsEstimate.lines.slice(0, 6).map(line => (
                           <span
                             key={line.presetId}
-                            className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800"
+                            className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800"
                           >
                             {line.quantity} {line.label}
                           </span>
                         ))}
                         {packingMaterialsEstimate.lines.length > 6 ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800">
+                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">
                             +{packingMaterialsEstimate.lines.length - 6} more
                           </span>
                         ) : null}
                       </div>
-                      <div className="mt-2 text-[10px] text-emerald-700">
+                      <div className="mt-2 text-[11px] text-emerald-700">
                         {getPackingMaterialsSourceLabel(packingMaterialsEstimate.source)}. {packingMaterialsEstimate.note}
                       </div>
-                      <div className="mt-1 text-[10px] text-emerald-800">{packingMaterialsEstimate.billingNote}</div>
+                      <div className="mt-1 text-[11px] text-emerald-800">{packingMaterialsEstimate.billingNote}</div>
                     </div>
                   ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -5342,7 +5342,7 @@ export function EstimateDraftModal({
                       </button>
                     })}
                   </div>
-                  <div className="mt-2 text-[10px] text-sky-700">These are planning allowances, not ordinary move labour. Replace with the confirmed subcontractor/equipment price before a binding quote.</div>
+                  <div className="mt-2 text-[11px] text-sky-700">These are planning allowances, not ordinary move labour. Replace with the confirmed subcontractor/equipment price before a binding quote.</div>
                 </div>
               )}
 
@@ -5377,17 +5377,17 @@ export function EstimateDraftModal({
                     <div className={`rounded-full px-3 py-1 text-xs font-bold ${blockingReadiness.length === 0 ? 'bg-emerald-600 text-white' : 'bg-white text-amber-900'}`}>{blockingReadiness.length === 0 ? 'QUOTE READY' : `${quoteReadyAssessment.inventoryConfidence}% inventory confidence`}</div>
                   </summary>
                   <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[7px] border border-amber-200 bg-white p-3">
-                    <div className="mr-auto min-w-[220px]"><div className="text-xs font-semibold text-[var(--app-ink)]">Confirm directly with the customer</div><div className="mt-0.5 text-[10px] text-[var(--app-muted)]">Send one concise checklist or call, then record each factual answer below.</div></div>
+                    <div className="mr-auto min-w-[220px]"><div className="text-xs font-semibold text-[var(--app-ink)]">Confirm directly with the customer</div><div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Send one concise checklist or call, then record each factual answer below.</div></div>
                     <button type="button" onClick={() => void textCustomerForScopeConfirmation()} disabled={scopeConfirmationBusy || !lead.phone} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{scopeConfirmationBusy ? 'Sending…' : 'Text checklist'}</button>
                     <button type="button" onClick={callCustomerForScopeConfirmation} disabled={!lead.phone} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] disabled:opacity-40">Call customer</button>
-                    {scopeConfirmationNotice ? <div role="status" className="w-full text-[10px] text-amber-900">{scopeConfirmationNotice}</div> : null}
+                    {scopeConfirmationNotice ? <div role="status" className="w-full text-[11px] text-amber-900">{scopeConfirmationNotice}</div> : null}
                   </div>
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     {HIDDEN_INVENTORY_AREAS.map(area => {
                       const value = jobFactors.hiddenInventoryCoverage?.[area.key]
                       return <div key={area.key} className="rounded-[8px] border border-amber-200 bg-white p-3">
                         <div className="text-xs font-bold text-[var(--app-ink)]">{area.label}</div>
-                        <p className="mt-1 text-[10px] leading-4 text-[var(--app-muted)]">{area.prompt}</p>
+                        <p className="mt-1 text-[11px] leading-4 text-[var(--app-muted)]">{area.prompt}</p>
                         <div className="mt-2 grid grid-cols-2 gap-1.5">
                           {([
                             ['customer_confirmed_empty', '✓ Customer says empty'],
@@ -5401,7 +5401,7 @@ export function EstimateDraftModal({
                               key={state}
                               type="button"
                               onClick={() => setHiddenCoverage(area.key, state)}
-                              className={`rounded-[6px] border px-2 py-1.5 text-left text-[10px] font-semibold ${value?.state === state
+                              className={`rounded-[6px] border px-2 py-1.5 text-left text-[11px] font-semibold ${value?.state === state
                                 ? state === 'unknown' ? 'border-amber-500 bg-amber-100 text-amber-950' : 'border-emerald-600 bg-emerald-600 text-white'
                                 : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)]'}`}
                             >
@@ -5572,7 +5572,7 @@ export function EstimateDraftModal({
                     <div>
                       <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Disassembly / Reassembly</div>
                       {disassemblyHours > 0 && jobFactors.disassemblyItemCount !== 0 && (
-                        <div className="mt-0.5 text-[10px] font-medium text-amber-700">
+                        <div className="mt-0.5 text-[11px] font-medium text-amber-700">
                           +{disassemblyHours}h · ~{formatMoney(disassemblyCost)} added to estimate
                         </div>
                       )}
@@ -5580,7 +5580,7 @@ export function EstimateDraftModal({
                     <button
                       type="button"
                       onClick={() => setFactor('disassemblyItemCount', jobFactors.disassemblyItemCount === 0 ? undefined : 0)}
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${jobFactors.disassemblyItemCount === 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-600'}`}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${jobFactors.disassemblyItemCount === 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-600'}`}
                     >
                       {jobFactors.disassemblyItemCount === 0 ? 'Excluded' : 'Included'}
                     </button>
@@ -5605,7 +5605,7 @@ export function EstimateDraftModal({
                             key={opt.id}
                             type="button"
                             onClick={() => setFactor('disassemblyMode', opt.id)}
-                            className={`rounded-[6px] border px-2.5 py-1.5 text-left text-[10px] leading-4 ${
+                            className={`rounded-[6px] border px-2.5 py-1.5 text-left text-[11px] leading-4 ${
                               (jobFactors.disassemblyMode || 'both') === opt.id
                                 ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white'
                                 : 'border-[var(--app-line)] bg-white text-[var(--app-muted)]'
@@ -5631,7 +5631,7 @@ export function EstimateDraftModal({
                   )}
                   {/* Mode price impact hints */}
                   {jobFactors.disassemblyItemCount !== 0 && pricingBreakdown && (
-                    <div className="text-[10px] text-[var(--app-muted)] leading-4 space-y-0.5">
+                    <div className="text-[11px] text-[var(--app-muted)] leading-4 space-y-0.5">
                       <div>• <strong>Dis + Reassembly</strong> = full service, both ends — included above</div>
                       <div>• <strong>Disassemble only</strong> = ~saves {Math.round((pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0) * 0.45 * pricingBreakdown.crewRatePerHour)} (customer reassembles at dest)</div>
                       <div>• <strong>Reassemble only</strong> = ~saves {Math.round((pricingBreakdown.adjustmentBreakdown.find(a => a.category === 'disassembly')?.hours ?? 0) * 0.45 * pricingBreakdown.crewRatePerHour)} (customer disassembles at origin)</div>
@@ -5657,7 +5657,7 @@ export function EstimateDraftModal({
                           })}
                           className="mt-0.5 h-3.5 w-3.5 rounded"
                         />
-                        <span className="text-[10px] leading-4 text-amber-800">Operations reviewed the specialty handling plan and approves fixed-price treatment. Unresolved access questions still need answers.</span>
+                        <span className="text-[11px] leading-4 text-amber-800">Operations reviewed the specialty handling plan and approves fixed-price treatment. Unresolved access questions still need answers.</span>
                       </label>
                     </div>
                   )}
@@ -5693,7 +5693,7 @@ export function EstimateDraftModal({
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-[#071421]" />
-                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Moving</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Moving</span>
                         </div>
                         <div className="space-y-2">
                           {movingItems.map(({ item, index }) => (
@@ -5718,7 +5718,7 @@ export function EstimateDraftModal({
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Packing</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Packing</span>
                         </div>
                         <div className="space-y-2">
                           {packingItems.map(({ item, index }) => (
@@ -5743,7 +5743,7 @@ export function EstimateDraftModal({
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Junk Removal</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Junk Removal</span>
                         </div>
                         <div className="space-y-2">
                           {junkItems.map(({ item, index }) => (
@@ -5768,7 +5768,7 @@ export function EstimateDraftModal({
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Valuation / Protection</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Valuation / Protection</span>
                         </div>
                         <div className="space-y-2">
                           {valuationItems.map(({ item, index }) => (
@@ -5793,7 +5793,7 @@ export function EstimateDraftModal({
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Additional Services</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">Additional Services</span>
                         </div>
                         <div className="space-y-2">
                           {additionalItems.map(({ item, index }) => (
@@ -5828,7 +5828,7 @@ export function EstimateDraftModal({
                   {workflowStages.filter(stage => stage.id !== 'review').map(stage => (
                     <button key={stage.id} type="button" onClick={() => goToStage(stage.id)} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 text-left hover:border-[var(--app-ink)]">
                       <div className="flex items-center justify-between gap-2 text-xs font-semibold text-[var(--app-ink)]"><span>{stage.label}</span><span>{stage.status === 'complete' ? '✓' : stage.issueCount}</span></div>
-                      <div className="mt-1 text-[10px] leading-4 text-[var(--app-muted)]">{stage.description}</div>
+                      <div className="mt-1 text-[11px] leading-4 text-[var(--app-muted)]">{stage.description}</div>
                     </button>
                   ))}
                 </div>
@@ -5853,7 +5853,7 @@ export function EstimateDraftModal({
                   </div>
                 ) : null}
                 <div className="mt-5 rounded-[10px] bg-[#071421] p-4 text-white">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">Customer total</div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">Customer total</div>
                   <div className="mt-1 text-3xl font-bold">{formatMoney(quoteModalTotals.total)}</div>
                   <div className="mt-1 text-xs text-white/65">Flat-price scope preview · deposit {formatMoney(quoteModalTotals.deposit)}</div>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -5866,7 +5866,7 @@ export function EstimateDraftModal({
 
             {estimateView === 'guided' ? <div className="sticky bottom-0 z-20 flex items-center justify-between gap-3 border-t border-[var(--app-line)] bg-white/95 px-1 py-3 backdrop-blur">
               <button type="button" disabled={activeStageIndex === 0} onClick={event => { event.preventDefault(); event.stopPropagation(); goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, -1)) }} className="rounded-[8px] border border-[var(--app-line)] bg-white px-4 py-2 text-sm font-semibold text-[var(--app-ink)] disabled:opacity-30">← Back</button>
-              <div className="hidden text-center text-[10px] text-[var(--app-muted)] sm:block">Changes stay in the same draft. Moving between stages does not duplicate or resend anything.</div>
+              <div className="hidden text-center text-[11px] text-[var(--app-muted)] sm:block">Changes stay in the same draft. Moving between stages does not duplicate or resend anything.</div>
               {activeStageIndex < workflowStages.length - 1 ? (
                 <button type="button" onClick={event => { event.preventDefault(); event.stopPropagation(); goToStage(nextEstimateWorkflowStage(workflowStages, activeStage, 1)) }} className="rounded-[8px] bg-[#071421] px-4 py-2 text-sm font-semibold text-white">Next: {workflowStages[activeStageIndex + 1]?.label} →</button>
               ) : (
@@ -5897,10 +5897,10 @@ export function EstimateDraftModal({
                     const groupCosts = contributionPlan.costs.filter(cost => cost.key !== 'contingency' && cost.classification === group.key)
                     if (groupCosts.length === 0) return null
                     return <div key={group.key}>
-                      <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">{group.label}</div>
+                      <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--app-muted)]">{group.label}</div>
                       <div className="space-y-1.5">
                         {groupCosts.map(cost => <div key={cost.key} className="flex items-start justify-between gap-3">
-                          <span className="text-[var(--app-muted)]">{cost.label}{cost.sellingAllocation ? <span className="block text-[9px]">selling allocation {formatMoney(cost.sellingAllocation)} · add-on contribution {formatMoney(cost.sellingAllocation - cost.amount)}</span> : null}</span>
+                          <span className="text-[var(--app-muted)]">{cost.label}{cost.sellingAllocation ? <span className="block text-[11px]">selling allocation {formatMoney(cost.sellingAllocation)} · add-on contribution {formatMoney(cost.sellingAllocation - cost.amount)}</span> : null}</span>
                           <span className="font-semibold">{formatMoney(cost.amount)}</span>
                         </div>)}
                       </div>
@@ -5911,17 +5911,17 @@ export function EstimateDraftModal({
                     {contributionPlan.pricingGaps.map(gap => <div key={gap.key} className="mt-1"><strong>{gap.label}:</strong> {gap.reason}</div>)}
                   </div> : null}
                   <details className="rounded border border-[var(--app-line)] bg-slate-50">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-2 py-2"><span className="font-semibold text-[var(--app-ink)]">Live-job contingency &amp; payment cost <span className="ml-1 text-[10px] text-[var(--app-muted)]">▾</span></span><span className="font-semibold">{formatMoney(contributionPlan.executionContingencyTotal)}</span></summary>
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-2 py-2"><span className="font-semibold text-[var(--app-ink)]">Live-job contingency &amp; payment cost <span className="ml-1 text-[11px] text-[var(--app-muted)]">▾</span></span><span className="font-semibold">{formatMoney(contributionPlan.executionContingencyTotal)}</span></summary>
                     <div className="space-y-1.5 border-t border-[var(--app-line)] px-2 py-2">
                       <div className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">Operational contingency ({Math.round(contributionPlan.operationalContingencyRate * 100)}%)</span><span>{formatMoney(contributionPlan.costs.find(cost => cost.key === 'contingency')?.amount || 0)}</span></div>
                       {contributionPlan.reserves.map(reserve => <div key={reserve.key} className="flex justify-between gap-3"><span className="text-[var(--app-muted)]">{reserve.label} ({Math.round(reserve.rate * 100)}%)</span><span>{formatMoney(reserve.amount)}</span></div>)}
-                      <div className="pt-1 text-[9px] leading-4 text-[var(--app-muted)]">Only costs attributable to this live job appear here. Marketing, commission, claims overhead and coordination are absorbed by the margin target—not deducted twice.</div>
+                      <div className="pt-1 text-[11px] leading-4 text-[var(--app-muted)]">Only costs attributable to this live job appear here. Marketing, commission, claims overhead and coordination are absorbed by the margin target—not deducted twice.</div>
                     </div>
                   </details>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded bg-slate-50 p-2"><div className="text-[9px] uppercase text-[var(--app-muted)]">Recommended</div><div className="text-base font-bold">{formatMoney(contributionPlan.recommendedPrice)}</div></div>
-                  <div className="rounded bg-amber-50 p-2"><div className="text-[9px] uppercase text-amber-700">Authorized floor</div><div className="text-base font-bold text-amber-900">{formatMoney(contributionPlan.minimumAuthorizedPrice)}</div></div>
+                  <div className="rounded bg-slate-50 p-2"><div className="text-[11px] uppercase text-[var(--app-muted)]">Recommended</div><div className="text-base font-bold">{formatMoney(contributionPlan.recommendedPrice)}</div></div>
+                  <div className="rounded bg-amber-50 p-2"><div className="text-[11px] uppercase text-amber-700">Authorized floor</div><div className="text-base font-bold text-amber-900">{formatMoney(contributionPlan.minimumAuthorizedPrice)}</div></div>
                 </div>
                 <div className="mt-2 rounded bg-slate-50 p-2">Current expected contribution: <strong>{formatMoney(contributionPlan.expectedContribution)} ({contributionPlan.contributionMarginPct}%)</strong></div>
                 {quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && <div className="mt-2 rounded bg-rose-50 p-2 font-semibold text-rose-800">Current price is below the authorized contribution floor.</div>}
@@ -5942,7 +5942,7 @@ export function EstimateDraftModal({
                     {serviceProfitabilityPlan.packages.length} service{serviceProfitabilityPlan.packages.length === 1 ? '' : 's'} · {serviceProfitabilityPlan.grossMarginPct}% projected margin
                   </div>
                 </div>
-                <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
+                <span className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${
                   serviceProfitabilityPlan.status === 'healthy'
                     ? 'bg-emerald-100 text-emerald-800'
                     : serviceProfitabilityPlan.status === 'watch'
@@ -5958,7 +5958,7 @@ export function EstimateDraftModal({
                     <div key={item.id} className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-semibold text-[var(--app-ink)]">{item.label}</div>
-                        <div className="text-[10px] uppercase tracking-wide text-[var(--app-muted)]">
+                        <div className="text-[11px] uppercase tracking-wide text-[var(--app-muted)]">
                           {item.category.replace('_', ' ')} · est. cost {formatMoney(item.allocatedDirectCost)} · {item.grossMarginPct}% margin
                         </div>
                       </div>
@@ -5995,7 +5995,7 @@ export function EstimateDraftModal({
 
                   {quoteIsCustomerFacing && quote && (
                     <div className="px-3 py-2.5 bg-emerald-50 text-emerald-900">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.1em]">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.1em]">
                         {quoteHasUnsavedPricingRevision ? 'Unsaved pricing revision' : 'Saved customer quote'}
                       </div>
                       <div className="mt-1 font-semibold">
@@ -6011,13 +6011,13 @@ export function EstimateDraftModal({
 
                   {quoteIsCustomerFacing && !quoteHasUnsavedPricingRevision && quote && (
                     <div className="px-3 py-2.5 space-y-2">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Saved Quote Lines</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Saved Quote Lines</div>
                       {savedQuoteLineItems.length > 0 ? (
                         savedQuoteLineItems.map((item, index) => (
                           <div key={`${item.description}-${index}`} className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <div className="font-semibold text-[var(--app-ink)]">{item.description || 'Line item'}</div>
-                              {item.details ? <div className="mt-0.5 text-[10px] leading-4 text-[var(--app-muted)]">{item.details}</div> : null}
+                              {item.details ? <div className="mt-0.5 text-[11px] leading-4 text-[var(--app-muted)]">{item.details}</div> : null}
                             </div>
                             <div className="shrink-0 font-semibold text-[var(--app-ink)]">{formatMoney(Number(item.amount || 0))}</div>
                           </div>
@@ -6031,7 +6031,7 @@ export function EstimateDraftModal({
                   {/* Per-leg route summary when multi-stop is on */}
                   {showLivePricingBreakdown && legsEnabled && legs.length > 0 && (
                     <div className="px-3 py-2.5 space-y-1.5">
-                      <div className="font-semibold text-[10px] uppercase tracking-wide text-purple-700">Stop-by-Stop Route</div>
+                      <div className="font-semibold text-[11px] uppercase tracking-wide text-purple-700">Stop-by-Stop Route</div>
                       {legs.map((leg, idx) => {
                         const r = legRoutes[leg.id]
                         const fromShort = (leg.originAddress || leg.originCity || '—').split(',')[0]
@@ -6052,7 +6052,7 @@ export function EstimateDraftModal({
                           </div>
                         )
                       })}
-                      <div className="flex justify-between text-[10px] font-semibold text-purple-700 border-t border-purple-100 pt-1 mt-1">
+                      <div className="flex justify-between text-[11px] font-semibold text-purple-700 border-t border-purple-100 pt-1 mt-1">
                         <span>Total route</span>
                         <span>
                           {legs.reduce((s, l) => s + (legRoutes[l.id]?.distanceKm || ((l.originAddress && l.destAddress) ? l.distanceKm : 0) || 0), 0)} km ·{' '}
@@ -6067,24 +6067,24 @@ export function EstimateDraftModal({
                     return (
                       <div className="px-3 py-3 bg-[#071421] text-white space-y-2">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#C99700]">Operational time budget · shadow mode</span>
+                          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--app-warm)]">Operational time budget · shadow mode</span>
                           <span className="text-sm font-bold">{budget.totalCrewClockTime}h plan</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-white/75">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-white/75">
                           <span>Productive work</span><span className="text-right">{budget.workingTime}h</span>
                           <span>Access routes</span><span className="text-right">{budget.accessTime}h</span>
                           <span>Services</span><span className="text-right">{budget.serviceTime}h</span>
                           <span>Transportation</span><span className="text-right">{budget.transportationTime}h</span>
                           <span>Operational allowance</span><span className="text-right">{budget.allowanceTime}h</span>
                         </div>
-                        <div className="text-[10px] leading-4 text-white/55">Planning blocks are rounded for scheduling. Access intelligence is visible here but does not change the customer price yet.</div>
+                        <div className="text-[11px] leading-4 text-white/55">Planning blocks are rounded for scheduling. Access intelligence is visible here but does not change the customer price yet.</div>
                         {budget.stops.map(stop => (
-                          <div key={stop.stopId} className="rounded-md border border-white/10 px-2 py-1.5 text-[10px] text-white/70">
+                          <div key={stop.stopId} className="rounded-md border border-white/10 px-2 py-1.5 text-[11px] text-white/70">
                             <div className="flex justify-between font-semibold text-white"><span>{stop.label}</span><span>{stop.totalHours}h</span></div>
                             <div className="mt-0.5">Handling {stop.handlingHours}h · access {stop.accessHours}h · services {stop.serviceHours}h · allowance {stop.allowanceHours}h</div>
                           </div>
                         ))}
-                        {budget.manualReviewReasons.length > 0 && <div className="rounded-md bg-rose-500/15 px-2 py-1.5 text-[10px] text-rose-100">Manual review: {budget.manualReviewReasons.join(' ')}</div>}
+                        {budget.manualReviewReasons.length > 0 && <div className="rounded-md bg-rose-500/15 px-2 py-1.5 text-[11px] text-rose-100">Manual review: {budget.manualReviewReasons.join(' ')}</div>}
                       </div>
                     )
                   })()}
@@ -6092,7 +6092,7 @@ export function EstimateDraftModal({
                   {/* BASE LABOR */}
                   {showLivePricingBreakdown && <div className="px-3 py-2.5 space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-[var(--app-ink)] uppercase tracking-wide text-[10px]">Base Labor</span>
+                      <span className="font-semibold text-[var(--app-ink)] uppercase tracking-wide text-[11px]">Base Labor</span>
                       <span className="font-semibold text-[var(--app-ink)]">{pricingBreakdown.loadHours + pricingBreakdown.unloadHours}h</span>
                     </div>
                     <div className="flex justify-between text-[var(--app-muted)]">
@@ -6108,7 +6108,7 @@ export function EstimateDraftModal({
                   {/* OUTER — TRAVEL */}
                   {showLivePricingBreakdown && <div className="px-3 py-2.5 space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-sky-700 uppercase tracking-wide text-[10px]">Outer — Travel & Access</span>
+                      <span className="font-semibold text-sky-700 uppercase tracking-wide text-[11px]">Outer — Travel & Access</span>
                       <span className="font-semibold text-sky-700">{pricingBreakdown.driveHours > 0 ? `+${pricingBreakdown.driveHours}h` : '—'}</span>
                     </div>
                     {route?.yardToOrigin && (
@@ -6145,7 +6145,7 @@ export function EstimateDraftModal({
                   {showLivePricingBreakdown && (pricingBreakdown.disassemblyItems.length > 0 || pricingBreakdown.specialtyItemFlags.length > 0 || pricingBreakdown.adjustmentBreakdown.some(a => a.category === 'disassembly' || a.category === 'specialty' || a.category === 'packing')) && (
                     <div className="px-3 py-2.5 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-amber-700 uppercase tracking-wide text-[10px]">Inner — On-site Scope</span>
+                        <span className="font-semibold text-amber-700 uppercase tracking-wide text-[11px]">Inner — On-site Scope</span>
                         <span className="font-semibold text-amber-700">
                           +{pricingBreakdown.adjustmentBreakdown.filter(a => a.category === 'disassembly' || a.category === 'specialty' || a.category === 'packing').reduce((s, a) => s + a.hours, 0)}h
                         </span>
@@ -6161,12 +6161,12 @@ export function EstimateDraftModal({
                               const excluded = excludedDisassemblyItems.has(item)
                               return (
                                 <div key={i} className="flex items-center justify-between gap-1">
-                                  <span className={`text-[10px] leading-4 ${excluded ? 'line-through text-slate-400' : 'text-[var(--app-muted)]'}`}>{item}</span>
+                                  <span className={`text-[11px] leading-4 ${excluded ? 'line-through text-slate-500' : 'text-[var(--app-muted)]'}`}>{item}</span>
                                   <button
                                     type="button"
                                     onClick={() => toggleDisassemblyItem(item)}
                                     title={excluded ? 'Add back' : 'Remove from estimate'}
-                                    className={`shrink-0 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold leading-none transition-colors ${excluded ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600'}`}
+                                    className={`shrink-0 rounded-full w-4 h-4 flex items-center justify-center text-[11px] font-bold leading-none transition-colors ${excluded ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600'}`}
                                   >
                                     {excluded ? '+' : '−'}
                                   </button>
@@ -6175,14 +6175,14 @@ export function EstimateDraftModal({
                             })}
                           </div>
                           {excludedDisassemblyItems.size > 0 && (
-                            <div className="mt-1 rounded-[4px] bg-slate-50 border border-slate-200 px-2 py-1 text-[10px] text-slate-500">
+                            <div className="mt-1 rounded-[4px] bg-slate-50 border border-slate-200 px-2 py-1 text-[11px] text-slate-500">
                               {excludedDisassemblyItems.size} item{excludedDisassemblyItems.size > 1 ? 's' : ''} excluded — customer handles that part of the assembly scope
                             </div>
                           )}
                         </>
                       )}
                       {jobFactors.specialtyNotes?.trim() ? (
-                        <div className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] text-amber-700">
+                        <div className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
                           Scope note: {jobFactors.specialtyNotes.trim()}
                         </div>
                       ) : null}
@@ -6214,10 +6214,10 @@ export function EstimateDraftModal({
                     return (
                       <div className="px-3 py-2.5 space-y-1">
                         <div className="flex justify-between text-[var(--app-muted)]">
-                          <span className="uppercase tracking-wide text-[10px]">Other pricing adjustments</span>
+                          <span className="uppercase tracking-wide text-[11px]">Other pricing adjustments</span>
                           <span>+{undisplayedHours}h</span>
                         </div>
-                        <div className="text-[10px] leading-4 text-[var(--app-muted)]">
+                        <div className="text-[11px] leading-4 text-[var(--app-muted)]">
                           Includes multi-trip handling, minimums, route rounding, or operational scope not shown in the simple categories above.
                         </div>
                       </div>
@@ -6227,7 +6227,7 @@ export function EstimateDraftModal({
                   {/* BUFFERS */}
                   {showLivePricingBreakdown && <div className="px-3 py-2.5 space-y-1">
                     <div className="flex justify-between text-[var(--app-muted)]">
-                      <span className="uppercase tracking-wide text-[10px]">Buffers</span>
+                      <span className="uppercase tracking-wide text-[11px]">Buffers</span>
                       <span>+{pricingBreakdown.bufferHours}h</span>
                     </div>
                   </div>}
@@ -6242,7 +6242,7 @@ export function EstimateDraftModal({
                           </span>
                           <span>{quoteHasUnsavedPricingRevision ? (savedQuoteHours > 0 ? `${savedQuoteHours}h` : 'Revision') : 'Saved'}</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold text-[#C99700]">
+                        <div className="flex justify-between text-sm font-bold text-[var(--app-warm)]">
                           <span>{quoteHasUnsavedPricingRevision ? 'Revision estimate' : 'Saved estimate'}</span>
                           <span>{formatMoney(quoteHasUnsavedPricingRevision ? quoteModalTotals.subtotal : (savedQuoteSubtotal || quoteModalTotals.subtotal))}</span>
                         </div>
@@ -6259,7 +6259,7 @@ export function EstimateDraftModal({
                           <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · U-Haul one-way</span>
                           <span>{pricingBreakdown.loadHours + (pricingBreakdown.unloadHours || 0)}h labour</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold text-[#C99700]">
+                        <div className="flex justify-between text-sm font-bold text-[var(--app-warm)]">
                           <span>Estimate</span>
                           <span className="text-xs font-normal text-white/70">Use Live Margin below ↓</span>
                         </div>
@@ -6270,7 +6270,7 @@ export function EstimateDraftModal({
                           <span>{pricingBreakdown.crewSize} movers · {pricingBreakdown.truckCount} truck{pricingBreakdown.truckCount > 1 ? 's' : ''} · ${pricingBreakdown.crewRatePerHour}/hr</span>
                           <span>{routeBusy ? '…' : `${pricingBreakdown.totalHours}h`}</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold text-[#C99700]">
+                        <div className="flex justify-between text-sm font-bold text-[var(--app-warm)]">
                           <span>Estimate</span>
                           {routeBusy
                             ? <span className="text-xs font-normal text-white/60 animate-pulse">Calculating route…</span>
@@ -6377,7 +6377,7 @@ export function EstimateDraftModal({
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-[var(--app-ink)]">Live Margin</span>
                       {conjointInventoryPending ? (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
                           Pending {conjointPendingLabel} inventory
                         </span>
                       ) : null}
@@ -6386,7 +6386,7 @@ export function EstimateDraftModal({
                       <span className={`text-xs font-bold ${adjustedGrossMarginPct >= 55 ? 'text-emerald-700' : adjustedGrossMarginPct >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>
                         {formatMoney(adjustedGrossProfit)} · {adjustedGrossMarginPct.toFixed(1)}%
                       </span>
-                      <span className="text-[var(--app-muted)] text-[10px]">{uhaulOpen ? '▲' : '▼'}</span>
+                      <span className="text-[var(--app-muted)] text-[11px]">{uhaulOpen ? '▲' : '▼'}</span>
                     </div>
                   </button>
 
@@ -6396,9 +6396,9 @@ export function EstimateDraftModal({
                       {/* U-Haul Job Cost */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">🚛 U-Haul Job Cost</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">🚛 U-Haul Job Cost</div>
                           {uhaulDepotName ? (
-                            <div className="text-[10px] text-[var(--app-muted)] truncate max-w-[180px]" title={uhaulDepotName}>
+                            <div className="text-[11px] text-[var(--app-muted)] truncate max-w-[180px]" title={uhaulDepotName}>
                               📍 {uhaulDepotName} · {pickupKm > 0 ? `${pickupKm}km` : '?km'}
                             </div>
                           ) : (
@@ -6406,7 +6406,7 @@ export function EstimateDraftModal({
                               onClick={() => {
                                 setUhaulDepotLookupDone(false)  // allow retry
                               }}
-                              className="text-[10px] text-[var(--app-accent)] hover:underline"
+                              className="text-[11px] text-[var(--app-accent)] hover:underline"
                             >
                               {uhaulDepotLookupDone ? '🔄 Retry depot lookup' : '⏳ Finding nearest U-Haul…'}
                             </button>
@@ -6415,7 +6415,7 @@ export function EstimateDraftModal({
                         {/* Manual pickup distance when auto-lookup fails */}
                         {uhaulDepotLookupDone && !uhaulDepotName && (
                           <div className="flex items-center gap-2 mb-1.5 rounded bg-amber-50 border border-amber-200 px-2 py-1.5">
-                            <span className="text-[10px] text-amber-700 shrink-0">U-Haul depot not auto-found. Enter km from depot to origin:</span>
+                            <span className="text-[11px] text-amber-700 shrink-0">U-Haul depot not auto-found. Enter km from depot to origin:</span>
                             <input
                               type="number" min={0} step={1}
                               value={uhaulPickupKm ?? ''}
@@ -6426,7 +6426,7 @@ export function EstimateDraftModal({
                           </div>
                         )}
                         {/* Route summary */}
-                        <div className="text-[10px] text-[var(--app-muted)] mb-1.5 font-mono bg-slate-50 rounded px-2 py-1">
+                        <div className="text-[11px] text-[var(--app-muted)] mb-1.5 font-mono bg-slate-50 rounded px-2 py-1">
                           {activeStrategy === 'single_truck_two_trips'
                             ? `UHaul(${pickupKm}km) → Org → Dest(${oneWayKm}km) → Org → Dest → UHaul · total ${Math.round(cost.totalOperationalKm)}km`
                             : `UHaul(${pickupKm}km) → Org → Dest(${oneWayKm}km) → UHaul${activeTruckCount > 1 ? ` × ${activeTruckCount} trucks` : ''} · total ${Math.round(cost.totalOperationalKm)}km`}
@@ -6485,7 +6485,7 @@ export function EstimateDraftModal({
 
                       {/* Labour */}
                       <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">👷 Labour</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">👷 Labour</div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs">
                             <span className="text-[var(--app-muted)]">{crewSize} movers × {estimatedHours}h @ $25/hr</span>
@@ -6496,7 +6496,7 @@ export function EstimateDraftModal({
 
                       {/* Miscellaneous + packing cost when added */}
                       <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Miscellaneous</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Miscellaneous</div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-xs">
                             <span className="text-[var(--app-muted)]">Food + crew gas buffer</span>
@@ -6542,7 +6542,7 @@ export function EstimateDraftModal({
                       {/* Trip strategy toggle — clickable cards that recalculate the whole panel */}
                       {comparison && (
                         <div className="border-t border-[var(--app-line)] pt-2">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">Switch Strategy</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">Switch Strategy</div>
                           <div className="grid grid-cols-2 gap-1.5">
                             {([
                               { label: '1 truck · 2 trips', strategy: 'single_truck_two_trips' as TripStrategy, data: comparison.oneTruckTwoTrips },
@@ -6574,7 +6574,7 @@ export function EstimateDraftModal({
                                       : 'border-[var(--app-line)] hover:border-[var(--app-muted)]'
                                   }`}
                                 >
-                                  <div className="text-[10px] font-semibold text-[var(--app-ink)]">{label}</div>
+                                  <div className="text-[11px] font-semibold text-[var(--app-ink)]">{label}</div>
                                   <div className="text-sm font-bold text-[var(--app-ink)] mt-0.5">{formatMoney(data.truckTotal)}</div>
                                   {/* Gross profit for this strategy */}
                                   {revenue > 0 && (() => {
@@ -6589,20 +6589,20 @@ export function EstimateDraftModal({
                                     const stratProfit = Math.round((revenue - stratCost) * 100) / 100
                                     const stratMargin = revenue > 0 ? Math.round(stratProfit / revenue * 1000) / 10 : 0
                                     const mColor = stratMargin >= 55 ? 'text-emerald-700' : stratMargin >= 40 ? 'text-amber-700' : 'text-rose-700'
-                                    return <div className={`text-[10px] font-semibold mt-0.5 ${mColor}`}>{formatMoney(stratProfit)} · {stratMargin.toFixed(1)}% margin</div>
+                                    return <div className={`text-[11px] font-semibold mt-0.5 ${mColor}`}>{formatMoney(stratProfit)} · {stratMargin.toFixed(1)}% margin</div>
                                   })()}
                                   {/* Timing */}
                                   <div className="mt-1 space-y-0.5">
                                     {timing.phases.map((p, i) => (
-                                      <div key={i} className="text-[9px] text-[var(--app-muted)]">
+                                      <div key={i} className="text-[11px] text-[var(--app-muted)]">
                                         <span className="font-semibold text-[var(--app-ink)]">{p.end}</span>{p.note ? ` · ${p.note}` : ` · ${p.label}`}
                                       </div>
                                     ))}
                                     {timing.warning && (
-                                      <div className="text-[9px] text-amber-700 font-semibold mt-0.5">⚠ {timing.warning}</div>
+                                      <div className="text-[11px] text-amber-700 font-semibold mt-0.5">⚠ {timing.warning}</div>
                                     )}
                                   </div>
-                                  <div className="text-[9px] mt-1 space-x-1">
+                                  <div className="text-[11px] mt-1 space-x-1">
                                     {isActive && <span className="text-[#071421] font-semibold">● Active</span>}
                                     {!isActive && isCheaper && <span className="text-emerald-700 font-semibold">★ Lower truck cost</span>}
                                   </div>
@@ -6696,12 +6696,12 @@ export function EstimateDraftModal({
                           <div key={i} className={`px-3 py-2.5 ${colorMap[day.color]}`}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/60 text-[9px] font-bold">D{i + 1}</span>
+                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/60 text-[11px] font-bold">D{i + 1}</span>
                                 <span className="text-xs font-semibold">{day.label}</span>
                               </div>
-                              <span className="text-[10px] font-semibold">{day.hours}</span>
+                              <span className="text-[11px] font-semibold">{day.hours}</span>
                             </div>
-                            <div className="mt-0.5 text-[10px] opacity-80">{day.who}{day.note ? ` · ${day.note}` : ''}</div>
+                            <div className="mt-0.5 text-[11px] opacity-80">{day.who}{day.note ? ` · ${day.note}` : ''}</div>
                           </div>
                         ))}
                       </div>
@@ -6726,7 +6726,7 @@ export function EstimateDraftModal({
               <div className="border border-[var(--app-line)] rounded-[10px] overflow-hidden">
                 <div className="px-3.5 py-2.5 bg-[var(--app-surface)] flex items-center justify-between">
                   <span className="text-xs font-semibold text-[var(--app-ink)]">Internal Multi-Stop Cost</span>
-                  <span className="text-[10px] text-[var(--app-muted)]">{legs.length} legs</span>
+                  <span className="text-[11px] text-[var(--app-muted)]">{legs.length} legs</span>
                 </div>
                 <div className="px-3.5 pb-3.5 pt-1 bg-white space-y-2">
                   {legs.map((leg, i) => {
@@ -6751,17 +6751,17 @@ export function EstimateDraftModal({
                     return (
                       <div key={leg.id} className="rounded-[6px] border border-[var(--app-line)] p-2.5 space-y-1">
                         <div className="flex items-center justify-between">
-                          <div className="text-[10px] font-semibold text-[var(--app-ink)]">
+                          <div className="text-[11px] font-semibold text-[var(--app-ink)]">
                             Leg {i+1}: {leg.label || typeTag}
                           </div>
-                          <span className={`text-[9px] rounded-full px-2 py-0.5 font-semibold ${isLDLeg ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{typeTag}</span>
+                          <span className={`text-[11px] rounded-full px-2 py-0.5 font-semibold ${isLDLeg ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{typeTag}</span>
                         </div>
                         {[
                           [`Truck${isLDLeg ? ' (one-way est.)' : ' + mileage'}`, legTruckAmt],
                           [`Labour (${legCrewH}h)`, legLabor],
                           [`Misc`, 15],
                         ].map(([label, val]) => (
-                          <div key={String(label)} className="flex justify-between text-[10px]">
+                          <div key={String(label)} className="flex justify-between text-[11px]">
                             <span className="text-[var(--app-muted)]">{label}</span>
                             <span className="text-[var(--app-ink)]">{formatMoney(Number(val))}</span>
                           </div>
@@ -6790,7 +6790,7 @@ export function EstimateDraftModal({
                       return sum + legTruckAmt + legLabor + 15
                     }, 0))}</span>
                   </div>
-                  <div className="text-[9px] text-[var(--app-muted)]">Internal truck, labor, and misc cost only. Customer subtotal remains the main quote total above.</div>
+                  <div className="text-[11px] text-[var(--app-muted)]">Internal truck, labor, and misc cost only. Customer subtotal remains the main quote total above.</div>
                 </div>
               </div>
             )}
@@ -6870,7 +6870,7 @@ export function EstimateDraftModal({
                 <div className="border border-purple-200 rounded-[10px] overflow-hidden">
                   <div className="px-3.5 py-2.5 bg-purple-50 flex items-center justify-between">
                     <span className="text-xs font-semibold text-purple-800">Conjoint Move Logistics</span>
-                    <span className="text-[10px] text-purple-600">{pricingBreakdown?.crewSize || 3} movers · {plan.truckCount} truck{plan.truckCount > 1 ? 's' : ''} · {totalKm > 0 ? `${totalKm} km total` : 'add addresses for distance'}</span>
+                    <span className="text-[11px] text-purple-600">{pricingBreakdown?.crewSize || 3} movers · {plan.truckCount} truck{plan.truckCount > 1 ? 's' : ''} · {totalKm > 0 ? `${totalKm} km total` : 'add addresses for distance'}</span>
                   </div>
                   <div className="bg-white px-3.5 py-3 space-y-3">
                     <div className={`rounded-[8px] px-3 py-2.5 text-[11px] font-semibold ${
@@ -6883,7 +6883,7 @@ export function EstimateDraftModal({
                       {plan.label} — {plan.totalCubicFeet.toLocaleString()} cu ft, {plan.capacityUsedPct}% of one 26ft truck, ~{plan.estimatedHours}h window, finish around {plan.finishTime}.
                     </div>
                     {routeSegments.length > 0 && (
-                      <div className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-[10px]">
+                      <div className="rounded-[6px] border border-[var(--app-line)] px-3 py-2 text-[11px]">
                         <div className="mb-1.5 font-semibold uppercase tracking-wide text-[var(--app-muted)]">Route legs</div>
                         <div className="space-y-1">
                           {routeSegments.map(segment => (
@@ -6896,21 +6896,21 @@ export function EstimateDraftModal({
                       </div>
                     )}
                     {plan.salesTalkingPoints.length > 0 && (
-                      <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[10px] text-[var(--app-muted)] space-y-1">
+                      <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-[11px] text-[var(--app-muted)] space-y-1">
                         {plan.salesTalkingPoints.map((point, i) => (
                           <div key={i}>• {point}</div>
                         ))}
                       </div>
                     )}
                     {plan.riskNotes.length > 0 && (
-                      <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-800 space-y-1">
+                      <div className="rounded-[6px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 space-y-1">
                         {plan.riskNotes.map((note, i) => (
                           <div key={i}>• {note}</div>
                         ))}
                       </div>
                     )}
                     {(plan.constraintFit.destinationReadyTime || plan.constraintFit.latestFinishTime || plan.constraintFit.status !== 'clear') && (
-                      <div className={`rounded-[8px] border px-3 py-2 text-[10px] ${
+                      <div className={`rounded-[8px] border px-3 py-2 text-[11px] ${
                         plan.constraintFit.status === 'runs_late' || plan.constraintFit.status === 'needs_review'
                           ? 'border-rose-200 bg-rose-50 text-rose-800'
                           : plan.constraintFit.status === 'adjust_start'
@@ -6933,7 +6933,7 @@ export function EstimateDraftModal({
                           )}
                         </div>
                         <div className="mt-1">{plan.constraintFit.note}</div>
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[9px] opacity-80">
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] opacity-80">
                           {plan.constraintFit.destinationReadyTime && <span>Keys: {plan.constraintFit.destinationReadyTime}</span>}
                           {plan.constraintFit.finalArrivalTime && <span>Arrive destination: {plan.constraintFit.finalArrivalTime}</span>}
                           {plan.constraintFit.finishTime && <span>Finish: {plan.constraintFit.finishTime}</span>}
@@ -6942,7 +6942,7 @@ export function EstimateDraftModal({
                       </div>
                     )}
                     <div>
-                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Operating options</div>
+                      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Operating options</div>
                       <div className="grid gap-2">
                         {plan.options.map(option => {
                           const optionNeedsInventory = conjointInventoryPending
@@ -6963,17 +6963,17 @@ export function EstimateDraftModal({
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <div className="text-[11px] font-semibold text-[var(--app-ink)]">{option.label}</div>
-                                <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">
+                                <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">
                                   {option.truckCount} truck{option.truckCount === 1 ? '' : 's'} · {option.crewCount} crew{option.crewCount === 1 ? '' : 's'} · {option.dayCount} day{option.dayCount === 1 ? '' : 's'}
                                 </div>
                               </div>
                               <div className="text-right">
                                 <div className="text-[11px] font-bold text-[var(--app-ink)]">~{option.estimatedHours}h</div>
-                                <div className="text-[9px] text-[var(--app-muted)]">{option.finishTime}</div>
+                                <div className="text-[11px] text-[var(--app-muted)]">{option.finishTime}</div>
                               </div>
                             </div>
-                            <div className="mt-1.5 text-[10px] leading-4 text-[var(--app-muted)]">{option.summary}</div>
-                            <div className={`mt-1 text-[10px] font-semibold ${
+                            <div className="mt-1.5 text-[11px] leading-4 text-[var(--app-muted)]">{option.summary}</div>
+                            <div className={`mt-1 text-[11px] font-semibold ${
                               optionNeedsInventory ? 'text-amber-700' : option.viable ? 'text-emerald-700' : 'text-slate-500'
                             }`}>
                               {optionNeedsInventory
@@ -6981,14 +6981,14 @@ export function EstimateDraftModal({
                                 : option.viable ? option.tradeoff : `Not ideal: ${option.tradeoff}`}
                             </div>
                             <div className="mt-2 flex items-center justify-between gap-2">
-                              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                                 {selectedOperatingPlan === option.id ? 'Applied' : optionNeedsInventory ? 'Inventory needed' : option.viable ? 'Available' : 'Review first'}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => applyLogisticsOption(option)}
                                 disabled={!optionCanBeApplied}
-                                className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                                className={`rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                                   selectedOperatingPlan === option.id
                                     ? 'bg-emerald-600 text-white'
                                     : optionCanBeApplied
@@ -7006,7 +7006,7 @@ export function EstimateDraftModal({
                     </div>
                     {/* Day timeline */}
                     <div>
-                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Day-of-Move Timeline</div>
+                      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Day-of-Move Timeline</div>
                       <div className="space-y-1.5">
                         {plan.phases.map((phase, i) => {
                           const label = phase.label
@@ -7022,7 +7022,7 @@ export function EstimateDraftModal({
                               </div>
                               <div className="min-w-0">
                                 <span className="font-medium text-[var(--app-ink)]">{label}</span>
-                                {phase.note && <span className="ml-1.5 text-[10px] text-[var(--app-muted)]">{phase.note}</span>}
+                                {phase.note && <span className="ml-1.5 text-[11px] text-[var(--app-muted)]">{phase.note}</span>}
                               </div>
                             </div>
                           )
@@ -7031,7 +7031,7 @@ export function EstimateDraftModal({
                     </div>
                     {/* Load split */}
                     {(plan.volumeSplit.personA.cubicFeet > 0 || plan.volumeSplit.personB.cubicFeet > 0) && (
-                      <div className="rounded-[6px] border border-[var(--app-line)] p-2 space-y-1 text-[10px]">
+                      <div className="rounded-[6px] border border-[var(--app-line)] p-2 space-y-1 text-[11px]">
                         <div className="font-semibold text-[var(--app-muted)] uppercase tracking-wide">Volume by person</div>
                         <div className="flex justify-between">
                           <span className="text-blue-700">{personALabel}</span>
@@ -7047,7 +7047,7 @@ export function EstimateDraftModal({
                         </div>
                       </div>
                     )}
-                    <div className="text-[9px] text-[var(--app-muted)]">Timeline uses saved start time from quote. Driving times update when leg addresses are set.</div>
+                    <div className="text-[11px] text-[var(--app-muted)]">Timeline uses saved start time from quote. Driving times update when leg addresses are set.</div>
                   </div>
                 </div>
               )
@@ -7091,16 +7091,16 @@ export function EstimateDraftModal({
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-xs font-semibold text-[var(--app-ink)]">Estimate Readiness Workspace</div>
-                      <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">Evidence → confirmed scope → logistics → fixed-price promise</div>
+                      <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Evidence → confirmed scope → logistics → fixed-price promise</div>
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                       {readinessItems.filter(item => item.ready).length}/{readinessItems.length} ready
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {evidenceSources.length > 0
-                      ? evidenceSources.map(source => <span key={source} className="rounded-full bg-sky-50 px-2 py-1 text-[9px] font-semibold text-sky-700">{source}</span>)
-                      : <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-semibold text-rose-700">No evidence source</span>}
+                      ? evidenceSources.map(source => <span key={source} className="rounded-full bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700">{source}</span>)
+                      : <span className="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700">No evidence source</span>}
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
                     <div className="rounded-[6px] bg-emerald-50 px-2 py-1.5"><div className="text-sm font-semibold text-emerald-800">{includedInventory.length - unresolvedInventoryItems.length}</div><div className="text-[8px] uppercase tracking-wide text-emerald-700">Moving / confirmed</div></div>
@@ -7119,8 +7119,8 @@ export function EstimateDraftModal({
                       return (
                         <div key={category} className="rounded-[7px] bg-[var(--app-bg)] p-2.5">
                           <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--app-muted)]">{heading}</span>
-                            <span className="text-[9px] font-semibold text-[var(--app-muted)]">{categoryReady}/{categoryItems.length}</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--app-muted)]">{heading}</span>
+                            <span className="text-[11px] font-semibold text-[var(--app-muted)]">{categoryReady}/{categoryItems.length}</span>
                           </div>
                           <div className="space-y-1.5">
                             {categoryItems.map(item => (
@@ -7135,24 +7135,24 @@ export function EstimateDraftModal({
                     })}
                   </div>
                   {blockingReadiness.length > 0 && (
-                    <div className="mt-3 rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-2 text-[10px] text-rose-800">
+                    <div className="mt-3 rounded-[6px] border border-rose-200 bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800">
                       Quote not ready: {blockingReadiness.map(item => item.detail).join(' · ')}
                     </div>
                   )}
                   {warningReadiness.length > 0 && (
                     <div className="mt-2 rounded-[6px] border border-amber-200 bg-amber-50 px-2.5 py-2 space-y-2">
-                      <div className="text-[10px] text-amber-800">
+                      <div className="text-[11px] text-amber-800">
                         Confirm before sending: {warningReadiness.map(item => item.detail).join(' · ')}
                       </div>
                       {!jobFactors.packingStatus && (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-amber-700 font-medium">Packing?</span>
+                          <span className="text-[11px] text-amber-700 font-medium">Packing?</span>
                           {(['not-started', 'partial', 'packed'] as const).map(s => (
                             <button
                               key={s}
                               type="button"
                               onClick={() => setFactor('packingStatus', s)}
-                              className="rounded-[4px] border border-amber-300 bg-white px-2 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-100 transition"
+                              className="rounded-[4px] border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100 transition"
                             >
                               {s === 'not-started' ? 'Not started' : s === 'partial' ? 'Partial' : 'Fully packed'}
                             </button>
@@ -7166,14 +7166,14 @@ export function EstimateDraftModal({
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-xs font-semibold text-[var(--app-ink)]">Capacity Awareness</div>
-                    <div className="text-[10px] font-medium text-[var(--app-muted)]">{selectedMoveDate || 'Move date TBD'}</div>
+                    <div className="text-[11px] font-medium text-[var(--app-muted)]">{selectedMoveDate || 'Move date TBD'}</div>
                   </div>
                   {route?.serviceAreaMode === 'open_market' ? (
-                    <div className="mt-2 text-[10px] text-[var(--app-muted)]">Open-market sales estimate. Branch capacity does not affect quote or booking.</div>
+                    <div className="mt-2 text-[11px] text-[var(--app-muted)]">Open-market sales estimate. Branch capacity does not affect quote or booking.</div>
                   ) : !selectedMoveDate ? (
-                    <div className="mt-2 text-[10px] text-[var(--app-muted)]">Capacity estimate unavailable. Confirm manually before booking.</div>
+                    <div className="mt-2 text-[11px] text-[var(--app-muted)]">Capacity estimate unavailable. Confirm manually before booking.</div>
                   ) : capacityBusy ? (
-                    <div className="mt-2 text-[10px] text-[var(--app-muted)]">Checking branch load…</div>
+                    <div className="mt-2 text-[11px] text-[var(--app-muted)]">Checking branch load…</div>
                   ) : capacitySnapshot?.status === 'ready' ? (
                     <div className="mt-3 space-y-1.5 text-xs">
                       <div className="flex justify-between">
@@ -7193,7 +7193,7 @@ export function EstimateDraftModal({
                         </span>
                       </div>
                       <div
-                        className={`rounded-[6px] border px-2.5 py-2 text-[10px] leading-4 ${
+                        className={`rounded-[6px] border px-2.5 py-2 text-[11px] leading-4 ${
                           capacitySnapshot.risk === 'high'
                             ? 'border-rose-200 bg-rose-50 text-rose-800'
                             : capacitySnapshot.risk === 'medium'
@@ -7207,29 +7207,29 @@ export function EstimateDraftModal({
                             ? 'Availability is tightening. Confirm crew and truck plan before locking this date.'
                             : 'Capacity looks workable based on current booked jobs.'}
                       </div>
-                      {capacitySnapshot.note ? <div className="text-[10px] text-[var(--app-muted)]">{capacitySnapshot.note}</div> : null}
+                      {capacitySnapshot.note ? <div className="text-[11px] text-[var(--app-muted)]">{capacitySnapshot.note}</div> : null}
                     </div>
                   ) : (
-                    <div className="mt-2 text-[10px] text-[var(--app-muted)]">{capacitySnapshot?.note || 'Capacity estimate unavailable. Confirm manually before booking.'}</div>
+                    <div className="mt-2 text-[11px] text-[var(--app-muted)]">{capacitySnapshot?.note || 'Capacity estimate unavailable. Confirm manually before booking.'}</div>
                   )}
                 </div>
 
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-xs font-semibold text-[var(--app-ink)]">Why This Price</div>
-                    <div className="text-[10px] font-medium text-[var(--app-muted)]">{priceExplanationNotice || 'Customer-safe copy'}</div>
+                    <div className="text-[11px] font-medium text-[var(--app-muted)]">{priceExplanationNotice || 'Customer-safe copy'}</div>
                   </div>
                   <div className="mt-2 text-[11px] leading-5 text-[var(--app-muted)]">
                     {quoteExplanation.detailed || 'Generate pricing first to build a customer-facing explanation.'}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void copyPriceExplanation('detailed')} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                    <button type="button" onClick={() => void copyPriceExplanation('detailed')} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                       Copy Price Explanation
                     </button>
-                    <button type="button" onClick={() => void copyPriceExplanation('short')} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                    <button type="button" onClick={() => void copyPriceExplanation('short')} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                       Copy Short Version
                     </button>
-                    <button type="button" onClick={() => void copyPriceExplanation('detailed')} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
+                    <button type="button" onClick={() => void copyPriceExplanation('detailed')} className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)]">
                       Copy Detailed Version
                     </button>
                   </div>
@@ -7290,9 +7290,9 @@ export function EstimateDraftModal({
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-[var(--app-ink)]">Live Margin</span>
-                        <span className="text-[10px] text-[var(--app-muted)]">Long distance · {ldDistKm}km one-way</span>
+                        <span className="text-[11px] text-[var(--app-muted)]">Long distance · {ldDistKm}km one-way</span>
                         {conjointInventoryPending ? (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
                             Pending {conjointPendingLabel} inventory
                           </span>
                         ) : null}
@@ -7300,9 +7300,9 @@ export function EstimateDraftModal({
                       <div className="flex items-center gap-2">
                         {ldTotalCost > 0
                           ? <span className={`text-xs font-bold ${profitColor}`}>{formatMoney(ldGrossProfit)} · {ldMarginPct.toFixed(1)}%</span>
-                          : <span className="text-[10px] text-amber-700">Enter U-Haul price to see margin</span>
+                          : <span className="text-[11px] text-amber-700">Enter U-Haul price to see margin</span>
                         }
-                        <span className="text-[var(--app-muted)] text-[10px]">{uhaulOpen ? '▲' : '▼'}</span>
+                        <span className="text-[var(--app-muted)] text-[11px]">{uhaulOpen ? '▲' : '▼'}</span>
                       </div>
                     </button>
 
@@ -7312,9 +7312,9 @@ export function EstimateDraftModal({
                         {/* U-Haul price input */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">🚛 U-Haul One-Way Quote (per truck)</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">🚛 U-Haul One-Way Quote (per truck)</div>
                             <a href={uhaulUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-[10px] font-semibold text-[var(--app-accent)] hover:underline"
+                              className="text-[11px] font-semibold text-[var(--app-accent)] hover:underline"
                             >Check price on Google →</a>
                           </div>
                           <div className="relative">
@@ -7330,14 +7330,14 @@ export function EstimateDraftModal({
                               placeholder="Enter from uhaul.com" className="crm-input pl-5 w-full text-sm font-semibold"
                             />
                           </div>
-                          {uhaulInputIsEstimate && <div className="text-[9px] text-amber-700 mt-0.5">Auto-estimated · verify on uhaul.com (weekday rates ~50% cheaper than weekends)</div>}
+                          {uhaulInputIsEstimate && <div className="text-[11px] text-amber-700 mt-0.5">Auto-estimated · verify on uhaul.com (weekday rates ~50% cheaper than weekends)</div>}
                         </div>
 
                         {/* Itemized cost breakdown */}
                         {uhaulPerTruck > 0 && (
                           <>
                             <div>
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">🚛 U-Haul Job Cost</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">🚛 U-Haul Job Cost</div>
                               <div className="space-y-1">
                                 {[
                                   [`${ldTruckCount}× one-way rental`, uhaulPerTruck * ldTruckCount],
@@ -7359,10 +7359,10 @@ export function EstimateDraftModal({
                             </div>
 
                             <div>
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">
                                 👷 Labour {crewFliesBack ? '(load + drive + unload only — crew flies back)' : '(full day on clock)'}
                               </div>
-                              <div className="text-[10px] text-[var(--app-muted)]">
+                              <div className="text-[11px] text-[var(--app-muted)]">
                                 Load {ldLoadHours}h + Drive {ldDriveOneWay}h + Unload {ldUnloadHours}h
                                 {crewFliesBack ? ` = ${ldTotalLaborH}h (no return drive — crew flies)` : ` + Return ${ldDriveOneWay}h = ${ldTotalLaborH}h`}
                               </div>
@@ -7373,7 +7373,7 @@ export function EstimateDraftModal({
                             </div>
 
                             <div>
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Miscellaneous</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-1.5">📦 Miscellaneous</div>
                               <div className="space-y-1">
                                 <div className="flex justify-between text-xs">
                                   <span className="text-[var(--app-muted)]">
@@ -7404,7 +7404,7 @@ export function EstimateDraftModal({
                               const marginColor = selMargin >= 55 ? 'text-emerald-700' : selMargin >= 40 ? 'text-amber-700' : 'text-rose-600'
                               return (
                                 <div className="border-t border-[var(--app-line)] pt-3 space-y-3">
-                                  <div className="flex items-center justify-between text-[10px] text-[var(--app-muted)]">
+                                  <div className="flex items-center justify-between text-[11px] text-[var(--app-muted)]">
                                     <span>40% · {formatMoney(ldFloorPx)}</span>
                                     <span className="font-semibold text-[var(--app-ink)] text-xs">Price range</span>
                                     <span>60% · {formatMoney(ldCeiling)}</span>
@@ -7419,9 +7419,9 @@ export function EstimateDraftModal({
                                   <div className="flex items-center justify-between">
                                     <div>
                                       <div className={`text-base font-bold ${marginColor}`}>{formatMoney(ldSelected)} + HST</div>
-                                      <div className="text-[10px] text-[var(--app-muted)]">{formatMoney(ldSelectedHST)} total to customer · <span className={`font-semibold ${marginColor}`}>{selMargin}% margin</span></div>
+                                      <div className="text-[11px] text-[var(--app-muted)]">{formatMoney(ldSelectedHST)} total to customer · <span className={`font-semibold ${marginColor}`}>{selMargin}% margin</span></div>
                                     </div>
-                                    <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${selMargin >= 55 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : selMargin >= 40 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                                    <div className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${selMargin >= 55 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : selMargin >= 40 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
                                       {selMargin}%
                                     </div>
                                   </div>
@@ -7468,7 +7468,7 @@ export function EstimateDraftModal({
                         setOverrideApplied(false)
                         setOverrideInput('')
                       }}
-                        className="shrink-0 text-[10px] underline"
+                        className="shrink-0 text-[11px] underline"
                     >
                       Clear
                     </button>
@@ -7478,17 +7478,17 @@ export function EstimateDraftModal({
 
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="text-xs font-semibold text-[var(--app-ink)]">Price Override</div>
-                  <div className="text-[10px] leading-4 text-[var(--app-muted)]">
+                  <div className="text-[11px] leading-4 text-[var(--app-muted)]">
                     Choose what the amount means before entering it. There is no assumed default: the CRM will calculate HST exactly once and show the final customer total before you apply it.
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => { setOverrideTaxMode('plus_hst'); setOverrideApplied(false); setApprovedOverrideAmount(null) }} className={`rounded-[7px] border px-3 py-2 text-left ${overrideTaxMode === 'plus_hst' ? 'border-[#071421] bg-[#071421] text-white' : 'border-[var(--app-line)] bg-white text-[var(--app-ink)]'}`}>
                       <span className="block text-[11px] font-semibold">Price + HST</span>
-                      <span className={`mt-0.5 block text-[9px] ${overrideTaxMode === 'plus_hst' ? 'text-white/65' : 'text-[var(--app-muted)]'}`}>Example: $1,600 becomes $1,808 total</span>
+                      <span className={`mt-0.5 block text-[11px] ${overrideTaxMode === 'plus_hst' ? 'text-white/65' : 'text-[var(--app-muted)]'}`}>Example: $1,600 becomes $1,808 total</span>
                     </button>
                     <button type="button" onClick={() => { setOverrideTaxMode('hst_included'); setOverrideApplied(false); setApprovedOverrideAmount(null) }} className={`rounded-[7px] border px-3 py-2 text-left ${overrideTaxMode === 'hst_included' ? 'border-[#071421] bg-[#071421] text-white' : 'border-[var(--app-line)] bg-white text-[var(--app-ink)]'}`}>
                       <span className="block text-[11px] font-semibold">HST included / all-in</span>
-                      <span className={`mt-0.5 block text-[9px] ${overrideTaxMode === 'hst_included' ? 'text-white/65' : 'text-[var(--app-muted)]'}`}>Example: $1,600 stays $1,600 total</span>
+                      <span className={`mt-0.5 block text-[11px] ${overrideTaxMode === 'hst_included' ? 'text-white/65' : 'text-[var(--app-muted)]'}`}>Example: $1,600 stays $1,600 total</span>
                     </button>
                   </div>
                   <div className="flex gap-2">
@@ -7525,7 +7525,7 @@ export function EstimateDraftModal({
                     </select>
                   </div>
                   {overrideTaxMode ? <div className="rounded-[7px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-                    <div className="flex items-center justify-between gap-3 text-[10px]"><span className="font-semibold text-[var(--app-ink)]">Slide to adjust the price</span><span className="text-[var(--app-muted)]">{formatMoney(overrideSliderMin)}–{formatMoney(overrideSliderMax)}</span></div>
+                    <div className="flex items-center justify-between gap-3 text-[11px]"><span className="font-semibold text-[var(--app-ink)]">Slide to adjust the price</span><span className="text-[var(--app-muted)]">{formatMoney(overrideSliderMin)}–{formatMoney(overrideSliderMax)}</span></div>
                     <input
                       aria-label="Adjusted estimate price"
                       type="range"
@@ -7550,7 +7550,7 @@ export function EstimateDraftModal({
                         setApprovedOverrideAmount(null)
                         setOverrideApprovalNotice(null)
                         if (!overrideNote.trim()) setOverrideNote(percent === 0 ? 'Using the calculated estimate.' : `Sales price adjustment: +${percent}% risk and capacity buffer.`)
-                      }} className="rounded-[5px] border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--app-ink)]">{percent === 0 ? 'Calculated' : `+${percent}%`}</button>)}
+                      }} className="rounded-[5px] border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold text-[var(--app-ink)]">{percent === 0 ? 'Calculated' : `+${percent}%`}</button>)}
                     </div>
                   </div> : null}
                   <textarea
@@ -7565,7 +7565,7 @@ export function EstimateDraftModal({
                     className="crm-input w-full text-xs"
                   />
                   {overrideInput && Number(overrideInput) > 0 && (
-                    <div className="text-[10px] text-[var(--app-muted)]">
+                    <div className="text-[11px] text-[var(--app-muted)]">
                       {!overrideTaxMode
                         ? <span className="font-semibold text-amber-700">Choose “Price + HST” or “HST included / all-in” above before applying this amount.</span>
                         : overrideTaxMode === 'plus_hst'
@@ -7574,19 +7574,19 @@ export function EstimateDraftModal({
                     </div>
                   )}
                   {overrideProjectedMargin !== null && (
-                    <div className={`text-[10px] ${overrideProjectedMargin < 55 ? 'text-rose-700' : 'text-[var(--app-muted)]'}`}>
+                    <div className={`text-[11px] ${overrideProjectedMargin < 55 ? 'text-rose-700' : 'text-[var(--app-muted)]'}`}>
                       Projected margin after override: {overrideProjectedMargin.toFixed(1)}%
                       {overrideProjectedMargin < 55 ? canApproveMarginException ? ' · manager approval should be documented.' : ' · owner/manager approval required below threshold.' : ' · healthy margin, approval code not required.'}
                     </div>
                   )}
                   {overrideProjectedMargin === null && currentUser?.role === 'sales_rep' && (
-                    <div className="text-[10px] text-amber-700">
+                    <div className="text-[11px] text-amber-700">
                       Margin cannot be confirmed yet, so owner/manager approval is required for this override.
                     </div>
                   )}
                   {overrideNeedsApproval && (
                     <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-2.5">
-                      <div className="text-[10px] font-semibold text-amber-800">This override needs owner/manager approval because the margin is below threshold or unknown.</div>
+                      <div className="text-[11px] font-semibold text-amber-800">This override needs owner/manager approval because the margin is below threshold or unknown.</div>
                       <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
                         <input
                           value={overrideApprovalCode}
@@ -7614,7 +7614,7 @@ export function EstimateDraftModal({
                     </div>
                   )}
                   {overrideApprovalNotice && (
-                    <div className={`rounded-[6px] px-2.5 py-2 text-[10px] ${overrideApprovalNotice.toLowerCase().includes('invalid') || overrideApprovalNotice.toLowerCase().includes('expired') || overrideApprovalNotice.toLowerCase().includes('failed') ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                    <div className={`rounded-[6px] px-2.5 py-2 text-[11px] ${overrideApprovalNotice.toLowerCase().includes('invalid') || overrideApprovalNotice.toLowerCase().includes('expired') || overrideApprovalNotice.toLowerCase().includes('failed') ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
                       {overrideApprovalNotice}
                     </div>
                   )}
@@ -7644,7 +7644,7 @@ export function EstimateDraftModal({
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-xs font-semibold text-amber-900">Realtor Referral — 20% off</div>
-                          <div className="text-[10px] text-amber-700">Referred by {lead.realtorName || 'realtor partner'}</div>
+                          <div className="text-[11px] text-amber-700">Referred by {lead.realtorName || 'realtor partner'}</div>
                         </div>
                         <button
                           type="button"
@@ -7660,7 +7660,7 @@ export function EstimateDraftModal({
                               }])
                             }
                           }}
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${refDiscountAdded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
+                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${refDiscountAdded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
                         >
                           {refDiscountAdded ? '✓ Applied' : `Apply −${formatMoney(refAmount)}`}
                         </button>
@@ -7693,20 +7693,20 @@ export function EstimateDraftModal({
                           if (idx >= 0) onRemoveLineItem(idx)
                         }
                       }}
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-40 ${bookTodayActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-40 ${bookTodayActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
                     >
                       {bookTodayActive ? 'Active' : 'Off'}
                     </button>
                   </div>
-                  <div className="text-[10px] text-[var(--app-muted)]">Script: “I can take $150 off if we lock in the crew today with the deposit.”</div>
+                  <div className="text-[11px] text-[var(--app-muted)]">Script: “I can take $150 off if we lock in the crew today with the deposit.”</div>
                   {bookTodayActive && (
-                    <div className="text-[10px] text-emerald-700">$150 early-booking discount added — holds until move date.</div>
+                    <div className="text-[11px] text-emerald-700">$150 early-booking discount added — holds until move date.</div>
                   )}
                   {!bookTodayGate.eligible && (
-                    <div className="text-[10px] text-amber-700">Available only when {bookTodayGate.reasons.join(', ')}.</div>
+                    <div className="text-[11px] text-amber-700">Available only when {bookTodayGate.reasons.join(', ')}.</div>
                   )}
                   {bookTodayGate.approvalRequired && (
-                    <div className="text-[10px] text-rose-700">
+                    <div className="text-[11px] text-rose-700">
                       {canApproveMarginException
                         ? `Projected margin after discount: ${bookTodayProjectedMargin?.toFixed(1) || '0.0'}%`
                         : `Projected margin drops to ${bookTodayProjectedMargin?.toFixed(1) || '0.0'}% — manager approval required.`}
@@ -7734,21 +7734,21 @@ export function EstimateDraftModal({
                           }
                         }
                       }}
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-40 ${tenPctActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-40 ${tenPctActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
                     >
                       {tenPctActive ? 'Active' : 'Off'}
                     </button>
                   </div>
                   {tenPctActive && (
-                    <div className="text-[10px] text-emerald-700">
+                    <div className="text-[11px] text-emerald-700">
                       10% off the current base estimate — {formatMoney(tenPctDiscountAmount)} saved. It will recalculate automatically if the estimate changes.
                     </div>
                   )}
                   {!tenPctGate.eligible && (
-                    <div className="text-[10px] text-amber-700">Available only when {tenPctGate.reasons.join(', ')}.</div>
+                    <div className="text-[11px] text-amber-700">Available only when {tenPctGate.reasons.join(', ')}.</div>
                   )}
                   {tenPctGate.approvalRequired && (
-                    <div className="text-[10px] text-rose-700">
+                    <div className="text-[11px] text-rose-700">
                       {canApproveMarginException
                         ? `Projected margin after discount: ${tenPctProjectedMargin?.toFixed(1) || '0.0'}%`
                         : `Projected margin drops to ${tenPctProjectedMargin?.toFixed(1) || '0.0'}% — manager approval required.`}
@@ -7759,7 +7759,7 @@ export function EstimateDraftModal({
                 {/* Complimentary Deals */}
                 <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3 space-y-2">
                   <div className="text-xs font-semibold text-[var(--app-ink)]">Free Add-ons (Deals)</div>
-                  <div className="text-[10px] text-[var(--app-muted)] leading-4">Show the customer what they&apos;re getting free. Appears on the quote at $0.</div>
+                  <div className="text-[11px] text-[var(--app-muted)] leading-4">Show the customer what they&apos;re getting free. Appears on the quote at $0.</div>
                   <div className="flex flex-wrap gap-1.5">
                     {[
                       { label: '20 Boxes free', desc: '20 Complimentary Moving Boxes', details: 'Small & medium boxes — keep or recycle after your move' },
@@ -7788,7 +7788,7 @@ export function EstimateDraftModal({
                               onUpdateLineItem(last, 'amount', '0')
                             })()
                           }}
-                          className={`rounded-[6px] px-2.5 py-1 text-[10px] font-semibold transition-colors ${alreadyAdded ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-[var(--app-bg)] text-[var(--app-ink)] border border-[var(--app-line)] hover:border-[var(--app-ink)]'}`}
+                          className={`rounded-[6px] px-2.5 py-1 text-[11px] font-semibold transition-colors ${alreadyAdded ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-[var(--app-bg)] text-[var(--app-ink)] border border-[var(--app-line)] hover:border-[var(--app-ink)]'}`}
                         >
                           {alreadyAdded ? '✓ ' : '+ '}{deal.label}
                         </button>
@@ -7810,7 +7810,7 @@ export function EstimateDraftModal({
                         : `${warningReadiness.length} non-blocking item${warningReadiness.length === 1 ? '' : 's'} should be reviewed.`}
                     </div>
                     <details className="mt-2 rounded-[6px] bg-white/70 px-2.5 py-2">
-                      <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide">View missing details</summary>
+                      <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide">View missing details</summary>
                       <div className="mt-2 space-y-1 text-[11px] leading-4">{[...blockingReadiness, ...warningReadiness].slice(0, 6).map(item => <button key={`${item.label}-${item.detail}`} type="button" onClick={() => resolveReadinessItem(item)} className="text-left underline underline-offset-2">{item.label} →</button>)}{blockingReadiness.length + warningReadiness.length > 6 ? <div>• +{blockingReadiness.length + warningReadiness.length - 6} more</div> : null}</div>
                     </details>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -7820,7 +7820,7 @@ export function EstimateDraftModal({
                           setSendGuardOpen(false)
                           openRouteFixArea()
                         }}
-                        className="rounded-[6px] border border-amber-300 bg-white px-2.5 py-1 text-[10px] font-semibold text-amber-900 hover:border-amber-500"
+                        className="rounded-[6px] border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-900 hover:border-amber-500"
                       >
                         Fix now
                       </button>
@@ -7828,7 +7828,7 @@ export function EstimateDraftModal({
                         type="button"
                         onClick={() => void handleProvisionalSend()}
                         disabled={quoteModalBusy || !quote}
-                        className="rounded-[6px] bg-[var(--app-ink)] px-2.5 py-1 text-[10px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                        className="rounded-[6px] bg-[var(--app-ink)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
                       >
                         Send quote now — scope pending
                       </button>
@@ -7836,7 +7836,7 @@ export function EstimateDraftModal({
                         type="button"
                         onClick={() => void onSaveDraft({ quoteType, customerScope: captureCustomerScope() })}
                         disabled={quoteModalBusy || !quote}
-                        className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-50"
+                        className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-50"
                       >
                         Save draft
                       </button>
@@ -7904,7 +7904,7 @@ export function EstimateDraftModal({
                           setConditionalClauseText(`Estimate based on ${truckCount} × 26ft truck. If a 2nd truck is required on move day (e.g. basement or garage items exceed capacity), additional cost: ~$${Math.round((extraTruck * 1.13 + 150) / 10) * 10} (truck + mileage, +HST). You will be contacted before any 2nd truck is dispatched.`)
                         }
                       }}
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${conditionalClauseEnabled ? 'bg-amber-600 text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${conditionalClauseEnabled ? 'bg-amber-600 text-white' : 'bg-[var(--app-line)] text-[var(--app-muted)]'}`}
                     >
                       {conditionalClauseEnabled ? 'On' : 'Off'}
                     </button>
@@ -7918,7 +7918,7 @@ export function EstimateDraftModal({
                         className="crm-input w-full text-xs resize-none"
                         placeholder="Conditional clause shown on customer quote..."
                       />
-                      <div className="text-[10px] text-[var(--app-muted)]">Shown on customer quote below the price. Save Draft to persist.</div>
+                      <div className="text-[11px] text-[var(--app-muted)]">Shown on customer quote below the price. Save Draft to persist.</div>
                     </>
                   )}
                 </div>

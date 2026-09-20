@@ -502,7 +502,7 @@ export default function SalesDashboardPage() {
               <div className="text-xs text-[var(--app-muted)]">Open a lead only when it needs action. Everything else can wait.</div>
               <button
                 onClick={() => { setWorkflowHidden(true); writeLocalStorageFlag('ss_workflow_hidden', true) }}
-                className="shrink-0 rounded-full border border-[var(--app-line)] px-2.5 py-1 text-[10px] font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
+                className="shrink-0 rounded-full border border-[var(--app-line)] px-2.5 py-1 text-[11px] font-medium text-[var(--app-muted)] hover:border-[var(--app-ink)] hover:text-[var(--app-ink)] transition"
                 title="Hide this section"
               >
                 Hide
@@ -736,7 +736,7 @@ export default function SalesDashboardPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
                             guidance.heat.tone === 'risk' ? 'border-rose-200 bg-rose-50 text-rose-700' :
                             guidance.heat.tone === 'hot' ? 'border-orange-200 bg-orange-50 text-orange-700' :
                             guidance.heat.tone === 'warm' ? 'border-amber-200 bg-amber-50 text-amber-700' :
@@ -750,14 +750,14 @@ export default function SalesDashboardPage() {
                       {guidance.missingInfo.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {guidance.missingInfo.slice(0, 2).map(item => (
-                            <span key={item} className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Missing: {item}</span>
+                            <span key={item} className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">Missing: {item}</span>
                           ))}
-                          {guidance.action.goldenMoment ? <span className="rounded-full border border-orange-200 bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-800">QUOTE VIEWED NOW</span> : null}
+                          {guidance.action.goldenMoment ? <span className="rounded-full border border-orange-200 bg-orange-100 px-1.5 py-0.5 text-[11px] font-semibold text-orange-800">QUOTE VIEWED NOW</span> : null}
                         </div>
                       )}
 
                       <div className="mt-2 rounded-[6px] bg-[#071421]/5 px-2.5 py-2">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#071421]/50">Next Action</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#071421]/50">Next Action</div>
                         <div className="mt-0.5 text-xs font-semibold text-[#071421]">{guidance.action.nextAction}</div>
                       </div>
 
@@ -960,7 +960,7 @@ export default function SalesDashboardPage() {
                       </div>
                       <div className="shrink-0 text-right">
                         {item.badge ? (
-                          <div className="rounded-full border border-[var(--app-line)] bg-white px-2 py-0.5 text-[10px] font-semibold capitalize text-[var(--app-muted)]">
+                          <div className="rounded-full border border-[var(--app-line)] bg-white px-2 py-0.5 text-[11px] font-semibold capitalize text-[var(--app-muted)]">
                             {item.badge}
                           </div>
                         ) : null}

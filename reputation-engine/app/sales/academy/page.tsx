@@ -281,7 +281,7 @@ function ModuleIllustration({
     <div className={`relative overflow-hidden rounded-xl border border-[var(--app-line)] ${visual.solidBg} ${compact ? 'h-24' : 'h-32'}`}>
       <div className="relative flex h-full items-end justify-between p-4">
         <div className="min-w-0">
-          <div className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${visual.accentClass}`}>{visual.eyebrow}</div>
+          <div className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${visual.accentClass}`}>{visual.eyebrow}</div>
           <div className="mt-2 max-w-[180px] text-sm font-semibold leading-5 text-[var(--app-ink)]">
             {module.title}
           </div>
@@ -315,7 +315,7 @@ function FlashcardGrid({
             className="rounded-[14px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4 text-left transition hover:border-[var(--app-ink)] hover:bg-[var(--app-bg)]"
           >
             <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+              <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                 {card.tag || 'Card'}
               </span>
               <span className="text-xs font-medium text-[var(--app-muted)]">{revealed ? 'Hide answer' : 'Reveal answer'}</span>
@@ -381,7 +381,7 @@ function PracticePromptCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         {prompt.coachingFocus.map(item => (
-          <span key={item} className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+          <span key={item} className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
             {item}
           </span>
         ))}
@@ -430,14 +430,14 @@ function CoursePathRow({
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{module.badge}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{module.badge}</span>
               {highlight ? (
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
                   {highlight}
                 </span>
               ) : null}
               {needsReview ? (
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
                   Review update
                 </span>
               ) : null}
@@ -491,9 +491,9 @@ function LabShelfCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{module.badge}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">{module.badge}</span>
             {needsReview ? (
-              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700">
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700">
                 Review
               </span>
             ) : null}
@@ -1035,17 +1035,17 @@ export default function SalesAcademyPage() {
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-[18px] border border-white bg-white/90 p-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 1</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 1</div>
                   <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">Read First</div>
                   <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">Brand, standards, locations, and how the company operates.</div>
                 </div>
                 <div className="rounded-[18px] border border-white bg-white/90 p-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 2</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 2</div>
                   <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">Core Path</div>
                   <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">STAR, estimating, closing, billing, tonality, and CRM rhythm.</div>
                 </div>
                 <div className="rounded-[18px] border border-white bg-white/90 p-4">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 3</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Step 3</div>
                   <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">Labs</div>
                   <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">Scenarios, reviews, drills, and future stress-test coaching.</div>
                 </div>
@@ -1207,7 +1207,7 @@ export default function SalesAcademyPage() {
                       <button type="button" onClick={() => openModule(module.id)} className="w-full text-left">
                         <div className="flex items-center justify-between gap-3 px-2 py-2">
                           <div className="min-w-0">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{module.badge}</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">{module.badge}</div>
                             <div className="mt-1 truncate text-sm font-semibold text-[var(--app-ink)]">{module.title}</div>
                           </div>
                           <div className="text-xs font-semibold text-[var(--app-muted)]">{percent}%</div>
@@ -1298,13 +1298,13 @@ export default function SalesAcademyPage() {
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                   {activeModule.title}
                 </span>
-                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                   {activeSection.title}
                 </span>
-                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                   {activeSectionCompletion}% section complete
                 </span>
               </div>
@@ -1336,13 +1336,13 @@ export default function SalesAcademyPage() {
 
             <div className="crm-panel p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                  <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                     {activeSection.title}
                   </span>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                     Lesson {activeSectionLessonIndex} of {activeSectionLessons.length} in section
                   </span>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                     Module lesson {lessonIndex} of {activeModule.lessons.length}
                   </span>
                 </div>
@@ -1352,15 +1352,15 @@ export default function SalesAcademyPage() {
                 <h1 className="mt-1 text-[28px] font-semibold tracking-tight text-[var(--app-ink)]">{activeLesson.title}</h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">{activeLesson.summary}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                  <span className="rounded-full bg-[var(--app-wash)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                     {activeLessonCompleted ? 'Lesson complete' : 'Current lesson'}
                   </span>
                   {nextLesson ? (
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                       Up next: {nextLesson.title}
                     </span>
                   ) : (
-                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                       Final lesson
                     </span>
                   )}

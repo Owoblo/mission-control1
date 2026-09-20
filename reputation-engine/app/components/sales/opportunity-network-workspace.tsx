@@ -139,7 +139,7 @@ export function OpportunityNetworkWorkspace({
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#d6b53a]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d6b53a]">
               Move relationship graph
             </div>
             <h2
@@ -265,7 +265,7 @@ export function OpportunityNetworkWorkspace({
                     <option value="likely">Likely match</option>
                     <option value="possible">Possible — verify</option>
                   </select>
-                  <label className="md:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-[#5d5642]">
+                  <label className="md:col-span-2 text-[11px] font-semibold uppercase tracking-wider text-[#5d5642]">
                     Which side of the move?
                     <select
                       className="crm-input mt-1 w-full"
@@ -392,7 +392,7 @@ export function OpportunityNetworkWorkspace({
         </>
       ) : (
         <div className="border-t border-[var(--app-line)] bg-white px-4 py-3">
-          <div className="text-[9px] uppercase tracking-[0.14em] text-[var(--app-muted)]">
+          <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--app-muted)]">
             Connected network
           </div>
           <div className="mt-1 text-sm font-semibold text-[#071421]">

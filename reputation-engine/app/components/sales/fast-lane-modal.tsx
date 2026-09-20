@@ -152,7 +152,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             </div>
 
             <div className="rounded-[10px] bg-[var(--app-bg)] px-4 py-3 space-y-1">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Booking terms</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Booking terms</div>
               <div className="text-sm font-semibold text-[var(--app-ink)]">{result.crewLabel} · ${result.rate}/hr</div>
               <div className="text-xs text-[var(--app-muted)]">
                 {result.minimumHours}-hour minimum
@@ -163,11 +163,11 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
             </div>
 
             <div className="rounded-[10px] border border-[var(--app-line)] px-4 py-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)] mb-1">Booking link</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)] mb-1">Booking link</div>
               <div className="text-xs text-[#071421] break-all">{result.bookingLink}</div>
               <button
                 onClick={() => void navigator.clipboard.writeText(result.bookingLink)}
-                className="mt-2 text-[10px] text-[var(--app-accent)] underline"
+                className="mt-2 text-[11px] text-[var(--app-accent)] underline"
               >
                 Copy link
               </button>
@@ -204,7 +204,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
             {/* Move Type */}
             <div>
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Move Type</div>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Move Type</div>
               <div className="grid grid-cols-2 gap-2">
                 {([['truck', '🚛 With Truck'], ['labor', '💪 Labour Only']] as const).map(([val, lbl]) => (
                   <button
@@ -225,7 +225,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
             {/* Crew Size */}
             <div>
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Crew Size</div>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Crew Size</div>
               <div className="grid grid-cols-3 gap-2">
                 {([2, 3, 4] as const).map(n => (
                   <button
@@ -246,7 +246,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
             {/* Hour Range */}
             <div>
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Estimated Time</div>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Estimated Time</div>
               <div className="grid grid-cols-2 gap-2">
                 {HOUR_RANGES.map((r, i) => (
                   <button
@@ -267,7 +267,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
             {/* Emergency surcharge */}
             <div>
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Emergency Surcharge</div>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Emergency Surcharge</div>
               <div className="grid grid-cols-4 gap-2">
                 {([0, 100, 150, 200] as const).map(amt => (
                   <button
@@ -285,7 +285,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                 ))}
               </div>
               {surcharge > 0 && (
-                <p className="mt-1.5 text-[10px] text-rose-600">
+                <p className="mt-1.5 text-[11px] text-rose-600">
                   Emergency fee of ${surcharge} added — customer sees it as a fixed surcharge on the quote.
                 </p>
               )}
@@ -301,12 +301,12 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                 Minimum charge <span className="font-semibold text-[var(--app-ink)]">${minTotal.toLocaleString()}</span> (incl. HST{surcharge > 0 ? ` + $${surcharge} surcharge` : ''})
                 {range.max > range.min ? ` · most jobs in this lane take about ${range.label}` : ''}
               </div>
-              <div className="mt-1 text-[10px] text-[var(--app-muted)]">$100 deposit to book · time after the minimum bills in 15-minute increments</div>
+              <div className="mt-1 text-[11px] text-[var(--app-muted)]">$100 deposit to book · time after the minimum bills in 15-minute increments</div>
             </div>
 
             {/* Specialty Items */}
             <div>
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Specialty Items</div>
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Specialty Items</div>
               <div className="space-y-2">
                 {SPECIALTY_ITEMS.map(item => (
                   <button
@@ -321,11 +321,11 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-[var(--app-ink)]">{item.label}</span>
-                      <span className={`text-[10px] font-bold ${specialtyItems.includes(item.id) ? 'text-amber-600' : 'text-[var(--app-muted)]'}`}>
+                      <span className={`text-[11px] font-bold ${specialtyItems.includes(item.id) ? 'text-amber-600' : 'text-[var(--app-muted)]'}`}>
                         {specialtyItems.includes(item.id) ? '✓ noted' : '+ add'}
                       </span>
                     </div>
-                    <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">{item.note}</div>
+                    <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">{item.note}</div>
                   </button>
                 ))}
               </div>
@@ -333,7 +333,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
 
             {specialtyItems.length > 0 && (
               <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Specialty Handling Charge</div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Specialty Handling Charge</div>
                 <div className="grid grid-cols-4 gap-2">
                   {([0, 150, 250, 500] as const).map(amt => (
                     <button
@@ -350,7 +350,7 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[10px] text-[var(--app-muted)]">
+                <p className="mt-1.5 text-[11px] text-[var(--app-muted)]">
                   Confirm the subcontractor scope and select the agreed handling charge. “Set later” keeps it noted for follow-up.
                 </p>
               </div>

@@ -105,7 +105,7 @@ function AffiliatePortal() {
         <div className="text-3xl mb-4">🔒</div>
         <div className="text-sm font-semibold text-slate-800 mb-2">Access Required</div>
         <div className="text-sm text-slate-500">{error}</div>
-        <div className="mt-6 text-xs text-slate-400">Contact us: <a href="tel:+12267732993" className="underline">226-773-2993</a></div>
+        <div className="mt-6 text-xs text-slate-500">Contact us: <a href="tel:+12267732993" className="underline">226-773-2993</a></div>
       </div>
     </div>
   )
@@ -141,9 +141,9 @@ function AffiliatePortal() {
             { label: 'Pending Payout', value: `$${pendingPayout}`, sub: pendingPayout > 0 ? 'ready for payout' : 'nothing due yet' },
           ].map(s => (
             <div key={s.label} className="rounded-[16px] bg-white p-4 shadow-sm">
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{s.label}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">{s.label}</div>
               <div className="mt-1 text-2xl font-bold text-[#071421]">{s.value}</div>
-              <div className="text-[10px] text-slate-400 mt-0.5">{s.sub}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">{s.sub}</div>
             </div>
           ))}
         </div>
@@ -181,7 +181,7 @@ function AffiliatePortal() {
           </div>
         </div>
 
-        <div className="text-center text-[11px] text-slate-400 pb-4">
+        <div className="text-center text-[11px] text-slate-500 pb-4">
           Questions? Call us at <a href="tel:+12267732993" className="underline">226-773-2993</a>
         </div>
       </div>
@@ -296,7 +296,7 @@ function AffiliatePortal() {
               <div className="text-center py-16">
                 <div className="text-3xl mb-3">📋</div>
                 <div className="text-sm font-semibold text-slate-600">No referrals yet</div>
-                <div className="text-xs text-slate-400 mt-1">Submit your first referral to start tracking</div>
+                <div className="text-xs text-slate-500 mt-1">Submit your first referral to start tracking</div>
               </div>
             ) : submissions.map(s => {
               const meta = STATUS_META[s.status] || { label: s.status, color: 'bg-slate-100 text-slate-500' }
@@ -311,11 +311,11 @@ function AffiliatePortal() {
                         </div>
                       )}
                       {(s.customer_phone || s.customer_email) && (
-                        <div className="text-[11px] text-slate-400">{s.customer_phone || s.customer_email}</div>
+                        <div className="text-[11px] text-slate-500">{s.customer_phone || s.customer_email}</div>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${meta.color}`}>{meta.label}</span>
+                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.color}`}>{meta.label}</span>
                       {s.status === 'won' && s.commission_amount > 0 && (
                         <div className={`mt-1 text-[11px] font-semibold ${s.commission_paid ? 'text-emerald-600' : 'text-amber-600'}`}>
                           ${s.commission_amount} {s.commission_paid ? '✓ Paid' : 'Pending'}
@@ -323,7 +323,7 @@ function AffiliatePortal() {
                       )}
                     </div>
                   </div>
-                  <div className="mt-2 text-[10px] text-slate-400">
+                  <div className="mt-2 text-[11px] text-slate-500">
                     Submitted {fmtDate(s.created_at)}
                     {s.move_date && ` · Move: ${s.move_date}`}
                     {s.move_size && ` · ${s.move_size}`}

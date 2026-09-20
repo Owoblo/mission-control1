@@ -100,7 +100,7 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
             <div className="mt-0.5 space-y-0.5">
               {item.size && (
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-stone-400">📐</span>
+                  <span className="text-[11px] text-stone-400">📐</span>
                   <span className="text-[11px] text-stone-500 font-medium">{item.size}</span>
                 </div>
               )}
@@ -140,7 +140,7 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
             <button
               onClick={() => onToggle(index)}
               title={excluded ? 'Include in move' : 'Exclude from move'}
-              className={`rounded px-2 py-0.5 text-[10px] font-semibold border transition-colors ${
+              className={`rounded px-2 py-0.5 text-[11px] font-semibold border transition-colors ${
                 excluded
                   ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
                   : 'text-stone-400 bg-stone-50 border-stone-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'

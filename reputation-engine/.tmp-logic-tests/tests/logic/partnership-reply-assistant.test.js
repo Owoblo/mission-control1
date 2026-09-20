@@ -14,7 +14,7 @@ node_module_1.default._resolveFilename = function resolveAlias(request, parent, 
     }
     return originalResolveFilename(request, parent, isMain, options);
 };
-const { suggestPartnershipReply } = require('../../lib/server/partnership-reply-assistant');
+const { suggestPartnershipReply, partnershipDispositionFromSuggestion } = require('../../lib/server/partnership-reply-assistant');
 const contact = {
     id: 'contact_1',
     name: 'Mak Cole',
@@ -47,6 +47,41 @@ function conversation(notes) {
         created_at: new Date(Date.UTC(2026, 5, 18, 16, 48 + index)).toISOString(),
     }));
 }
+(0, node_test_1.default)('partnership assistant separates a polite decline from an explicit telecom opt-out', async () => {
+    delete process.env.OPENAI_API_KEY;
+    const polite = await suggestPartnershipReply({
+        contact,
+        touches: inbound('Not interested thanks but keep up the good work'),
+    });
+    const explicit = await suggestPartnershipReply({
+        contact,
+        touches: inbound('STOP'),
+    });
+    strict_1.default.equal(polite.intent, 'not_interested');
+    strict_1.default.equal(partnershipDispositionFromSuggestion(polite).outcome_code, 'polite_decline');
+    strict_1.default.equal(explicit.intent, 'stop_opt_out');
+    strict_1.default.equal(partnershipDispositionFromSuggestion(explicit).outcome_code, 'opt_out');
+});
+(0, node_test_1.default)('partnership assistant strips inbound prefixes and never greets a directory title as a person', async () => {
+    delete process.env.OPENAI_API_KEY;
+    const stop = await suggestPartnershipReply({
+        contact: { ...contact, name: 'iSO Design & Interiors', company: 'iSO Design & Interiors' },
+        touches: inbound('Inbound SMS: Stop'),
+    });
+    strict_1.default.equal(stop.intent, 'stop_opt_out');
+    const business = await suggestPartnershipReply({
+        contact: { ...contact, name: 'Tailored Rooms Home Staging', company: 'Tailored Rooms Home Staging' },
+        touches: inbound('Inbound SMS: Sure sounds good'),
+    });
+    strict_1.default.doesNotMatch(business.draft_sms, /Hi Tailored|Thanks Tailored|Of course Tailored/i);
+    strict_1.default.doesNotMatch(business.draft_sms, /what is your name/i);
+    const person = await suggestPartnershipReply({
+        contact: { ...contact, name: 'Alan J. Nicholas - Mortgage Broker London', company: 'Alan J. Nicholas - Mortgage Broker London' },
+        touches: inbound('Inbound SMS: It would be ok'),
+    });
+    strict_1.default.match(person.draft_sms, /Alan/i);
+    strict_1.default.doesNotMatch(person.draft_sms, /what is your name/i);
+});
 (0, node_test_1.default)('partnership assistant treats client email info requests as package-forwarding requests', async () => {
     process.env.PARTNERSHIP_DIGITAL_PACKAGE_URL = 'https://starmovers.ca/partner/mak-cole-windsor';
     process.env.PARTNERSHIP_RATE_CARD_URL = 'https://starmovers.ca/partner/flyers/windsor.pdf';
@@ -378,4 +413,34 @@ function conversation(notes) {
     strict_1.default.match(result.draft_sms, /Thanks for the update, Ken/i);
     strict_1.default.match(result.draft_sms, /no worries at all/i);
     strict_1.default.doesNotMatch(result.draft_sms, /What address and time|drop it off/i);
+});
+(0, node_test_1.default)('partnership assistant routes a concrete client job to sales and captures missing partner identity', async () => {
+    delete process.env.OPENAI_API_KEY;
+    const result = await suggestPartnershipReply({
+        contact: { ...contact, name: 'H2M Staging', company: 'H2M Staging' },
+        touches: inbound('I have a client who needs movers next week. Can you quote it?'),
+        skipAi: true,
+    });
+    strict_1.default.equal(result.intent, 'partner_lead_received');
+    strict_1.default.equal(result.recommended_action, 'human_review');
+    strict_1.default.equal(result.quick_action, 'needs_follow_up');
+    strict_1.default.match(result.draft_sms, /sales team follow up/i);
+    strict_1.default.match(result.draft_sms, /What name should I save this number under/i);
+    strict_1.default.match(partnershipDispositionFromSuggestion(result).next_step, /sales/i);
+});
+(0, node_test_1.default)('location questions use configured local coverage without a package pitch', async () => {
+    for (const [city, expected] of [['Kanata', 'We cover Kanata, Ottawa and surrounding areas.'], ['Ottawa', 'We cover Ottawa and surrounding areas.'], ['Windsor', 'We cover Windsor and surrounding areas.']]) {
+        const result = await suggestPartnershipReply({ contact: { ...contact, city }, touches: inbound('Where you located?') });
+        strict_1.default.equal(result.draft_sms, expected);
+        strict_1.default.deepEqual(result.suggested_media_urls, []);
+    }
+});
+(0, node_test_1.default)('physical addresses and unknown service areas require evidence; opt-outs win', async () => {
+    for (const [city, message] of [['Kanata', 'What is your office address?'], ['Unknown City', 'Where are you based?']]) {
+        const result = await suggestPartnershipReply({ contact: { ...contact, city }, touches: inbound(message), skipAi: true });
+        strict_1.default.equal(result.recommended_action, 'human_review');
+        strict_1.default.equal(result.draft_sms, '');
+    }
+    const stopped = await suggestPartnershipReply({ contact: { ...contact, decision: 'opted_out' }, touches: inbound('Where are you located?'), skipAi: true });
+    strict_1.default.equal(stopped.intent, 'stop_opt_out');
 });

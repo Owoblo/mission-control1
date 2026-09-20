@@ -2511,7 +2511,7 @@ export function FloatingDialer() {
           {/* ── INCOMING CALL ── */}
           {status === 'incoming' && (
             <div className="flex flex-col items-center px-6 py-8">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Incoming call</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">Incoming call</div>
               <div className="relative mt-5 flex h-28 w-28 items-center justify-center">
                 <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/15" />
                 <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" style={{ animationDelay: '0.5s' }} />
@@ -2584,7 +2584,7 @@ export function FloatingDialer() {
           {isCallActive && (
             <div className="flex flex-col items-center px-6 py-7">
               <div className="flex w-full items-center justify-between">
-                <div className={`flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] ${status === 'active' ? 'text-emerald-400' : 'text-white/35'}`}>
+                <div className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] ${status === 'active' ? 'text-emerald-400' : 'text-white/35'}`}>
                   <span className={`h-2 w-2 rounded-full ${status === 'active' ? 'animate-pulse bg-emerald-400' : 'animate-pulse bg-amber-300'}`} />
                   {status === 'active' ? 'On call' : 'Calling'}
                 </div>
@@ -2790,11 +2790,11 @@ export function FloatingDialer() {
                         </button>
                       </div>
                       <div className="space-y-1">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">Internal targets</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/30">Internal targets</div>
                         {internalDirectoryLoading ? (
-                          <div className="text-[10px] text-white/25">Loading available reps…</div>
+                          <div className="text-[11px] text-white/25">Loading available reps…</div>
                         ) : internalDirectory.length === 0 ? (
-                          <div className="text-[10px] text-white/25">No available browser or mobile extensions were detected.</div>
+                          <div className="text-[11px] text-white/25">No available browser or mobile extensions were detected.</div>
                         ) : (
                           <div className="flex flex-wrap gap-1.5">
                             {internalDirectory.slice(0, 8).map(entry => (
@@ -2802,7 +2802,7 @@ export function FloatingDialer() {
                                 key={entry.id}
                                 type="button"
                                 onClick={() => setConferenceTarget(entry.target)}
-                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-white/70 transition hover:bg-white/10"
+                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/70 transition hover:bg-white/10"
                               >
                                 {entry.label}{entry.status === 'available' ? ' · available' : ' · mobile'}
                               </button>
@@ -2810,7 +2810,7 @@ export function FloatingDialer() {
                           </div>
                         )}
                       </div>
-                      <div className="text-[10px] text-white/25">If Twilio needs to re-bridge your browser, it will auto-join you back in.</div>
+                      <div className="text-[11px] text-white/25">If Twilio needs to re-bridge your browser, it will auto-join you back in.</div>
                     </div>
                   )}
                 </div>
@@ -2844,7 +2844,7 @@ export function FloatingDialer() {
                   Hide
                 </button>
               </div>
-              <div className="mt-2 flex items-center justify-between text-[10px] text-white/30">
+              <div className="mt-2 flex items-center justify-between text-[11px] text-white/30">
                 <span>Device: {deviceState || 'idle'}</span>
                 <span>{compatibility?.browser || 'Browser'} · {compatibility?.os || 'OS'}</span>
               </div>
@@ -2955,7 +2955,7 @@ export function FloatingDialer() {
                     <div className="mt-2 space-y-2">
                       {audioDevices.length > 0 && (
                         <div>
-                          <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-white/30">Microphone</div>
+                          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-white/30">Microphone</div>
                           <select
                             value={selectedMicId}
                             onChange={e => setSelectedMicId(e.target.value)}
@@ -2971,7 +2971,7 @@ export function FloatingDialer() {
                       )}
                       {supportsOutputSelection() && speakerDevices.length > 0 && (
                         <div>
-                          <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-white/30">Speaker</div>
+                          <div className="mb-1 text-[11px] uppercase tracking-[0.18em] text-white/30">Speaker</div>
                           <select
                             value={selectedSpeakerId}
                             onChange={e => setSelectedSpeakerId(e.target.value)}
@@ -2991,7 +2991,7 @@ export function FloatingDialer() {
               )}
 
               {tokenExpiresAt && (
-                <div className="mt-3 text-[10px] text-white/25">
+                <div className="mt-3 text-[11px] text-white/25">
                   Token refreshes before {new Date(tokenExpiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                 </div>
               )}
@@ -3049,7 +3049,7 @@ export function FloatingDialer() {
 
               {/* Diagnostics link */}
               <div className="mt-3 text-center">
-                <Link href="/sales/dialer-health" className="text-[10px] text-white/20 hover:text-white/40 transition">
+                <Link href="/sales/dialer-health" className="text-[11px] text-white/20 hover:text-white/40 transition">
                   Dialer diagnostics
                 </Link>
               </div>
