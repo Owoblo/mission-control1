@@ -655,6 +655,41 @@ export async function getSalesLeadByInboundId(inboundId: string) {
   return record?.data ? normalizeLead(record.data) : null
 }
 
+// Indexed phone lookup for hot paths (Twilio webhooks). Phones are stored
+// E.164-normalized in data->>'phone' (see migration
+// 20260919210001_crm_leads_phone_index); the query degrades to a filtered
+// scan until the index is applied, but never a full-table pull. Preserves the
+// historical endsWith-tolerant matching over the small candidate set.
+export async function findSalesLeadByPhone(phone?: string | null): Promise<CRMLead | null> {
+  const digits = (phone || '').replace(/\D/g, '')
+  if (!digits) return null
+  const last10 = digits.slice(-10)
+  const candidates = Array.from(
+    new Set(
+      [normalizePhone(phone), last10, digits.length === 11 && digits.startsWith('1') ? `+${digits}` : null]
+        .filter((value): value is string => !!value)
+    )
+  )
+  if (!candidates.length) return null
+  const { url, headers } = requireSupabase()
+  const response = await fetch(
+    `${url}/rest/v1/crm_leads?select=id,data,deleted&data->>phone=in.(${candidates.map(encodeURIComponent).join(',')})&deleted=eq.false&order=updated_at.desc&limit=10`,
+    { headers, cache: 'no-store' }
+  )
+  if (!response.ok) {
+    throw new Error(`Failed to read crm_leads by phone. Supabase ${response.status}`)
+  }
+  const records = (await response.json()) as PersistedRecord<CRMLead>[]
+  const match = records
+    .filter(record => !record.deleted && record.data)
+    .map(record => normalizeLead(record.data))
+    .find(lead => {
+      const leadDigits = (lead.phone || '').replace(/\D/g, '')
+      return !!leadDigits && (leadDigits === digits || leadDigits.endsWith(digits) || digits.endsWith(leadDigits))
+    })
+  return match || null
+}
+
 export async function listSalesOpportunityLeadsBySourceLeadId(sourceLeadId: string) {
   const { url, headers } = requireSupabase()
   const response = await fetch(

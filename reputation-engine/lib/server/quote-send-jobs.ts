@@ -285,3 +285,34 @@ export async function claimQuoteSendJob(job: QuoteSendJob) {
   const rows = (await response.json()) as QuoteSendJobRow[]
   return rows[0] ? normalizeJob(rows[0]) : null
 }
+
+// Jobs stranded in 'running' by a worker crash/timeout are never reclaimed:
+// claimQuoteSendJob only claims 'pending' rows. Reset stale locks to 'pending'
+// (mirrors the sequence_jobs reaper); attempts increment at claim time so a
+// job that keeps crashing still reaches max_attempts and fails closed.
+const STALE_QUOTE_SEND_JOB_MS = 1000 * 60 * 15
+
+export async function recoverStaleQuoteSendJobs(): Promise<number> {
+  const { url, headers } = requireSupabaseEnv()
+  const cutoff = new Date(Date.now() - STALE_QUOTE_SEND_JOB_MS).toISOString()
+  try {
+    const response = await fetch(
+      `${url}/rest/v1/quote_send_jobs?status=eq.running&locked_at=lt.${encodeURIComponent(cutoff)}&select=id`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          status: 'pending',
+          locked_at: null,
+          last_error: 'Recovered stale running job after worker timeout',
+          updated_at: new Date().toISOString(),
+        }),
+      }
+    )
+    if (!response.ok) return 0
+    const rows = (await response.json()) as Array<{ id: string }>
+    return rows.length
+  } catch {
+    return 0
+  }
+}

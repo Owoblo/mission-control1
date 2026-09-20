@@ -183,6 +183,30 @@ async function recoverStaleSequenceJobs(url: string, headers: HeadersInit) {
   ).catch(() => {})
 }
 
+// Provider SID recorded on a job row after a successful send. The recovery
+// path checks it and skips re-sending when a previous attempt delivered the
+// message but crashed before the completion write. Requires the
+// provider_message_sid migration; every write is best-effort so the send flow
+// keeps working exactly as before until the migration is applied (reads use
+// select=*, which is unaffected by a missing column).
+function sequenceJobProviderSid(job: Record<string, unknown>) {
+  const sid = job.provider_message_sid
+  return typeof sid === 'string' ? sid : ''
+}
+
+async function recordSequenceJobProviderSid(
+  url: string,
+  headers: HeadersInit,
+  jobId: unknown,
+  sid: string,
+) {
+  await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${encodeURIComponent(String(jobId))}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ provider_message_sid: sid }),
+  }).catch(() => {})
+}
+
 async function claimSequenceJob(url: string, headers: HeadersInit, job: Record<string, unknown>) {
   const now = new Date().toISOString()
   const response = await fetch(
@@ -301,25 +325,35 @@ async function processScheduledReply(params: {
   })
   payload.mediaUrls.forEach(mediaUrl => paramsBody.append('MediaUrl', mediaUrl))
 
-  const twilioRes = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: paramsBody,
-    }
-  )
+  const existingReplySid = sequenceJobProviderSid(job)
+  if (!existingReplySid) {
+    const twilioRes = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: paramsBody,
+      }
+    )
 
-  if (!twilioRes.ok) {
-    const errText = await twilioRes.text()
-    if (isPermanentSmsFailure(twilioRes.status, errText)) {
-      await suppressSmsContact({ url, headers, contact, job, errorText: errText, now })
-      return 'skipped'
+    if (!twilioRes.ok) {
+      const errText = await twilioRes.text()
+      if (isPermanentSmsFailure(twilioRes.status, errText)) {
+        await suppressSmsContact({ url, headers, contact, job, errorText: errText, now })
+        return 'skipped'
+      }
+      throw new Error(`Twilio scheduled reply: ${errText}`)
     }
-    throw new Error(`Twilio scheduled reply: ${errText}`)
+
+    const twilioJson = await twilioRes.json().catch(() => ({})) as Record<string, unknown>
+    const replySid = typeof twilioJson.sid === 'string' ? twilioJson.sid : ''
+    // Record the SID while still 'running' (best-effort: see helper note).
+    if (replySid) {
+      await recordSequenceJobProviderSid(url, headers, job.id, replySid)
+    }
   }
 
   const mediaNote = payload.mediaUrls.length ? `\n[MMS: ${payload.mediaUrls.join(', ')}]` : ''
@@ -540,13 +574,29 @@ async function processSequence(request: Request) {
         }
 
         const { subject, html, text } = buildEmail(contact, batch)
-        await resend.emails.send({
-          from: `Saturn Star Partnerships <${PARTNERSHIP_EMAIL}>`,
-          to: contact.email as string,
-          subject,
-          html,
-          text,
-        })
+        const existingEmailSid = sequenceJobProviderSid(job)
+        let providerMessageId = existingEmailSid
+        if (!providerMessageId) {
+          const emailSend = await resend.emails.send({
+            from: `Saturn Star Partnerships <${PARTNERSHIP_EMAIL}>`,
+            to: contact.email as string,
+            subject,
+            html,
+            text,
+          })
+          if (emailSend.error) {
+            throw new Error(`Resend: ${emailSend.error.message || 'Email send failed'}`)
+          }
+          providerMessageId = String(emailSend.data?.id || '')
+          // Record the provider id while the job is still 'running': if the
+          // worker crashes before the completion write, the stale-job reaper
+          // returns this row to 'pending' and the check above skips re-sending.
+          // Best-effort so a not-yet-applied provider_message_sid migration
+          // can never break the send flow.
+          if (providerMessageId) {
+            await recordSequenceJobProviderSid(url, headers, job.id, providerMessageId)
+          }
+        }
 
         await Promise.all([
           fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
@@ -622,30 +672,41 @@ async function processSequence(request: Request) {
         }
 
         const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(fromNumber)
-        const twilioRes = await fetch(
-          `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              To: contact.phone as string,
-              Body: smsBody,
-              ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: fromNumber }),
-            }),
-          }
-        )
+        const existingSmsSid = sequenceJobProviderSid(job)
+        let smsProviderSid = existingSmsSid
+        if (!smsProviderSid) {
+          const twilioRes = await fetch(
+            `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                To: contact.phone as string,
+                Body: smsBody,
+                ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: fromNumber }),
+              }),
+            }
+          )
 
-        if (!twilioRes.ok) {
-          const errText = await twilioRes.text()
-          if (isPermanentSmsFailure(twilioRes.status, errText)) {
-            await suppressSmsContact({ url, headers, contact, job, errorText: errText, now })
-            skipped++
-            continue
+          if (!twilioRes.ok) {
+            const errText = await twilioRes.text()
+            if (isPermanentSmsFailure(twilioRes.status, errText)) {
+              await suppressSmsContact({ url, headers, contact, job, errorText: errText, now })
+              skipped++
+              continue
+            }
+            throw new Error(`Twilio: ${errText}`)
           }
-          throw new Error(`Twilio: ${errText}`)
+
+          const twilioJson = await twilioRes.json().catch(() => ({})) as Record<string, unknown>
+          smsProviderSid = typeof twilioJson.sid === 'string' ? twilioJson.sid : ''
+          // Record the SID while still 'running' (best-effort: see helper note).
+          if (smsProviderSid) {
+            await recordSequenceJobProviderSid(url, headers, job.id, smsProviderSid)
+          }
         }
 
         await Promise.all([
