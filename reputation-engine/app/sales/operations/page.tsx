@@ -5,6 +5,7 @@ import { buildMoveOperatingPlan, crewAcknowledgedPlan } from '@/lib/move-operati
 import { outcomeReviewReasons } from '@/lib/move-outcome'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { Calendar, Check, LayoutGrid, Mail, Phone, User, X } from 'lucide-react'
 import {
   computeCrewPayoutAmounts,
   countCompletedOpsChecklist,
@@ -562,7 +563,7 @@ export default function OperationsPage() {
         {/* Payment summary */}
         {quote && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs">
-            <span className="text-slate-500">Deposit: <span className={`font-semibold ${lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoney(quote.deposit)}{lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' ? ' ✓' : ''}</span></span>
+            <span className="text-slate-500">Deposit: <span className={`font-semibold ${lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoney(quote.deposit)}{lead.paymentStatus === 'deposit_received' || lead.paymentStatus === 'paid_in_full' ? <Check size={12} className="ml-1 inline-block align-middle" /> : null}</span></span>
             <span className="text-slate-500">Balance: <span className="font-semibold text-[#071421]">{formatMoney(quote.balance)}</span></span>
             <span className="text-slate-500">Total: <span className="font-semibold text-[#071421]">{formatMoney(quote.total)}</span></span>
           </div>
@@ -603,7 +604,7 @@ export default function OperationsPage() {
               if (!member) return null
               return (
                 <span key={id} className="inline-flex items-center gap-1 rounded-full bg-[#071421]/10 px-2.5 py-1 text-xs font-medium text-[#071421]">
-                  👤 {member.name}
+                  <User size={14} className="mr-1.5 inline-block align-middle" />{member.name}
                 </span>
               )
             })}
@@ -616,12 +617,12 @@ export default function OperationsPage() {
           <Link href="/sales/contractors" className="rounded-lg border border-[#C99700]/40 bg-white px-3 py-1.5 text-sm font-semibold text-[#071421]">Contractors</Link>
           {lead.phone ? (
             <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
-              📞 {lead.phone}
+              <Phone size={14} className="mr-1.5 inline-block align-middle" />{lead.phone}
             </a>
           ) : null}
           {lead.email ? (
             <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
-              📧 Email
+              <Mail size={14} className="mr-1.5 inline-block align-middle" />Email
             </a>
           ) : null}
           <div className="ml-auto flex gap-2">
@@ -644,7 +645,7 @@ export default function OperationsPage() {
               disabled={isCompleting}
               className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-60"
             >
-              {isCompleting ? 'Completing...' : 'Mark Complete ✓'}
+              {isCompleting ? 'Completing...' : (<><Check size={14} className="mr-1.5 inline-block align-middle" />Mark Complete</>)}
             </button>
           </div>
         </div>
@@ -685,13 +686,13 @@ export default function OperationsPage() {
               onClick={() => setViewMode('calendar')}
               className={`px-3 py-1.5 text-sm font-medium transition ${viewMode === 'calendar' ? 'bg-[#071421] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
             >
-              📅 Calendar
+              <Calendar size={14} className="mr-1.5 inline-block align-middle" />Calendar
             </button>
             <button
               onClick={() => setViewMode('cards')}
               className={`px-3 py-1.5 text-sm font-medium transition ${viewMode === 'cards' ? 'bg-[#071421] text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
             >
-              ☰ Cards
+              <LayoutGrid size={14} className="mr-1.5 inline-block align-middle" />Cards
             </button>
           </div>
           <button onClick={() => void loadJobs(branchFilter || undefined)} className="crm-button text-sm">Refresh</button>
@@ -1171,7 +1172,7 @@ function JobsCalendar({
               }}
               className="text-slate-500 hover:text-slate-600"
             >
-              ✕
+              <X size={14} />
             </button>
           </div>
 
@@ -1211,7 +1212,7 @@ function JobsCalendar({
 
           {selectedJob.quote && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs">
-              <span className="text-slate-500">Deposit: <span className={`font-semibold ${selectedJob.lead.paymentStatus === 'deposit_received' || selectedJob.lead.paymentStatus === 'paid_in_full' ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoney(selectedJob.quote.deposit)}{selectedJob.lead.paymentStatus === 'deposit_received' || selectedJob.lead.paymentStatus === 'paid_in_full' ? ' ✓' : ''}</span></span>
+              <span className="text-slate-500">Deposit: <span className={`font-semibold ${selectedJob.lead.paymentStatus === 'deposit_received' || selectedJob.lead.paymentStatus === 'paid_in_full' ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoney(selectedJob.quote.deposit)}{selectedJob.lead.paymentStatus === 'deposit_received' || selectedJob.lead.paymentStatus === 'paid_in_full' ? <Check size={12} className="ml-1 inline-block align-middle" /> : null}</span></span>
               <span className="text-slate-500">Balance due: <span className="font-semibold text-[#071421]">{formatMoney(selectedJob.quote.balance)}</span></span>
               <span className="text-slate-500">Total: <span className="font-semibold text-[#071421]">{formatMoney(selectedJob.quote.total)}</span></span>
             </div>
@@ -1516,7 +1517,7 @@ function JobsCalendar({
           <div className="flex gap-2">
             {selectedJob.lead.phone && (
               <a href={`tel:${selectedJob.lead.phone}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-[#071421] hover:bg-slate-50 transition">
-                📞 {selectedJob.lead.phone}
+                <Phone size={14} className="mr-1.5 inline-block align-middle" />{selectedJob.lead.phone}
               </a>
             )}
             {canManageCrew && (
@@ -1905,7 +1906,7 @@ function CrewAssignModal({
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                               {CREW_PAYOUT_STATUS_LABELS[entry.payoutStatus || 'submitted']}
                             </span>
-                            <button type="button" onClick={() => removePayoutEntry(index)} className="text-slate-300 hover:text-rose-500 transition">✕</button>
+                            <button type="button" onClick={() => removePayoutEntry(index)} className="text-slate-300 hover:text-rose-500 transition" aria-label="Remove payout entry"><X size={14} /></button>
                           </div>
                         </div>
 

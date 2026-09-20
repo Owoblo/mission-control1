@@ -1,5 +1,6 @@
 'use client'
 
+import { Home, X, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -25,7 +26,7 @@ const LEAD_VIEW_MODES: Array<{ id: LeadViewMode; label: string; description: str
   { id: 'focus', label: 'Needs Follow-Up', description: 'Only leads with a live next action.' },
   { id: 'booked', label: 'Booked', description: 'Booked and completed jobs that still matter operationally.' },
   { id: 'all', label: 'All Active', description: 'Everything active except deleted and lost.' },
-  { id: 'realtor', label: '🏠 Realtor Opps', description: 'Destination-side leads — pitch the listing agent for the current occupant\'s move.' },
+  { id: 'realtor', label: 'Realtor Opps', description: 'Destination-side leads — pitch the listing agent for the current occupant\'s move.' },
   { id: 'deleted', label: 'Deleted', description: 'Recently removed leads that can still be restored.' },
 ]
 
@@ -500,7 +501,7 @@ function SalesLeadsIndexContent() {
                       disabled={rowActionId === lead.id}
                       className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
                     >
-                      ✕ Not Interested
+                      <X size={13} className="mr-1.5 inline-block align-middle" />Not Interested
                     </button>
                     {canManageLeadLifecycle ? (
                       <button
@@ -542,7 +543,7 @@ function SalesLeadsIndexContent() {
                           {guidance.stageLabel}
                         </span>
                         {guidance.action.priority >= 80 && (
-                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">⚡ Urgent</span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700"><Zap size={11} />Urgent</span>
                         )}
                       </div>
                       <div className="mt-0.5 text-xs text-[var(--app-muted)]">
@@ -575,7 +576,7 @@ function SalesLeadsIndexContent() {
                         title="Mark as not interested — removes from active pipeline"
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        ✕ Not Interested
+                        <X size={13} className="mr-1.5 inline-block align-middle" />Not Interested
                       </button>
                       {canManageLeadLifecycle ? (
                         <button

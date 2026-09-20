@@ -1,5 +1,6 @@
 'use client'
 
+import { CheckCircle2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -98,7 +99,7 @@ export default function CleanupPage() {
 
       {done && (
         <div className="rounded-xl bg-green-50 border border-green-200 px-5 py-4 text-green-800 text-sm">
-          ✅ Deleted {done.deleted} lead{done.deleted !== 1 ? 's' : ''}.
+          <CheckCircle2 size={15} className="mr-1.5 inline-block align-middle" />Deleted {done.deleted} lead{done.deleted !== 1 ? 's' : ''}.
           {done.failed > 0 && ` ${done.failed} failed.`}
         </div>
       )}
@@ -107,7 +108,7 @@ export default function CleanupPage() {
         <div className="text-slate-500 text-sm py-8 text-center">Scanning leads…</div>
       ) : candidates.length === 0 ? (
         <div className="rounded-xl bg-slate-50 border border-slate-200 p-10 text-center text-slate-500">
-          <div className="text-3xl mb-2">✨</div>
+          <div className="mb-2 flex justify-center text-[var(--app-muted)]"><Sparkles size={30} /></div>
           <div className="font-medium">Nothing to clean up</div>
           <div className="text-sm mt-1">No junk leads found.</div>
         </div>

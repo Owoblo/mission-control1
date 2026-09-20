@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Bot, X } from 'lucide-react'
 import Link from 'next/link'
 
 const POLL_MS = 30_000
@@ -41,12 +42,12 @@ type TypeFilter = '' | 'call_completed' | 'quote_sent' | 'sms_sent' | 'lead_crea
 
 const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
   { value: '', label: 'All Actions' },
-  { value: 'call_completed', label: '📞 Calls' },
-  { value: 'quote_sent', label: '💰 Quotes Sent' },
-  { value: 'sms_sent', label: '💬 Texts Sent' },
-  { value: 'lead_created', label: '🟢 Leads Claimed' },
-  { value: 'lead_stage_changed', label: '↗️ Stage Changes' },
-  { value: 'job_booked', label: '🎉 Bookings' },
+  { value: 'call_completed', label: 'Calls' },
+  { value: 'quote_sent', label: 'Quotes Sent' },
+  { value: 'sms_sent', label: 'Texts Sent' },
+  { value: 'lead_created', label: 'Leads Claimed' },
+  { value: 'lead_stage_changed', label: 'Stage Changes' },
+  { value: 'job_booked', label: 'Bookings' },
 ]
 
 const BIG_EVENTS = new Set(['job_booked', 'quote_accepted'])
@@ -210,7 +211,7 @@ function ActivityFeedContent() {
 
         {(filterType || filterRep) && (
           <button onClick={() => { setFilterType(''); setFilterRep('') }} className="flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100">
-            Clear filters ✕
+            Clear filters <X size={13} className="ml-1 inline-block align-middle" />
           </button>
         )}
 
@@ -256,7 +257,7 @@ function ActivityFeedContent() {
                     <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-sm">
                       {/* Rep name */}
                       <span className={`font-semibold ${isBig ? 'text-[var(--app-accent)]' : 'text-[var(--app-ink)]'}`}>
-                        {item.repName === 'System' ? '🤖 System' : item.repName}
+                        {item.repName === 'System' ? (<><Bot size={13} className="mr-1 inline-block align-middle" />System</>) : item.repName}
                       </span>
                       {/* Action */}
                       <span className="text-[var(--app-muted)]">{item.label}</span>

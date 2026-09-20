@@ -672,6 +672,7 @@ export function SalesHeader() {
                 <input
                   type="text"
                   placeholder="Search name, phone, email, address..."
+                  aria-label="Search leads"
                   value={query}
                   onChange={e => updateQuery(e.target.value)}
                   onFocus={() => {

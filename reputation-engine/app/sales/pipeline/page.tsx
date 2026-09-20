@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { AlertTriangle, Phone, Trash2, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { deleteSalesLead, fetchSalesOverview, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, formatMoney, getLeadAssignedRepName, getSalesBranchLabel, SALES_BRANCHES, isClosedLeadStage } from '@/lib/sales'
@@ -48,7 +49,7 @@ const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
   quoted: 'Quote Sent',
   tentative: 'Tentative',
   nurture: 'Shopping Around',
-  booked: 'Booked ✓',
+  booked: 'Booked',
   completed: 'Completed',
   customer_success: 'Customer Success',
   lost: 'Lost',
@@ -546,11 +547,11 @@ function SalesPipelineContent() {
       <section className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Needs Attention:</span>
         {([
-          ['overdue', '🔴', 'Overdue Follow-up', attentionCounts.overdue],
-          ['cold',    '🟡', 'Gone Cold 7d+',    attentionCounts.cold],
-          ['no_quote','🟠', 'No Quote Sent',    attentionCounts.no_quote],
-          ['new_today','🔵','New Today',        attentionCounts.new_today],
-        ] as [AttentionFilter, string, string, number][]).map(([key, emoji, label, count]) => (
+          ['overdue', 'bg-red-500', 'Overdue Follow-up', attentionCounts.overdue],
+          ['cold',    'bg-amber-400', 'Gone Cold 7d+',    attentionCounts.cold],
+          ['no_quote','bg-orange-500', 'No Quote Sent',    attentionCounts.no_quote],
+          ['new_today','bg-sky-500','New Today',        attentionCounts.new_today],
+        ] as [AttentionFilter, string, string, number][]).map(([key, dotClass, label, count]) => (
           <button
             key={key}
             onClick={() => setFilterAttention(filterAttention === key ? '' : key)}
@@ -562,7 +563,7 @@ function SalesPipelineContent() {
                 : 'border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--app-muted)] opacity-50'
             }`}
           >
-            {emoji} {label} {count > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterAttention === key ? 'bg-white/20' : 'bg-[var(--app-wash)]'}`}>{count}</span>}
+            {<span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />} {label} {count > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${filterAttention === key ? 'bg-white/20' : 'bg-[var(--app-wash)]'}`}>{count}</span>}
           </button>
         ))}
       </section>
@@ -577,7 +578,7 @@ function SalesPipelineContent() {
             </button>
           ))}
           {(currentUser?.role === 'owner' || currentUser?.role === 'manager') && (
-            <button onClick={() => { setShowDeletedDrawer(true); void loadDeletedLeads() }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-50">🗑 Trash</button>
+            <button onClick={() => { setShowDeletedDrawer(true); void loadDeletedLeads() }} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-50"><Trash2 size={13} />Trash</button>
           )}
         </div>
 
@@ -617,7 +618,7 @@ function SalesPipelineContent() {
 
         {activeFilterCount > 0 && (
           <button onClick={clearAllFilters} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-100">
-            Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} ✕
+            Clear {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} <X size={13} />
           </button>
         )}
 
@@ -657,7 +658,7 @@ function SalesPipelineContent() {
                   setBulkBusy(false)
                 }}
                 className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
-                {bulkBusy ? 'Working…' : `🗑 Delete ${selectedIds.size}`}
+                {bulkBusy ? 'Working…' : (<><Trash2 size={13} className="mr-1.5 inline-block align-middle" />Delete {selectedIds.size}</>)}
               </button>
               <button
                 disabled={bulkBusy}
@@ -790,7 +791,7 @@ function SalesPipelineContent() {
                   <div className="text-xs flex items-center">
                     {lead.followUpDate ? (
                       <span className={dayStart(new Date(lead.followUpDate)) < today() ? 'text-red-600 font-semibold' : 'text-[var(--app-muted)]'}>
-                        {dayStart(new Date(lead.followUpDate)) < today() ? '⚠ ' : ''}{formatDate(lead.followUpDate)}
+                        {dayStart(new Date(lead.followUpDate)) < today() ? <AlertTriangle size={12} className="mr-1 inline-block align-middle" /> : null}{formatDate(lead.followUpDate)}
                       </span>
                     ) : <span className="opacity-70 text-[var(--app-muted)]">{guidance?.action.dueAt ? formatDate(guidance.action.dueAt) : 'Not set'}</span>}
                   </div>
@@ -816,7 +817,7 @@ function SalesPipelineContent() {
                       onClick={e => void removeLead(e, lead)}
                       className="ml-auto px-1 text-[11px] text-[var(--app-muted)] hover:text-rose-600 transition"
                     >
-                      {deleteBusyId === lead.id ? '…' : '✕'}
+                      {deleteBusyId === lead.id ? '…' : <X size={13} />}
                     </button>
                   </div>
                 </div>
@@ -840,7 +841,7 @@ function SalesPipelineContent() {
                 <div key={lead.id} className={`relative rounded-lg border bg-[var(--app-panel)] transition
                   ${guidance?.action.goldenMoment ? 'border-orange-300 bg-orange-50/40' : urgency === 'overdue' ? 'border-red-300 bg-red-50/30' : urgency === 'cold' ? 'border-amber-200 bg-amber-50/20' : 'border-[var(--app-line)]'}`}>
                   <button onClick={e => void removeLead(e, lead)} className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700">
-                    {deleteBusyId === lead.id ? '…' : '✕'}
+                    {deleteBusyId === lead.id ? '…' : <X size={13} />}
                   </button>
                   <Link href={`/sales/leads/${lead.id}`} className="block p-4 pr-10">
                     <div className="flex items-start justify-between gap-2">
@@ -897,7 +898,7 @@ function SalesPipelineContent() {
                         className={`group relative rounded-lg border bg-[var(--app-panel)] transition hover:border-[var(--app-ink)] ${guidance?.action.goldenMoment ? 'border-orange-300 bg-orange-50/40 shadow-sm' : COLUMN_ACCENT[column.stage] || 'border-[var(--app-line)]'} ${isDragging ? 'opacity-40 ring-2 ring-[var(--app-accent)]' : 'cursor-grab active:cursor-grabbing'}`}>
                         <div className="absolute left-2 top-1/2 -translate-y-1/2 select-none text-[11px] text-[var(--app-line)] hover:text-[var(--app-muted)]">⠿</div>
                         <button onClick={e => void removeLead(e, lead)} className="absolute right-3 top-3 z-10 text-xs text-[var(--app-muted)] hover:text-rose-700">
-                          {deleteBusyId === lead.id ? '…' : '✕'}
+                          {deleteBusyId === lead.id ? '…' : <X size={13} />}
                         </button>
                         <Link href={`/sales/leads/${lead.id}`} className="block pl-6 pr-4 pt-4 pb-4">
                           <div className="flex items-start justify-between gap-3">
@@ -939,7 +940,7 @@ function SalesPipelineContent() {
                               {getLeadAssignedRepName(lead) && <span className="rounded-full bg-[var(--app-wash)] px-2 py-0.5 font-medium text-[var(--app-ink)]">{getLeadAssignedRepName(lead)}</span>}
                               {lead.phone && (
                                 <button onClick={e => void handleQuickAction(e, lead, 'call', quote)}
-                                  className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-[var(--app-muted)] transition hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]" title={`Call ${lead.phone}`}>☎</button>
+                                  className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-line)] bg-white text-[var(--app-muted)] transition hover:border-[var(--app-accent)] hover:text-[var(--app-accent)]" title={`Call ${lead.phone}`}><Phone size={12} /></button>
                               )}
                             </div>
                           </div>
@@ -992,10 +993,10 @@ function SalesPipelineContent() {
           <div className="relative flex w-full max-w-md flex-col bg-white shadow-none">
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
-                <h2 className="text-base font-semibold text-[var(--app-ink)]">🗑 Recently Deleted</h2>
+                <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--app-ink)]"><Trash2 size={16} />Recently Deleted</h2>
                 <p className="text-xs text-[var(--app-muted)]">Leads deleted in the last 30 days.</p>
               </div>
-              <button onClick={() => setShowDeletedDrawer(false)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setShowDeletedDrawer(false)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]" aria-label="Close"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
               {deletedLoading ? <div className="p-8 text-center text-sm text-[var(--app-muted)]">Loading…</div>

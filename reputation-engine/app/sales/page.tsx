@@ -1,5 +1,6 @@
 'use client'
 
+import { X } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -936,7 +937,7 @@ export default function SalesDashboardPage() {
                 <h2 className="text-base font-semibold text-[var(--app-ink)]">{drilldown.title}</h2>
                 <p className="text-xs text-[var(--app-muted)]">{drilldown.subtitle}</p>
               </div>
-              <button onClick={() => setDrilldown(null)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setDrilldown(null)} className="rounded-xl p-1.5 text-[var(--app-muted)] hover:bg-[var(--app-bg)]" aria-label="Close"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
               {drilldownLoading ? (

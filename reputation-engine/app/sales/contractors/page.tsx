@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -467,8 +468,8 @@ function ContractorsContent() {
               <h2 className="text-lg font-bold">
                 {editing.id ? "Edit" : "Add"} contractor
               </h2>
-              <button type="button" onClick={() => setEditing(null)}>
-                ✕
+              <button type="button" onClick={() => setEditing(null)} aria-label="Close">
+                <X size={15} />
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">

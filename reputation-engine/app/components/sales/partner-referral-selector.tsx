@@ -166,6 +166,7 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
           onChange={event => search(event.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Search name, brokerage, email, phone, or city"
+          aria-label="Search partnership directory"
           autoComplete="off"
         />
         {searching ? <span className="absolute right-3 top-3 h-3 w-3 animate-spin rounded-full border-2 border-[#C99700] border-t-transparent" /> : null}
@@ -200,20 +201,20 @@ export function PartnerReferralSelector({ value, disabled, onChange, defaultCate
         <div className="space-y-2 rounded border border-[#c99700] bg-[#f7f4ed] p-3">
           <div className="text-xs font-semibold text-[#071421]">New partnership directory record</div>
           <div className="grid grid-cols-2 gap-2">
-            <input className="crm-input col-span-2" placeholder="Contact name *" value={createForm.name} onChange={event => setCreateForm(current => ({ ...current, name: event.target.value }))} />
+            <input className="crm-input col-span-2" placeholder="Contact name *" aria-label="Contact name" value={createForm.name} onChange={event => setCreateForm(current => ({ ...current, name: event.target.value }))} />
             <select className="crm-input" value={createForm.category} onChange={event => setCreateForm(current => ({ ...current, category: event.target.value }))}>
               {CATEGORY_LIST.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
             </select>
             <div className="relative">
-              <input className="crm-input w-full" placeholder="Search company / brokerage" value={createForm.company} onChange={event => void searchCompanies(event.target.value)} onFocus={() => companyOptions.length > 0 && setCompanyOpen(true)} autoComplete="off" />
+              <input className="crm-input w-full" placeholder="Search company / brokerage" aria-label="Search company or brokerage" value={createForm.company} onChange={event => void searchCompanies(event.target.value)} onFocus={() => companyOptions.length > 0 && setCompanyOpen(true)} autoComplete="off" />
               {companyOpen && <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded border border-slate-200 bg-white shadow-xl">
                 {companyOptions.map(company => <button key={company.id} type="button" onMouseDown={() => { setCreateForm(current => ({ ...current, company: company.name, partnerCompanyId: company.id })); setCompanyOpen(false) }} className="block w-full px-3 py-2 text-left hover:bg-slate-50"><span className="block text-xs font-semibold text-slate-900">{company.name}</span><span className="block text-[11px] text-slate-500">{[company.city, company.industry].filter(Boolean).join(' · ')}</span></button>)}
                 <button type="button" onMouseDown={() => setCompanyOpen(false)} className="block w-full border-t px-3 py-2 text-left text-[11px] font-semibold text-[#8a6800]">Use “{createForm.company}” as a new brokerage</button>
               </div>}
               {createForm.partnerCompanyId && <div className="mt-1 text-[11px] font-semibold text-emerald-700">Existing brokerage selected — contact will be linked.</div>}
             </div>
-            <input className="crm-input" placeholder="Email" value={createForm.email} onChange={event => setCreateForm(current => ({ ...current, email: event.target.value }))} />
-            <input className="crm-input" placeholder="Phone" value={createForm.phone} onChange={event => setCreateForm(current => ({ ...current, phone: event.target.value }))} />
+            <input className="crm-input" placeholder="Email" aria-label="Email" value={createForm.email} onChange={event => setCreateForm(current => ({ ...current, email: event.target.value }))} />
+            <input className="crm-input" placeholder="Phone" aria-label="Phone" value={createForm.phone} onChange={event => setCreateForm(current => ({ ...current, phone: event.target.value }))} />
             <label className="col-span-2 text-[11px] font-semibold uppercase tracking-wider text-[#071421]">
               Municipality and operating area
               <select className="crm-input mt-1 w-full" value={createForm.city} onChange={event => setCreateForm(current => ({ ...current, city: event.target.value }))}>

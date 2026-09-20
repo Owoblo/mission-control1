@@ -95,6 +95,7 @@ export function SalesAddressAutocompleteInput({
       <input
         className={className || 'crm-input mt-1.5'}
         placeholder={placeholder}
+        aria-label={placeholder}
         value={raw}
         autoComplete="off"
         onChange={event => handleChange(event.target.value)}

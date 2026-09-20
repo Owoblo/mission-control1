@@ -116,7 +116,7 @@ function AddressAutocompleteInput({ value, placeholder, onSelect }: {
           }, 100)
         }}
         className="w-full rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--app-accent)] focus:ring-1 focus:ring-[var(--app-accent)]"
-        placeholder={placeholder} autoComplete="off" />
+        placeholder={placeholder} autoComplete="off" aria-label={placeholder} />
       {fetching && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 block h-3 w-3 animate-spin rounded-full border-2 border-[var(--app-accent)] border-t-transparent" />}
       {open && suggestions.length > 0 && (
         <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-[var(--app-line)] bg-white shadow-lg">
@@ -2852,6 +2852,7 @@ export function EstimateDraftModal({
                     onChange={e => setIntakeText(e.target.value)}
                     className="w-full rounded-lg border border-[var(--app-line)] bg-white px-3 py-2.5 text-sm text-[var(--app-ink)] placeholder:text-[var(--app-muted)] focus:border-[#071421] focus:outline-none resize-none"
                     placeholder={`Describe the move — e.g.:\n\n"Lady moving 4-bed house in Greeley to storage first. Keys not available until 1pm. Needs full packing, has a piano and a large safe. Then 10 days later moving from storage to new house in Brockville. 2 kids helping on move day. Wants junk removal too."`}
+                    aria-label="Describe the move in plain English"
                   />
 
                   <div className="flex gap-2">
@@ -3887,7 +3888,7 @@ export function EstimateDraftModal({
                       <input
                         value={jobFactors.personALabel || ''}
                         onChange={e => setFactor('personALabel', e.target.value || undefined)}
-                        placeholder="e.g. Sam"
+                        placeholder="e.g. Sam" aria-label="Person A name"
                         className="w-full rounded-lg border border-purple-200 bg-white px-2 py-1.5 text-[11px] text-[var(--app-ink)] outline-none focus:border-purple-400"
                       />
                     </div>
@@ -3896,7 +3897,7 @@ export function EstimateDraftModal({
                       <input
                         value={jobFactors.personBLabel || ''}
                         onChange={e => setFactor('personBLabel', e.target.value || undefined)}
-                        placeholder="e.g. Michelle"
+                        placeholder="e.g. Michelle" aria-label="Person B name"
                         className="w-full rounded-lg border border-purple-200 bg-white px-2 py-1.5 text-[11px] text-[var(--app-ink)] outline-none focus:border-purple-400"
                       />
                     </div>
@@ -3918,7 +3919,7 @@ export function EstimateDraftModal({
                           value={leg.label}
                           onChange={e => updateLeg(leg.id, { label: e.target.value })}
                           className="flex-1 border-0 bg-transparent text-xs font-semibold text-[var(--app-ink)] outline-none placeholder:text-[var(--app-muted)]"
-                          placeholder={`Leg ${idx + 1} label`}
+                          placeholder={`Leg ${idx + 1} label`} aria-label={`Leg ${idx + 1} label`}
                         />
                         <select
                           value={leg.type}
@@ -4030,7 +4031,7 @@ export function EstimateDraftModal({
                               value={leg.inventorySharePct ?? ''}
                               onChange={e => updateLeg(leg.id, { inventorySharePct: e.target.value ? Number(e.target.value) : undefined })}
                               className="ml-auto w-16 rounded border border-[var(--app-line)] bg-white px-2 py-1 text-right text-[11px] text-[var(--app-ink)] outline-none focus:border-[var(--app-accent)]"
-                              placeholder={leg.type === 'delivery' ? '20' : '100'}
+                              placeholder={leg.type === 'delivery' ? '20' : '100'} aria-label="Shipment share percent"
                             />
                             <span className="text-[11px] text-[var(--app-muted)]">%</span>
                           </div>
@@ -4049,7 +4050,7 @@ export function EstimateDraftModal({
                         value={leg.notes || ''}
                         onChange={e => updateLeg(leg.id, { notes: e.target.value })}
                         className="w-full rounded border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1 text-[11px] text-[var(--app-muted)] placeholder:text-[var(--app-muted)] outline-none focus:border-[var(--app-accent)]"
-                        placeholder="Notes — special instructions, timing, access…"
+                        placeholder="Notes — special instructions, timing, access…" aria-label="Leg notes"
                       />
                     </div>
                   ))}
@@ -4149,6 +4150,7 @@ export function EstimateDraftModal({
                 <textarea
                   rows={2}
                   value={moveDescription}
+                  aria-label="Move description"
                   onChange={e => onMoveDescriptionChange(e.target.value)}
                   className="crm-input w-full resize-none text-sm"
                   placeholder={`e.g. 3-bedroom house move from ${originCity || lead.originCity || 'Windsor'} to ${destCity || lead.destCity || 'destination'}`}
@@ -4161,7 +4163,7 @@ export function EstimateDraftModal({
                   value={internalNotes}
                   onChange={e => onInternalNotesChange(e.target.value)}
                   className="crm-input w-full resize-none text-sm"
-                  placeholder="e.g. Customer confirmed piano needs 4 people, tight staircase at origin"
+                  placeholder="e.g. Customer confirmed piano needs 4 people, tight staircase at origin" aria-label="Internal notes"
                 />
               </div>
             </div>
@@ -4419,7 +4421,7 @@ export function EstimateDraftModal({
                                     value={conjointCustomItem}
                                     onChange={event => setConjointCustomItem(event.target.value)}
                                     className="crm-input h-9 py-1 text-xs"
-                                    placeholder={`Add custom item for ${selectedLabel}`}
+                                    placeholder={`Add custom item for ${selectedLabel}`} aria-label={`Add custom item for ${selectedLabel}`}
                                   />
                                   <button
                                     type="button"
@@ -4627,13 +4629,13 @@ export function EstimateDraftModal({
                                   value={el.item.size || ''}
                                   onChange={event => onUpdateInventoryItem(el.index, 'size', event.target.value)}
                                   className="crm-input h-8 py-1 text-xs"
-                                  placeholder="Size / dimensions"
+                                  placeholder="Size / dimensions" aria-label="Item size or dimensions"
                                 />
                                 <input
                                   value={el.item.notes || ''}
                                   onChange={event => onUpdateInventoryItem(el.index, 'notes', event.target.value)}
                                   className="crm-input h-8 py-1 text-xs"
-                                  placeholder="Notes / scope details"
+                                  placeholder="Notes / scope details" aria-label="Item notes"
                                 />
                               </div>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -4798,7 +4800,7 @@ export function EstimateDraftModal({
                         value={presetSearch}
                         onChange={e => setPresetSearch(e.target.value)}
                         className="crm-input w-full py-1.5 pl-8 text-sm"
-                        placeholder="Search items — sofa, dresser, bike, fridge…"
+                        placeholder="Search items — sofa, dresser, bike, fridge…" aria-label="Search inventory items"
                       />
                       <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--app-muted)] text-sm pointer-events-none">🔍</span>
                       {presetSearch && (
@@ -4907,7 +4909,7 @@ export function EstimateDraftModal({
                             onChange={e => setQuickQty(e.target.value)}
                             onBlur={() => setQuickQty(String(Math.max(1, Number(quickQty) || 1)))}
                             className="crm-input w-14 py-1 text-right text-xs"
-                            placeholder="Qty"
+                            placeholder="Qty" aria-label="Quick add quantity"
                           />
                         </div>
                         <div className="grid grid-cols-[1fr_80px_auto] gap-2">
@@ -4916,7 +4918,7 @@ export function EstimateDraftModal({
                             onChange={e => { setQuickItem(e.target.value); setQuickLookupNote(null) }}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addQuickItem() } }}
                             className="crm-input py-1 text-xs"
-                            placeholder="Item name (e.g. Pet Étagère)"
+                            placeholder="Item name (e.g. Pet Étagère)" aria-label="Quick add item name"
                           />
                           <input
                             type="number"
@@ -4924,7 +4926,7 @@ export function EstimateDraftModal({
                             value={quickCuFt}
                             onChange={e => setQuickCuFt(e.target.value)}
                             className="crm-input py-1 text-right text-xs"
-                            placeholder={quickLookupLoading ? '…' : 'cu ft'}
+                            placeholder={quickLookupLoading ? '…' : 'cu ft'} aria-label="Quick add cubic feet"
                           />
                           <button
                             type="button"
@@ -4958,6 +4960,7 @@ export function EstimateDraftModal({
                         <>
                           <textarea
                             value={pasteText}
+                            aria-label="Paste inventory list"
                             onChange={e => { setPasteText(e.target.value); setPasteError(null) }}
                             placeholder={'Paste a customer message, transcript, or list — e.g. "King bed, 2 nightstands, dresser, 65\" TV, sectional, dining table with 6 chairs, 20 boxes"'}
                             rows={3}
@@ -5409,8 +5412,8 @@ export function EstimateDraftModal({
                             </button>
                           ))}
                         </div>
-                        <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="What is there, why empty, or estimate basis" className="crm-input mt-2 w-full py-1.5 text-xs"/>
-                        {value?.state === 'estimated' && area.key !== 'boxes' ? <input type="number" min="0" value={value.estimatedCubicFeet ?? ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, estimatedCubicFeet: event.target.value ? Number(event.target.value) : undefined } } })} placeholder="Estimated cubic feet" className="crm-input mt-2 w-full py-1.5 text-xs"/> : null}
+                        <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="What is there, why empty, or estimate basis" aria-label="Hidden inventory note" className="crm-input mt-2 w-full py-1.5 text-xs"/>
+                        {value?.state === 'estimated' && area.key !== 'boxes' ? <input type="number" min="0" value={value.estimatedCubicFeet ?? ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, estimatedCubicFeet: event.target.value ? Number(event.target.value) : undefined } } })} placeholder="Estimated cubic feet" aria-label="Estimated cubic feet" className="crm-input mt-2 w-full py-1.5 text-xs"/> : null}
                       </div>
                     })}
                   </div>
@@ -5447,7 +5450,7 @@ export function EstimateDraftModal({
                     <input
                       type="number"
                       min={0}
-                      placeholder="0"
+                      placeholder="0" aria-label="Estimated box count"
                       value={jobFactors.estimatedBoxes ?? ''}
                       onChange={e => setFactor('estimatedBoxes', e.target.value ? Number(e.target.value) : undefined)}
                       className="crm-input w-24 py-1.5 text-right text-sm font-semibold"
@@ -5621,7 +5624,7 @@ export function EstimateDraftModal({
                         <input
                           type="number"
                           min={0}
-                          placeholder="auto"
+                          placeholder="auto" aria-label="Number of disassembly items"
                           value={jobFactors.disassemblyItemCount ?? ''}
                           onChange={e => setFactor('disassemblyItemCount', e.target.value ? Number(e.target.value) : undefined)}
                           className="crm-input w-20 py-1 text-right text-xs"
@@ -5639,7 +5642,7 @@ export function EstimateDraftModal({
                   )}
                   <textarea
                     rows={2}
-                    placeholder="Any other specialty notes..."
+                    placeholder="Any other specialty notes..." aria-label="Specialty notes"
                     value={jobFactors.specialtyNotes ?? ''}
                     onChange={e => setFactor('specialtyNotes', e.target.value || undefined)}
                     className="crm-input w-full resize-none text-xs"
@@ -5698,9 +5701,9 @@ export function EstimateDraftModal({
                         <div className="space-y-2">
                           {movingItems.map(({ item, index }) => (
                             <div key={`${item.description}-${index}`} className="grid gap-2 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
-                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
-                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
-                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" aria-label="Line item description" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" aria-label="Line item details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" aria-label="Line item amount" />
                               <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
                             </div>
                           ))}
@@ -5723,9 +5726,9 @@ export function EstimateDraftModal({
                         <div className="space-y-2">
                           {packingItems.map(({ item, index }) => (
                             <div key={`${item.description}-${index}`} className="grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
-                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
-                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
-                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" aria-label="Line item description" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" aria-label="Line item details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" aria-label="Line item amount" />
                               <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
                             </div>
                           ))}
@@ -5748,9 +5751,9 @@ export function EstimateDraftModal({
                         <div className="space-y-2">
                           {junkItems.map(({ item, index }) => (
                             <div key={`${item.description}-${index}`} className="grid gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
-                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
-                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
-                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" aria-label="Line item description" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" aria-label="Line item details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" aria-label="Line item amount" />
                               <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
                             </div>
                           ))}
@@ -5773,9 +5776,9 @@ export function EstimateDraftModal({
                         <div className="space-y-2">
                           {valuationItems.map(({ item, index }) => (
                             <div key={`${item.description}-${index}`} className="grid gap-2 rounded-lg border border-purple-200 bg-purple-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
-                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
-                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
-                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" aria-label="Line item description" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" aria-label="Line item details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" aria-label="Line item amount" />
                               <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
                             </div>
                           ))}
@@ -5798,9 +5801,9 @@ export function EstimateDraftModal({
                         <div className="space-y-2">
                           {additionalItems.map(({ item, index }) => (
                             <div key={`${item.description}-${index}`} className="grid gap-2 rounded-lg border border-sky-200 bg-sky-50 p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_36px]">
-                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" />
-                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" />
-                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" />
+                              <input value={item.description} onChange={e => onUpdateLineItem(index, 'description', e.target.value)} className="crm-input text-xs" placeholder="Line item" aria-label="Line item description" />
+                              <input value={item.details || ''} onChange={e => onUpdateLineItem(index, 'details', e.target.value)} className="crm-input text-xs" placeholder="Details" aria-label="Line item details" />
+                              <input type="number" value={item.amount} onChange={e => onUpdateLineItem(index, 'amount', e.target.value)} className="crm-input text-right text-xs" placeholder="Amount" aria-label="Line item amount" />
                               <button onClick={() => onRemoveLineItem(index)} className="crm-button justify-center text-rose-700 hover:bg-rose-50 text-sm">×</button>
                             </div>
                           ))}
@@ -6420,7 +6423,7 @@ export function EstimateDraftModal({
                               type="number" min={0} step={1}
                               value={uhaulPickupKm ?? ''}
                               onChange={e => setUhaulPickupKm(e.target.value ? Number(e.target.value) : null)}
-                              placeholder="e.g. 5"
+                              placeholder="e.g. 5" aria-label="Kilometres from U-Haul depot to origin"
                               className="crm-input text-xs w-16 py-0.5"
                             />
                           </div>
@@ -7327,7 +7330,7 @@ export function EstimateDraftModal({
                             const num = Number(v)
                             if (num > 0) onUhaulPriceChange?.(num)
                           }}
-                              placeholder="Enter from uhaul.com" className="crm-input pl-5 w-full text-sm font-semibold"
+                              placeholder="Enter from uhaul.com" aria-label="U-Haul one-way quote per truck" className="crm-input pl-5 w-full text-sm font-semibold"
                             />
                           </div>
                           {uhaulInputIsEstimate && <div className="text-[11px] text-amber-700 mt-0.5">Auto-estimated · verify on uhaul.com (weekday rates ~50% cheaper than weekends)</div>}
@@ -7505,7 +7508,7 @@ export function EstimateDraftModal({
                           setApprovedOverrideAmount(null)
                           setOverrideApprovalNotice(null)
                         }}
-                        placeholder={overrideTaxMode === 'plus_hst' ? 'e.g. 1600 + HST' : 'e.g. 1600 all-in'}
+                        placeholder={overrideTaxMode === 'plus_hst' ? 'e.g. 1600 + HST' : 'e.g. 1600 all-in'} aria-label="Price override amount"
                         className="crm-input pl-5 w-full text-sm font-semibold"
                       />
                     </div>
@@ -7561,7 +7564,7 @@ export function EstimateDraftModal({
                       setOverrideApprovalNotice(null)
                     }}
                     rows={2}
-                    placeholder="Quick note: why are we overriding this price?"
+                    placeholder="Quick note: why are we overriding this price?" aria-label="Price override reason"
                     className="crm-input w-full text-xs"
                   />
                   {overrideInput && Number(overrideInput) > 0 && (
@@ -7591,7 +7594,7 @@ export function EstimateDraftModal({
                         <input
                           value={overrideApprovalCode}
                           onChange={e => setOverrideApprovalCode(e.target.value.toUpperCase())}
-                          placeholder="Approval code"
+                          placeholder="Approval code" aria-label="Approval code"
                           className="crm-input text-xs font-semibold tracking-[0.18em]"
                         />
                         <button
@@ -7916,7 +7919,7 @@ export function EstimateDraftModal({
                         onChange={e => setConditionalClauseText(e.target.value)}
                         rows={3}
                         className="crm-input w-full text-xs resize-none"
-                        placeholder="Conditional clause shown on customer quote..."
+                        placeholder="Conditional clause shown on customer quote..." aria-label="Conditional clause text"
                       />
                       <div className="text-[11px] text-[var(--app-muted)]">Shown on customer quote below the price. Save Draft to persist.</div>
                     </>

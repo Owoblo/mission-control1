@@ -1,5 +1,6 @@
 'use client'
 
+import { Check, ClipboardList, Lock, PartyPopper } from 'lucide-react'
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
@@ -34,7 +35,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   contacted: { label: 'Contacted', color: 'bg-amber-100 text-amber-700' },
   quoted:    { label: 'Quoted',    color: 'bg-purple-100 text-purple-700' },
   booked:    { label: 'Booked',    color: 'bg-emerald-100 text-emerald-700' },
-  won:       { label: 'Won ✓',     color: 'bg-emerald-100 text-emerald-800 font-semibold' },
+  won:       { label: 'Won',     color: 'bg-emerald-100 text-emerald-800 font-semibold' },
   lost:      { label: 'Not booked', color: 'bg-slate-100 text-slate-500' },
 }
 
@@ -102,7 +103,7 @@ function AffiliatePortal() {
     <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center p-4">
       <h1 className="sr-only">Saturn Star partner portal</h1>
       <div className="rounded-3xl bg-white p-8 max-w-sm w-full text-center shadow-sm">
-        <div className="text-3xl mb-4">🔒</div>
+        <div className="mb-4 flex justify-center text-[var(--app-muted)]"><Lock size={32} /></div>
         <div className="text-sm font-semibold text-slate-800 mb-2">Access Required</div>
         <div className="text-sm text-slate-500">{error}</div>
         <div className="mt-6 text-xs text-slate-500">Contact us: <a href="tel:+12267732993" className="underline">226-773-2993</a></div>
@@ -197,7 +198,7 @@ function AffiliatePortal() {
           <div className="flex-1 overflow-y-auto px-4 py-6">
             {submitted ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="text-5xl mb-4">🎉</div>
+                <div className="mb-4 flex justify-center text-[var(--app-muted)]"><PartyPopper size={44} /></div>
                 <div className="text-lg font-bold text-[#071421]">Referral submitted!</div>
                 <div className="text-sm text-slate-500 mt-2">Our team will reach out to your client shortly.</div>
                 <div className="text-sm text-slate-500 mt-1">You'll see this lead in your history once we've made contact.</div>
@@ -294,7 +295,7 @@ function AffiliatePortal() {
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {submissions.length === 0 ? (
               <div className="text-center py-16">
-                <div className="text-3xl mb-3">📋</div>
+                <div className="mb-3 flex justify-center text-[var(--app-muted)]"><ClipboardList size={30} /></div>
                 <div className="text-sm font-semibold text-slate-600">No referrals yet</div>
                 <div className="text-xs text-slate-500 mt-1">Submit your first referral to start tracking</div>
               </div>
@@ -315,10 +316,10 @@ function AffiliatePortal() {
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.color}`}>{meta.label}</span>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.color}`}>{s.status === 'won' && <Check size={11} />}{meta.label}</span>
                       {s.status === 'won' && s.commission_amount > 0 && (
                         <div className={`mt-1 text-[11px] font-semibold ${s.commission_paid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          ${s.commission_amount} {s.commission_paid ? '✓ Paid' : 'Pending'}
+                          ${s.commission_amount} {s.commission_paid ? (<><Check size={12} className="mr-1 inline-block align-middle" />Paid</>) : 'Pending'}
                         </div>
                       )}
                     </div>

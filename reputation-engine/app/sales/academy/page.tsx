@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { Check, Command, LayoutGrid, Mic, Quote, Sparkles, Star, TrendingUp, Zap } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type {
   AcademyFlashcard,
   AcademyLesson,
@@ -43,55 +45,55 @@ const LESSON_TYPE_LABELS: Record<AcademyLesson['type'], string> = {
 }
 
 const MODULE_VISUALS: Record<string, {
-  icon: string
+  icon: LucideIcon
   eyebrow: string
   solidBg: string
   accentClass: string
 }> = {
   'star-framework': {
-    icon: '✦',
+    icon: Sparkles,
     eyebrow: 'Call system',
     solidBg: 'bg-amber-50',
     accentClass: 'text-amber-700',
   },
   'estimate-builder': {
-    icon: '▣',
+    icon: LayoutGrid,
     eyebrow: 'Quoting',
     solidBg: 'bg-emerald-50',
     accentClass: 'text-emerald-700',
   },
   'closing-playbook': {
-    icon: '↗',
+    icon: TrendingUp,
     eyebrow: 'Closing',
     solidBg: 'bg-orange-50',
     accentClass: 'text-orange-700',
   },
   'fast-lane-billing': {
-    icon: '⚡',
+    icon: Zap,
     eyebrow: 'Billing',
     solidBg: 'bg-yellow-50',
     accentClass: 'text-amber-800',
   },
   'tonality-lab': {
-    icon: '◉',
+    icon: Mic,
     eyebrow: 'Voice lab',
     solidBg: 'bg-indigo-50',
     accentClass: 'text-indigo-700',
   },
   'phrase-bank': {
-    icon: '❝',
+    icon: Quote,
     eyebrow: 'Language',
     solidBg: 'bg-violet-50',
     accentClass: 'text-violet-700',
   },
   'crm-rhythm': {
-    icon: '⌘',
+    icon: Command,
     eyebrow: 'Workflow',
     solidBg: 'bg-sky-50',
     accentClass: 'text-sky-700',
   },
   'call-review-lab': {
-    icon: '◌',
+    icon: Star,
     eyebrow: 'Coaching',
     solidBg: 'bg-teal-50',
     accentClass: 'text-teal-700',
@@ -100,7 +102,7 @@ const MODULE_VISUALS: Record<string, {
 
 function getModuleVisual(moduleId: string) {
   return MODULE_VISUALS[moduleId] || {
-    icon: '◼',
+    icon: LayoutGrid,
     eyebrow: 'Course',
     solidBg: 'bg-slate-50',
     accentClass: 'text-slate-700',
@@ -286,8 +288,8 @@ function ModuleIllustration({
             {module.title}
           </div>
         </div>
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/85 text-2xl text-[var(--app-ink)] shadow-sm">
-          {visual.icon}
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/85 text-[var(--app-ink)] shadow-sm">
+          {(() => { const VisualIcon = visual.icon; return <VisualIcon size={22} /> })()}
         </div>
       </div>
     </div>
@@ -1251,7 +1253,7 @@ export default function SalesAcademyPage() {
                                           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
                                             isActive ? 'bg-white/15 text-white' : done ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--app-wash)] text-[var(--app-muted)]'
                                           }`}>
-                                            {done ? '✓' : index + 1}
+                                            {done ? <Check size={14} /> : index + 1}
                                           </div>
                                           <div className="min-w-0">
                                             <div className={`truncate text-sm font-medium ${isActive ? 'text-white' : 'text-[var(--app-ink)]'}`}>{lesson.title}</div>

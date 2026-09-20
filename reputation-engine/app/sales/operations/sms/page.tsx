@@ -1,5 +1,6 @@
 'use client'
 
+import { MessageSquare, Paperclip } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { prepareUploadFile } from '@/lib/browser-media'
 
@@ -249,7 +250,7 @@ export default function OpsSmsPage() {
       <div className={`${!selected ? 'hidden md:flex' : 'flex'} flex-1 flex-col min-w-0`}>
         {!selected ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-slate-500">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-3xl">💬</div>
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-[var(--app-muted)]"><MessageSquare size={32} /></div>
             <div className="text-base font-semibold text-[#071421]">Start conversation</div>
             <div className="max-w-xs text-center text-sm">Choose a thread from the list, or start a new SMS from the operations line.</div>
             <button onClick={() => setNewChatOpen(true)} className="rounded-xl bg-[#071421] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">New conversation</button>
@@ -292,7 +293,7 @@ export default function OpsSmsPage() {
                           ) : isVideoUrl(url) ? (
                             <video src={url} controls className="max-w-[220px] rounded-lg" />
                           ) : (
-                            <a href={url} target="_blank" rel="noopener noreferrer" className={`text-[11px] underline ${isOutbound ? 'text-white/80' : 'text-[var(--app-accent)]'}`}>📎 View attachment</a>
+                            <a href={url} target="_blank" rel="noopener noreferrer" className={`text-[11px] underline ${isOutbound ? 'text-white/80' : 'text-[var(--app-accent)]'}`}><Paperclip size={12} className="mr-1 inline-block align-middle" />View attachment</a>
                           )}
                         </div>
                       ))}
@@ -330,7 +331,7 @@ export default function OpsSmsPage() {
                   onClick={() => fileInputRef.current?.click()}
                   className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base transition hover:bg-slate-50 md:h-11 md:w-11"
                   title="Attach image or video"
-                >📎</button>
+                ><Paperclip size={16} /></button>
                 <textarea
                   value={reply}
                   onChange={e => setReply(e.target.value)}

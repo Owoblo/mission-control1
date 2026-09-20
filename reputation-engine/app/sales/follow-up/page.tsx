@@ -1,5 +1,6 @@
 'use client'
 
+import { Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteSalesLead, fetchSalesOverview, saveSalesFollowUp, updateSalesLead } from '@/lib/sales-api'
@@ -726,7 +727,7 @@ export default function FollowUpWallPage() {
               </button>
               <button onClick={() => void bulkDelete()} disabled={bulkBusy}
                 className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50">
-                {bulkBusy ? 'Working…' : `🗑 Delete ${selectedIds.size}`}
+                {bulkBusy ? 'Working…' : (<><Trash2 size={13} className="mr-1.5 inline-block align-middle" />Delete {selectedIds.size}</>)}
               </button>
               <button onClick={() => setSelectedIds(new Set())}
                 className="text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)] transition">

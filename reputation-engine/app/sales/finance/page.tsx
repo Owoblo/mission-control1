@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { AlertTriangle, BarChart3, BedDouble, ClipboardList, Fuel, HardHat, Megaphone, Package, Pizza, Receipt, Route, ShieldCheck, Truck, Warehouse, Wrench } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { computeCrewPayoutAmounts, CREW_PAYOUT_METHOD_LABELS, CREW_PAYOUT_STATUS_LABELS } from '@/lib/operations'
 import { updateSalesLead } from '@/lib/sales-api'
 import { formatMoney, isBookedLikeStage } from '@/lib/sales'
@@ -55,25 +57,30 @@ type WorkerPayoutRow = {
 }
 
 const CATEGORIES = [
-  { value: 'labor',        label: 'Labor',            icon: '👷' },
-  { value: 'truck',        label: 'Truck / Rental',   icon: '🚛' },
-  { value: 'fuel',         label: 'Fuel / Gas',       icon: '⛽' },
-  { value: 'tolls',        label: 'Tolls / Border',   icon: '🛣️' },
-  { value: 'lodging',      label: 'Hotel / Lodging',  icon: '🏨' },
-  { value: 'storage',      label: 'Storage',          icon: '🏢' },
-  { value: 'supplies',     label: 'Supplies',         icon: '📦' },
-  { value: 'extra_fees',   label: 'Extra Fees',       icon: '🧾' },
-  { value: 'claims',       label: 'Claims / Damage',  icon: '⚠️' },
-  { value: 'food',         label: 'Food / Crew',      icon: '🍕' },
-  { value: 'equipment',    label: 'Equipment',        icon: '🔧' },
-  { value: 'marketing',    label: 'Marketing',        icon: '📢' },
-  { value: 'insurance',    label: 'Insurance',        icon: '🛡️' },
-  { value: 'other',        label: 'Other',            icon: '📋' },
+  { value: 'labor',        label: 'Labor',            icon: HardHat },
+  { value: 'truck',        label: 'Truck / Rental',   icon: Truck },
+  { value: 'fuel',         label: 'Fuel / Gas',       icon: Fuel },
+  { value: 'tolls',        label: 'Tolls / Border',   icon: Route },
+  { value: 'lodging',      label: 'Hotel / Lodging',  icon: BedDouble },
+  { value: 'storage',      label: 'Storage',          icon: Warehouse },
+  { value: 'supplies',     label: 'Supplies',         icon: Package },
+  { value: 'extra_fees',   label: 'Extra Fees',       icon: Receipt },
+  { value: 'claims',       label: 'Claims / Damage',  icon: AlertTriangle },
+  { value: 'food',         label: 'Food / Crew',      icon: Pizza },
+  { value: 'equipment',    label: 'Equipment',        icon: Wrench },
+  { value: 'marketing',    label: 'Marketing',        icon: Megaphone },
+  { value: 'insurance',    label: 'Insurance',        icon: ShieldCheck },
+  { value: 'other',        label: 'Other',            icon: ClipboardList },
 ]
 
-const CAT_META: Record<string, { label: string; icon: string }> = Object.fromEntries(
+const CAT_META: Record<string, { label: string; icon: LucideIcon }> = Object.fromEntries(
   CATEGORIES.map(c => [c.value, { label: c.label, icon: c.icon }])
 )
+
+function CategoryIcon({ category, size = 14 }: { category: string; size?: number }) {
+  const Icon = CAT_META[category]?.icon ?? ClipboardList
+  return <Icon size={size} />
+}
 
 function moneyFromCents(cents: number) {
   return Math.round(Number(cents || 0)) / 100
@@ -623,7 +630,7 @@ export default function FinancePage() {
                           <div className="mt-2 flex flex-wrap gap-2">
                             {job.jobCosts.map(c => (
                               <div key={c.id} className="flex items-center gap-1.5 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-1 text-xs">
-                                <span>{CAT_META[c.category]?.icon ?? '📋'}</span>
+                                <span className="inline-flex"><CategoryIcon category={c.category} /></span>
                                 <span className="text-[var(--app-muted)]">{CAT_META[c.category]?.label ?? c.category}</span>
                                 <span className="font-semibold text-[#071421]">{formatMoney(c.amount_cents / 100)}</span>
                                 {c.description && <span className="text-[var(--app-muted)]">· {c.description}</span>}
@@ -665,7 +672,7 @@ export default function FinancePage() {
 
           {jobPL.length === 0 && (
             <div className="crm-panel p-10 text-center space-y-2">
-              <div className="text-3xl">📊</div>
+              <div className="flex justify-center text-[var(--app-muted)]"><BarChart3 size={32} /></div>
               <div className="font-semibold text-[#071421]">No booked jobs yet</div>
               <p className="text-sm text-[var(--app-muted)]">Once you book jobs in the CRM, they'll appear here with P&L tracking.</p>
             </div>
@@ -698,8 +705,8 @@ export default function FinancePage() {
                   const job = jobs.find(j => j.id === c.lead_id)
                   return (
                     <div key={c.id} className="flex items-center gap-4 px-6 py-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--app-bg)] text-base">
-                        {CAT_META[c.category]?.icon ?? '📋'}
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--app-bg)] text-[var(--app-muted)]">
+                        <CategoryIcon category={c.category} size={16} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-[#071421]">
@@ -774,7 +781,7 @@ export default function FinancePage() {
                     onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                   >
                     {CATEGORIES.map(c => (
-                      <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
+                      <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
                 </label>

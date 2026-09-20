@@ -1,5 +1,6 @@
 'use client'
 
+import { AlertTriangle, Check } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { DialerSettings } from '@/lib/server/dialer-settings'
@@ -169,7 +170,7 @@ export default function DialerSettingsPage() {
         </div>
         <div className="flex items-center gap-3">
           {saving && <span className="text-xs text-[var(--app-muted)]">Saving…</span>}
-          {saved && <span className="text-xs font-semibold text-emerald-600">✓ Saved</span>}
+          {saved && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600"><Check size={13} />Saved</span>}
           {error && <span className="text-xs text-rose-600">{error}</span>}
         </div>
       </div>
@@ -178,7 +179,7 @@ export default function DialerSettingsPage() {
       {!tableExists && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
           <div className="flex items-start gap-3">
-            <span className="text-lg">⚠️</span>
+            <AlertTriangle size={20} />
             <div className="flex-1">
               <div className="font-semibold text-amber-800">One-time setup required</div>
               <div className="mt-1 text-sm text-amber-700">Run this SQL in your Supabase dashboard to enable settings storage. Settings are currently showing defaults.</div>

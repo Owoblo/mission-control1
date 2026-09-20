@@ -1,5 +1,6 @@
 'use client'
 
+import { Check } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -149,7 +150,7 @@ export default function RepresentativeVideoSurveyPage() {
             : String(recording?.status || '') === 'uploading'
               ? 'Processing recording…'
               : ['uploaded', 'verified', 'transcribed'].includes(String(recording?.status || ''))
-                ? '✓ Recording saved'
+                ? (<><Check size={14} className="mr-1.5 inline-block align-middle" />Recording saved</>)
                 : 'Recording starts when customer joins'}
         </div>
       </header>
@@ -169,7 +170,7 @@ export default function RepresentativeVideoSurveyPage() {
           ) : callEnded ? (
             <div className="grid min-h-[70vh] place-items-center rounded-3xl bg-black/30 p-6 text-center">
               <div className="max-w-md">
-                <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-2xl text-emerald-300">✓</div>
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500/15 text-emerald-300"><Check size={26} /></div>
                 <h2 className="mt-4 text-xl font-semibold">Walkthrough complete</h2>
                 <p className="mt-2 text-sm leading-6 text-white/60">The call has ended. Use the processing tracker, recording playback, timestamped notes, and AI inventory review beside this panel.</p>
               </div>
@@ -219,7 +220,7 @@ export default function RepresentativeVideoSurveyPage() {
                           : stage.state === 'failed'
                             ? 'bg-red-100 text-red-700'
                             : 'bg-slate-200 text-slate-500'
-                    }`}>{stage.state === 'complete' ? '✓' : stage.state === 'failed' ? '!' : '•'}</span>
+                    }`}><span className="inline-flex">{stage.state === 'complete' ? <Check size={13} /> : stage.state === 'failed' ? '!' : '•'}</span></span>
                     <span className={stage.state === 'active' ? 'font-semibold text-[#071421]' : 'text-slate-600'}>{stage.label}</span>
                   </div>
                 ))}

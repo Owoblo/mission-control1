@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Check, X } from 'lucide-react'
 import { detectBrowserCompatibility, getDialerStorageKey, type DialerEventPayload } from '@/lib/dialer'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 
@@ -104,10 +105,10 @@ function statusColor(status: Check['status']) {
 }
 
 function statusIcon(status: Check['status']) {
-  if (status === 'pass') return '✓'
-  if (status === 'fail') return '✗'
-  if (status === 'warn') return '⚠'
-  return '…'
+  if (status === 'pass') return <Check size={15} />
+  if (status === 'fail') return <X size={15} />
+  if (status === 'warn') return <AlertTriangle size={15} />
+  return <span>…</span>
 }
 
 function formatTime(value?: string | null) {
@@ -414,7 +415,7 @@ export default function DialerHealthPage() {
             twimlProbe.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
           }`}>
             <span className={`text-lg ${twimlProbe === null ? 'text-stone-400' : twimlProbe.ok ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {twimlProbe === null ? '…' : twimlProbe.ok ? '✓' : '✗'}
+              {twimlProbe === null ? '…' : twimlProbe.ok ? <Check size={18} /> : <X size={18} />}
             </span>
             <div>
               <div className={`text-sm font-semibold ${twimlProbe?.ok ? 'text-emerald-700' : 'text-rose-700'}`}>
@@ -427,7 +428,7 @@ export default function DialerHealthPage() {
             twilioAlerts.length === 0 ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
           }`}>
             <span className={`text-lg ${twilioAlerts.length === 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {twilioAlerts.length === 0 ? '✓' : '✗'}
+              {twilioAlerts.length === 0 ? <Check size={18} /> : <X size={18} />}
             </span>
             <div>
               <div className={`text-sm font-semibold ${twilioAlerts.length === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
@@ -481,7 +482,7 @@ export default function DialerHealthPage() {
                 {checks.map(check => (
                   <div key={check.label} className={`flex items-center justify-between rounded-lg border px-3 py-2 ${statusColor(check.status)}`}>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold">{statusIcon(check.status)}</span>
+                      <span className="inline-flex text-sm font-bold">{statusIcon(check.status)}</span>
                       <span className="text-sm font-medium">{check.label}</span>
                     </div>
                     {check.detail && <span className="text-xs opacity-75">{check.detail}</span>}

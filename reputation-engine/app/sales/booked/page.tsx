@@ -1,5 +1,6 @@
 'use client'
 
+import { Check } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -228,7 +229,7 @@ export default function BookedJobsPage() {
                               {dayLabel(days)}
                             </span>
                             {lead.paymentStatus === 'deposit_received' ? (
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Deposit ✓</span>
+                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700"><Check size={11} />Deposit</span>
                             ) : (
                               <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">No Deposit</span>
                             )}
@@ -268,7 +269,7 @@ export default function BookedJobsPage() {
                                   : 'bg-[var(--app-ink)] text-white hover:opacity-90 disabled:opacity-60'
                               }`}
                             >
-                              {sent ? 'Reminder Sent ✓' : reminderBusy === lead.id ? 'Sending...' : '48-hr Reminder'}
+                              {sent ? (<><Check size={13} className="mr-1 inline-block align-middle" />Reminder Sent</>) : reminderBusy === lead.id ? 'Sending...' : '48-hr Reminder'}
                             </button>
                           ) : null}
                         </div>

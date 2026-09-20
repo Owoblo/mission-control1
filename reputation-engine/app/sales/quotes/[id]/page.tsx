@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Check, CheckCircle2, ClipboardList, FileText, Mail, MessageSquare, Printer, X } from 'lucide-react'
 import { buildMoveSpecificNotes } from '@/lib/move-scope'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PACKING_MATERIAL_PRESETS } from '@/lib/packing-materials'
@@ -935,7 +936,7 @@ ${brand.fullName}`
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => void copyText(acceptUrl, 'accept')} className="crm-button text-sm">
-            {copied === 'accept' ? '✓ Copied' : 'Copy Link'}
+            {copied === 'accept' ? (<><Check size={14} className="mr-1.5 inline-block align-middle" />Copied</>) : 'Copy Link'}
           </button>
 
           {/* More ▾ dropdown */}
@@ -949,15 +950,15 @@ ${brand.fullName}`
             </button>
             {moreMenuOpen && (
               <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-[var(--app-line)] bg-white py-1 shadow-lg">
-                <button onClick={() => { setMoreMenuOpen(false); window.print() }} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50">🖨 Print</button>
+                <button onClick={() => { setMoreMenuOpen(false); window.print() }} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50"><Printer size={14} className="mr-1.5 inline-block align-middle" />Print</button>
                 <button onClick={() => { setMoreMenuOpen(false); setShowPreview('email'); setPreviewTab('email') }} disabled={!canEditQuoteWorkspace} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
-                  {isRevision ? '✉ Resend Email Update' : '✉ Email Only'}
+                  {isRevision ? (<><Mail size={14} className="mr-1.5 inline-block align-middle" />Resend Email Update</>) : (<><Mail size={14} className="mr-1.5 inline-block align-middle" />Email Only</>)}
                 </button>
                 <button onClick={() => { setMoreMenuOpen(false); void markAsSentSkipEmail() }} disabled={logBusy} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
-                  {logBusy ? '...' : isRevision ? '📋 Mark Update as Sent' : '📋 Mark as Sent'}
+                  {logBusy ? '...' : isRevision ? (<><ClipboardList size={14} className="mr-1.5 inline-block align-middle" />Mark Update as Sent</>) : (<><ClipboardList size={14} className="mr-1.5 inline-block align-middle" />Mark as Sent</>)}
                 </button>
                 <button onClick={() => { setMoreMenuOpen(false); void acceptOnBehalf() }} disabled={saveBusy} className="w-full px-4 py-2 text-left text-sm hover:bg-stone-50 disabled:opacity-50">
-                  {saveBusy ? '...' : '✅ Accept on Behalf'}
+                  {saveBusy ? '...' : (<><CheckCircle2 size={14} className="mr-1.5 inline-block align-middle" />Accept on Behalf</>)}
                 </button>
               </div>
             )}
@@ -966,8 +967,8 @@ ${brand.fullName}`
           {/* Primary CTA */}
           {justSent ? (
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
-                ✅ Quote queued for delivery
+              <div className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
+                <CheckCircle2 size={15} />Quote queued for delivery
               </div>
               <button
                 onClick={() => { window.location.href = lead ? `/sales/leads/${lead.id}` : '/sales' }}
@@ -1033,7 +1034,7 @@ ${brand.fullName}`
                 <div className="crm-label mb-3">Pricing</div>
                 {lineItems.some(li => li.description === 'Moving Services — Agreed Rate') && (
                   <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700 font-medium">
-                    ⚠ Price override active — editing crew/hours won&apos;t change the quote total. Go back to the estimate modal to adjust.
+                    <AlertTriangle size={14} className="mr-1.5 inline-block align-middle" />Price override active — editing crew/hours won&apos;t change the quote total. Go back to the estimate modal to adjust.
                   </div>
                 )}
                 <div className="space-y-3">
@@ -1282,15 +1283,15 @@ ${brand.fullName}`
                 >
                   ← Fix Estimate
                 </button>
-                <button onClick={closePreviewModal} className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]">✕</button>
+                <button onClick={closePreviewModal} className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--app-muted)] hover:bg-stone-100 hover:text-[var(--app-ink)]"><X size={14} /></button>
               </div>
             </div>
 
             {/* Validation warnings */}
             {(!(client?.email || lead?.email) || !(client?.phone || lead?.phone)) && (
               <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-800">
-                {!(client?.email || lead?.email) && <div>⚠ No email on file — email send will be skipped.</div>}
-                {!(client?.phone || lead?.phone) && <div>⚠ No phone on file — SMS send will be skipped.</div>}
+                {!(client?.email || lead?.email) && <div className="flex items-center gap-1.5"><AlertTriangle size={13} />No email on file — email send will be skipped.</div>}
+                {!(client?.phone || lead?.phone) && <div className="flex items-center gap-1.5"><AlertTriangle size={13} />No phone on file — SMS send will be skipped.</div>}
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <span className="text-xs text-amber-600">Add contact details on the lead to enable full delivery.</span>
                   {lead && (
@@ -1311,14 +1312,14 @@ ${brand.fullName}`
                 onClick={() => setPreviewTab('email')}
                 className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${previewTab === 'email' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
               >
-                ✉ Email
+                <Mail size={14} className="mr-1.5 inline-block align-middle" />Email
               </button>
               {showPreview === 'both' && (
                 <button
                   onClick={() => setPreviewTab('sms')}
                   className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${previewTab === 'sms' ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
                 >
-                  💬 SMS
+                  <MessageSquare size={14} className="mr-1.5 inline-block align-middle" />SMS
                 </button>
               )}
               {acceptUrl && (
@@ -1326,7 +1327,7 @@ ${brand.fullName}`
                   onClick={() => setPreviewTab('quote')}
                   className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${previewTab === ('quote') ? 'border-[var(--app-accent)] text-[var(--app-accent)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
                 >
-                  📄 Customer Quote View
+                  <FileText size={14} className="mr-1.5 inline-block align-middle" />Customer Quote View
                 </button>
               )}
             </div>
@@ -1337,7 +1338,7 @@ ${brand.fullName}`
                 <>
                   {Math.abs(quoteTotals.subtotal - (quote?.subtotal ?? 0)) > 0.01 && (
                     <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      ⚠️ The customer view below shows the <strong>previously saved price</strong> (${(quote?.subtotal ?? 0).toFixed(2)}). The prices in the confirm section below are what will actually be sent (${quoteTotals.subtotal.toFixed(2)}).
+                      <AlertTriangle size={14} className="mr-1.5 inline-block align-middle" />The customer view below shows the <strong>previously saved price</strong> (${(quote?.subtotal ?? 0).toFixed(2)}). The prices in the confirm section below are what will actually be sent (${quoteTotals.subtotal.toFixed(2)}).
                     </div>
                   )}
                   <iframe

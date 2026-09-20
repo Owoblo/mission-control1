@@ -4,6 +4,7 @@ import PaymentRecoveryPanel from '@/app/components/payment-recovery-panel'
 import { OperatingPlanPanel } from '@/app/components/sales/lead-detail/operating-plan-panel'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Calendar, Camera, Check, CheckCircle2, ClipboardList, CreditCard, Eye, Home, Hourglass, Lightbulb, Link2, Moon, Phone, Search, Smartphone, Star, Truck, X } from 'lucide-react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PromiseTracker } from '@/app/components/sales/promise-tracker'
 import { OpportunityNetworkWorkspace } from '@/app/components/sales/opportunity-network-workspace'
@@ -1088,20 +1089,20 @@ export default function SalesLeadDetailPage() {
     if (lead.followUpDate) {
       const due = new Date(lead.followUpDate).getTime()
       const daysOver = Math.floor((now - due) / dayMs)
-      if (daysOver > 0) return { urgency: 'high', icon: '⚠️', text: `Follow-up was due ${daysOver === 1 ? 'yesterday' : `${daysOver} days ago`}`, action: 'Reach out now' }
-      if (daysOver === 0) return { urgency: 'high', icon: '📅', text: 'Follow-up is due today', action: 'Reach out today' }
+      if (daysOver > 0) return { urgency: 'high', icon: AlertTriangle, text: `Follow-up was due ${daysOver === 1 ? 'yesterday' : `${daysOver} days ago`}`, action: 'Reach out now' }
+      if (daysOver === 0) return { urgency: 'high', icon: Calendar, text: 'Follow-up is due today', action: 'Reach out today' }
     }
 
     // Quote sent but not viewed in 3+ days
     if (quote?.sentAt && !quote.viewedAt) {
       const daysSinceSent = Math.floor((now - new Date(quote.sentAt).getTime()) / dayMs)
-      if (daysSinceSent >= 3) return { urgency: 'medium', icon: '👀', text: `Quote sent ${daysSinceSent} days ago — not opened yet`, action: 'Send a quick nudge' }
+      if (daysSinceSent >= 3) return { urgency: 'medium', icon: Eye, text: `Quote sent ${daysSinceSent} days ago — not opened yet`, action: 'Send a quick nudge' }
     }
 
     // Quote viewed but no response in 2+ days
     if (quote?.viewedAt && quote.status === 'sent') {
       const daysSinceViewed = Math.floor((now - new Date(quote.viewedAt).getTime()) / dayMs)
-      if (daysSinceViewed >= 2) return { urgency: 'medium', icon: '⏳', text: `Quote viewed ${daysSinceViewed} days ago — no response`, action: 'Check in on their decision' }
+      if (daysSinceViewed >= 2) return { urgency: 'medium', icon: Hourglass, text: `Quote viewed ${daysSinceViewed} days ago — no response`, action: 'Check in on their decision' }
     }
 
     // AI-suggested next action from last call
@@ -1110,7 +1111,7 @@ export default function SalesLeadDetailPage() {
       const daysSinceCall = Math.floor((now - callDate) / dayMs)
       const followUpDays = latestCallInsight.aiSummary.followUpDays || 2
       if (daysSinceCall >= followUpDays) {
-        return { urgency: 'medium', icon: '💡', text: latestCallInsight.aiSummary.nextAction, action: latestCallInsight.aiSummary.followUpReason || `${daysSinceCall} days since last call` }
+        return { urgency: 'medium', icon: Lightbulb, text: latestCallInsight.aiSummary.nextAction, action: latestCallInsight.aiSummary.followUpReason || `${daysSinceCall} days since last call` }
       }
     }
 
@@ -1123,7 +1124,7 @@ export default function SalesLeadDetailPage() {
       ].filter(Boolean).map(d => new Date(d).getTime())
       const lastContact = Math.max(...allDates)
       const daysSince = Math.floor((now - lastContact) / dayMs)
-      if (daysSince >= 7) return { urgency: 'low', icon: '💤', text: `No contact in ${daysSince} days`, action: 'Time to check in' }
+      if (daysSince >= 7) return { urgency: 'low', icon: Moon, text: `No contact in ${daysSince} days`, action: 'Time to check in' }
     }
 
     return null
@@ -4170,11 +4171,11 @@ export default function SalesLeadDetailPage() {
         </div>
       ) : null}
 
-      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{typeof error === 'string' ? error : JSON.stringify(error)}</div>}
+      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{typeof error === 'string' ? error : 'Something went wrong loading this section. Try again.'}</div>}
       {scanProgress && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-emerald-800">📷 Scanning photos…</span>
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-800"><Camera size={14} />Scanning photos…</span>
             <span className="text-xs text-emerald-700">
               {scanProgress.totalBatches > 0 ? `Room ${scanProgress.batch} of ${scanProgress.totalBatches}` : 'Starting…'}
             </span>
@@ -4191,8 +4192,8 @@ export default function SalesLeadDetailPage() {
       {scanResult && !scanProgress && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-emerald-800">✅ Scan complete — {scanResult.totalItems} items</span>
-            <span className="text-xs font-semibold text-emerald-700">🚛 {scanResult.truckLabel} ({scanResult.cubicFeet} cu ft +10% buffer)</span>
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-800"><CheckCircle2 size={14} />Scan complete — {scanResult.totalItems} items</span>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><Truck size={13} />{scanResult.truckLabel} ({scanResult.cubicFeet} cu ft +10% buffer)</span>
           </div>
           {scanResult.flags.length > 0 && (
             <div className="mt-2 space-y-0.5">
@@ -4418,7 +4419,7 @@ export default function SalesLeadDetailPage() {
           ) : null}
           {lead.stage === 'estimate_scheduled' && lead.estimateDate ? (
             <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-semibold text-violet-700">
-              {lead.consultationTriggerReason ? '🏠 Consultation' : 'Estimate'}: {formatDate(lead.estimateDate)}{lead.estimateTime ? ` @ ${lead.estimateTime}` : ''}
+              {lead.consultationTriggerReason ? 'Consultation' : 'Estimate'}: {formatDate(lead.estimateDate)}{lead.estimateTime ? ` @ ${lead.estimateTime}` : ''}
               {lead.consultationAssignedManagerName ? ` — ${lead.consultationAssignedManagerName}` : ''}
             </span>
           ) : null}
@@ -4429,7 +4430,7 @@ export default function SalesLeadDetailPage() {
           <div className="mx-3 mb-3 rounded-xl border border-violet-200 bg-violet-50 md:mx-8">
             <div className="flex items-center justify-between px-4 py-3 border-b border-violet-200">
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-violet-700">🏠 In-Home Move Consultation</div>
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-700"><Home size={13} />In-Home Move Consultation</div>
                 <div className="mt-0.5 text-xs text-violet-600">
                   {lead.estimateDate ? formatDate(lead.estimateDate) : 'Date TBD'}
                   {lead.estimateTime ? ` at ${lead.estimateTime}` : ''}
@@ -4442,12 +4443,12 @@ export default function SalesLeadDetailPage() {
                   const msg = `🏠 LIVE ESTIMATE REQUEST\n${lead.name} | ${lead.phone || 'no phone'}\n${lead.consultationAssignedManagerName || 'Manager'} is onsite and ready for live quote handoff. Open CRM: ${window.location.href}`
                   await sendSalesMessage({ leadId: lead.id, channel: 'sms', body: msg, to: '+12267241730' }).catch(() => {})
                   setError(null) // clear any previous error, use toast pattern
-                  void showConfirm('Alert sent ✅', 'Live estimate request sent to the office.', { confirmLabel: 'OK' })
+                  void showConfirm('Alert sent', 'Live estimate request sent to the office.', { confirmLabel: 'OK' })
                 }}
                 className="rounded-lg bg-[#C99700] px-3 py-1.5 text-xs font-bold text-[#071421] hover:bg-[#c99700] transition-colors"
                 title="Alert central sales — manager is onsite and ready for live handoff"
               >
-                📞 Request Live Estimate
+                <Phone size={14} className="mr-1.5 inline-block align-middle" />Request Live Estimate
               </button>
             </div>
             <div className="px-4 py-3">
@@ -4682,7 +4683,7 @@ export default function SalesLeadDetailPage() {
                       disabled={saving}
                       className="mt-3 w-full rounded-lg border border-amber-300 bg-amber-100 px-3 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-200 disabled:opacity-60"
                     >
-                      {saving ? '🔍 Searching…' : '🔍 Search Listing Contact'}
+                      {saving ? 'Searching…' : (<><Search size={14} className="mr-1.5 inline-block align-middle" />Search Listing Contact</>)}
                     </button>
                   )}
                   {/* Outreach status */}
@@ -4702,7 +4703,7 @@ export default function SalesLeadDetailPage() {
                       onClick={() => openRealtorPitchSms()}
                       className="mt-2 w-full rounded-lg border border-amber-400 bg-amber-200 px-3 py-1.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-300 transition-colors"
                     >
-                      {lead.realtorOutreachStartedAt ? '📱 Follow Up — Send SMS' : `📱 Pitch ${getListingSideContactRoleLabel(lead.realtorContactKind)} — Send SMS`}
+                      {lead.realtorOutreachStartedAt ? (<><Smartphone size={14} className="mr-1.5 inline-block align-middle" />Follow Up — Send SMS</>) : (<><Smartphone size={14} className="mr-1.5 inline-block align-middle" />Pitch {getListingSideContactRoleLabel(lead.realtorContactKind)} — Send SMS</>)}
                     </button>
                   )}
                 </div>
@@ -4720,18 +4721,21 @@ export default function SalesLeadDetailPage() {
                       onChange={event => setHandoffName(event.target.value)}
                       className="crm-input"
                       placeholder="Client name"
+                      aria-label="Client name"
                     />
                     <input
                       value={handoffPhone}
                       onChange={event => setHandoffPhone(event.target.value)}
                       className="crm-input"
                       placeholder="Client phone"
+                      aria-label="Client phone"
                     />
                     <input
                       value={handoffEmail}
                       onChange={event => setHandoffEmail(event.target.value)}
                       className="crm-input"
                       placeholder="Client email"
+                      aria-label="Client email"
                     />
                     <button
                       onClick={() => void handleClientHandoff()}
@@ -4841,12 +4845,14 @@ export default function SalesLeadDetailPage() {
                       onChange={e => setOnsiteReason(e.target.value)}
                       className="crm-input w-full text-xs"
                       placeholder="What changed? (e.g. 3 extra boxes, additional bedroom discovered)"
+                      aria-label="What changed on site"
                     />
                     <input
                       value={onsiteNote}
                       onChange={e => setOnsiteNote(e.target.value)}
                       className="crm-input w-full text-xs"
                       placeholder="Extra detail for the office (optional)"
+                      aria-label="Extra detail for the office"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -4867,7 +4873,7 @@ export default function SalesLeadDetailPage() {
                       disabled={onsiteBusy || !onsiteReason.trim()}
                       className="w-full rounded-lg bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
                     >
-                      {onsiteDone ? '✓ Change Order Recorded' : onsiteBusy ? 'Recording…' : 'Create Pending Change Order'}
+                      {onsiteDone ? (<><Check size={14} className="mr-1.5 inline-block align-middle" />Change Order Recorded</>) : onsiteBusy ? 'Recording…' : 'Create Pending Change Order'}
                     </button>
                   </div>
                 )}
@@ -4889,9 +4895,9 @@ export default function SalesLeadDetailPage() {
                           )}
                           {entry.deltaHours && <span>+{entry.deltaHours}h</span>}
                           {entry.approvalStatus === 'pending' && <span>Awaiting customer approval</span>}
-                          {entry.approvalStatus === 'approved' && <span>Approved ✓</span>}
+                          {entry.approvalStatus === 'approved' && <span className="inline-flex items-center gap-1">Approved <Check size={13} /></span>}
                           {entry.approvalStatus === 'declined' && <span>Declined</span>}
-                          {entry.customerNotified && <span>Customer notified ✓</span>}
+                          {entry.customerNotified && <span className="inline-flex items-center gap-1">Customer notified <Check size={13} /></span>}
                           {entry.changedBy && <span>By {entry.changedBy}</span>}
                         </div>
                       </div>
@@ -4905,7 +4911,7 @@ export default function SalesLeadDetailPage() {
                   disabled={dispatchBriefBusy}
                   className="w-full rounded-lg bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                 >
-                  {dispatchBriefBusy ? '⏳ Generating…' : '📋 Generate Crew Briefing'}
+                  {dispatchBriefBusy ? 'Generating…' : (<><ClipboardList size={14} className="mr-1.5 inline-block align-middle" />Generate Crew Briefing</>)}
                 </button>
                 {/* Post-job review request */}
                 {(lead.email || lead.phone) && (
@@ -4914,7 +4920,7 @@ export default function SalesLeadDetailPage() {
                     disabled={!canEditCurrentLead || reviewSentBusy || reviewPreviewBusy}
                     className="w-full rounded-lg bg-[#C99700] px-3 py-2 text-xs font-semibold text-[#071421] hover:opacity-90 disabled:opacity-60"
                   >
-                    {reviewSentBusy || reviewPreviewBusy ? 'Preparing...' : (reviewSent || lead.reviewSentAt) ? '⭐ Preview / Send Again' : '⭐ Preview Review Request'}
+                    {reviewSentBusy || reviewPreviewBusy ? 'Preparing...' : (reviewSent || lead.reviewSentAt) ? (<><Star size={14} className="mr-1.5 inline-block align-middle" />Preview / Send Again</>) : (<><Star size={14} className="mr-1.5 inline-block align-middle" />Preview Review Request</>)}
                   </button>
                 )}
                 <button
@@ -4922,7 +4928,7 @@ export default function SalesLeadDetailPage() {
                   disabled={!canEditCurrentLead}
                   className="w-full rounded-lg border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-medium text-[var(--app-ink)] hover:border-[var(--app-ink)]"
                 >
-                  {outcomeSaved ? '✓ Outcome Logged' : '📋 Log Job Outcome'}
+                  {outcomeSaved ? (<><Check size={14} className="mr-1.5 inline-block align-middle" />Outcome Logged</>) : (<><ClipboardList size={14} className="mr-1.5 inline-block align-middle" />Log Job Outcome</>)}
                 </button>
                 {outcomeOpen && (
                   <div className="space-y-3 rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
@@ -4941,7 +4947,7 @@ export default function SalesLeadDetailPage() {
                       <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Customer Rating</label>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map(star => (
-                          <button key={star} type="button" disabled={!canEditCurrentLead} onClick={() => setOutcomeRating(star)} className={`text-xl transition ${outcomeRating >= star ? 'text-amber-400' : 'text-stone-300'}`}>★</button>
+                          <button key={star} type="button" disabled={!canEditCurrentLead} onClick={() => setOutcomeRating(star)} className={`text-xl transition ${outcomeRating >= star ? 'text-amber-400' : 'text-stone-300'}`}><Star size={20} fill="currentColor" /></button>
                         ))}
                       </div>
                     </div>
@@ -4959,7 +4965,7 @@ export default function SalesLeadDetailPage() {
                         Referral generated
                       </label>
                     </div>
-                    <textarea value={outcomeNotes} onChange={e => setOutcomeNotes(e.target.value)} disabled={!canEditCurrentLead} className="crm-input w-full resize-none text-xs" rows={2} placeholder="Any notes about the job..." />
+                    <textarea value={outcomeNotes} onChange={e => setOutcomeNotes(e.target.value)} disabled={!canEditCurrentLead} className="crm-input w-full resize-none text-xs" rows={2} placeholder="Any notes about the job..." aria-label="Post-job outcome notes" />
                     <button onClick={() => void saveOutcome()} disabled={!canEditCurrentLead || outcomeBusy} className="w-full rounded-lg bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60">
                       {outcomeBusy ? 'Saving...' : 'Save Outcome'}
                     </button>
@@ -4982,16 +4988,16 @@ export default function SalesLeadDetailPage() {
                 {/* DEPOSIT STATUS */}
                 {lead.paymentStatus === 'paid_in_full' ? (
                   <div className="rounded-lg bg-emerald-600 px-3 py-2.5 text-center text-xs font-bold text-white">
-                    ✓ Paid in Full
+                    <Check size={14} className="mr-1.5 inline-block align-middle" />Paid in Full
                   </div>
                 ) : lead.paymentStatus === 'deposit_received' ? (
                   <div className="space-y-2">
                     <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                      ✓ Deposit Received — {lead.depositMethod || 'On file'}
+                      <Check size={14} className="mr-1.5 inline-block align-middle" />Deposit Received — {lead.depositMethod || 'On file'}
                     </div>
                     {/(debit|prepaid)/i.test(lead.depositMethod || '') && (
                       <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-                        ⚠ Internal payment review — booking accepted; verify the final-balance collection plan before move day.
+                        <AlertTriangle size={14} className="mr-1.5 inline-block align-middle" />Internal payment review — booking accepted; verify the final-balance collection plan before move day.
                       </div>
                     )}
                     {quote && (
@@ -5005,6 +5011,7 @@ export default function SalesLeadDetailPage() {
                             disabled={!canEditCurrentLead || receiptBusy}
                             className="crm-input w-full text-xs"
                             placeholder="customer@email.com"
+                            aria-label="Deposit receipt email"
                           />
                           <label className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] font-semibold text-[var(--app-ink)]">
                             <input
@@ -5052,7 +5059,7 @@ export default function SalesLeadDetailPage() {
                             disabled={!canHandleCurrentLeadPayments}
                             className="w-full rounded-lg bg-[#C99700] px-3 py-2 text-xs font-bold text-[#071421] hover:opacity-90 disabled:opacity-60"
                           >
-                            💳 Take Card By Phone
+                            <CreditCard size={14} className="mr-1.5 inline-block align-middle" />Take Card By Phone
                           </button>
                         ) : null}
                         <PaymentRecoveryPanel quoteId={quote.id} onReconciled={(nextLead, nextQuote) => { setLead(nextLead); setQuote(nextQuote) }} />
@@ -5095,7 +5102,7 @@ export default function SalesLeadDetailPage() {
                           {/* Success flash */}
                           {chargeBalanceFlash && (
                             <div className="rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800">
-                              ✓ Charged {formatMoney(chargeBalanceFlash.amount)}.{' '}
+                              <Check size={14} className="mr-1.5 inline-block align-middle" />Charged {formatMoney(chargeBalanceFlash.amount)}.{' '}
                               {chargeBalanceFlash.remaining > 0
                                 ? `Remaining balance: ${formatMoney(chargeBalanceFlash.remaining)}`
                                 : 'Paid in full!'}
@@ -5111,6 +5118,7 @@ export default function SalesLeadDetailPage() {
                               value={balanceOverrideAmount}
                               onChange={e => setBalanceOverrideAmount(e.target.value)}
                               placeholder={String(quote.balance)}
+                              aria-label="Balance override amount"
                               className="crm-input flex-1 text-sm font-semibold"
                             />
                           </div>
@@ -5119,6 +5127,7 @@ export default function SalesLeadDetailPage() {
                             onChange={e => setBalanceOverrideNote(e.target.value)}
                             className="crm-input w-full text-xs"
                             placeholder="Reason (e.g. 8 hrs actual vs 9 hrs quoted)"
+                            aria-label="Reason for balance override"
                           />
                           <div className="flex gap-2">
                             <button
@@ -5173,7 +5182,7 @@ export default function SalesLeadDetailPage() {
                           disabled={!canHandleCurrentLeadPayments}
                           className="w-full rounded-lg bg-[#C99700] px-3 py-2 text-xs font-bold text-[#071421] hover:opacity-90 disabled:opacity-60"
                         >
-                          💳 Take Card By Phone
+                          <CreditCard size={14} className="mr-1.5 inline-block align-middle" />Take Card By Phone
                         </button>
                         {hasStoredPaymentCard ? (
                           <button
@@ -5189,7 +5198,7 @@ export default function SalesLeadDetailPage() {
                           disabled={!canHandleCurrentLeadPayments || depositLinkBusy}
                           className="w-full rounded-lg bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                         >
-                          {depositLinkBusy ? 'Sending...' : '🔗 Send Payment Link'}
+                          {depositLinkBusy ? 'Sending...' : (<><Link2 size={14} className="mr-1.5 inline-block align-middle" />Send Payment Link</>)}
                         </button>
                       </>
                     )}
@@ -5208,6 +5217,7 @@ export default function SalesLeadDetailPage() {
                           step="0.01"
                           className="crm-input w-full text-xs"
                           placeholder="Actual amount received"
+                          aria-label="Actual amount received"
                           value={logDepositAmount}
                           onChange={e => setLogDepositAmount(e.target.value)}
                         />
@@ -5223,6 +5233,7 @@ export default function SalesLeadDetailPage() {
                         <input
                           className="crm-input w-full text-xs"
                           placeholder="Note (optional — ref number, who collected...)"
+                          aria-label="Deposit note"
                           value={logDepositNote}
                           onChange={e => setLogDepositNote(e.target.value)}
                         />
@@ -5275,7 +5286,7 @@ export default function SalesLeadDetailPage() {
                             {Object.entries(TENTATIVE_REASON_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                           </select>
                         </label>
-                        <textarea value={tentativeNotes} onChange={event => setTentativeNotes(event.target.value)} rows={2} className="crm-input resize-none bg-white text-xs" placeholder="What needs to be true before they can confirm?" />
+                        <textarea value={tentativeNotes} onChange={event => setTentativeNotes(event.target.value)} rows={2} className="crm-input resize-none bg-white text-xs" placeholder="What needs to be true before they can confirm?" aria-label="What needs to be true before they can confirm" />
                         <label className="flex items-start gap-2 text-[11px] leading-4 text-[var(--app-muted)]">
                           <input type="checkbox" checked={tentativeSendSms} onChange={event => setTentativeSendSms(event.target.checked)} disabled={!lead.phone} className="mt-0.5" />
                           Send a clear courtesy-hold SMS. It explains that this is not a confirmed booking or deposit.
@@ -5513,7 +5524,7 @@ export default function SalesLeadDetailPage() {
                 {aiNudge ? (
                   <div className={`rounded-lg border px-3 py-3 ${aiNudge.urgency === 'high' ? 'border-amber-200 bg-amber-50' : aiNudge.urgency === 'medium' ? 'border-sky-200 bg-sky-50' : 'border-[var(--app-line)] bg-[var(--app-bg)]'}`}>
                     <div className={`flex items-start gap-2 text-sm font-medium ${aiNudge.urgency === 'high' ? 'text-amber-800' : aiNudge.urgency === 'medium' ? 'text-sky-800' : 'text-[var(--app-ink)]'}`}>
-                      <span>{aiNudge.icon}</span>
+                      <aiNudge.icon size={15} className="mt-0.5 shrink-0" />
                       <span>{aiNudge.text}</span>
                     </div>
                     <div className={`mt-1.5 text-xs ${aiNudge.urgency === 'high' ? 'text-amber-700' : aiNudge.urgency === 'medium' ? 'text-sky-700' : 'text-[var(--app-muted)]'}`}>
@@ -5748,8 +5759,8 @@ export default function SalesLeadDetailPage() {
                   <div>
                     <span className="crm-label">Estimate Appointment</span>
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <input type="date" value={estimateDate} onChange={e => setEstimateDate(e.target.value)} className="crm-input" placeholder="Date" />
-                      <input type="time" value={estimateTime} onChange={e => setEstimateTime(e.target.value)} className="crm-input" placeholder="Time" />
+                      <input type="date" value={estimateDate} onChange={e => setEstimateDate(e.target.value)} className="crm-input" placeholder="Date" aria-label="Estimate date" />
+                      <input type="time" value={estimateTime} onChange={e => setEstimateTime(e.target.value)} className="crm-input" placeholder="Time" aria-label="Estimate time" />
                     </div>
                   </div>
                 )}
@@ -5848,7 +5859,7 @@ export default function SalesLeadDetailPage() {
                   disabled={!canEditCurrentLead}
                   className="crm-button w-full justify-center border-red-200 text-red-600 bg-white hover:bg-red-50"
                 >
-                  ⚠ Log Incident
+                  <AlertTriangle size={14} className="mr-1.5 inline-block align-middle" />Log Incident
                 </button>
               ) : null}
             </div>
@@ -5970,7 +5981,7 @@ export default function SalesLeadDetailPage() {
                 <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Preview review request</h2>
                 <p className="mt-1 text-xs text-[var(--app-muted)]">Nothing is sent until you confirm below.</p>
               </div>
-              <button onClick={() => setReviewPreviewOpen(false)} className="rounded-lg px-2 py-1 text-[var(--app-muted)] hover:bg-[var(--app-bg)]">✕</button>
+              <button onClick={() => setReviewPreviewOpen(false)} className="rounded-lg px-2 py-1 text-[var(--app-muted)] hover:bg-[var(--app-bg)]"><X size={14} /></button>
             </div>
             {reviewPreviewBusy ? (
               <div className="py-12 text-center text-sm text-[var(--app-muted)]">Matching the origin address to the closest Google profile…</div>
@@ -6034,6 +6045,7 @@ export default function SalesLeadDetailPage() {
               onChange={e => setLostNotes(e.target.value)}
               className="mt-3 min-h-[72px] w-full resize-none rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none"
               placeholder="Optional notes (what they said, what we could improve)..."
+              aria-label="Notes on why the lead was lost"
             />
             <div className="mt-4 flex items-center justify-end gap-3">
               <button onClick={() => { setShowLostModal(false); setStage(lead?.stage || 'new') }} className="crm-button text-sm">Cancel</button>
@@ -6095,7 +6107,7 @@ export default function SalesLeadDetailPage() {
           <div className="flex w-full max-w-2xl flex-col rounded-2xl border border-[var(--app-line)] bg-white shadow-none" style={{ maxHeight: '85vh' }}>
             <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-4">
               <div>
-                <h2 className="font-display text-base font-semibold text-[var(--app-ink)]">📋 Crew Briefing</h2>
+                <h2 className="flex items-center gap-2 font-display text-base font-semibold text-[var(--app-ink)]"><ClipboardList size={16} />Crew Briefing</h2>
                 <p className="text-xs text-[var(--app-muted)]">Generated from calls, quote, and notes. Share with crew before dispatch.</p>
               </div>
               <div className="flex items-center gap-2">
@@ -6161,7 +6173,7 @@ export default function SalesLeadDetailPage() {
                   <h2 className="text-base font-bold text-white">Confirm Job — {lead?.name}</h2>
                   <p className="mt-0.5 text-xs text-slate-300">Deposit required to lock in this booking.</p>
                 </div>
-                <button onClick={closeConfirmJobModal} className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-white/10 hover:text-white transition-colors">✕</button>
+                <button onClick={closeConfirmJobModal} className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-white/10 hover:text-white transition-colors"><X size={14} /></button>
               </div>
             </div>
 
@@ -6169,7 +6181,7 @@ export default function SalesLeadDetailPage() {
               {/* Deposit already received — skip form */}
               {lead?.paymentStatus === 'deposit_received' || lead?.paymentStatus === 'paid_in_full' ? (
                 <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
-                  <span className="text-2xl">✅</span>
+                  <CheckCircle2 size={28} />
                   <div>
                     <div className="text-sm font-semibold text-emerald-800">Deposit already received</div>
                     <div className="text-xs text-emerald-600 mt-0.5">{formatMoney(lead.depositAmount || 0)} via {lead.depositMethod}</div>
@@ -6179,7 +6191,7 @@ export default function SalesLeadDetailPage() {
                 <>
                   {/* Deposit gate notice */}
                   <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
-                    <span className="text-lg mt-0.5">⚠️</span>
+                    <AlertTriangle size={20} className="mt-0.5" />
                     <div className="text-sm text-amber-800">
                       <strong>Deposit required.</strong> No job moves to Booked without a confirmed deposit. Take the card by phone here, charge the saved deposit, or send a payment link.
                     </div>
@@ -6192,7 +6204,7 @@ export default function SalesLeadDetailPage() {
                         disabled={!canHandleCurrentLeadPayments}
                         className="rounded-xl bg-[#C99700] px-3 py-2 text-sm font-semibold text-[#071421] hover:opacity-90 disabled:opacity-60"
                       >
-                        💳 Take Card By Phone
+                        <CreditCard size={14} className="mr-1.5 inline-block align-middle" />Take Card By Phone
                       </button>
                       {hasStoredPaymentCard ? (
                         <button
@@ -6210,7 +6222,7 @@ export default function SalesLeadDetailPage() {
                           disabled={!canHandleCurrentLeadPayments || depositLinkBusy}
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#071421] hover:bg-slate-50 disabled:opacity-60"
                         >
-                          {depositLinkBusy ? 'Sending link...' : '🔗 Send Payment Link'}
+                          {depositLinkBusy ? 'Sending link...' : (<><Link2 size={14} className="mr-1.5 inline-block align-middle" />Send Payment Link</>)}
                         </button>
                       )}
                     </div>
