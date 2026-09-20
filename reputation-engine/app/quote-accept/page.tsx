@@ -90,6 +90,12 @@ const REVIEWS = [
   { name: 'Lazlo', text: 'You guys did a great job, definitely recommended.', stars: 5 },
 ]
 
+// Dexa Movers Google business profile (Ottawa). Verified review quotes for
+// Dexa have not been curated yet — add them here when available. Never reuse
+// Saturn quotes on Dexa pages; until then Dexa links to its live profile.
+const DEXA_REVIEWS: { name: string; text: string; stars: number }[] = []
+const DEXA_GOOGLE_PROFILE = 'https://share.google/SMoRwagOcK268t7jy'
+
 type QuoteBrand = {
   name: string
   shortName: string
@@ -367,11 +373,17 @@ function buildMoveTimeline(params: {
   const loadDone = startDecimal + loadH
   const arrive   = loadDone + driveH
   const done     = arrive + unloadH
+  // Driving is a duration, not a moment: never stamp it with the same
+  // precise time as loading completion (the old code showed two identical
+  // timestamps, which reads as a bug because it is one).
+  const driveLabel = driveH >= 1
+    ? `~${Math.round(driveH)}h drive`
+    : `~${Math.round(driveH * 60)} min drive`
 
   return [
     { emoji: '🚚', time: fmtH(startDecimal), title: 'Crew arrives at origin', detail: `${crewSize} movers · ${trucks} truck${trucks > 1 ? 's' : ''}${disassemblyItems.length > 0 ? ` · Disassemble: ${disassemblyItems.slice(0, 2).join(', ')}${disassemblyItems.length > 2 ? ' +more' : ''}` : ''} · wrap all furniture` },
     { emoji: '📦', time: fmtH(loadDone), title: 'Loading complete', detail: `All items wrapped and secured · truck${trucks > 1 ? 's' : ''} ready to go` },
-    { emoji: '🚛', time: fmtH(loadDone), title: `Driving to ${destCity || 'destination'}`, detail: 'Travel time included in your estimate' },
+    { emoji: '🚛', time: driveLabel, title: `Driving to ${destCity || 'destination'}`, detail: 'Travel time included in your estimate' },
     { emoji: '🏠', time: fmtH(arrive), title: 'Arrive at new home', detail: `Unload · place furniture${disassemblyItems.length > 0 ? ` · Reassemble: ${disassemblyItems.slice(0, 2).join(', ')}` : ''}` },
     { emoji: '✅', time: fmtH(done), title: 'Move complete', detail: 'Final walkthrough · keys handed over' },
   ]
@@ -738,6 +750,7 @@ function AcceptBlock({
   onDecline,
   onPayStripe,
   onRequireTerms,
+  scopeNeedsConfirmation,
   variant = 'main',
 }: {
   quote: PublicQuote
@@ -753,6 +766,7 @@ function AcceptBlock({
   onDecline: () => void
   onPayStripe: () => void
   onRequireTerms: () => void
+  scopeNeedsConfirmation?: boolean
   variant?: 'main' | 'sticky'
 }) {
   const needsTerms = !quote.termsAcceptedAt && !termsAccepted
@@ -793,6 +807,12 @@ function AcceptBlock({
         <div className="text-sm text-white/70 max-w-sm mx-auto leading-6">
           Your deposit has been received. The {brand.name} team will be in touch shortly to confirm move-day details.
         </div>
+        {scopeNeedsConfirmation && (
+          <div className="mt-4 rounded-lg bg-white/10 p-4 text-left text-sm text-white/80">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#C99700]">What happens next</div>
+            <p className="mt-1 leading-6">A moving coordinator will confirm the remaining access and handling details with you before dispatch, so the crew arrives with the right plan.</p>
+          </div>
+        )}
         <div className="mt-5 rounded-lg bg-white/10 p-4 text-sm text-white/80">
           Questions? Call or text <strong className="text-[#C99700]">{brand.phone}</strong>{brand.email ? <> or email <strong className="text-[#C99700]">{brand.email}</strong></> : null}
         </div>
@@ -1184,6 +1204,10 @@ function QuoteAcceptPageInner() {
     singleLocation: isSingleLocationLaborOnly,
   })
   const reviewedHiddenAreas = hiddenInventoryCoverage(jobFactors || undefined)
+  // Scope confirmation is a post-payment next step, never a pre-accept gate:
+  // the confirmation banner below used to sit next to the live pay button,
+  // arguing with it. It now appears only in the booked confirmation state.
+  const scopeNeedsConfirmation = isBindingEstimate && moveIntelligence.fixedPriceReadiness !== 'ready'
   const confirmedAccessProfiles = (quote.jobFactors?.accessProfiles || []).filter(profile => profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown'))
   const operationalTimeBudget = quote.jobFactors?.operationalTimeBudget
   const legacyAssemblyItems = (quote.jobFactors?.disassemblyItemCount ?? 0) > 0
@@ -1342,15 +1366,28 @@ function QuoteAcceptPageInner() {
                 ) : null}
               </div>
 
-              {/* Social proof */}
+              {/* Social proof — every brand gets proof, never another brand's quotes */}
               <div className="space-y-2">
-                {brand.logo === 'saturn' && REVIEWS.slice(0, 2).map((r, i) => (
+                {brand.logo === 'saturn' ? REVIEWS.slice(0, 2).map((r, i) => (
+                  <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
+                    <Stars count={r.stars} />
+                    <div className="mt-1 text-xs text-[#071421]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
+                    <div className="mt-1 text-[11px] font-semibold text-[#071421]/40">{r.name}</div>
+                  </div>
+                )) : DEXA_REVIEWS.slice(0, 2).map((r, i) => (
                   <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
                     <Stars count={r.stars} />
                     <div className="mt-1 text-xs text-[#071421]/70 leading-5">&ldquo;{r.text}&rdquo;</div>
                     <div className="mt-1 text-[11px] font-semibold text-[#071421]/40">{r.name}</div>
                   </div>
                 ))}
+                {brand.logo === 'dexa' && DEXA_REVIEWS.length === 0 && (
+                  <a href={DEXA_GOOGLE_PROFILE} target="_blank" rel="noreferrer" className="block rounded-xl bg-white border border-[#071421]/8 p-4">
+                    <Stars count={5} />
+                    <div className="mt-1 text-xs text-[#071421]/70 leading-5">Dexa Movers on Google — verified reviews from Ottawa customers.</div>
+                    <div className="mt-1 text-[11px] font-semibold text-[#667085]">Read all reviews</div>
+                  </a>
+                )}
               </div>
 
               <div className="mt-6 text-center text-xs text-[#071421]/40">
@@ -1390,6 +1427,7 @@ function QuoteAcceptPageInner() {
             onDecline={() => setConfirmingDecline(true)}
             onPayStripe={() => void payDepositStripe()}
             onRequireTerms={ensureTermsAccepted}
+            scopeNeedsConfirmation={scopeNeedsConfirmation}
             variant="sticky"
           />
         </div>
@@ -1528,18 +1566,6 @@ function QuoteAcceptPageInner() {
             </div>
           </div>
         </div>
-
-        {isBindingEstimate && moveIntelligence.fixedPriceReadiness !== 'ready' && (
-          <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-[#071421]">
-            <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Scope confirmation required</div>
-            <p className="mt-2 text-sm leading-6 text-[#071421]/70">
-              This fixed price applies to the inventory and access shown in this estimate. A moving coordinator must confirm the remaining high-impact access or handling details before dispatch.
-            </p>
-            {moveIntelligence.questions.slice(0, 3).map(question => (
-              <div key={question.id} className="mt-2 text-xs font-semibold text-[#071421]/70">• {question.question}</div>
-            ))}
-          </div>
-        )}
 
         {hasInventory && (
           <InventoryIntelligence
@@ -1832,25 +1858,46 @@ function QuoteAcceptPageInner() {
             onDecline={() => setConfirmingDecline(true)}
             onPayStripe={() => void payDepositStripe()}
             onRequireTerms={ensureTermsAccepted}
+            scopeNeedsConfirmation={scopeNeedsConfirmation}
           />
           {error && <div className="mt-3 rounded-lg border border-[#071421]/15 bg-[#071421]/5 px-4 py-2 text-xs text-[#071421]/60">{error}</div>}
         </div>
 
-        {/* ── Trust before paperwork ── */}
-        {brand.logo === 'saturn' && (
+        {/* ── Trust before paperwork — every brand gets proof ── */}
+        {(
           <div className="mb-16">
             <SectionLabel>Trusted for moves that matter</SectionLabel>
             <div className="mb-8 max-w-2xl text-3xl font-bold tracking-tight text-[#071421] sm:text-4xl">Careful planning. Calm communication. Five-star execution.</div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {REVIEWS.map((review, index) => (
-                <div key={index} className="rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
-                  <Stars count={review.stars} />
-                  <p className="mt-5 text-base leading-7 text-[#071421]/70">{review.text}</p>
-                  <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">{review.name}</p>
+            {brand.logo === 'saturn' ? (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {REVIEWS.map((review, index) => (
+                    <div key={index} className="rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
+                      <Stars count={review.stars} />
+                      <p className="mt-5 text-base leading-7 text-[#071421]/70">{review.text}</p>
+                      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">{review.name}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="mt-5 text-center text-xs text-[#667085]">Five-star rated on Google · starmovers.ca</div>
+                <div className="mt-5 text-center text-xs text-[#667085]">Five-star rated on Google · starmovers.ca</div>
+              </>
+            ) : DEXA_REVIEWS.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {DEXA_REVIEWS.map((review, index) => (
+                  <div key={index} className="rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
+                    <Stars count={review.stars} />
+                    <p className="mt-5 text-base leading-7 text-[#071421]/70">{review.text}</p>
+                    <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">{review.name}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <a href={DEXA_GOOGLE_PROFILE} target="_blank" rel="noreferrer" className="block rounded-2xl bg-white p-7 shadow-[0_12px_40px_rgba(7,20,33,0.05)]">
+                <Stars count={5} />
+                <p className="mt-5 text-base leading-7 text-[#071421]/70">Dexa Movers is rated by Ottawa customers on Google. Read verified reviews from recent moves.</p>
+                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[#667085]">Read Google reviews</p>
+              </a>
+            )}
           </div>
         )}
 
@@ -1944,6 +1991,7 @@ function QuoteAcceptPageInner() {
             onDecline={() => setConfirmingDecline(true)}
             onPayStripe={() => void payDepositStripe()}
             onRequireTerms={ensureTermsAccepted}
+            scopeNeedsConfirmation={scopeNeedsConfirmation}
           />
         </div>
 
