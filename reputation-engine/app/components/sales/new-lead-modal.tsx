@@ -197,7 +197,7 @@ export function NewLeadModal({ open, onClose }: Props) {
                     {existingLead.originCity ? ` · ${existingLead.originCity}` : ''}
                     {(existingLead.destAddress || existingLead.destCity) ? ` → ${existingLead.destAddress || existingLead.destCity}` : ''}
                   </div>
-                  <div className="mt-1 text-[10px] text-amber-600">Saving will update this lead with any new info you add.</div>
+                  <div className="mt-1 text-[11px] text-amber-600">Saving will update this lead with any new info you add.</div>
                 </div>
                 <button
                   onClick={openExisting}

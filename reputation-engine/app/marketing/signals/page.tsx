@@ -109,7 +109,7 @@ export default function SignalsPage() {
 
       {/* Active signals */}
       {loading ? (
-        <div className="crm-panel p-12 text-center text-sm text-slate-400">Loading signals...</div>
+        <div className="crm-panel p-12 text-center text-sm text-slate-500">Loading signals...</div>
       ) : (
         <>
           {active.length > 0 && (
@@ -185,18 +185,18 @@ export default function SignalsPage() {
             <div className="crm-panel p-12 text-center space-y-3">
               <div className="text-4xl">📡</div>
               <div className="font-semibold text-[#071421]">No active signals</div>
-              <p className="text-sm text-slate-400">Watch local news for business expansions, new plants, large employers hiring — then add them here to track your outreach.</p>
+              <p className="text-sm text-slate-500">Watch local news for business expansions, new plants, large employers hiring — then add them here to track your outreach.</p>
             </div>
           )}
 
           {past.length > 0 && (
             <section className="space-y-2">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Actioned / Past ({past.length})</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">Actioned / Past ({past.length})</h2>
               {past.map(s => (
                 <div key={s.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3">
-                  <span className="text-xs text-slate-400 line-through">{s.company}</span>
-                  <span className="text-xs text-slate-400">{s.city}</span>
-                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_LABELS[s.status]?.color ?? 'bg-slate-100 text-slate-500'}`}>
+                  <span className="text-xs text-slate-500 line-through">{s.company}</span>
+                  <span className="text-xs text-slate-500">{s.city}</span>
+                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${STATUS_LABELS[s.status]?.color ?? 'bg-slate-100 text-slate-500'}`}>
                     {STATUS_LABELS[s.status]?.label}
                   </span>
                 </div>

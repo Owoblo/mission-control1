@@ -208,7 +208,7 @@ export default function VideoSurveyRoom({ authToken, roomName, eventEndpoint, pa
         </div>
       )}
       {peerPresent && !left && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full bg-emerald-500/95 px-3 py-1.5 text-[10px] font-semibold text-white shadow-lg">
+        <div className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2 rounded-full bg-emerald-500/95 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg">
           ● Both joined
         </div>
       )}

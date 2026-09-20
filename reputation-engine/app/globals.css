@@ -25,6 +25,7 @@
     --app-bg: var(--brand-ivory);
     --app-panel: #ffffff;
     --app-panel-strong: #ffffff;
+    --app-surface: #ffffff;
     --app-wash: #fbfaf7;
     --app-accent: var(--brand-navy);
     --app-accent-soft: #eef1f3;
@@ -64,14 +65,14 @@
   body {
     background: var(--app-bg);
     color: var(--app-ink);
-    font-family: Inter, "Avenir Next", "Segoe UI", Arial, sans-serif;
+    font-family: var(--font-inter), Inter, "Avenir Next", "Segoe UI", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     min-height: 100vh;
     padding-top: env(safe-area-inset-top);
   }
   h1, h2, h3, h4, h5, h6, .font-display {
-    font-family: Manrope, Inter, "Avenir Next", "Segoe UI", Arial, sans-serif;
+    font-family: var(--font-manrope), Manrope, Inter, "Avenir Next", "Segoe UI", Arial, sans-serif;
   }
   :where(button, a, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--brand-gold);

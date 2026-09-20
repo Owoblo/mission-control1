@@ -64,12 +64,12 @@ export function InventoryVerificationPanel({
         <div className="flex items-center justify-between">
           <div className="text-xs font-semibold text-[var(--app-ink)]">📷 Request Photos</div>
           {surveyUrl && (
-            <span className={`text-[10px] font-semibold ${surveyCompleted ? 'text-emerald-700' : 'text-amber-700'}`}>
+            <span className={`text-[11px] font-semibold ${surveyCompleted ? 'text-emerald-700' : 'text-amber-700'}`}>
               {surveyCompleted ? 'Customer submitted' : lead.surveyRequestedAt ? 'Link sent' : 'Link ready'}
             </span>
           )}
         </div>
-        <p className="text-[10px] text-[var(--app-muted)] leading-4">
+        <p className="text-[11px] text-[var(--app-muted)] leading-4">
           Send {lead.name ? lead.name.split(' ')[0] : 'the customer'} a link to upload photos of their home — no MLS needed. Helps you price accurately before the estimate.
         </p>
 
@@ -100,12 +100,12 @@ export function InventoryVerificationPanel({
                 {surveyBusy ? '…' : 'Resend SMS'}
               </button>
             </div>
-            <div className="text-[10px] text-[var(--app-muted)] truncate">{surveyUrl}</div>
+            <div className="text-[11px] text-[var(--app-muted)] truncate">{surveyUrl}</div>
 
             {/* Customer photos — show here directly when submitted, even with no MLS/scan */}
             {surveyCompleted && totalCustomerMedia > 0 && (
               <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 p-2 space-y-2">
-                <div className="text-[10px] font-semibold text-emerald-800">
+                <div className="text-[11px] font-semibold text-emerald-800">
                   {totalCustomerMedia} photo{totalCustomerMedia !== 1 ? 's' : ''} submitted
                   {customerVideoAssets.length > 0 && ` · ${customerVideoAssets.length} video${customerVideoAssets.length !== 1 ? 's' : ''}`}
                 </div>
@@ -116,7 +116,7 @@ export function InventoryVerificationPanel({
                         <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                       </button>
                       {asset.room && (
-                        <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>
+                        <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[11px] text-white">{asset.room}</div>
                       )}
                       {canEditCurrentLead && onRemoveMedia && (
                         <button type="button" onClick={() => onRemoveMedia(asset.id)} className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-rose-600 text-[12px] font-semibold leading-none text-white shadow-sm transition hover:scale-110 hover:bg-rose-700" aria-label={`Delete ${asset.filename || asset.room || `photo ${index + 1}`}`} title="Delete this uploaded photo">×</button>
@@ -125,7 +125,7 @@ export function InventoryVerificationPanel({
                   ))}
                 </div>
                 {customerVideoAssets.length > 0 && (
-                  <div className="text-[10px] text-emerald-700">
+                  <div className="text-[11px] text-emerald-700">
                     {customerVideoAssets.length} video{customerVideoAssets.length !== 1 ? 's' : ''}
                     {videoScanSummary.scanned ? ` · ${videoScanSummary.scanned} scanned` : ''}
                     {videoScanSummary.failed ? ` · ${videoScanSummary.failed} failed` : ''}
@@ -179,8 +179,8 @@ export function InventoryVerificationPanel({
       {/* ── INVENTORY VERIFICATION — only when MLS/scan exists ────── */}
       {hasMlsOrScan && (
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3 space-y-2">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Inventory Verification</div>
-          <p className="text-[10px] text-[var(--app-muted)] leading-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">Inventory Verification</div>
+          <p className="text-[11px] text-[var(--app-muted)] leading-4">
             Customer confirms the scanned or MLS inventory — flags what&apos;s staying behind, adds missing items.
           </p>
 
@@ -209,7 +209,7 @@ export function InventoryVerificationPanel({
                       <div key={item.id} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium text-[var(--app-ink)]">{item.title}</div>
-                          <div className="text-[10px] text-[var(--app-muted)]">
+                          <div className="text-[11px] text-[var(--app-muted)]">
                             {new Date(item.ts).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                           </div>
                         </div>
@@ -236,8 +236,8 @@ export function InventoryVerificationPanel({
                       <button type="button" onClick={() => setLightboxIndex(index)} className="absolute inset-0 cursor-zoom-in">
                         <img src={asset.url} alt={`Customer photo ${index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
                       </button>
-                      <div className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${sourceTone}`}>{sourceLabel}</div>
-                      {asset.room && <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[9px] text-white">{asset.room}</div>}
+                      <div className={`absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${sourceTone}`}>{sourceLabel}</div>
+                      {asset.room && <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1 py-0.5 text-[11px] text-white">{asset.room}</div>}
                       {canRemove && (
                         <button
                           type="button"
@@ -273,14 +273,14 @@ export function InventoryVerificationPanel({
                       >
                         <span className="min-w-0 pr-3">
                           <span className="block truncate font-medium text-[var(--app-ink)]">{asset.filename || asset.room || `Video ${index + 1}`}</span>
-                          {asset.analysisNotes && <span className="mt-0.5 block truncate text-[10px] text-[var(--app-muted)]">{asset.analysisNotes}</span>}
+                          {asset.analysisNotes && <span className="mt-0.5 block truncate text-[11px] text-[var(--app-muted)]">{asset.analysisNotes}</span>}
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-0.5">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
                             {asset.source === 'mms' ? 'MMS' : asset.source === 'survey' ? 'Survey' : 'Rep'}
                           </span>
                           {asset.analysisStatus && (
-                            <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${
+                            <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold uppercase ${
                               asset.analysisStatus === 'scanned'
                                 ? 'bg-emerald-100 text-emerald-700'
                                 : asset.analysisStatus === 'failed'
@@ -310,7 +310,7 @@ export function InventoryVerificationPanel({
               )}
 
               {surveyScanned && (
-                <div className="text-[10px] text-[var(--app-muted)]">
+                <div className="text-[11px] text-[var(--app-muted)]">
                   Last scanned {new Date(lead.surveyScannedAt as string).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                 </div>
               )}

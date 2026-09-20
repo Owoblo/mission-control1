@@ -136,13 +136,13 @@ function TrendChart({ data, mode }: { data: AnalyticsSnapshot['trend']; mode: 'l
         const tone = mode === 'revenue' ? 'bg-emerald-500' : mode === 'bookings' ? 'bg-[#C99700]' : 'bg-[#071421]'
         return (
           <div key={`${mode}-${item.label}`} className="flex flex-1 flex-col items-center gap-2">
-            <div className="text-[10px] font-medium text-[var(--app-muted)]">
+            <div className="text-[11px] font-medium text-[var(--app-muted)]">
               {mode === 'revenue' ? (value > 0 ? `$${Math.round(value / 1000)}k` : '') : value || ''}
             </div>
             <div className="flex w-full items-end" style={{ height: 96 }}>
               <div className={`w-full rounded-t ${tone}`} style={{ height }} />
             </div>
-            <div className="text-[10px] text-[var(--app-muted)]">{item.label}</div>
+            <div className="text-[11px] text-[var(--app-muted)]">{item.label}</div>
           </div>
         )
       })}
@@ -315,7 +315,7 @@ export default function AnalyticsPage() {
               <div key={`${day.branch}-${day.date}`} className={`rounded-xl border px-3 py-3 ${day.risk === 'high' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-semibold text-[#071421]">{day.branch} · {day.date}</div>
-                  <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${day.risk === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'}`}>
+                  <div className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] ${day.risk === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'}`}>
                     {day.risk}
                   </div>
                 </div>
@@ -413,7 +413,7 @@ export default function AnalyticsPage() {
             ['Expired', data.reservationFunnel.expired],
           ].map(([label, value]) => (
             <div key={String(label)} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">{label}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">{label}</div>
               <div className="mt-1 text-xl font-bold text-[var(--app-ink)]">{value}</div>
             </div>
           ))}

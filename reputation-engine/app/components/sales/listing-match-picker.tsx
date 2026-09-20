@@ -42,7 +42,7 @@ export function ListingMatchPicker({
             const previewUrl = typeof preview === 'string' ? preview : preview?.url
             return (
               <div key={candidate.zpid} className="flex gap-3 rounded-lg border border-amber-200 bg-white p-3">
-                {previewUrl ? <img src={previewUrl} alt="Listing preview" className="h-16 w-20 shrink-0 rounded-md object-cover" /> : <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-md bg-stone-100 text-[10px] text-stone-500">No photos</div>}
+                {previewUrl ? <img src={previewUrl} alt="Listing preview" className="h-16 w-20 shrink-0 rounded-md object-cover" /> : <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-md bg-stone-100 text-[11px] text-stone-500">No photos</div>}
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-stone-900">{candidate.address}</div>
                   <div className="mt-1 text-xs text-stone-600">
@@ -66,7 +66,7 @@ export function ListingMatchPicker({
           <input value={listingUrl} onChange={event => setListingUrl(event.target.value)} placeholder="https://… or MLS number" className="crm-input min-w-0 flex-1 bg-white" />
           <button type="button" disabled={busy || listingUrl.trim().length < 5} onClick={() => onResolveLink(listingUrl.trim())} className="rounded-md border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 disabled:opacity-50">Find listing</button>
         </div>
-        <p className="mt-1 text-[10px] leading-4 text-amber-700">Links are resolved against authorized listing data already stored in Supabase; external pages are not scraped.</p>
+        <p className="mt-1 text-[11px] leading-4 text-amber-700">Links are resolved against authorized listing data already stored in Supabase; external pages are not scraped.</p>
       </div>
     </div>
   )

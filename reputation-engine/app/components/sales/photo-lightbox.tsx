@@ -94,7 +94,7 @@ export function PhotoLightbox({ photos, index, onClose, onNavigate, labels }: Pr
 
       {/* Keyboard hint */}
       {total > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-white/40">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[11px] text-white/40">
           ← → arrow keys to navigate · Esc to close
         </div>
       )}

@@ -17,6 +17,7 @@ import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 import { sanitizeCustomerQuoteText } from '@/lib/customer-quote-content'
 import { preserveAcceptedScopeSnapshot } from '@/lib/server/accepted-scope-snapshot'
+import { isQuoteExpired } from '@/lib/quote-expiry'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
@@ -79,6 +80,9 @@ function isTokenValid(token: string | null, expected?: string) {
   return !!token && !!expected && token === expected
 }
 
+// Quote expiry is enforced server-side: a stale price can never be accepted
+// or declined through the normal customer flow.
+
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
@@ -91,9 +95,13 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       return NextResponse.json({ error: 'Quote link is invalid or expired' }, { status: 404 })
     }
 
+    // Expired quotes render a branded "request a new quote" state instead of
+    // bookable UI. Internal previews bypass this so sales can review old quotes.
+    const quoteExpired = !isPreview && isQuoteExpired(currentQuote)
+
     const viewedStamp = new Date().toISOString()
     // Skip marking as viewed when opened as internal preview (avoids false positives)
-    const quote = (!isPreview && (currentQuote.status === 'draft' || currentQuote.status === 'sent'))
+    const quote = (!isPreview && !quoteExpired && (currentQuote.status === 'draft' || currentQuote.status === 'sent'))
       ? await saveSalesQuote({
           ...currentQuote,
           status: 'viewed',
@@ -106,7 +114,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       quote.leadId ? getSalesLead(quote.leadId) : Promise.resolve(null),
     ])
 
-    if (!isPreview) {
+    if (!isPreview && !quoteExpired) {
       await saveFollowUpLog({
         id: uid('fu'),
         quoteId: quote.id,
@@ -143,6 +151,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     })
 
     return NextResponse.json({
+      expired: quoteExpired,
       quote: {
         id: quote.id,
         number: quote.number,
@@ -223,7 +232,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         } : null,
         jobFactors: lead.jobFactors || null,
       } : null,
-    })
+    }, { status: quoteExpired ? 410 : 200 })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load quote' },
@@ -246,6 +255,15 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
     if (!quote || !isTokenValid(body.token || null, quote.acceptToken)) {
       return NextResponse.json({ error: 'Quote link is invalid or expired' }, { status: 404 })
+    }
+
+    // Server-side expiry enforcement: a stale price can never be accepted or
+    // declined, even if the customer still has the link open.
+    if (isQuoteExpired(quote)) {
+      return NextResponse.json(
+        { error: 'This quote has expired and can no longer be accepted. Please request a new quote.', expired: true },
+        { status: 410 }
+      )
     }
 
     const action = body.action || 'accept'

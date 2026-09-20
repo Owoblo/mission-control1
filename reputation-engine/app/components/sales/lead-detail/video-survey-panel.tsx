@@ -133,7 +133,7 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
     <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Video Estimate</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">Video Estimate</div>
           <div className="mt-1 text-xs leading-5 text-[var(--app-muted)]">Walk through rooms live, record with consent, and build a reviewable inventory.</div>
         </div>
         <span className="text-lg">📹</span>
@@ -142,7 +142,7 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
       {loading ? (
         <div className="mt-3 text-xs text-[var(--app-muted)]">Checking video survey availability…</div>
       ) : !enabled || !configured ? (
-        <div className="mt-3 rounded-lg bg-amber-50 p-2.5 text-[10px] leading-4 text-amber-800">
+        <div className="mt-3 rounded-lg bg-amber-50 p-2.5 text-[11px] leading-4 text-amber-800">
           Video surveys are safely disabled until the Cloudflare app, presets, webhook, and feature flag are configured.
         </div>
       ) : (
@@ -153,7 +153,7 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
                 <span className="mt-1 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-amber-500" />
                 <div className="min-w-0">
                   <div className="text-xs font-semibold text-amber-950">{leadName?.split(' ')[0] || 'Customer'} is waiting in the video room</div>
-                  <div className="mt-1 text-[10px] leading-4 text-amber-800">Join now to begin the room-by-room walkthrough.</div>
+                  <div className="mt-1 text-[11px] leading-4 text-amber-800">Join now to begin the room-by-room walkthrough.</div>
                 </div>
               </div>
               <Link href={`/sales/video-surveys/${sessions[0].id}`} className="mt-3 flex w-full items-center justify-center rounded-lg bg-[#071421] px-3 py-2.5 text-xs font-semibold text-white">
@@ -172,13 +172,13 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
             <div className="mt-3 space-y-3 rounded-xl border border-[var(--app-line)] bg-white p-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--app-ink)]">Private room ready</div>
-                  <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">Review the invitation before sending.</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-ink)]">Private room ready</div>
+                  <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Review the invitation before sending.</div>
                 </div>
                 <span aria-hidden className="text-[var(--app-muted)]">✓</span>
               </div>
               <textarea aria-label="Video survey invitation" value={message} onChange={event => setMessage(event.target.value)} rows={6} className="crm-input w-full resize-y text-xs" />
-              <div className="break-all rounded-lg bg-[var(--app-bg)] p-2 text-[10px] leading-4 text-[var(--app-muted)]">{created.url}</div>
+              <div className="break-all rounded-lg bg-[var(--app-bg)] p-2 text-[11px] leading-4 text-[var(--app-muted)]">{created.url}</div>
               <button onClick={() => void navigator.clipboard.writeText(created.url).then(() => setNotice('Video survey link copied.'))} className="crm-button w-full justify-center">
                 Copy link
               </button>
@@ -191,11 +191,11 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
                 </button>
               </div>
               {(!phone || !email) && (
-                <div className="text-[10px] leading-4 text-[var(--app-muted)]">
+                <div className="text-[11px] leading-4 text-[var(--app-muted)]">
                   {!phone && !email ? 'Add a phone number or email to deliver this link.' : !phone ? 'SMS unavailable: no phone number on this lead.' : 'Email unavailable: no email address on this lead.'}
                 </div>
               )}
-              <button onClick={() => { setCreated(null); setMessage(''); setSentChannels([]); setNotice(null) }} className="w-full text-center text-[10px] font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)]">
+              <button onClick={() => { setCreated(null); setMessage(''); setSentChannels([]); setNotice(null) }} className="w-full text-center text-[11px] font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)]">
                 Done
               </button>
             </div>
@@ -207,7 +207,7 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
                 <span className="flex items-center justify-between gap-2">
                   <span>
                     <span className="font-semibold">Video surveys ({sessions.length})</span>
-                    <span className="ml-2 text-[10px] text-[var(--app-muted)]">One customer link · Latest: {videoSurveyStatusLabel(sessions[0].status)}</span>
+                    <span className="ml-2 text-[11px] text-[var(--app-muted)]">One customer link · Latest: {videoSurveyStatusLabel(sessions[0].status)}</span>
                   </span>
                   <span className="text-[var(--app-muted)] group-open:rotate-180">⌄</span>
                 </span>
@@ -217,10 +217,10 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
                   <div key={session.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--app-bg)] p-2.5 text-xs">
                     <div>
                       <div className="font-semibold">{index === 0 ? 'Latest · ' : ''}{videoSurveyStatusLabel(session.status)}</div>
-                      <div className="mt-0.5 text-[10px] text-[var(--app-muted)]">{new Date(session.createdAt).toLocaleString()}</div>
+                      <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">{new Date(session.createdAt).toLocaleString()}</div>
                     </div>
                     {!['cancelled', 'failed', 'confirmed'].includes(session.status) && (
-                      <Link href={`/sales/video-surveys/${session.id}`} className={`rounded-lg px-3 py-2 text-[10px] font-semibold text-white ${session.status === 'waiting' ? 'animate-pulse bg-amber-600' : 'bg-[#071421]'}`}>
+                      <Link href={`/sales/video-surveys/${session.id}`} className={`rounded-lg px-3 py-2 text-[11px] font-semibold text-white ${session.status === 'waiting' ? 'animate-pulse bg-amber-600' : 'bg-[#071421]'}`}>
                         {session.status === 'waiting' ? 'Join' : ['recording_processing', 'analysis_pending', 'analyzing', 'review_required'].includes(session.status) ? 'Review' : 'Open'}
                       </Link>
                     )}
@@ -231,7 +231,7 @@ export function VideoSurveyPanel({ leadId, leadName, phone, email, canEdit }: Pr
           )}
         </>
       )}
-      {notice && <div className="mt-2 text-[10px] font-medium text-[var(--app-muted)]">{notice}</div>}
+      {notice && <div className="mt-2 text-[11px] font-medium text-[var(--app-muted)]">{notice}</div>}
     </div>
   )
 }

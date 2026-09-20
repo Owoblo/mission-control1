@@ -301,7 +301,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
     return (
       <div className={`flex flex-col gap-1 ${isOutbound ? 'items-end' : 'items-start'}`}>
         <div className={`flex items-end gap-2 ${isOutbound ? 'flex-row-reverse' : 'flex-row'}`}>
-          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-bold uppercase tracking-wide ${
+          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold uppercase tracking-wide ${
             isOutbound ? 'bg-[var(--app-ink)] text-white' : 'bg-[#d1d1d6] text-[#3a3a3c]'
           }`}>
             {isOutbound ? 'SS' : item.actor?.slice(0, 1).toUpperCase() || 'C'}
@@ -312,12 +312,12 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               : 'rounded-bl-[4px] bg-[#e9e9eb] text-[#1c1c1e]'
           }`}>
             {!isOutbound && item.emailSubject && (
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] opacity-50">Re: {item.emailSubject}</div>
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] opacity-50">Re: {item.emailSubject}</div>
             )}
             <span className="whitespace-pre-wrap">{cleanedText}</span>
           </div>
         </div>
-        <div className={`flex items-center gap-1.5 px-9 text-[10px] text-[var(--app-muted)] ${isOutbound ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex items-center gap-1.5 px-9 text-[11px] text-[var(--app-muted)] ${isOutbound ? 'flex-row-reverse' : ''}`}>
           <span className={`rounded-full border px-1.5 py-0.5 font-semibold uppercase tracking-[0.12em] ${tone.badge}`}>
             {item.kind === 'sms' ? 'SMS' : 'Email'}
           </span>
@@ -336,10 +336,10 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
         {expanded && item.aiSummary && (
           <div className={`w-full max-w-[90%] rounded-[10px] border border-[var(--app-line)] bg-white p-4 ${isOutbound ? 'self-end' : 'self-start'}`}>
             <div className="mb-2 flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Message Intelligence</span>
-              {item.aiSummary.moveReadiness && <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-semibold capitalize text-[var(--app-muted)]">{item.aiSummary.moveReadiness}</span>}
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Message Intelligence</span>
+              {item.aiSummary.moveReadiness && <span className="rounded-full border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-semibold capitalize text-[var(--app-muted)]">{item.aiSummary.moveReadiness}</span>}
               {item.aiSummary.sentiment && (
-                <span className={`text-[10px] font-semibold capitalize ${sentimentColor}`}>● {item.aiSummary.sentiment}</span>
+                <span className={`text-[11px] font-semibold capitalize ${sentimentColor}`}>● {item.aiSummary.sentiment}</span>
               )}
             </div>
             <p className="text-sm leading-6 text-stone-800">{item.aiSummary.summary}</p>
@@ -363,27 +363,27 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
 
   return (
     <div className="relative pl-12">
-      <div className={`absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border text-[10px] font-semibold uppercase tracking-[0.12em] ${tone.dot}`}>
+      <div className={`absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.12em] ${tone.dot}`}>
         {item.kind.slice(0, 1)}
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-medium text-[var(--app-ink)]">
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${tone.badge}`}>
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${tone.badge}`}>
               {kindLabel(item.kind, item.text)}
             </span>
             {item.isVoicemail ? (
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Voicemail</span>
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">Voicemail</span>
             ) : null}
             {item.branchLabel ? (
-              <span className="rounded-full border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-accent)]">
+              <span className="rounded-full border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-accent)]">
                 {item.branchLabel}
               </span>
             ) : null}
             {item.duration ? <span className="text-xs text-[var(--app-muted)]">· {item.duration}</span> : null}
             {item.phone ? <span className="text-xs text-[var(--app-muted)]">· {item.phone}</span> : null}
             {item.repName && item.kind === 'call' ? (
-              <span className="rounded-full border border-[#071421]/20 bg-[#071421]/8 px-2 py-0.5 text-[10px] font-semibold text-[#071421]">
+              <span className="rounded-full border border-[#071421]/20 bg-[#071421]/8 px-2 py-0.5 text-[11px] font-semibold text-[#071421]">
                 {item.repName}
               </span>
             ) : null}
@@ -394,7 +394,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               <button
                 type="button"
                 onClick={() => setExpanded(current => !current)}
-                className="rounded-full border border-[var(--app-line)] bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]"
+                className="rounded-full border border-[var(--app-line)] bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]"
               >
                 {expanded ? 'Hide' : 'Open'}
               </button>
@@ -417,13 +417,13 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                   {vmSent === 'both' && lead?.phone && lead?.email && <span> &nbsp;·&nbsp; </span>}
                   {vmSent !== 'sms' && lead?.email && <span>Email → {lead.email}</span>}
                 </div>
-                <button type="button" onClick={() => setVmSent(null)} className="text-[10px] text-[var(--app-muted)] underline">Send another</button>
+                <button type="button" onClick={() => setVmSent(null)} className="text-[11px] text-[var(--app-muted)] underline">Send another</button>
               </div>
             ) : vmFollowUpMode === null ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#071421]">Voicemail dropped</span>
-                  <span className="text-[10px] text-[var(--app-muted)]">— follow up while you're top of mind</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#071421]">Voicemail dropped</span>
+                  <span className="text-[11px] text-[var(--app-muted)]">— follow up while you're top of mind</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -450,7 +450,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                   </button>
                 </div>
                 {(lead?.phone || lead?.email) && (
-                  <div className="text-[10px] text-[var(--app-muted)]">
+                  <div className="text-[11px] text-[var(--app-muted)]">
                     {lead?.phone && <span>SMS → {lead.phone}</span>}
                     {lead?.phone && lead?.email && <span> &nbsp;·&nbsp; </span>}
                     {lead?.email && <span>Email → {lead.email}</span>}
@@ -460,7 +460,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : vmFollowUpMode === 'sms' ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#071421]">Follow-Up SMS → {lead?.phone}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#071421]">Follow-Up SMS → {lead?.phone}</span>
                   <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕</button>
                 </div>
                 <textarea
@@ -470,7 +470,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
                   className="w-full rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-sm text-stone-800 outline-none focus:border-[#071421]"
                 />
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-[var(--app-muted)]">{vmSmsText.length} chars</span>
+                  <span className="text-[11px] text-[var(--app-muted)]">{vmSmsText.length} chars</span>
                   <button
                     type="button"
                     onClick={() => void handleVmSend('sms')}
@@ -484,7 +484,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#071421]">Follow-Up Email → {lead?.email}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#071421]">Follow-Up Email → {lead?.email}</span>
                   <button type="button" onClick={() => setVmFollowUpMode(null)} className="text-xs text-[var(--app-muted)]">✕</button>
                 </div>
                 <input

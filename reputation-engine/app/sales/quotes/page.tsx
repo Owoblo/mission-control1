@@ -126,7 +126,7 @@ export default function SalesQuotesIndexPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className="text-lg font-semibold text-[var(--app-ink)]">{quote.number}</div>
                             {isExpiringSoon ? (
-                              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${expiryDays !== null && expiryDays <= 2 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${expiryDays !== null && expiryDays <= 2 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
                                 {expiryDays === 0 ? 'Expires today' : expiryDays === 1 ? 'Expires tomorrow' : `${expiryDays}d left`}
                               </span>
                             ) : null}

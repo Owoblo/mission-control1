@@ -314,7 +314,7 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
               <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
                 <div className="text-2xl mb-1">🔗</div>
                 <div className="text-sm font-semibold text-emerald-800">Link ready — {copied ? '✓ Copied to clipboard!' : 'copy and share now'}</div>
-                <div className="mt-1 text-[10px] text-emerald-700 break-all">{surveyUrl}</div>
+                <div className="mt-1 text-[11px] text-emerald-700 break-all">{surveyUrl}</div>
               </div>
 
               <button
@@ -357,13 +357,13 @@ export function QuickScanModal({ open, onClose, prefillPhone = '' }: Props) {
                           style={{ width: `${Math.round((scanProgress.batch / scanProgress.totalBatches) * 100)}%` }}
                         />
                       </div>
-                      <div className="flex justify-between text-[10px] text-blue-600">
+                      <div className="flex justify-between text-[11px] text-blue-600">
                         <span>{scanProgress.batch}/{scanProgress.totalBatches} photos</span>
                         {scanProgress.itemsFound > 0 && <span>{scanProgress.itemsFound} items found so far</span>}
                       </div>
                     </>
                   )}
-                  <p className="text-[10px] text-blue-600">Items appear on the customer link as each photo is scanned.</p>
+                  <p className="text-[11px] text-blue-600">Items appear on the customer link as each photo is scanned.</p>
                 </div>
               )}
               {scanDone === 'done' && (

@@ -221,7 +221,7 @@ function daysUntilMove(dateStr?: string) {
 
 function MoveDateBadge({ dateStr }: { dateStr?: string }) {
   const days = daysUntilMove(dateStr)
-  if (!dateStr) return <span className="text-xs text-slate-400">No date set</span>
+  if (!dateStr) return <span className="text-xs text-slate-500">No date set</span>
   const label = days === 0 ? 'TODAY' : days === 1 ? 'TOMORROW' : days !== null && days < 0 ? `${Math.abs(days)}d ago` : `In ${days}d`
   const color =
     days === 0 ? 'bg-rose-600 text-white' :
@@ -233,19 +233,19 @@ function MoveDateBadge({ dateStr }: { dateStr?: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm font-semibold text-[#071421]">{formatDate(dateStr)}</span>
-      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
+      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
     </div>
   )
 }
 
 function PaymentBadge({ lead }: { lead: CRMLead }) {
   if (lead.paymentStatus === 'paid_in_full') {
-    return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Paid in Full</span>
+    return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">Paid in Full</span>
   }
   if (lead.paymentStatus === 'deposit_received') {
-    return <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">Deposit Received</span>
+    return <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-700">Deposit Received</span>
   }
-  return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">Deposit Pending</span>
+  return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Deposit Pending</span>
 }
 
 function formatRouteAddress(address?: string, city?: string) {
@@ -277,7 +277,7 @@ function truckStatusColor(status?: TruckReservationStatus) {
 function TruckReservationBadge({ lead, quote }: { lead: CRMLead; quote?: CRMQuote | null }) {
   const status = lead.truckReservationStatus || (getQuotedTruckCount(lead, quote) ? 'needs_booking' : 'not_needed')
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${truckStatusColor(status)}`}>
+    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${truckStatusColor(status)}`}>
       {TRUCK_RESERVATION_STATUS_LABELS[status]}
     </span>
   )
@@ -288,7 +288,7 @@ function OpsProgressBadge({ lead }: { lead: CRMLead }) {
   const total = Object.keys(checklist).length
   const complete = countCompletedOpsChecklist(checklist)
   return (
-    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
       Ops {complete}/{total}
     </span>
   )
@@ -524,7 +524,7 @@ export default function OperationsPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <MoveDateBadge dateStr={moveDate} />
               {lead.branch && (
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${BRANCH_COLORS[lead.branch] || 'bg-slate-100 text-slate-600'}`}>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${BRANCH_COLORS[lead.branch] || 'bg-slate-100 text-slate-600'}`}>
                   {BRANCH_LABELS[lead.branch] || lead.branch}
                 </span>
               )}
@@ -537,7 +537,7 @@ export default function OperationsPage() {
             {!buildMoveOperatingPlan(lead, quote).ready && <span className="rounded bg-amber-100 px-2 text-xs text-amber-900">Operating review required</span>}
             {['completed', 'customer_success'].includes(lead.stage) && lead.operationalOutcome?.reviewStatus !== 'reviewed' && <span className="rounded bg-rose-100 px-2 text-xs text-rose-900">Actuals / learning pending</span>}
             <OpsProgressBadge lead={lead} />
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${readinessBadgeClasses(readiness.level)}`}>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${readinessBadgeClasses(readiness.level)}`}>
               {sharedReadiness.label} · {sharedReadiness.percent}%
             </span>
           </div>
@@ -546,7 +546,7 @@ export default function OperationsPage() {
         {/* Route */}
         <div className="text-sm text-slate-600">
           <span className="font-medium">{route.origin}</span>
-          <span className="mx-2 text-slate-400">→</span>
+          <span className="mx-2 text-slate-500">→</span>
           <span className="font-medium">{route.destination}</span>
         </div>
 
@@ -570,11 +570,11 @@ export default function OperationsPage() {
 
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Quote amount</div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Quote amount</div>
             <div className="mt-1 text-sm font-semibold text-[#071421]">{quote ? formatMoney(quote.total) : 'TBD'}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Estimated hours</div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Estimated hours</div>
             <div className="mt-1 text-sm font-semibold text-[#071421]">{estHours ? `~${estHours}h` : 'TBD'}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
@@ -733,22 +733,22 @@ export default function OperationsPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Ready to dispatch</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Ready to dispatch</div>
           <div className={`mt-2 text-2xl font-bold ${readyCount > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>{readyCount}</div>
           <div className="mt-1 text-xs text-slate-500">Booked upcoming moves with checklist complete</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Needs briefing</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Needs briefing</div>
           <div className={`mt-2 text-2xl font-bold ${missingBriefingCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{missingBriefingCount}</div>
           <div className="mt-1 text-xs text-slate-500">Crew packet still needs to be generated or checked</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Missing trucks</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Missing trucks</div>
           <div className={`mt-2 text-2xl font-bold ${missingTruckCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{missingTruckCount}</div>
           <div className="mt-1 text-xs text-slate-500">Booked moves still waiting on a reservation</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Missing crew</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Missing crew</div>
           <div className={`mt-2 text-2xl font-bold ${missingCrewCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{missingCrewCount}</div>
           <div className="mt-1 text-xs text-slate-500">Booked moves without an assigned team</div>
         </div>
@@ -759,13 +759,13 @@ export default function OperationsPage() {
       )}
 
       {loading ? (
-        <div className="crm-panel p-16 text-center text-sm text-slate-400">Loading jobs...</div>
+        <div className="crm-panel p-16 text-center text-sm text-slate-500">Loading jobs...</div>
       ) : jobs.length === 0 ? (
-        <div className="crm-panel p-16 text-center text-sm text-slate-400">
+        <div className="crm-panel p-16 text-center text-sm text-slate-500">
           No booked jobs found. Jobs appear here when leads are marked Booked with a deposit.
         </div>
       ) : filteredJobs.length === 0 ? (
-        <div className="crm-panel p-16 text-center text-sm text-slate-400">
+        <div className="crm-panel p-16 text-center text-sm text-slate-500">
           No booked jobs match the current filters.
         </div>
       ) : viewMode === 'calendar' ? (
@@ -1085,7 +1085,7 @@ function JobsCalendar({
                     {cell.day}
                   </div>
                   {dayJobs.length > 0 && (
-                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${
+                    <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] ${
                       hasReadinessGap ? 'bg-amber-100 text-amber-800' :
                       'bg-emerald-100 text-emerald-700'
                     }`}>
@@ -1109,7 +1109,7 @@ function JobsCalendar({
                         setSelectedJob(isSelected ? null : job)
                         setSelectedOccurrence(isSelected ? null : occurrence)
                       }}
-                      className={`w-full rounded-md px-1.5 py-1 text-left text-[10px] font-semibold leading-tight transition hover:opacity-80 ${branchColor}`}
+                      className={`w-full rounded-md px-1.5 py-1 text-left text-[11px] font-semibold leading-tight transition hover:opacity-80 ${branchColor}`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <span className="truncate">{job.lead.name}</span>
@@ -1147,7 +1147,7 @@ function JobsCalendar({
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg font-bold text-[#071421]">{selectedJob.lead.name}</span>
                 {selectedJob.lead.branch && (
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${BRANCH_COLORS[selectedJob.lead.branch] || 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${BRANCH_COLORS[selectedJob.lead.branch] || 'bg-slate-100 text-slate-600'}`}>
                     {BRANCH_LABELS[selectedJob.lead.branch] || selectedJob.lead.branch}
                   </span>
                 )}
@@ -1155,7 +1155,7 @@ function JobsCalendar({
                 <TruckReservationBadge lead={selectedJob.lead} quote={selectedJob.quote} />
                 <OpsProgressBadge lead={selectedJob.lead} />
                 {selectedReadiness && selectedJobReadiness ? (
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${readinessBadgeClasses(selectedReadiness.level)}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${readinessBadgeClasses(selectedReadiness.level)}`}>
                     {selectedJobReadiness.label} · {selectedJobReadiness.percent}%
                   </span>
                 ) : null}
@@ -1169,7 +1169,7 @@ function JobsCalendar({
                 setSelectedJob(null)
                 setSelectedOccurrence(null)
               }}
-              className="text-slate-400 hover:text-slate-600"
+              className="text-slate-500 hover:text-slate-600"
             >
               ✕
             </button>
@@ -1178,7 +1178,7 @@ function JobsCalendar({
           <OperatingPlanPanel lead={selectedJob.lead} quote={selectedJob.quote} onSaved={lead => { onJobUpdate(lead, selectedJob.quote); setSelectedJob({ ...selectedJob, lead }) }} />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
                 {selectedOccurrence?.legLabel || 'Move date'}
               </div>
               <div className="mt-1 text-sm font-semibold text-[#071421]">
@@ -1191,19 +1191,19 @@ function JobsCalendar({
             </div>
             {selectedJob.quote?.crewSize && (
               <div className="rounded-xl bg-slate-50 p-3">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew size</div>
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Crew size</div>
                 <div className="mt-1 text-sm font-semibold text-[#071421]">{selectedJob.quote.crewSize} movers</div>
               </div>
             )}
             {getQuotedTruckCount(selectedJob.lead, selectedJob.quote) && (
               <div className="rounded-xl bg-slate-50 p-3">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Trucks</div>
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Trucks</div>
                 <div className="mt-1 text-sm font-semibold text-[#071421]">{getTruckPlanLabel(selectedJob.lead, selectedJob.quote)}</div>
               </div>
             )}
             {selectedJob.quote?.estimatedHours && (
               <div className="rounded-xl bg-slate-50 p-3">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Est. hours</div>
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Est. hours</div>
                 <div className="mt-1 text-sm font-semibold text-[#071421]">~{selectedJob.quote.estimatedHours}h</div>
               </div>
             )}
@@ -1219,12 +1219,12 @@ function JobsCalendar({
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Truck reservation</div>
+              <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Truck reservation</div>
               <div className="mt-2 text-sm font-semibold text-[#071421]">{getTruckPlanLabel(selectedJob.lead, selectedJob.quote)}</div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <TruckReservationBadge lead={selectedJob.lead} quote={selectedJob.quote} />
                 {selectedJob.lead.truckVendor && (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                     {TRUCK_VENDOR_LABELS[selectedJob.lead.truckVendor]}
                   </span>
                 )}
@@ -1237,7 +1237,7 @@ function JobsCalendar({
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Readiness</div>
+              <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Readiness</div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
                 <span className={selectedChecklist?.crewAssigned ? 'font-semibold text-emerald-700' : ''}>Crew assigned</span>
                 <span className={selectedChecklist?.truckReserved ? 'font-semibold text-emerald-700' : ''}>Truck reserved</span>
@@ -1268,7 +1268,7 @@ function JobsCalendar({
 
           {(selectedJob.lead.assignedCrew?.length ?? 0) > 0 && (
             <div>
-              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Assigned crew</div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-slate-500">Assigned crew</div>
               <div className="flex flex-wrap gap-1.5 text-xs text-[#071421]">
                 {getCrewNames(selectedJob.lead, crewPool).join(', ')}
               </div>
@@ -1277,7 +1277,7 @@ function JobsCalendar({
 
           {(selectedJob.lead.crewHours?.length ?? 0) > 0 && (
             <div>
-              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew hours</div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-slate-500">Crew hours</div>
               <div className="flex flex-wrap gap-1.5 text-xs text-slate-600">
                 {selectedJob.lead.crewHours!.map(entry => (
                   <span key={entry.userId} className="rounded-full bg-slate-100 px-2 py-1">
@@ -1291,7 +1291,7 @@ function JobsCalendar({
           {(selectedJob.lead.crewPayouts?.length ?? 0) > 0 && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew pay sheet</div>
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Crew pay sheet</div>
                 <div className="text-xs font-semibold text-[#071421]">{formatMoney(sumCrewPayoutTotal(selectedJob.lead.crewPayouts))}</div>
               </div>
               <div className="mt-3 space-y-2">
@@ -1301,7 +1301,7 @@ function JobsCalendar({
                     <div key={entry.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="font-semibold text-[#071421]">{entry.workerName}</div>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                           {CREW_PAYOUT_STATUS_LABELS[entry.payoutStatus || 'submitted']}
                         </span>
                       </div>
@@ -1329,7 +1329,7 @@ function JobsCalendar({
           )}
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Actual Hours / Overage</div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Actual Hours / Overage</div>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               <div>
                 <div className="text-[11px] font-semibold text-slate-500">Actual hours</div>
@@ -1385,13 +1385,13 @@ function JobsCalendar({
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Move Execution Log</div>
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Move Execution Log</div>
                 <div className="mt-1 text-xs text-slate-500">
                   Capture actual timing so the estimator learns where the move ran tight or loose.
                 </div>
               </div>
               {selectedJob.lead.moveExecutionLog?.varianceHours !== undefined && (
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                   selectedJob.lead.moveExecutionLog.varianceHours > 0.5
                     ? 'bg-rose-100 text-rose-700'
                     : selectedJob.lead.moveExecutionLog.varianceHours < -0.5
@@ -1489,7 +1489,7 @@ function JobsCalendar({
                   {selectedJob.lead.moveExecutionLog!.issues!.map(issue => (
                     <div key={issue.id} className="rounded-md bg-white px-2 py-1">
                       <span className="font-semibold capitalize">{issue.category.replace(/_/g, ' ')}</span>
-                      <span className="text-slate-400"> · {issue.severity}</span>
+                      <span className="text-slate-500"> · {issue.severity}</span>
                       <span> — {issue.note}</span>
                     </div>
                   ))}
@@ -1779,7 +1779,7 @@ function CrewAssignModal({
         </div>
         <div className="p-6 space-y-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Quoted truck plan</div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Quoted truck plan</div>
             <div className="mt-1 text-sm font-semibold text-[#071421]">{getTruckPlanLabel(job.lead, job.quote)}</div>
             <div className="mt-1 text-xs text-slate-500">Truck count is pulled directly from the quote and cannot be changed here.</div>
           </div>
@@ -1787,7 +1787,7 @@ function CrewAssignModal({
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-4">
               <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew assignment</div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">Crew assignment</div>
                 <div className="space-y-2">
                   {crewPool.map(member => (
                     <label key={member.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50 transition">
@@ -1802,12 +1802,12 @@ function CrewAssignModal({
                       </div>
                       <div>
                         <div className="text-sm font-medium text-[#071421]">{member.name}</div>
-                        <div className="text-xs capitalize text-slate-400">{member.role.replace('_', ' ')}</div>
+                        <div className="text-xs capitalize text-slate-500">{member.role.replace('_', ' ')}</div>
                       </div>
                     </label>
                   ))}
                   {crewPool.length === 0 && (
-                    <p className="text-sm text-slate-400">No crew members added yet. Go to Team → Add Team Member.</p>
+                    <p className="text-sm text-slate-500">No crew members added yet. Go to Team → Add Team Member.</p>
                   )}
                 </div>
               </div>
@@ -1824,7 +1824,7 @@ function CrewAssignModal({
 
               {selected.length > 0 && (
                 <div>
-                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew hours</div>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">Crew hours</div>
                   <div className="space-y-2">
                     {selected.map(userId => {
                       const member = crewPool.find(item => item.id === userId)
@@ -1832,7 +1832,7 @@ function CrewAssignModal({
                         <div key={userId} className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium text-[#071421]">{member?.name || `Crew #${userId.slice(-4)}`}</div>
-                            <div className="text-xs capitalize text-slate-400">{member?.role?.replace('_', ' ') || 'crew'}</div>
+                            <div className="text-xs capitalize text-slate-500">{member?.role?.replace('_', ' ') || 'crew'}</div>
                           </div>
                           <input
                             type="number"
@@ -1853,7 +1853,7 @@ function CrewAssignModal({
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew pay sheet</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Crew pay sheet</div>
                     <div className="mt-1 text-xs text-slate-500">Submit the workers, hours, and reimbursement details for this move. Finance will review before payout.</div>
                   </div>
                   <div className="flex gap-2">
@@ -1882,7 +1882,7 @@ function CrewAssignModal({
 
                 <div className="mt-3 space-y-3">
                   {payoutEntries.length === 0 && (
-                    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-sm text-slate-400">
+                    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-4 text-sm text-slate-500">
                       No payout entries added yet.
                     </div>
                   )}
@@ -1894,7 +1894,7 @@ function CrewAssignModal({
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-xs font-semibold text-[#071421]">{entry.workerName || `Worker ${index + 1}`}</div>
                           <div className="flex items-center gap-2">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                               entry.dispatchStatus === 'confirmed' && !acknowledgementStale ? 'bg-emerald-100 text-emerald-700' :
                               entry.dispatchStatus === 'declined' ? 'bg-rose-100 text-rose-700' :
                               entry.dispatchStatus === 'sent' ? 'bg-sky-100 text-sky-700' :
@@ -1902,7 +1902,7 @@ function CrewAssignModal({
                             }`}>
                               {acknowledgementStale ? 'Reconfirmation required' : CREW_DISPATCH_STATUS_LABELS[entry.dispatchStatus || 'pending']}
                             </span>
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                               {CREW_PAYOUT_STATUS_LABELS[entry.payoutStatus || 'submitted']}
                             </span>
                             <button type="button" onClick={() => removePayoutEntry(index)} className="text-slate-300 hover:text-rose-500 transition">✕</button>
@@ -2032,7 +2032,7 @@ function CrewAssignModal({
                           <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="min-w-0">
-                                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Crew dispatch link</div>
+                                <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Crew dispatch link</div>
                                 <div className="truncate text-xs text-slate-500">{getCrewDispatchUrl(entry) || 'Save to generate link'}</div>
                               </div>
                               <button
@@ -2132,7 +2132,7 @@ function CrewAssignModal({
               )}
 
               <div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pre-move dispatch checklist</div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">Pre-move dispatch checklist</div>
                 <div className={`mb-3 rounded-xl border px-4 py-3 text-sm ${
                   accessAssessment.status === 'clear'
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-800'

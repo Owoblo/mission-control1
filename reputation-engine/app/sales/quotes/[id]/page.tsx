@@ -14,6 +14,7 @@ import { getReceiptBrand } from '@/lib/receipt-brand'
 import { quoteCommercialSnapshotChanged } from '@/lib/quote-pricing-safety'
 import type { QuoteSendJob } from '@/lib/quote-send-jobs'
 import type { CRMClient, CRMLead, CRMQuote, FollowUpLog, QuoteLineItem } from '@/lib/types'
+import { ConfirmDialog } from '@/app/components/confirm-dialog'
 
 function plusDays(days: number) {
   const date = new Date()
@@ -117,6 +118,8 @@ export default function SalesQuoteDetailPage() {
   const [sendChannel, setSendChannel] = useState<'email' | 'sms'>('email')
   const [lineItems, setLineItems] = useState<QuoteLineItem[]>([])
   const [validDays, setValidDays] = useState(30)
+  // Confirm-before-accept gate for the one-tap "Accept on Behalf" money action.
+  const [confirmingAcceptOnBehalf, setConfirmingAcceptOnBehalf] = useState(false)
   const [depositRate, setDepositRate] = useState(30)
   const [paymentTerms, setPaymentTerms] = useState<CRMQuote['paymentTerms']>('deposit_required')
   const [discountAmount, setDiscountAmount] = useState(0)
@@ -576,6 +579,12 @@ ${brand.fullName}`
   async function acceptOnBehalf() {
     if (!quote) return
     if (!ensureQuoteEditable()) return
+    setConfirmingAcceptOnBehalf(true)
+  }
+
+  async function executeAcceptOnBehalf() {
+    if (!quote) return
+    setConfirmingAcceptOnBehalf(false)
     try {
       setSaveBusy(true)
       const result = await updateSalesQuote(quote.id, buildQuotePricingUpdates({
@@ -915,11 +924,11 @@ ${brand.fullName}`
               · {quote.originCity || '—'} → {quote.destCity || '—'}
             </span>
           )}
-          <span className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-0.5 text-[10px] font-semibold text-[var(--app-muted)]">
+          <span className="rounded-full border border-[var(--app-line)] bg-white px-2.5 py-0.5 text-[11px] font-semibold text-[var(--app-muted)]">
             Owner: {quoteOwnerName}
           </span>
           {!canEditQuoteWorkspace ? (
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
               View only
             </span>
           ) : null}
@@ -1381,18 +1390,18 @@ ${brand.fullName}`
               )}
               {/* Price confirmation */}
               <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Confirm Price Being Sent</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)] mb-2">Confirm Price Being Sent</div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <div className="text-[10px] text-[var(--app-muted)]">Subtotal</div>
+                    <div className="text-[11px] text-[var(--app-muted)]">Subtotal</div>
                     <div className="text-base font-semibold text-[var(--app-ink)]">{formatMoney(quoteTotals.subtotal)}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-[var(--app-muted)]">HST (13%)</div>
+                    <div className="text-[11px] text-[var(--app-muted)]">HST (13%)</div>
                     <div className="text-base font-semibold text-[var(--app-ink)]">{formatMoney(quoteTotals.hst)}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-[var(--app-muted)]">Total incl. HST</div>
+                    <div className="text-[11px] text-[var(--app-muted)]">Total incl. HST</div>
                     <div className="text-base font-bold text-[#071421]">{formatMoney(quoteTotals.total)}</div>
                   </div>
                 </div>
@@ -1424,6 +1433,15 @@ ${brand.fullName}`
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmingAcceptOnBehalf}
+        title="Accept this quote on the customer's behalf?"
+        message={`This marks the ${quote?.number || 'quote'} as accepted for ${formatMoney(quoteTotals.total)} (tax included) and moves it toward booking. Only do this with the customer's explicit agreement.`}
+        confirmLabel="Accept on behalf"
+        busy={saveBusy}
+        onConfirm={() => void executeAcceptOnBehalf()}
+        onCancel={() => setConfirmingAcceptOnBehalf(false)}
+      />
     </div>
   )
 }

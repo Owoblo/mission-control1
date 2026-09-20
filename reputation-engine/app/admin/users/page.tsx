@@ -168,11 +168,11 @@ export default function AdminUsersPage() {
 
       {/* Users list */}
       {loading ? (
-        <div className="crm-panel p-12 text-center text-sm text-slate-400">Loading team...</div>
+        <div className="crm-panel p-12 text-center text-sm text-slate-500">Loading team...</div>
       ) : (
         <div className="crm-panel divide-y divide-slate-100">
           {users.length === 0 ? (
-            <div className="px-5 py-12 text-center text-sm text-slate-400">
+            <div className="px-5 py-12 text-center text-sm text-slate-500">
               No team members yet. Add your first team member above.
             </div>
           ) : users.map(u => (
@@ -183,16 +183,16 @@ export default function AdminUsersPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-[#071421]">{u.name}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_COLORS[u.role]}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${ROLE_COLORS[u.role]}`}>
                     {ROLE_LABELS[u.role]}
                   </span>
                   {u.branch && (
-                    <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                    <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
                       {BRANCH_LABELS[u.branch] || u.branch}
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-slate-400">{u.email}</div>
+                <div className="text-xs text-slate-500">{u.email}</div>
               </div>
               <div className="flex shrink-0 gap-2">
                 <button
@@ -272,7 +272,7 @@ export default function AdminUsersPage() {
 
               {(form.role === 'partnership_manager' || form.role === 'operations_lead' || form.role === 'crew') && (
                 <label className="block">
-                  <span className="crm-label">Branch <span className="font-normal text-slate-400">(which market this person manages)</span></span>
+                  <span className="crm-label">Branch <span className="font-normal text-slate-500">(which market this person manages)</span></span>
                   <select
                     className="crm-input mt-1"
                     value={form.branch}
@@ -288,7 +288,7 @@ export default function AdminUsersPage() {
               )}
 
               <label className="block">
-                <span className="crm-label">Password {editUser && <span className="font-normal text-slate-400">(leave blank to keep current)</span>}</span>
+                <span className="crm-label">Password {editUser && <span className="font-normal text-slate-500">(leave blank to keep current)</span>}</span>
                 <input
                   className="crm-input mt-1"
                   type="password"

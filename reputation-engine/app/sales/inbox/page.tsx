@@ -1201,7 +1201,7 @@ function SalesInboxPageInner() {
               <div className="flex min-h-0 flex-1 h-full">
                 <aside className="hidden w-[72px] shrink-0 flex-col border-r border-[var(--app-line)] bg-[var(--app-bg)] py-3 md:flex">
                   <div className="mb-3 px-3">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--app-muted)]">Inbox</div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--app-muted)]">Inbox</div>
                   </div>
                   {([
                     { id: 'queue',    label: 'Action',   icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><circle cx="10" cy="10" r="3"/><path d="M10 3v2M10 15v2M3 10h2M15 10h2M5.05 5.05l1.41 1.41M13.54 13.54l1.41 1.41M5.05 14.95l1.41-1.41M13.54 6.46l1.41-1.41"/></svg>, count: sectionCounts.live },
@@ -1225,9 +1225,9 @@ function SalesInboxPageInner() {
                         }`}
                       >
                         <span className="flex items-center justify-center">{tab.icon}</span>
-                        <span className="text-[9px] font-semibold leading-none">{tab.label}</span>
+                        <span className="text-[11px] font-semibold leading-none">{tab.label}</span>
                         {tab.count > 0 && tab.id !== 'handoffs' && tab.id !== 'closed' && (
-                          <span className={`absolute right-0 top-1 text-[9px] font-semibold ${active ? 'text-[var(--app-accent)]' : 'text-[var(--app-muted)]'}`}>
+                          <span className={`absolute right-0 top-1 text-[11px] font-semibold ${active ? 'text-[var(--app-accent)]' : 'text-[var(--app-muted)]'}`}>
                             {tab.count > 9 ? '9+' : tab.count}
                           </span>
                         )}
@@ -1361,7 +1361,7 @@ function SalesInboxPageInner() {
                         <span className="text-[11px] font-bold text-white uppercase tracking-wide">
                           🚨 {fresh.length} new lead{fresh.length > 1 ? 's' : ''} just in — respond before anything else
                         </span>
-                        <div className="text-[10px] text-rose-100 mt-0.5">
+                        <div className="text-[11px] text-rose-100 mt-0.5">
                           {fresh.map(i => i.matchedLeadName || i.name || i.phone || 'Unknown').slice(0, 3).join(' · ')}
                           {fresh.length > 3 ? ` + ${fresh.length - 3} more` : ''}
                         </div>
@@ -1400,11 +1400,11 @@ function SalesInboxPageInner() {
                       <p className="text-sm font-medium text-[var(--app-ink)] line-clamp-1">{displayEmailSubject(em.subject)}</p>
                       <p className="mt-0.5 text-xs text-[var(--app-muted)] line-clamp-1">{em.body?.slice(0, 120)}</p>
                       <div className="mt-2 flex gap-2">
-                        <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${em.direction === 'inbound' ? 'border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] text-[var(--app-warm)]' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
+                        <span className={`rounded-[4px] border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${em.direction === 'inbound' ? 'border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] text-[var(--app-warm)]' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-muted)]'}`}>
                           {em.direction === 'inbound' ? '← Received' : '→ Sent'}
                         </span>
                         {em.templateType && (
-                          <span className="rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--app-muted)]">
+                          <span className="rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-muted)]">
                             {em.templateType.replace(/_/g, ' ')}
                           </span>
                         )}
@@ -1422,10 +1422,10 @@ function SalesInboxPageInner() {
                         <input autoFocus value={smsNewChatPhone} onChange={e => setSmsNewChatPhone(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter' && smsNewChatPhone.trim()) { const d = smsNewChatPhone.replace(/\D/g,''); const p = d.length === 10 ? `+1${d}` : d.length === 11 && d.startsWith('1') ? `+${d}` : smsNewChatPhone; setSelectedThread(p); setSmsNewChatOpen(false); setSmsNewChatPhone('') } if (e.key === 'Escape') setSmsNewChatOpen(false) }}
                           placeholder="Enter phone number..." className="crm-input flex-1 text-xs py-1" />
-                        <button onClick={() => setSmsNewChatOpen(false)} className="text-[10px] text-[var(--app-muted)] px-1">✕</button>
+                        <button onClick={() => setSmsNewChatOpen(false)} className="text-[11px] text-[var(--app-muted)] px-1">✕</button>
                       </div>
                     ) : (
-                      <button onClick={() => setSmsNewChatOpen(true)} className="ml-auto rounded-[5px] bg-[var(--app-accent)] px-2.5 py-1 text-[10px] font-semibold text-white hover:opacity-90">+ New</button>
+                      <button onClick={() => setSmsNewChatOpen(true)} className="ml-auto rounded-[5px] bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90">+ New</button>
                     )}
                   </div>
                   {threadsLoading ? (
@@ -1449,21 +1449,21 @@ function SalesInboxPageInner() {
                             {thread.leadName || formatPhoneDisplay(thread.contactPhone)}
                           </span>
                           {thread.unreadCount > 0 && (
-                            <span className="shrink-0 rounded-full bg-[var(--app-accent)] px-1.5 text-[9px] font-bold text-white">{thread.unreadCount}</span>
+                            <span className="shrink-0 rounded-full bg-[var(--app-accent)] px-1.5 text-[11px] font-bold text-white">{thread.unreadCount}</span>
                           )}
                           {!thread.unread && thread.lastReadAt ? (
-                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">
+                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
                               Read{thread.lastReadByName ? ` · ${thread.lastReadByName}` : ''}
                             </span>
                           ) : null}
                           {outboundOnly && (
-                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">No reply</span>
+                            <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">No reply</span>
                           )}
                           {thread.partnerOpportunity && (
-                            <span className="shrink-0 rounded-[3px] border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sky-700">Partner handoff</span>
+                            <span className="shrink-0 rounded-[3px] border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[11px] font-bold uppercase text-sky-700">Partner handoff</span>
                           )}
                         </div>
-                        <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
+                        <span className="shrink-0 text-[11px] text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
                       </div>
                       <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--app-muted)]">
                         {thread.leadName && <span className="truncate">{formatPhoneDisplay(thread.contactPhone)}</span>}
@@ -1539,24 +1539,24 @@ function SalesInboxPageInner() {
                                         ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--app-accent)]" />
                                         : null}
                                 <span className={`truncate text-sm font-semibold ${status === 'needs_action' && unread ? 'text-[var(--app-ink)]' : 'text-[var(--app-muted)]'}`}>{displayLeadName(item)}</span>
-                                {item.matchedLeadId && <span className="shrink-0 rounded-[3px] bg-sky-100 px-1.5 py-0.5 text-[9px] font-semibold text-sky-700">EXISTING</span>}
+                                {item.matchedLeadId && <span className="shrink-0 rounded-[3px] bg-sky-100 px-1.5 py-0.5 text-[11px] font-semibold text-sky-700">EXISTING</span>}
                                 {!unread && readMeta?.lastReadAt ? (
-                                  <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">
+                                  <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
                                     Read{readMeta.lastReadByName ? ` · ${readMeta.lastReadByName}` : ''}
                                   </span>
                                 ) : null}
                               </div>
                               {/* Live urgency timer or regular timestamp */}
                               {tier === 'live' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">LIVE · {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded-[3px] bg-emerald-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">LIVE · {liveTimer(secs)}</span>
                               ) : tier === 'warning' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">⚠ {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded-[3px] bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">⚠ {liveTimer(secs)}</span>
                               ) : tier === 'urgent' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">⚠ URGENT · {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded-[3px] bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">⚠ URGENT · {liveTimer(secs)}</span>
                               ) : tier === 'overdue' && !selectedState ? (
-                                <span className="shrink-0 rounded-[3px] bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wide">OVERDUE · {liveTimer(secs)}</span>
+                                <span className="shrink-0 rounded-[3px] bg-rose-700 px-1.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">OVERDUE · {liveTimer(secs)}</span>
                               ) : (
-                                <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{timeAgo(getInboundActionTimestamp(item, raw))}</span>
+                                <span className="shrink-0 text-[11px] text-[var(--app-muted)]">{timeAgo(getInboundActionTimestamp(item, raw))}</span>
                               )}
                             </div>
                             <p className="mt-0.5 line-clamp-1 text-xs text-[var(--app-muted)]">
@@ -1565,7 +1565,7 @@ function SalesInboxPageInner() {
                             <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--app-muted)] opacity-70">
                               {getLeadSummary(item, raw)}
                             </p>
-                            <span className={`rounded-[3px] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${actionMeta.className}`}>
+                            <span className={`rounded-[3px] px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${actionMeta.className}`}>
                               {actionMeta.label}
                             </span>
                           </button>
@@ -1651,7 +1651,7 @@ function SalesInboxPageInner() {
                                   <div className="flex shrink-0 items-center gap-2">
                                     <span className="text-xs text-[var(--app-muted)]">{formatAbsoluteTime(msg.sentAt)}</span>
                                     {idx === 0 && msg.direction === 'inbound' && isUnreadEmail(msg) && (
-                                      <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[var(--app-warm)]">New</span>
+                                      <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[11px] font-semibold uppercase text-[var(--app-warm)]">New</span>
                                     )}
                                   </div>
                                 </div>
@@ -1713,7 +1713,7 @@ function SalesInboxPageInner() {
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="text-base font-semibold text-[var(--app-ink)]">{thread.leadName || formatPhoneDisplay(thread.contactPhone)}</div>
                             {thread.leadStage ? (
-                              <span className="rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
+                              <span className="rounded-[4px] border border-[var(--app-line)] bg-[var(--app-bg)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--app-muted)]">
                                 {thread.leadStage.replace(/_/g, ' ')}
                               </span>
                             ) : null}
@@ -1746,7 +1746,7 @@ function SalesInboxPageInner() {
                           <div key={msg.id} className={`flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${index === 0 ? '' : groupedWithPrevious ? 'mt-1' : 'mt-6'}`}>
                             <div className={`max-w-[min(78%,620px)] min-w-0 px-4 py-3 text-base leading-[1.5] lg:text-sm ${msg.direction === 'outbound' ? `bg-[#0f6a53] text-white ${groupedWithPrevious ? 'rounded-tr-md' : 'rounded-tr-[18px]'} ${groupedWithNext ? 'rounded-br-md' : 'rounded-br-[18px]'} rounded-l-[18px]` : `bg-[#f1f3f5] text-[#111827] ${groupedWithPrevious ? 'rounded-tl-md' : 'rounded-tl-[18px]'} ${groupedWithNext ? 'rounded-bl-md' : 'rounded-bl-[18px]'} rounded-r-[18px]`}`}>
                               <p className="whitespace-pre-wrap break-words">{msg.body}</p>
-                              <p className={`mt-1 text-[10px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
+                              <p className={`mt-1 text-[11px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
                                 {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               </p>
                             </div>
@@ -1770,9 +1770,9 @@ function SalesInboxPageInner() {
                                 {f.type.startsWith('image/') ? (
                                   <img src={URL.createObjectURL(f)} alt={f.name} className="h-14 w-14 rounded-[6px] object-cover" />
                                 ) : (
-                                  <div className="h-14 w-14 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[9px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,10)}</div>
+                                  <div className="h-14 w-14 rounded-[6px] bg-[var(--app-bg)] flex items-center justify-center text-[11px] text-[var(--app-muted)] text-center px-1">{f.name.slice(0,10)}</div>
                                 )}
-                                <button onClick={() => setSmsMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-xl bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">×</button>
+                                <button onClick={() => setSmsMediaFiles(fs => fs.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 h-4 w-4 rounded-xl bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center">×</button>
                               </div>
                             ))}
                           </div>
@@ -1781,7 +1781,7 @@ function SalesInboxPageInner() {
                           <button onClick={() => smsFileInputRef.current?.click()} title="Attach image or video"
                             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-base transition hover:bg-slate-50 lg:h-11 lg:w-11">📎</button>
                           <textarea
-                            className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:bg-white lg:text-sm"
+                            className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] outline-none transition placeholder:text-slate-500 focus:border-slate-300 focus:bg-white lg:text-sm"
                             rows={2}
                             placeholder={smsMediaFiles.length > 0 ? 'Add a caption...' : 'Type a reply...'}
                             value={smsReply}
@@ -1823,26 +1823,26 @@ function SalesInboxPageInner() {
                         <div className="flex items-center gap-2">
                           <h2 className="text-base font-semibold text-[var(--app-ink)]">{displayLeadName(selected)}</h2>
                           {selected.matchedLeadId && !selected.linkedLeadId ? (
-                            <span className="rounded-[4px] border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
+                            <span className="rounded-[4px] border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-sky-700">
                               Existing Lead
                             </span>
                           ) : null}
                           {selectedBranch.branchLabel ? (
-                            <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
+                            <span className="rounded-[4px] border border-[rgba(15,106,83,0.2)] bg-[rgba(15,106,83,0.08)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--app-accent)]">
                               {selectedBranch.branchLabel}
                             </span>
                           ) : null}
                           {selectedIsQrLead ? (
-                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-700">
                               QR / Direct Mail
                             </span>
                           ) : selectedBranch.trackingLabel ? (
-                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                            <span className="rounded-[4px] border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-700">
                               {selectedBranch.trackingLabel}
                             </span>
                           ) : null}
                           {selectedActionMeta ? (
-                            <span className={`rounded-[4px] border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${selectedActionMeta.className}`}>
+                            <span className={`rounded-[4px] border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${selectedActionMeta.className}`}>
                               {selectedStatus === 'recent_handoff' ? 'Recent Handoff' : selectedActionMeta.label}
                             </span>
                           ) : null}
@@ -1961,7 +1961,7 @@ function SalesInboxPageInner() {
                         {selected.phone && (
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
                             <div className="mb-2 flex items-center justify-between">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">SMS Reply</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">SMS Reply</div>
                               <button onClick={() => setScGoalOpen(scGoalOpen === 'sms' ? null : 'sms')} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--app-accent)] hover:bg-[var(--app-bg)] lg:min-h-8 lg:text-xs">✦ Smart Compose</button>
                             </div>
                             {scGoalOpen === 'sms' && (
@@ -1986,17 +1986,17 @@ function SalesInboxPageInner() {
                         {/* Conversation history */}
                         {threadEvents.length > 0 && (
                           <div className="rounded-[8px] border border-[var(--app-line)] bg-white p-3">
-                            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">History with this contact</div>
+                            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">History with this contact</div>
                             <div className="space-y-2">
                               {threadEvents.map(event => (
                                 <div key={event.id} className="flex items-start gap-2 border-b border-[var(--app-line)] pb-2 last:border-0 last:pb-0">
-                                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--app-bg)] text-[9px] font-bold text-[var(--app-muted)]">
+                                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--app-bg)] text-[11px] font-bold text-[var(--app-muted)]">
                                     {event.actor.slice(0, 1).toUpperCase()}
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--app-muted)]">{event.type}</span>
-                                      <span className="text-[10px] text-[var(--app-muted)]">{timeAgo(event.time)}</span>
+                                      <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--app-muted)]">{event.type}</span>
+                                      <span className="text-[11px] text-[var(--app-muted)]">{timeAgo(event.time)}</span>
                                     </div>
                                     <p className="mt-0.5 line-clamp-2 text-[11px] text-[var(--app-muted)]">{event.body}</p>
                                   </div>
@@ -2043,19 +2043,19 @@ function SalesInboxPageInner() {
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
                             <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Contact</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Contact</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{selected.phone ? formatPhoneDisplay(selected.phone) : selected.email || '—'}</div>
                             </div>
                             <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">How they found us</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">How they found us</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{selectedIsQrLead ? 'QR / Direct Mail' : selectedBranch.trackingLabel || SOURCE_LABELS[selected.source] || 'Direct'}</div>
                             </div>
                             <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Inbound line</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Inbound line</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{selectedBranch.branchLabel || 'Primary'}</div>
                             </div>
                             <div className="rounded-[8px] bg-[var(--app-bg)] px-4 py-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">What to do next</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">What to do next</div>
                               <div className="mt-1.5 text-sm font-semibold text-[var(--app-ink)]">{aiSummary?.nextAction || (selected.phone ? 'Call now — get route + details.' : 'Reply and collect route.')}</div>
                             </div>
                           </div>
@@ -2110,7 +2110,7 @@ function SalesInboxPageInner() {
                             {threadEvents.map((event, index) => (
                               <div key={event.id} className="relative pl-12">
                                 {index !== threadEvents.length - 1 ? <div className="absolute left-[15px] top-8 bottom-[-26px] w-px bg-[var(--app-line)]" /> : null}
-                                <div className="absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--app-line)] bg-[var(--app-panel)] text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">
+                                <div className="absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--app-line)] bg-[var(--app-panel)] text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">
                                   {event.actor.slice(0, 1)}
                                 </div>
                                 <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)] p-4">

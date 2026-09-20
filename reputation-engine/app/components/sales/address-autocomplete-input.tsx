@@ -125,7 +125,7 @@ export function SalesAddressAutocompleteInput({
                 {suggestion.placeType === 'apartment' ? '🏢' : suggestion.placeType === 'commercial' ? '🏬' : '🏠'}
               </span>
               <span className="min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-[var(--app-ink)]">{suggestion.label}</span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${suggestion.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${suggestion.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                 {suggestion.countryCode === 'ca' ? 'Canada' : suggestion.countryCode === 'us' ? 'USA' : suggestion.country || 'Address'}
               </span>
             </button>

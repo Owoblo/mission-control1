@@ -148,7 +148,7 @@ export function LeadCommunicationsPanel({
           >
             Emails
             {inboundEmailCount > 0 ? (
-              <span className="rounded-full bg-[rgba(34,72,56,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--app-accent)]">
+              <span className="rounded-full bg-[rgba(34,72,56,0.1)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--app-accent)]">
                 {inboundEmailCount}
               </span>
             ) : null}
@@ -157,16 +157,16 @@ export function LeadCommunicationsPanel({
         {lead.phone ? (
           <button
             onClick={() => onTabChange('sms')}
-            className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition lg:min-h-9 ${activeTab === 'sms' ? 'border-[#C99700] text-[#C99700]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
+            className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-3 pb-3 pt-1 text-sm font-medium transition lg:min-h-9 ${activeTab === 'sms' ? 'border-[#C99700] text-[var(--app-warm)]' : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-ink)]'}`}
           >
             💬 SMS
             {inboundSmsCount > 0 ? (
-              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white" style={{ background: '#C99700' }}>
+              <span className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-white" style={{ background: '#C99700' }}>
                 {inboundSmsCount}
               </span>
             ) : null}
             {smsThread.hasNewMessage && activeTab !== 'sms' ? (
-              <span className="animate-pulse rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white">New!</span>
+              <span className="animate-pulse rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white">New!</span>
             ) : null}
           </button>
         ) : null}
@@ -213,7 +213,7 @@ export function LeadCommunicationsPanel({
                             {message.direction === 'inbound' ? (lead.name || message.from) : 'Saturn Star Movers'}
                           </span>
                           {index === 0 && message.direction === 'inbound' ? (
-                            <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--app-warm)]">New</span>
+                            <span className="rounded-[4px] border border-[var(--app-warm)] bg-[rgba(245,166,35,0.1)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--app-warm)]">New</span>
                           ) : null}
                         </div>
                         <span className="shrink-0 text-xs text-[var(--app-muted)]">
@@ -384,7 +384,7 @@ export function LeadCommunicationsPanel({
                           </div>
                         ) : null}
                       </div>
-                      <div className="mt-0.5 px-1 text-[10px] text-[var(--app-muted)]">
+                      <div className="mt-0.5 px-1 text-[11px] text-[var(--app-muted)]">
                         {isWhatsApp ? <span className="mr-1 text-[#25D366]">WhatsApp ·</span> : null}
                         {new Date(message.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         {branchLabel ? ` • ${branchLabel}` : ''}
@@ -436,7 +436,7 @@ export function LeadCommunicationsPanel({
                   placeholder={`Message ${lead.name?.split(' ')[0] || lead.phone}…`}
                   rows={1}
                   disabled={!canHandleCommunication || smsThread.sending}
-                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] placeholder:text-slate-400 outline-none transition focus:border-slate-300 focus:bg-white lg:text-sm"
+                  className="min-h-12 flex-1 resize-none rounded-full border border-slate-200 bg-slate-100 px-5 py-3 text-base leading-[1.5] text-[#111827] placeholder:text-slate-500 outline-none transition focus:border-slate-300 focus:bg-white lg:text-sm"
                   style={{ maxHeight: '120px', overflowY: 'auto', ['--tw-ring-color' as string]: '#C99700' }}
                   onInput={event => {
                     const field = event.currentTarget
@@ -445,7 +445,7 @@ export function LeadCommunicationsPanel({
                   }}
                 />
                 {smsThread.input.length > 1200 && (
-                  <div className={`text-right text-[10px] font-semibold ${smsThread.input.length > 1550 ? 'text-rose-600' : 'text-amber-600'}`}>
+                  <div className={`text-right text-[11px] font-semibold ${smsThread.input.length > 1550 ? 'text-rose-600' : 'text-amber-600'}`}>
                     {smsThread.input.length}/1600 chars{smsThread.input.length > 1550 ? ' — near limit' : ''}
                   </div>
                 )}
@@ -468,7 +468,7 @@ export function LeadCommunicationsPanel({
                 {smsThread.sendError}
               </div>
             )}
-            <div className="mt-1.5 text-[10px] text-[var(--app-muted)]">Enter to send · Shift+Enter for new line · ✨ AI Draft for a smart opener</div>
+            <div className="mt-1.5 text-[11px] text-[var(--app-muted)]">Enter to send · Shift+Enter for new line · ✨ AI Draft for a smart opener</div>
           </div>
         </div>
       ) : null}

@@ -230,7 +230,7 @@ export default function RecentSalesPage() {
             <div className="rounded-lg bg-emerald-50 px-2 py-2"><b>{counts.ready}</b><span className="block text-[11px] text-emerald-700">Ready</span></div>
           </div>
           <div className="relative mt-4">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
             <input value={query} onChange={event => setQuery(event.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-[15px] outline-none focus:border-[#14213d]" placeholder="Search Realtor, brokerage, address" />
           </div>
           <select value={status} onChange={event => setStatus(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
@@ -245,8 +245,8 @@ export default function RecentSalesPage() {
           </select>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {loading && <div className="p-8 text-center text-sm text-slate-400">Loading verified sales…</div>}
-          {!loading && visible.length === 0 && <div className="p-8 text-center text-sm text-slate-400">No opportunities in this view.</div>}
+          {loading && <div className="p-8 text-center text-sm text-slate-500">Loading verified sales…</div>}
+          {!loading && visible.length === 0 && <div className="p-8 text-center text-sm text-slate-500">No opportunities in this view.</div>}
           {visible.map(sale => (
             <button key={sale.id} onClick={() => setActiveId(sale.id)} className={`block w-full border-b border-slate-100 p-4 text-left transition ${active?.id === sale.id ? 'bg-[#f4f7fb]' : 'hover:bg-slate-50'}`}>
               <div className="flex items-start justify-between gap-3">
@@ -254,10 +254,10 @@ export default function RecentSalesPage() {
                   <div className="truncate font-semibold text-[#111827]">{sale.realtor_name}</div>
                   <div className="truncate text-xs text-slate-500">{sale.realtor_brokerage || 'Brokerage unavailable'}</div>
                 </div>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{STATUS_LABEL[sale.status] || sale.status}</span>
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{STATUS_LABEL[sale.status] || sale.status}</span>
               </div>
               <div className="mt-2 truncate text-sm text-slate-700">{sale.address}</div>
-              <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
                 <span>{sale.city || 'Unknown city'}</span>
                 <span>{dateLabel(sale.sold_verified_at)}</span>
               </div>
@@ -268,7 +268,7 @@ export default function RecentSalesPage() {
 
       <main className="min-w-0 flex-1 overflow-y-auto">
         {!active ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-400">Select a verified sale.</div>
+          <div className="flex h-full items-center justify-center text-sm text-slate-500">Select a verified sale.</div>
         ) : (
           <div className="mx-auto max-w-4xl p-7">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -299,12 +299,12 @@ export default function RecentSalesPage() {
 
             <section className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400"><MapPin className="h-4 w-4" /> Verified sale</div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><MapPin className="h-4 w-4" /> Verified sale</div>
                 <div className="mt-2 font-semibold text-[#111827]">{active.address}</div>
                 <div className="mt-1 text-sm text-slate-500">{active.city}{active.mls_id ? ` · MLS ${active.mls_id}` : ''}</div>
               </div>
               <div className="rounded-xl border border-slate-200 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Evidence</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Evidence</div>
                 <div className="mt-2 font-semibold text-[#111827]">{active.verification_confidence ?? 100}% confidence</div>
                 <div className="mt-1 truncate text-sm text-slate-500">{active.verification_source || 'Verified source'}</div>
               </div>

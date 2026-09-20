@@ -8,6 +8,7 @@ import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/l
 import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDeletedSalesLead, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
+import { ConfirmDialog } from '@/app/components/confirm-dialog'
 
 type LeadViewMode = 'focus' | 'booked' | 'all' | 'realtor' | 'deleted'
 type DeletedLeadRow = CRMLead & { _deletedAt?: string }
@@ -89,6 +90,8 @@ function SalesLeadsIndexContent() {
   const [backfilling, setBackfilling] = useState(false)
   const [backfillResult, setBackfillResult] = useState<string | null>(null)
   const [rowActionId, setRowActionId] = useState<string | null>(null)
+  // Pending destructive row action — always confirmed through the shared dialog first.
+  const [pendingRowAction, setPendingRowAction] = useState<{ kind: 'not-interested' | 'delete'; lead: CRMLead } | null>(null)
 
   const canManageLeadLifecycle = currentUser?.role === 'owner' || currentUser?.role === 'manager'
 
@@ -150,9 +153,11 @@ function SalesLeadsIndexContent() {
       setError('Only a manager or the owner can delete leads.')
       return
     }
-    if (!window.confirm(`Delete ${lead.name || 'this lead'} from the active queue? You can restore it from Deleted later.`)) {
-      return
-    }
+    setPendingRowAction({ kind: 'delete', lead })
+  }
+
+  async function executeDeleteLead(lead: CRMLead) {
+    setPendingRowAction(null)
 
     try {
       setRowActionId(lead.id)
@@ -187,6 +192,11 @@ function SalesLeadsIndexContent() {
   }
 
   async function handleMarkNotInterested(lead: CRMLead) {
+    setPendingRowAction({ kind: 'not-interested', lead })
+  }
+
+  async function executeMarkNotInterested(lead: CRMLead) {
+    setPendingRowAction(null)
     try {
       setRowActionId(lead.id)
       await updateSalesLead(lead.id, {
@@ -452,7 +462,7 @@ function SalesLeadsIndexContent() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="truncate font-medium text-[var(--app-ink)]">{lead.name}</div>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${heatBadgeClasses(guidance.heat.tone)}`}>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${heatBadgeClasses(guidance.heat.tone)}`}>
                           {guidance.heat.label} · {guidance.heat.score}
                         </span>
                       </div>
@@ -468,7 +478,7 @@ function SalesLeadsIndexContent() {
                     {lead.originAddress || lead.originCity || 'Origin TBD'} → {lead.destAddress || lead.destCity || 'Destination TBD'}
                   </div>
                   <div className="mt-3 rounded-[12px] bg-white px-3 py-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Next Action</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Next Action</div>
                     <div className="mt-1 text-sm font-semibold text-[var(--app-ink)]">{guidance.action.nextAction}</div>
                     <div className="mt-1 text-xs text-[var(--app-muted)]">{guidance.action.reason}</div>
                   </div>
@@ -528,11 +538,11 @@ function SalesLeadsIndexContent() {
                     <Link href={`/sales/leads/${lead.id}`} className="min-w-0 hover:opacity-80">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="font-medium text-[var(--app-ink)]">{lead.name}</div>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${stageClasses(lead.stage)}`}>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${stageClasses(lead.stage)}`}>
                           {guidance.stageLabel}
                         </span>
                         {guidance.action.priority >= 80 && (
-                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">⚡ Urgent</span>
+                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">⚡ Urgent</span>
                         )}
                       </div>
                       <div className="mt-0.5 text-xs text-[var(--app-muted)]">
@@ -585,6 +595,24 @@ function SalesLeadsIndexContent() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={pendingRowAction !== null}
+        title={pendingRowAction?.kind === 'delete' ? 'Delete this lead?' : 'Mark as not interested?'}
+        message={
+          pendingRowAction?.kind === 'delete'
+            ? `Remove ${pendingRowAction.lead.name || 'this lead'} from the active queue? You can restore it from Deleted later.`
+            : `Move ${pendingRowAction?.lead.name || 'this lead'} to lost as not interested? It leaves the active pipeline.`
+        }
+        confirmLabel={pendingRowAction?.kind === 'delete' ? 'Delete lead' : 'Mark not interested'}
+        destructive
+        busy={rowActionId === pendingRowAction?.lead.id}
+        onConfirm={() => {
+          if (!pendingRowAction) return
+          if (pendingRowAction.kind === 'delete') void executeDeleteLead(pendingRowAction.lead)
+          else void executeMarkNotInterested(pendingRowAction.lead)
+        }}
+        onCancel={() => setPendingRowAction(null)}
+      />
     </div>
   )
 }

@@ -217,11 +217,11 @@ function AddressInput({
               onMouseDown={() => select(s)}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-[var(--app-bg)]"
             >
-              <span className="text-[10px]">
+              <span className="text-[11px]">
                 {s.placeType === 'apartment' ? '🏢' : s.placeType === 'commercial' ? '🏬' : '🏠'}
               </span>
               <span className="min-w-0 flex-1 whitespace-normal break-words leading-5 text-[var(--app-ink)]">{s.label}</span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${s.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${s.countryCode === 'ca' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                 {s.countryCode === 'ca' ? 'Canada' : s.countryCode === 'us' ? 'USA' : s.country || 'Address'}
               </span>
             </button>
@@ -317,18 +317,18 @@ function PropertyIntelligenceCard({
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-semibold text-slate-800">
               {access.propertyTypeLabel}
-              <span className={`ml-1.5 text-[10px] font-normal text-${confidenceColor}-700`}>
+              <span className={`ml-1.5 text-[11px] font-normal text-${confidenceColor}-700`}>
                 {access.confidence === 'high' ? '· confirmed' : access.confidence === 'medium' ? '· likely' : '· estimated'}
               </span>
             </span>
             <div className="flex items-center gap-1.5">
-              <button type="button" onClick={() => setExpanded(v => !v)} className={`text-[10px] text-${confidenceColor}-700 hover:underline`}>
+              <button type="button" onClick={() => setExpanded(v => !v)} className={`text-[11px] text-${confidenceColor}-700 hover:underline`}>
                 {expanded ? 'Less' : 'Details'}
               </button>
-              <button type="button" onClick={onDismiss} className="text-slate-400 hover:text-slate-700 text-xs leading-none">✕</button>
+              <button type="button" onClick={onDismiss} className="text-slate-500 hover:text-slate-700 text-xs leading-none">✕</button>
             </div>
           </div>
-          <div className={`mt-0.5 text-[10px] text-${confidenceColor}-800`}>
+          <div className={`mt-0.5 text-[11px] text-${confidenceColor}-800`}>
             {access.notes.slice(0, 2).join(' · ')}
           </div>
         </div>
@@ -336,7 +336,7 @@ function PropertyIntelligenceCard({
 
       {expanded && (
         <div className="mt-2.5 space-y-2 border-t border-slate-200 pt-2">
-          <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-700">
+          <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700">
             <div>
               <span className="font-semibold">Floors in building: </span>
               {access.estimatedFloors}
@@ -354,10 +354,10 @@ function PropertyIntelligenceCard({
               {access.source.join(', ')}
             </div>
           </div>
-          <div className="text-[10px] font-semibold text-slate-600 mt-1">Override</div>
+          <div className="text-[11px] font-semibold text-slate-600 mt-1">Override</div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
-              <label className="text-[10px] text-slate-700">Unit floor</label>
+              <label className="text-[11px] text-slate-700">Unit floor</label>
               <input
                 type="number" min={1} max={60}
                 value={floorOverride}
@@ -367,11 +367,11 @@ function PropertyIntelligenceCard({
               />
             </div>
             <div className="flex items-center gap-1.5">
-              <label className="text-[10px] text-slate-700">Elevator</label>
+              <label className="text-[11px] text-slate-700">Elevator</label>
               <select
                 value={elevatorOverride === null ? '' : elevatorOverride ? 'yes' : 'no'}
                 onChange={e => setElevatorOverride(e.target.value === '' ? null : e.target.value === 'yes')}
-                className="rounded-[6px] border border-slate-300 bg-white px-1.5 py-0.5 text-[10px]"
+                className="rounded-[6px] border border-slate-300 bg-white px-1.5 py-0.5 text-[11px]"
               >
                 <option value="">Auto</option>
                 <option value="yes">Yes</option>
@@ -386,11 +386,11 @@ function PropertyIntelligenceCard({
         <button
           type="button"
           onClick={apply}
-          className="rounded-[6px] bg-[#071421] px-3 py-1 text-[10px] font-semibold text-white hover:bg-[#243460] transition"
+          className="rounded-[6px] bg-[#071421] px-3 py-1 text-[11px] font-semibold text-white hover:bg-[#243460] transition"
         >
           {applied ? '✓ Applied' : `Apply to ${field} access`}
         </button>
-        <span className="text-[10px] text-slate-500 truncate">{buildAccessApplication().accessText}</span>
+        <span className="text-[11px] text-slate-500 truncate">{buildAccessApplication().accessText}</span>
       </div>
     </div>
   )
@@ -416,7 +416,7 @@ function ApartmentPrompt({
         <button type="button" onClick={onDismiss} className="text-amber-600 hover:text-amber-900 text-xs">✕</button>
       </div>
       <div className="flex items-center gap-2">
-        <label className="text-[10px] font-medium text-amber-800 whitespace-nowrap">Floor #</label>
+        <label className="text-[11px] font-medium text-amber-800 whitespace-nowrap">Floor #</label>
         <input
           type="number"
           min={1}
@@ -426,7 +426,7 @@ function ApartmentPrompt({
           onBlur={() => setFloor(String(floorNumber))}
           className="w-16 rounded-[6px] border border-amber-300 bg-white px-2 py-1 text-sm text-center focus:outline-none"
         />
-        <label className="flex cursor-pointer items-center gap-1.5 text-[10px] font-medium text-amber-800">
+        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-amber-800">
           <input
             type="checkbox"
             checked={hasElevator}
@@ -438,13 +438,13 @@ function ApartmentPrompt({
         <button
           type="button"
           onClick={() => onApply({ floor: floorNumber, hasElevator })}
-          className="ml-auto rounded-[6px] bg-amber-600 px-3 py-1 text-[10px] font-semibold text-white hover:bg-amber-700"
+          className="ml-auto rounded-[6px] bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-amber-700"
         >
           Apply
         </button>
       </div>
       {!hasElevator && floorNumber >= 2 && (
-        <div className="mt-1.5 text-[10px] text-amber-700">
+        <div className="mt-1.5 text-[11px] text-amber-700">
           +{((floorNumber - 1) * 0.35).toFixed(2)} hrs stair penalty will be added to estimate
         </div>
       )}
@@ -739,7 +739,7 @@ export function LeadBasicsPanel({
           {moveDateFlexible && (
             <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-3">
               <label className="block">
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-amber-900">Best timing window + reason</span>
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-amber-900">Best timing window + reason</span>
                 <input
                   value={moveDateFlexibleReason}
                   onChange={e => onMoveDateFlexibleReasonChange(e.target.value)}
@@ -755,7 +755,7 @@ export function LeadBasicsPanel({
                   <option value="Destination home not selected yet" />
                 </datalist>
               </label>
-              <p className="mt-2 text-[10px] leading-4 text-amber-900">
+              <p className="mt-2 text-[11px] leading-4 text-amber-900">
                 Keep building the estimate. The CRM will treat the timing as an assumption and nudge the owner to finalize it later.
               </p>
             </div>
@@ -826,24 +826,24 @@ export function LeadBasicsPanel({
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2">
                   <span className="text-[11px] font-semibold text-emerald-700">📷 Listing matched</span>
-                  <span className="ml-1 text-[10px] text-emerald-600">
+                  <span className="ml-1 text-[11px] text-emerald-600">
                     — {listingPropertySummary ? `${listingPropertySummary} · ` : ''}inventory auto-loaded
                   </span>
                   <div className="ml-auto flex items-center gap-2">
                     <button
                       onClick={() => { setListingOverrideOpen(o => !o); setListingOverrideAddress('') }}
-                      className="text-[10px] font-semibold text-amber-600 hover:text-amber-800"
+                      className="text-[11px] font-semibold text-amber-600 hover:text-amber-800"
                     >
                       Wrong listing?
                     </button>
-                    <button onClick={onScanListing} disabled={listingLookupBusy} className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-60">
+                    <button onClick={onScanListing} disabled={listingLookupBusy} className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-60">
                       {listingLookupBusy ? 'Rescanning...' : 'Rescan'}
                     </button>
                   </div>
                 </div>
                 {listingOverrideOpen && (
                   <div className="rounded-[8px] border border-amber-200 bg-amber-50 p-3 space-y-2">
-                    <div className="text-[10px] font-semibold text-amber-800">Re-scan with a different address (e.g. correct unit number)</div>
+                    <div className="text-[11px] font-semibold text-amber-800">Re-scan with a different address (e.g. correct unit number)</div>
                     <div className="flex gap-2">
                       <input
                         value={listingOverrideAddress}
@@ -859,14 +859,14 @@ export function LeadBasicsPanel({
                             setListingOverrideOpen(false)
                           }
                         }}
-                        className="shrink-0 rounded-[6px] bg-amber-600 px-2.5 py-1.5 text-[10px] font-semibold text-white disabled:opacity-50 hover:bg-amber-700"
+                        className="shrink-0 rounded-[6px] bg-amber-600 px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50 hover:bg-amber-700"
                       >
                         {listingLookupBusy ? 'Scanning…' : 'Re-scan'}
                       </button>
                     </div>
                     <button
                       onClick={() => { onClearListing?.(); setListingOverrideOpen(false) }}
-                      className="text-[10px] font-semibold text-rose-600 hover:text-rose-800"
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-800"
                     >
                       Clear MLS data + inventory — start fresh manually
                     </button>
@@ -882,7 +882,7 @@ export function LeadBasicsPanel({
                 <button
                   onClick={onScanListing}
                   disabled={listingLookupBusy}
-                  className="shrink-0 rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#0a5b47] disabled:opacity-60"
+                  className="shrink-0 rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#0a5b47] disabled:opacity-60"
                 >
                   {listingLookupBusy ? 'Scanning...' : 'Scan'}
                 </button>

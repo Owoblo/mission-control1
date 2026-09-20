@@ -88,9 +88,9 @@ export function VideoSurveyReviewPanel({ sessionId }: { sessionId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">AI inventory evidence</h3>
-          <p className="mt-0.5 text-[10px] text-slate-500">Review required—AI never edits the quote directly.</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">Review required—AI never edits the quote directly.</p>
         </div>
-        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">{loading ? '…' : evidence.length}</span>
+        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold">{loading ? '…' : evidence.length}</span>
       </div>
       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto">
         {evidence.map(item => (
@@ -98,10 +98,10 @@ export function VideoSurveyReviewPanel({ sessionId }: { sessionId: string }) {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="font-semibold">{item.quantity > 1 ? `${item.quantity} × ` : ''}{item.item_name}</div>
-                <div className="mt-0.5 text-[10px] text-slate-500">{item.room} · {Math.round(Number(item.confidence || 0) * 100)}% confidence{item.offset_ms != null ? ` · ${Math.floor(item.offset_ms / 60000)}:${String(Math.floor((item.offset_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</div>
-                <div className="mt-1 text-[10px] text-slate-600">{Number(item.estimated_cubic_feet || 0)} cu ft · {Number(item.estimated_weight_lbs || 0)} lb · {item.disposition}</div>
-                {item.transcript_excerpt && <div className="mt-1 line-clamp-2 text-[10px] italic text-slate-500">{item.transcript_excerpt}</div>}
-                {item.duplicate_group_id && <div className="mt-1 text-[10px] font-semibold text-amber-700">Possible repeated sighting grouped</div>}
+                <div className="mt-0.5 text-[11px] text-slate-500">{item.room} · {Math.round(Number(item.confidence || 0) * 100)}% confidence{item.offset_ms != null ? ` · ${Math.floor(item.offset_ms / 60000)}:${String(Math.floor((item.offset_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</div>
+                <div className="mt-1 text-[11px] text-slate-600">{Number(item.estimated_cubic_feet || 0)} cu ft · {Number(item.estimated_weight_lbs || 0)} lb · {item.disposition}</div>
+                {item.transcript_excerpt && <div className="mt-1 line-clamp-2 text-[11px] italic text-slate-500">{item.transcript_excerpt}</div>}
+                {item.duplicate_group_id && <div className="mt-1 text-[11px] font-semibold text-amber-700">Possible repeated sighting grouped</div>}
               </div>
             </div>
             {item.review_status === 'pending' && (
@@ -119,7 +119,7 @@ export function VideoSurveyReviewPanel({ sessionId }: { sessionId: string }) {
           {applying ? 'Applying…' : unresolved > 0 ? `Resolve ${unresolved} item${unresolved === 1 ? '' : 's'} first` : `Apply ${approved} approved item${approved === 1 ? '' : 's'} to lead`}
         </button>
       )}
-      {notice && <div className="mt-2 rounded-lg bg-slate-100 p-2 text-[10px] leading-4 text-slate-700">{notice}</div>}
+      {notice && <div className="mt-2 rounded-lg bg-slate-100 p-2 text-[11px] leading-4 text-slate-700">{notice}</div>}
       {verificationUrl && (
         <button
           onClick={() => void navigator.clipboard.writeText(verificationUrl).then(() => setNotice('Customer verification link copied.'))}

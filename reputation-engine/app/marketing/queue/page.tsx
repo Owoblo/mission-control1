@@ -258,12 +258,12 @@ function ActionCard({
                 {isSignalBlast ? '🚨 Signal Blast' : (c?.name ?? 'Unknown')}
               </span>
               {item.overdue && (
-                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
                   {item.daysOverdue}d overdue
                 </span>
               )}
               {!isSignalBlast && (
-                <span className="rounded-full bg-[#071421]/10 px-2 py-0.5 text-[10px] font-semibold text-[#071421]">
+                <span className="rounded-full bg-[#071421]/10 px-2 py-0.5 text-[11px] font-semibold text-[#071421]">
                   Tier {c?.tier} · Step {item.step_number}
                 </span>
               )}
@@ -289,7 +289,7 @@ function ActionCard({
         <div className="border-t border-[var(--app-line)] px-5 pb-5 pt-4 space-y-4">
           {/* What to do */}
           <div className="rounded-xl bg-[#071421]/5 p-4">
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#071421]">
+            <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-[#071421]">
               {ch.icon} What to do
             </div>
             <div className="text-sm text-[#071421]">{item.message_draft ?? item.label}</div>

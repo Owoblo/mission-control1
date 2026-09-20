@@ -5,6 +5,7 @@ import { getAppBaseUrl } from '@/lib/server/runtime'
 import { isInvoiceStylePaymentTerms } from '@/lib/sales'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, reusableStripeCustomerId, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 import { preserveAcceptedScopeSnapshot } from '@/lib/server/accepted-scope-snapshot'
+import { isQuoteExpired } from '@/lib/quote-expiry'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
@@ -27,6 +28,14 @@ export async function POST(request: Request) {
     if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
     if (!quote.acceptToken || token !== quote.acceptToken) {
       return NextResponse.json({ error: 'Quote link is invalid or expired' }, { status: 404 })
+    }
+
+    // Expired quotes cannot start checkout, even if the customer still has the link.
+    if (isQuoteExpired(quote)) {
+      return NextResponse.json(
+        { error: 'This quote has expired and can no longer be accepted. Please request a new quote.', expired: true },
+        { status: 410 }
+      )
     }
 
     if (!quote.termsAcceptedAt && termsAccepted !== true) {

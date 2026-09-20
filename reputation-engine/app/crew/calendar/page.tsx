@@ -99,7 +99,7 @@ function formatTime(value?: string | null) {
 
 function MoveBadge({ dateStr }: { dateStr?: string }) {
   const days = daysUntil(dateStr)
-  if (!dateStr) return <span className="text-xs text-slate-400">Date TBD</span>
+  if (!dateStr) return <span className="text-xs text-slate-500">Date TBD</span>
   const label = days === 0 ? 'TODAY' : days === 1 ? 'TOMORROW' : days !== null && days < 0 ? 'Past' : `In ${days}d`
   const color =
     days === 0 ? 'bg-rose-600 text-white' :
@@ -109,7 +109,7 @@ function MoveBadge({ dateStr }: { dateStr?: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="font-semibold text-[#071421]">{formatDate(dateStr)}</span>
-      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
+      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${color}`}>{label}</span>
     </div>
   )
 }
@@ -162,11 +162,11 @@ export default function CrewCalendarPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-500">
           Loading your schedule...
         </div>
       ) : jobs.length === 0 ? (
-        <div className="rounded-xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-slate-100 bg-white p-12 text-center text-sm text-slate-500">
           No jobs assigned yet. Your manager will assign you to upcoming moves.
         </div>
       ) : (
@@ -185,7 +185,7 @@ export default function CrewCalendarPage() {
           )}
           {past.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Past Jobs</h2>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">Past Jobs</h2>
               {past.map(job => (
                 <JobCard
                   key={job.lead.id}
@@ -356,7 +356,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
       <section className="border-y border-[var(--app-line)] py-4">
         <div className="flex items-center justify-between gap-3 text-xs text-slate-500"><span>Move-day progress</span><span>{completedPhaseCount} of {MOVE_EXECUTION_PHASES.length}</span></div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#C99700] transition-all" style={{ width: `${Math.round((completedPhaseCount / MOVE_EXECUTION_PHASES.length) * 100)}%` }} /></div>
-        <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Next action</div>
+        <div className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Next action</div>
         <div className="mt-1 text-lg font-semibold text-[#071421]">{nextPhase?.label || 'Move workflow complete'}</div>
         {queuedPhase && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">Saved on this device. It will sync automatically when the connection returns.</div>}
         {phaseError && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{phaseError}</div>}
@@ -371,11 +371,11 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
         </div>
         <div className="flex-1 space-y-3">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">From</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">From</div>
             <div className="font-medium text-[#071421]">{origin}</div>
           </div>
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">To</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">To</div>
             <div className="font-medium text-[#071421]">{dest}</div>
           </div>
         </div>
@@ -425,7 +425,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
       <div className="rounded-xl border border-slate-200 bg-slate-50/90 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Crew Expenses</div>
+            <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Crew Expenses</div>
             <div className="mt-1 text-sm text-slate-600">
               Upload fuel receipts, dump tickets, supplies, or invoices from the field.
             </div>
@@ -441,17 +441,17 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
 
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-white bg-white px-3 py-2">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Receipts on file</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Receipts on file</div>
             <div className="mt-1 text-lg font-semibold text-[#071421]">{receipts.length}</div>
           </div>
           <div className="rounded-xl border border-white bg-white px-3 py-2">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Logged in finance</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Logged in finance</div>
             <div className="mt-1 text-lg font-semibold text-[#071421]">
               {receipts.filter(asset => asset.linkedCostId).length}
             </div>
           </div>
           <div className="rounded-xl border border-white bg-white px-3 py-2">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Need review</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Need review</div>
             <div className="mt-1 text-lg font-semibold text-[#071421]">
               {receipts.filter(asset => !asset.linkedCostId).length}
             </div>
@@ -553,7 +553,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
 
         {receipts.length > 0 && (
           <div className="mt-4 space-y-2">
-            <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Recent receipt uploads</div>
+            <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Recent receipt uploads</div>
             {receipts.slice(0, 4).map((asset: LeadMediaAsset) => (
               <div key={asset.id} className="flex flex-col gap-2 rounded-xl border border-white bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
