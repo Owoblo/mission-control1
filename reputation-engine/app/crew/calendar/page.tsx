@@ -1,7 +1,9 @@
 'use client'
 
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { CalendarDays, History, Timer, TriangleAlert, Truck, Users } from 'lucide-react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
+import CrewBottomNav from '@/app/components/crew-bottom-nav'
 import { formatDate, formatMoney } from '@/lib/sales'
 import type { CRMLead, CRMQuote, LeadMediaAsset } from '@/lib/types'
 import { buildDefaultMoveExecutionEntries, MOVE_EXECUTION_PHASES } from '@/lib/move-execution'
@@ -72,12 +74,12 @@ function expenseFormData(item: Omit<QueuedExpense, 'queuedAt'>) {
 }
 
 const EXPENSE_CATEGORIES = [
-  { value: 'fuel', label: 'Fuel / Gas', icon: '⛽' },
-  { value: 'supplies', label: 'Supplies', icon: '📦' },
-  { value: 'food', label: 'Food / Crew', icon: '🍕' },
-  { value: 'equipment', label: 'Equipment', icon: '🔧' },
-  { value: 'truck', label: 'Truck / Rental', icon: '🚛' },
-  { value: 'other', label: 'Other', icon: '📋' },
+  { value: 'fuel', label: 'Fuel / Gas' },
+  { value: 'supplies', label: 'Supplies' },
+  { value: 'food', label: 'Food / Crew' },
+  { value: 'equipment', label: 'Equipment' },
+  { value: 'truck', label: 'Truck / Rental' },
+  { value: 'other', label: 'Other' },
 ]
 
 function daysUntil(dateStr?: string) {
@@ -152,7 +154,7 @@ export default function CrewCalendarPage() {
           {new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
         <h1 className="mt-1 text-2xl font-bold">
-          Hey {user?.name?.split(' ')[0] ?? 'there'} 👋
+          Hey {user?.name?.split(' ')[0] ?? 'there'}
         </h1>
         <p className="mt-1 text-sm text-white/70">
           {upcoming.length === 0
@@ -172,7 +174,7 @@ export default function CrewCalendarPage() {
       ) : (
         <>
           {upcoming.length > 0 && (
-            <section className="space-y-3">
+            <section id="crew-upcoming" className="scroll-mt-24 space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-widest text-[#071421]">Upcoming Moves</h2>
               {upcoming.map(job => (
                 <JobCard
@@ -184,7 +186,7 @@ export default function CrewCalendarPage() {
             </section>
           )}
           {past.length > 0 && (
-            <section className="space-y-3">
+            <section id="crew-past" className="scroll-mt-24 space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">Past Jobs</h2>
               {past.map(job => (
                 <JobCard
@@ -197,6 +199,11 @@ export default function CrewCalendarPage() {
           )}
         </>
       )}
+      <div aria-hidden="true" className="h-16 md:hidden" />
+      <CrewBottomNav items={[
+        { id: 'upcoming', label: 'Upcoming', href: '#crew-upcoming', icon: CalendarDays },
+        ...(past.length > 0 ? [{ id: 'past', label: 'Past jobs', href: '#crew-past', icon: History }] : []),
+      ]} />
     </div>
   )
 }
@@ -383,9 +390,9 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
 
       {quote && (quote.crewSize || quote.truckCount || quote.estimatedHours) ? (
         <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          {quote.crewSize ? <span>👥 {quote.crewSize} movers</span> : null}
-          {quote.truckCount ? <span>🚛 {quote.truckCount === 1 ? '26ft truck' : `${quote.truckCount} trucks`}</span> : null}
-          {quote.estimatedHours ? <span>⏱ ~{quote.estimatedHours}h</span> : null}
+          {quote.crewSize ? <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" aria-hidden />{quote.crewSize} movers</span> : null}
+          {quote.truckCount ? <span className="inline-flex items-center gap-1"><Truck className="h-3.5 w-3.5" aria-hidden />{quote.truckCount === 1 ? '26ft truck' : `${quote.truckCount} trucks`}</span> : null}
+          {quote.estimatedHours ? <span className="inline-flex items-center gap-1"><Timer className="h-3.5 w-3.5" aria-hidden />~{quote.estimatedHours}h</span> : null}
         </div>
       ) : null}
 
@@ -405,8 +412,8 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
             </div>
           )}
           {lead.jobFactors?.specialtyNotes && (
-            <div className="font-medium text-amber-700">
-              ⚠️ Specialty items: {lead.jobFactors.specialtyNotes}
+            <div className="flex items-center gap-1.5 font-medium text-amber-700">
+              <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden /><span>Specialty items: {lead.jobFactors.specialtyNotes}</span>
             </div>
           )}
           {lead.crewNote && (
@@ -433,7 +440,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
           <button
             type="button"
             onClick={() => setShowExpenseForm(value => !value)}
-            className="rounded-full bg-[#071421] px-4 py-2 text-xs font-semibold text-white"
+            className="min-h-[44px] rounded-full bg-[#071421] px-4 py-2 text-xs font-semibold text-white"
           >
             {showExpenseForm ? 'Hide uploader' : 'Upload receipt'}
           </button>
@@ -466,11 +473,11 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
                 <select
                   value={category}
                   onChange={event => setCategory(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2"
                 >
                   {EXPENSE_CATEGORIES.map(option => (
                     <option key={option.value} value={option.value}>
-                      {option.icon} {option.label}
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -482,7 +489,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
                   onChange={event => setAmount(event.target.value)}
                   placeholder="e.g. 48.90"
                   inputMode="decimal"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
               </label>
             </div>
@@ -494,7 +501,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
                   type="date"
                   value={costDate}
                   onChange={event => setCostDate(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
               </label>
               <label className="space-y-1 text-sm text-slate-700">
@@ -504,7 +511,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
                   multiple
                   accept="image/*,application/pdf"
                   onChange={event => setFiles(Array.from(event.target.files || []))}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2"
                 />
               </label>
             </div>
@@ -516,7 +523,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
                 onChange={event => setNotes(event.target.value)}
                 rows={3}
                 placeholder="Fuel stop before the job, dump fee, parking, etc."
-                className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                className="min-h-[44px] w-full rounded-xl border border-slate-200 px-3 py-2"
               />
             </label>
 
@@ -543,7 +550,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
               <button
                 type="submit"
                 disabled={uploading}
-                className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-[44px] rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {uploading ? 'Uploading…' : 'Save receipt'}
               </button>
@@ -578,7 +585,7 @@ function JobCard({ job, onLeadUpdated }: { job: Job; onLeadUpdated: (lead: CRMLe
                     href={asset.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#071421]"
+                    className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#071421]"
                   >
                     View
                   </a>
