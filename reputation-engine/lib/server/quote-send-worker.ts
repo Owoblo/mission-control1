@@ -1,7 +1,7 @@
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
 import { getSalesLead, getSalesQuote, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { normalizeQuote } from '@/lib/sales'
-import { claimQuoteSendJob, listDueQuoteSendJobs, patchQuoteSendJob } from '@/lib/server/quote-send-jobs'
+import { claimQuoteSendJob, listDueQuoteSendJobs, patchQuoteSendJob, recoverStaleQuoteSendJobs } from '@/lib/server/quote-send-jobs'
 import { scheduleQuoteExpiryFollowup, scheduleQuoteFollowup } from '@/lib/server/sales-automation'
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import type { QuoteSendJob } from '@/lib/quote-send-jobs'
@@ -12,6 +12,17 @@ import { quoteDeliveryBlockReason } from '@/lib/quote-pricing-safety'
 function nextRetryAt(attempts: number) {
   const delaySeconds = Math.min(15 * 60, Math.max(30, 30 * Math.pow(2, attempts - 1)))
   return new Date(Date.now() + delaySeconds * 1000).toISOString()
+}
+
+// Twilio returns { sid } for SMS; Resend returns { id } for email.
+function extractProviderMessageSid(messageResult: Record<string, unknown> | undefined): string {
+  const sid = messageResult?.sid ?? messageResult?.id
+  return typeof sid === 'string' ? sid : ''
+}
+
+function existingProviderMessageSid(job: QuoteSendJob): string {
+  const sid = job.result?.providerMessageSid
+  return typeof sid === 'string' ? sid : ''
 }
 
 async function markQuoteSent(job: QuoteSendJob) {
@@ -68,19 +79,44 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
       const managerOverride = claimed.result?.intelligenceOverride === true
       if (!safety.allowed && !managerOverride) throw new Error(safety.reason || 'Binding quote requires move-intelligence review before sending.')
     }
-    const result = await sendSalesMessage({
-      channel: claimed.channel,
-      to: claimed.recipient,
-      subject: claimed.subject || undefined,
-      body: claimed.body,
-      htmlBody: claimed.htmlBody || undefined,
-      leadId: claimed.leadId || undefined,
-      quoteId: claimed.quoteId,
-      notes: claimed.notes || `${claimed.channel === 'email' ? 'Quote email sent' : 'Quote SMS sent'} from async outbox.`,
-      actor: claimed.actor,
-      actorName: claimed.actorName || undefined,
-      actorUserId: claimed.actorUserId || undefined,
-    })
+    // Recovery: a previous attempt already delivered this message but the
+    // worker crashed before the completion write (the provider SID was
+    // recorded while the job was still 'running'). Never re-send to the
+    // customer — finalize bookkeeping only.
+    const recoveredSid = existingProviderMessageSid(claimed)
+    let providerMessageSid = recoveredSid
+    let messageResult: Record<string, unknown>
+    let messageLogId: string | undefined
+    if (recoveredSid) {
+      messageResult = { ok: true, recovered: true, providerMessageSid: recoveredSid }
+    } else {
+      const result = await sendSalesMessage({
+        channel: claimed.channel,
+        to: claimed.recipient,
+        subject: claimed.subject || undefined,
+        body: claimed.body,
+        htmlBody: claimed.htmlBody || undefined,
+        leadId: claimed.leadId || undefined,
+        quoteId: claimed.quoteId,
+        notes: claimed.notes || `${claimed.channel === 'email' ? 'Quote email sent' : 'Quote SMS sent'} from async outbox.`,
+        actor: claimed.actor,
+        actorName: claimed.actorName || undefined,
+        actorUserId: claimed.actorUserId || undefined,
+      })
+      providerMessageSid = extractProviderMessageSid(result.result)
+      messageResult = result.result || {}
+      messageLogId = result.log?.id
+
+      // Record the provider SID immediately, while the job is still 'running'.
+      // If the worker crashes after this point, the stale-job reaper returns
+      // the row to 'pending' and the recovery check above skips re-sending.
+      if (providerMessageSid) {
+        await patchQuoteSendJob(claimed.id, {
+          result: { ...(claimed.result || {}), providerMessageSid },
+          lastError: null,
+        }).catch(() => {})
+      }
+    }
 
     const sentState = await markQuoteSent(claimed)
     const completedAt = new Date().toISOString()
@@ -91,8 +127,9 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
       lockedAt: null,
       result: {
         ...(claimed.result || {}),
-        messageResult: result.result || {},
-        logId: result.log?.id,
+        ...(providerMessageSid ? { providerMessageSid } : {}),
+        messageResult,
+        logId: messageLogId,
         quoteId: sentState.quote?.id || claimed.quoteId,
         leadId: sentState.lead?.id || claimed.leadId || null,
       },
@@ -125,6 +162,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
 }
 
 export async function processDueQuoteSendJobs(limit = 10) {
+  await recoverStaleQuoteSendJobs()
   const jobs = await listDueQuoteSendJobs(limit)
   const results: QuoteSendJob[] = []
   for (const job of jobs) {

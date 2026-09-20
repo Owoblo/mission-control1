@@ -11,7 +11,7 @@ import {
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
-import { listSalesLeads } from '@/lib/server/sales-repository'
+import { findSalesLeadByPhone } from '@/lib/server/sales-repository'
 
 export async function GET() {
   return Response.json({
@@ -41,13 +41,8 @@ export async function POST(request: Request) {
       return new Response(null, { status: 204 })
     }
 
-    // Try to find lead name for personalization
-    const leads = await listSalesLeads().catch(() => [])
-    const matchedLead = leads.find(l => {
-      const leadDigits = (l.phone || '').replace(/\D/g, '')
-      const fromDigits = from.replace(/\D/g, '')
-      return leadDigits && fromDigits && (leadDigits === fromDigits || fromDigits.endsWith(leadDigits) || leadDigits.endsWith(fromDigits))
-    })
+    // Try to find lead name for personalization (indexed lookup instead of a full-table pull)
+    const matchedLead = await findSalesLeadByPhone(from).catch(() => null)
     const firstName = matchedLead?.name?.split(' ')[0] || null
 
     const { accountSid, authToken } = getTwilioCredentials()

@@ -427,6 +427,38 @@ export async function claimAutomationJob(job: CRMAutomationJob): Promise<CRMAuto
   return rows[0] ? normalizeAutomationJob(rows[0]) : null
 }
 
+// Jobs left in 'running' when a worker crashes or times out would otherwise
+// sit forever: claimAutomationJob only claims 'pending' rows. Recover them the
+// same way the sequence-job processor does — reset to 'pending' so the next
+// pass re-claims them (attempts are incremented at claim time, so a job that
+// keeps crashing still reaches max_attempts and fails closed).
+const STALE_AUTOMATION_JOB_MS = 1000 * 60 * 15
+
+export async function recoverStaleAutomationJobs(): Promise<number> {
+  const { url, headers } = requireSupabaseEnv()
+  const cutoff = new Date(Date.now() - STALE_AUTOMATION_JOB_MS).toISOString()
+  try {
+    const response = await fetch(
+      `${url}/rest/v1/crm_automation_jobs?status=eq.running&locked_at=lt.${encodeURIComponent(cutoff)}&select=id`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          status: 'pending',
+          locked_at: null,
+          last_error: 'Recovered stale running job after worker timeout',
+          updated_at: new Date().toISOString(),
+        }),
+      }
+    )
+    if (!response.ok) return 0
+    const rows = (await response.json()) as Array<{ id: string }>
+    return rows.length
+  } catch {
+    return 0
+  }
+}
+
 export async function queueAutomationJob(input: {
   leadId: string
   conversationId?: string | null

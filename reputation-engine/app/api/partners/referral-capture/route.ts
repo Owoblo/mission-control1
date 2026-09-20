@@ -30,6 +30,20 @@ const MARKET_BRANCH: Record<string, SalesBranch> = {
   ottawa: 'ottawa',
 }
 
+// Deterministic dedupe window: a partner re-submitting the same client (same
+// partner code + same normalized client phone/email) within 7 days is treated
+// as a duplicate instead of creating parallel inbound/CRM rows.
+const REFERRAL_DEDUPE_WINDOW_MS = 1000 * 60 * 60 * 24 * 7
+
+function clientIdentity(phone: string, email: string) {
+  const digits = phone.replace(/\D/g, '')
+  return { digits: digits.length >= 7 ? digits : '', email: email.toLowerCase() }
+}
+
+function sameClient(a: { digits: string; email: string }, b: { digits: string; email: string }) {
+  return (!!a.digits && a.digits === b.digits) || (!!a.email && a.email === b.email)
+}
+
 function clean(value: unknown) {
   return String(value || '').replace(/\s+/g, ' ').trim()
 }
@@ -105,9 +119,48 @@ export async function POST(request: Request) {
 
   const { url, headers } = requireSupabaseEnv()
   const now = new Date().toISOString()
-  const inboundId = generateId('inbound')
-  const leadId = generateId('lead')
   const branch = branchFromInput({ market, originCity: movingFrom, destCity: movingTo, address: movingFrom })
+  let inboundId = generateId('inbound')
+  const leadId = generateId('lead')
+  let isRecovery = false
+
+  // Dedupe: same partner code + same client identity within the window.
+  // Best-effort: a failed lookup must not block a real referral.
+  try {
+    const identity = clientIdentity(customerPhone, customerEmail)
+    if (identity.digits || identity.email) {
+      const since = new Date(Date.now() - REFERRAL_DEDUPE_WINDOW_MS).toISOString()
+      const dupRes = await fetch(
+        `${url}/rest/v1/inbound_leads?source=eq.partner_referral&raw_data->>referral_partner_code=eq.${encodeURIComponent(partnerCode)}&created_at=gte.${encodeURIComponent(since)}&select=id,phone,email&order=created_at.desc&limit=20`,
+        { headers, cache: 'no-store' }
+      )
+      if (dupRes.ok) {
+        const rows = (await dupRes.json()) as Array<{ id: string; phone: string | null; email: string | null }>
+        const prior = rows.find(row => sameClient(identity, clientIdentity(clean(row.phone), clean(row.email))))
+        if (prior) {
+          const leadCheck = await fetch(
+            `${url}/rest/v1/crm_leads?data->>inboundId=eq.${encodeURIComponent(prior.id)}&select=id&limit=1`,
+            { headers, cache: 'no-store' }
+          )
+          const existingLead = leadCheck.ok ? ((await leadCheck.json()) as Array<{ id: string }>)[0] : undefined
+          if (existingLead) {
+            // Full duplicate: inbound + CRM lead already exist. Return success
+            // without creating new rows or re-firing partner side effects.
+            return NextResponse.json(
+              { ok: true, duplicate: true, inboundId: prior.id, leadId: existingLead.id, partnerCode, market, branch },
+              { headers: corsHeaders }
+            )
+          }
+          // Partial failure earlier (inbound saved, CRM lead missing): reuse
+          // the inbound row and continue to create the CRM lead below.
+          inboundId = prior.id
+          isRecovery = true
+        }
+      }
+    }
+  } catch {
+    // fall through to normal creation
+  }
   const message = [
     `Partner referral code: ${partnerCode}`,
     partnerSlug && partnerSlug !== partnerCode ? `Partner slug: ${partnerSlug}` : '',
@@ -145,25 +198,27 @@ export async function POST(request: Request) {
     userAgent,
   }
 
-  const inboundRes = await fetch(`${url}/rest/v1/inbound_leads`, {
-    method: 'POST',
-    headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({
-      id: inboundId,
-      source: 'partner_referral',
-      name: customerName || partnerName,
-      phone: customerPhone || null,
-      email: customerEmail || null,
-      message,
-      raw_data: rawData,
-      claimed: false,
-      created_at: now,
-    }),
-  })
+  if (!isRecovery) {
+    const inboundRes = await fetch(`${url}/rest/v1/inbound_leads`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        id: inboundId,
+        source: 'partner_referral',
+        name: customerName || partnerName,
+        phone: customerPhone || null,
+        email: customerEmail || null,
+        message,
+        raw_data: rawData,
+        claimed: false,
+        created_at: now,
+      }),
+    })
 
-  if (!inboundRes.ok) {
-    const error = await inboundRes.text()
-    return NextResponse.json({ error: `Could not save referral: ${error}` }, { status: 500, headers: corsHeaders })
+    if (!inboundRes.ok) {
+      const error = await inboundRes.text()
+      return NextResponse.json({ error: `Could not save referral: ${error}` }, { status: 500, headers: corsHeaders })
+    }
   }
 
   const leadData = {
@@ -215,11 +270,23 @@ export async function POST(request: Request) {
     lastInboundAt: now,
   }
 
-  await fetch(`${url}/rest/v1/crm_leads`, {
+  // The CRM lead is the record the sales team works from: a failure here must
+  // not be swallowed (the old `.catch(() => {})` returned success while the
+  // lead silently never existed). Return 500 so the submitter retries; the
+  // dedupe above makes that retry safe.
+  const leadRes = await fetch(`${url}/rest/v1/crm_leads`, {
     method: 'POST',
     headers: { ...headers, Prefer: 'return=minimal' },
     body: JSON.stringify({ id: leadId, data: leadData }),
-  }).catch(() => {})
+  })
+  if (!leadRes.ok) {
+    const error = await leadRes.text()
+    console.error('referral-capture: crm_leads insert failed', { inboundId, leadId, partnerCode, error })
+    return NextResponse.json(
+      { error: `Referral received but the CRM lead could not be created: ${error}` },
+      { status: 500, headers: corsHeaders }
+    )
+  }
 
   void (async () => {
     const partnerMatchRes = await fetch(

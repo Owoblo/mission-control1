@@ -31,8 +31,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // The Vercel cron hits GET every 12 hours; the point of that schedule is to
+  // deliver this report, so GET sends the email too. (POST kept for parity.)
   const report = await runLeadFlowHealthCheck(getAppBaseUrl(new URL(request.url).origin))
-  return NextResponse.json(report)
+  await sendRepAlertEmail(buildSubject(report.status), renderLeadFlowHealthEmail(report))
+
+  return NextResponse.json({ ok: report.status !== 'fail', emailed: true, report })
 }
 
 export async function POST(request: Request) {

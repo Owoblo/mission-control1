@@ -8,7 +8,7 @@ import {
   getInboundLeadByCallSid,
   getSalesLead,
   getSalesLeadByInboundId,
-  listSalesLeads,
+  findSalesLeadByPhone,
   saveCrmCallSidMapping,
   saveSalesLead,
   updateInboundLeadRawData,
@@ -26,7 +26,7 @@ import {
   normalizeTwilioRecordingSid,
 } from '@/lib/server/twilio-recordings'
 import { uid } from '@/lib/sales'
-import type { CRMLead, InboundLead } from '@/lib/types'
+import type { InboundLead } from '@/lib/types'
 
 export async function GET() {
   return Response.json({
@@ -46,16 +46,6 @@ function buildRecordingUnavailableReason(recordingStatus?: string) {
 
 function digitsOnly(value?: string) {
   return (value || '').replace(/\D/g, '')
-}
-
-function phonesMatch(phone?: string, lead?: CRMLead | null) {
-  const inputDigits = digitsOnly(phone)
-  const leadDigits = digitsOnly(lead?.phone)
-  return !!inputDigits && !!leadDigits && (
-    leadDigits === inputDigits ||
-    leadDigits.endsWith(inputDigits) ||
-    inputDigits.endsWith(leadDigits)
-  )
 }
 
 function sleep(ms: number) {
@@ -109,8 +99,7 @@ async function retryCallbackStep<T>(
 
 async function findLeadByPhone(phone?: string) {
   if (!digitsOnly(phone)) return null
-  const leads = await listSalesLeads().catch(() => [] as CRMLead[])
-  return leads.find(lead => phonesMatch(phone, lead)) || null
+  return findSalesLeadByPhone(phone).catch(() => null)
 }
 
 async function ensureInboundLeadCallMapping(callSid: string, inboundLead: InboundLead) {

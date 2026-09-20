@@ -17,16 +17,47 @@ function displayName(contact: Contact) { const name = String(contact.name || '')
 async function readJson<T>(url: string, headers: Record<string, string>): Promise<T> { const response = await fetch(url, { headers, cache: 'no-store' }); if (!response.ok) throw new Error(`Supabase read failed (${response.status})`); return response.json() as Promise<T> }
 async function mutate(url: string, headers: Record<string, string>, body: unknown, method = 'POST') { const response = await fetch(url, { method, headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase write failed (${response.status})`) }
 
+// Watermark: only scan touches newer than the last processed one, so the
+// 2-minute cron does incremental work instead of re-scanning thousands of
+// rows every run. Persisted in saturn_config (same pattern as dialer settings).
+// A 5-minute overlap guards against late-arriving writes; handoff creation is
+// idempotent (deterministic lead ids, PATCH for existing), so re-scanning the
+// overlap is harmless.
+const HANDOFF_CURSOR_KEY = 'lead_handoffs_cursor'
+const INITIAL_LOOKBACK_MS = 1000 * 60 * 60 * 24
+const CURSOR_OVERLAP_MS = 1000 * 60 * 5
+async function readHandoffCursor(url: string, headers: Record<string, string>): Promise<string | null> {
+  try {
+    const rows = await readJson<Array<{ value?: { last_processed_at?: unknown } }>>(`${url}/rest/v1/saturn_config?key=eq.${HANDOFF_CURSOR_KEY}&select=value&limit=1`, headers)
+    const cursor = rows[0]?.value?.last_processed_at
+    return typeof cursor === 'string' && cursor ? cursor : null
+  } catch { return null }
+}
+async function writeHandoffCursor(url: string, headers: Record<string, string>, cursor: string) {
+  await fetch(`${url}/rest/v1/saturn_config`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ key: HANDOFF_CURSOR_KEY, value: { last_processed_at: cursor }, updated_at: new Date().toISOString() }),
+  }).catch(() => {})
+}
+
 export async function GET(request: Request) {
   if (!isAuthorizedCronRequest(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { url, headers } = requireSupabaseEnv(); const now = new Date().toISOString()
   try {
-    const touches = await readJson<Touch[]>(`${url}/rest/v1/market_touches?direction=eq.inbound&channel=eq.sms&select=id,contact_id,notes,created_at,metadata&order=created_at.desc&limit=5000`, headers)
+    const storedCursor = await readHandoffCursor(url, headers)
+    const cursor = storedCursor || new Date(Date.now() - INITIAL_LOOKBACK_MS).toISOString()
+    const scanFrom = new Date(new Date(cursor).getTime() - CURSOR_OVERLAP_MS).toISOString()
+    const touches = await readJson<Touch[]>(`${url}/rest/v1/market_touches?direction=eq.inbound&channel=eq.sms&created_at=gt.${enc(scanFrom)}&select=id,contact_id,notes,created_at,metadata&order=created_at.desc&limit=5000`, headers)
     const latest = new Map<string, Touch>()
     for (const touch of touches.filter(isPartnershipTouch)) if (detectPartnershipLeadSignal(touch.notes).is_lead && !latest.has(touch.contact_id)) latest.set(touch.contact_id, touch)
-    const ids = [...latest.keys()]; if (!ids.length) return NextResponse.json({ ok: true, scanned: touches.length, detected: 0, created: 0 })
+    const ids = [...latest.keys()]; if (!ids.length) {
+      const maxCreatedAt = touches.reduce((max, touch) => touch.created_at > max ? touch.created_at : max, cursor)
+      if (maxCreatedAt !== cursor) await writeHandoffCursor(url, headers, maxCreatedAt)
+      return NextResponse.json({ ok: true, scanned: touches.length, detected: 0, created: 0, watermark: maxCreatedAt })
+    }
     const contacts = await readJson<Contact[]>(`${url}/rest/v1/market_contacts?id=in.(${ids.map(enc).join(',')})&select=id,name,company,title,email,phone,city,category,industry`, headers)
-    const byId = new Map<string, Contact>(contacts.map(contact => [contact.id, contact])); const existing = await readJson<Array<{ id: string; data?: Record<string, unknown> }>>(`${url}/rest/v1/crm_leads?select=id,data&limit=10000`, headers); const existingByContact = new Map<string, { id: string; data?: Record<string, unknown> }>(); for (const row of existing) { const contactId = String(row.data?.partnerReferralContactId || ''); if (contactId) existingByContact.set(contactId, row) }; let created = 0; const createdHandoffs: string[] = []
+    const byId = new Map<string, Contact>(contacts.map(contact => [contact.id, contact])); const existing = await readJson<Array<{ id: string; data?: Record<string, unknown> }>>(`${url}/rest/v1/crm_leads?data->>partnerReferralContactId=in.(${ids.map(enc).join(',')})&select=id,data&limit=${ids.length}`, headers); const existingByContact = new Map<string, { id: string; data?: Record<string, unknown> }>(); for (const row of existing) { const contactId = String(row.data?.partnerReferralContactId || ''); if (contactId) existingByContact.set(contactId, row) }; let created = 0; const createdHandoffs: string[] = []
     for (const [contactId, touch] of latest) {
       const contact = byId.get(contactId); if (!contact) continue; const signal = detectPartnershipLeadSignal(touch.notes); const city = String(contact.city || '').trim(); const person = displayName(contact); const old = existingByContact.get(contact.id); const leadId = `partner-handoff-${contact.id}`
       const existingHandoffStatus = String(old?.data?.handoffStatus || '')
@@ -39,6 +70,8 @@ export async function GET(request: Request) {
       const rows = createdHandoffs.map(item => `<li>${item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')
       await sendRepAlertEmail(`Partner lead handoff: ${createdHandoffs.length} new sales lead${createdHandoffs.length === 1 ? '' : 's'}`, `<div style="font-family:Arial,sans-serif"><h2>New partner-sourced sales handoff${createdHandoffs.length === 1 ? '' : 's'}</h2><p>The CRM has been updated. Thelma should call the referring partner first, not treat this as a normal consumer lead.</p><p><strong>Suggested introduction:</strong> Hi, this is [rep] from Saturn Star Movers. John from our Partnerships team asked me to follow up because [partner or business] mentioned a possible moving or staging need. I am calling to get the client details and see how we can help.</p><ul>${rows}</ul><p>Collect the client name and contact, date, origin, destination, inventory, access, parking, timing, and quote requirements. Confirm the route before quoting and record the outcome in the partner opportunity.</p></div>`, ['business@starmovers.ca', 'thelma.ufot@starmovers.ca'])
     }
-    return NextResponse.json({ ok: true, scanned: touches.length, detected: latest.size, created })
+    const maxCreatedAt = touches.reduce((max, touch) => touch.created_at > max ? touch.created_at : max, cursor)
+    if (maxCreatedAt !== cursor) await writeHandoffCursor(url, headers, maxCreatedAt)
+    return NextResponse.json({ ok: true, scanned: touches.length, detected: latest.size, created, watermark: maxCreatedAt })
   } catch (error) { console.error('Partner lead handoff processor:', error); return NextResponse.json({ error: error instanceof Error ? error.message : 'Lead handoff processing failed' }, { status: 500 }) }
 }

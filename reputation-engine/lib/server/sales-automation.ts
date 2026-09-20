@@ -76,6 +76,7 @@ import {
   normalizeConversationContactValue,
   patchAutomationJob,
   queueAutomationJob,
+  recoverStaleAutomationJobs,
   saveAutomationJob,
   saveConversationThread,
 } from '@/lib/server/sales-automation-repository'
@@ -3990,6 +3991,7 @@ export async function processAutomationJob(job: CRMAutomationJob) {
 }
 
 export async function processDueAutomationJobs(limit = 25) {
+  await recoverStaleAutomationJobs()
   const jobs = await listDueAutomationJobs(limit)
   const results: CRMAutomationJob[] = []
   for (const job of jobs) {

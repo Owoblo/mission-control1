@@ -28,12 +28,7 @@ async function isAuthorized(request: Request) {
   return session?.role === 'owner' || session?.role === 'manager'
 }
 
-export async function POST(request: Request) {
-  if (!(await isAuthorized(request))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const dryRun = new URL(request.url).searchParams.get('dryRun') === '1'
+async function runCleanup(dryRun: boolean) {
   const { accountSid, authToken } = getTwilioCredentials()
   const storage = getStorageService()
   const candidates = await listTwilioRecordingsReadyForDeletion(50)
@@ -72,15 +67,42 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({
-    ok: true,
+  return {
     dryRun,
     checked: candidates.length,
     deleted: results.filter(item => item.status === 'deleted').length,
     results,
-  })
+  }
 }
 
+export async function POST(request: Request) {
+  if (!(await isAuthorized(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const params = new URL(request.url).searchParams
+  const dryRun = params.get('dryRun') === '1'
+  // Destructive runs require an explicit opt-in. Previously any POST without
+  // parameters deleted recordings; the scheduled Vercel cron (which issues
+  // GET) never deleted anything, so no automated caller depends on the old
+  // default.
+  if (!dryRun && params.get('confirm') !== '1') {
+    return NextResponse.json(
+      { error: 'Destructive cleanup requires ?confirm=1. Use GET (or ?dryRun=1) for a dry-run report.' },
+      { status: 400 }
+    )
+  }
+
+  return NextResponse.json({ ok: true, ...(await runCleanup(dryRun)) })
+}
+
+// Vercel cron invokes GET: it is always an explicit what-would-happen report
+// and never deletes. (Previously GET silently rewrote the request to force
+// dryRun=1; the behavior is now stated instead of hidden.)
 export async function GET(request: Request) {
-  return POST(new Request(`${request.url}${new URL(request.url).search ? '&' : '?'}dryRun=1`, request))
+  if (!(await isAuthorized(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  return NextResponse.json({ ok: true, mode: 'report', ...(await runCleanup(true)) })
 }
