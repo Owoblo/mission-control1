@@ -924,6 +924,9 @@ export interface JobFactors {
 
   // Consultative customer journey — models the whole transition, including
   // uncertain dates, instead of forcing every customer into a single move day.
+  packingPlan?: import('./estimate-services').PackingPlan
+  moveDatePlan?: import('./estimate-services').MoveDatePlan
+  truckHold?: import('./estimate-services').TruckHoldPlan
   destinationTiming?: 'same_day' | 'known_gap' | 'unknown'
   temporaryStorageNeeded?: boolean
   storageDurationKnown?: boolean
@@ -1319,6 +1322,7 @@ export interface CRMClient {
 }
 
 export interface QuoteLineItem {
+  serviceScopeFingerprint?: string
   description: string
   details?: string
   amount: number
@@ -1384,6 +1388,8 @@ export interface CustomerQuoteScope {
 }
 
 export interface CRMQuote {
+  commercialVersion?: number
+  versionHistory?: import('./quote-versions').QuoteVersionSnapshot[]
   revision?: number
   truckSize?: string
   id: string

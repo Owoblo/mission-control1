@@ -1,3 +1,4 @@
+import { isCurrentQuoteVersion } from '@/lib/quote-versions'
 import { NextResponse } from 'next/server'
 import { ensureStripeCustomerForLead } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
@@ -11,7 +12,7 @@ const CURRENT_QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
 export async function POST(request: Request) {
   try {
-    const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion, scopeConfirmed } = (await request.json()) as {
+    const { quoteId, token, successUrl, cancelUrl, termsAccepted, termsVersion, scopeConfirmed, commercialVersion } = (await request.json()) as {
       quoteId: string
       token?: string
       successUrl?: string
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
       termsAccepted?: boolean
       termsVersion?: string
       scopeConfirmed?: boolean
+      commercialVersion?: number
     }
 
     if (!quoteId) return NextResponse.json({ error: 'quoteId is required' }, { status: 400 })
@@ -41,6 +43,8 @@ export async function POST(request: Request) {
     if (!quote.termsAcceptedAt && termsAccepted !== true) {
       return NextResponse.json({ error: 'Terms must be accepted before paying the deposit.' }, { status: 400 })
     }
+    if (!isCurrentQuoteVersion(quote, commercialVersion)) return NextResponse.json({ error: 'This estimate has been revised. Refresh and review it before paying.' }, { status: 409 })
+
     if (!quote.termsAcceptedAt && scopeConfirmed !== true) {
       return NextResponse.json({ error: 'Move scope must be confirmed before paying the deposit.' }, { status: 400 })
     }

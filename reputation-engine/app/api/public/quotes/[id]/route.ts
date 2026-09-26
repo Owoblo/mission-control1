@@ -1,3 +1,4 @@
+import { isCurrentQuoteVersion } from '@/lib/quote-versions'
 import { NextResponse } from 'next/server'
 import { syncLeadFromQuoteStatus } from '@/lib/sales'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
@@ -154,6 +155,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       expired: quoteExpired,
       quote: {
         id: quote.id,
+        commercialVersion: quote.commercialVersion || 1,
         number: quote.number,
         moveDate: lead?.moveDate || quote.moveDate,
         moveTime: lead?.moveTime || quote.moveTime,
@@ -178,7 +180,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         legs: quote.legs || [],
         customerScope: quote.customerScope,
         scopeStatus: quote.scopeStatus,
-        jobFactors: lead?.jobFactors || undefined,
+        jobFactors: lead?.jobFactors ? { ...lead.jobFactors, packingPlan: undefined, truckHold: undefined } : undefined,
         moveDescription: sanitizeCustomerQuoteText(quote.moveDescription),
         conditionalClause: sanitizeCustomerQuoteText(quote.conditionalClause),
         status: quote.status,
@@ -230,7 +232,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
           yearBuilt: lead.supabaseListing.yearBuilt,
           scanConfidence: lead.listingScanSnapshot?.confidence,
         } : null,
-        jobFactors: lead.jobFactors || null,
+        jobFactors: lead.jobFactors ? { ...lead.jobFactors, packingPlan: undefined, truckHold: undefined } : null,
       } : null,
     }, { status: quoteExpired ? 410 : 200 })
   } catch (error) {
@@ -249,7 +251,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       action?: 'accept' | 'decline'
       termsAccepted?: boolean
       termsVersion?: string
-      scopeConfirmed?: boolean
+      scopeConfirmed?: boolean; commercialVersion?: number
     }
     const quote = await getSalesQuote(params.id)
 
@@ -265,6 +267,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         { status: 410 }
       )
     }
+
+    if (!isCurrentQuoteVersion(quote, body.commercialVersion)) return NextResponse.json({ error: 'This estimate has been revised. Refresh and review the latest version before responding.' }, { status: 409 })
 
     const action = body.action || 'accept'
 

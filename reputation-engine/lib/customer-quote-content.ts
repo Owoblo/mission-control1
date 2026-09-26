@@ -1,3 +1,4 @@
+import { datePlanLabel, SERVICE_NAMES } from './estimate-services'
 import type { CustomerQuoteScope, InventoryItem, JobFactors, QuoteLineItem } from './types'
 
 const INTERNAL_QUOTE_SENTENCE_PATTERNS = [
@@ -71,6 +72,8 @@ export function buildCustomerQuoteScope(params: {
     (params.jobFactors?.destFloors || 0) > 1 ? `${params.jobFactors?.destFloors}-floor destination access included` : null,
     params.jobFactors?.estimatedBoxes ? `${params.jobFactors.estimatedBoxes} boxes included in the planned scope` : null,
     params.jobFactors?.specialtyNotes,
+    datePlanLabel(params.jobFactors?.moveDatePlan),
+    params.jobFactors?.truckHold?.status === 'possible' ? 'Overnight truck hold is not included; availability, delivery date and price to be confirmed' : null,
     // Preferences express interest. Only priced, selected services become inclusions.
     ...(params.lineItems || []).filter(line => Number(line.amount) > 0).flatMap(line => {
       const inclusions: Record<string, string> = {
@@ -79,6 +82,7 @@ export function buildCustomerQuoteScope(params: {
         'Professional Unpacking Service': 'Room-by-room unpacking and empty-box consolidation included',
         'Move-In / Move-Out Cleaning': 'Move-in / move-out cleaning included as agreed',
       }
+      if (line.serviceScopeFingerprint && (Object.values(SERVICE_NAMES) as string[]).includes(line.description)) return [`${line.description.replace(' (Day Before Move)', '')}: ${line.details || 'included'}`]
       return inclusions[line.description] ? [inclusions[line.description]] : []
     }),
   ])

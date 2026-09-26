@@ -26,5 +26,5 @@ test('saved override total uses the canonical total including HST', () => {
 test('an explicit agreed-rate revision updates a viewed quote instead of silently restoring the old price', () => {
   assert.match(leadWorkspace, /hasExplicitPriceRevision/)
   assert.match(leadWorkspace, /quoteIsLockedForPricing && !hasExplicitPriceRevision/)
-  assert.match(leadWorkspace, /pricingRevisionReason: proposedOverrideLineItem\?\.details/)
+  assert.match(leadWorkspace, /pricingRevisionReason: overrides\?\.pricingRevisionReason\?\.trim\(\) \|\| proposedOverrideLineItem\?\.details/)
 })

@@ -1,3 +1,4 @@
+import { planningFollowUp } from '@/lib/estimate-services'
 import { buildCurrentCrewBrief, buildMoveOperatingPlan } from '@/lib/move-operating-plan'
 import { preserveInventoryHandlingEvidence } from '@/lib/assembly-planning'
 import { NextResponse } from 'next/server'
@@ -400,11 +401,18 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       nextLead = syncLeadFromQuoteStatus(nextLead, quote)
     }
 
-    // When Date TBD is active and no explicit followUpDate was sent in this update,
-    // keep a rolling 3-day follow-up so the lead never goes cold
-    if (nextLead.moveDateFlexible && !updates.followUpDate) {
-      const threeDaysOut = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      nextLead = { ...nextLead, followUpDate: threeDaysOut, followUpNote: nextLead.followUpNote || 'Check in — pending house close' }
+    // A pending date/hold creates or updates one lead task without pushing an
+    // existing earlier reminder into the future on every autosave.
+    const planningTask = planningFollowUp(nextLead.jobFactors || {})
+    if (planningTask || nextLead.moveDateFlexible) {
+      const due = planningTask?.date || new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10)
+      const existing = nextLead.followUpDate
+      const previousNote = (nextLead.followUpNote || '').split('\n').filter(line => !line.startsWith('[Move planning]')).join('\n')
+      nextLead = { ...nextLead,
+        moveDateFlexible: planningTask ? true : nextLead.moveDateFlexible,
+        followUpDate: existing && existing < due ? existing : due,
+        followUpNote: [previousNote, planningTask?.note || (!previousNote ? 'Check in — pending house close' : '')].filter(Boolean).join('\n'),
+      }
     }
 
     nextLead = normalizeLead({

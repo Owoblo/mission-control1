@@ -106,7 +106,8 @@ function deriveSubtotal(quote: CRMQuote, updates: Partial<CRMQuote>) {
 export function validateQuotePricingPermissions(
   session: SessionPayload | null | undefined,
   current: CRMQuote,
-  updates: Partial<CRMQuote>
+  updates: Partial<CRMQuote>,
+  serverContribution?: { marginPct: number; minimumPct: number },
 ) {
   if (!canAccessSalesWorkspace(session)) {
     return 'Unauthorized'
@@ -123,18 +124,18 @@ export function validateQuotePricingPermissions(
     const isUpwardOverride = currentBaseAmount > 0 && overrideAmount >= currentBaseAmount
     const details = String(overrideLineItem.details || updates.priceOverrideReason || '')
     const marginMatch = details.match(/Projected margin:\s*(-?\d+(?:\.\d+)?)%/i)
-    const projectedMargin = marginMatch ? Number(marginMatch[1]) : null
+    const projectedMargin = serverContribution?.marginPct ?? (marginMatch ? Number(marginMatch[1]) : null)
     const hasApproval =
       current.priceOverrideApprovalStatus === 'approved' &&
       approvedAmount > 0 &&
-      approvedAmount === Math.max(0, overrideAmount - Number(updates.discountAmount ?? current.discountAmount ?? 0))
+      approvedAmount === (serverContribution ? Number(updates.subtotal ?? current.subtotal) : Math.max(0, overrideAmount - Number(updates.discountAmount ?? current.discountAmount ?? 0)))
     const hasMeaningfulNote = details.replace(/Projected margin:.*$/i, '').trim().length >= 12
     if (!hasMeaningfulNote) {
       return 'Sales reps must add a quick note explaining every manual price override.'
     }
     // Raising the base price cannot create the discount/margin risk this gate is
     // designed to prevent. Keep the audit note, but never block an upward revision.
-    if (!isUpwardOverride && (projectedMargin === null || projectedMargin < 55) && !hasApproval) {
+    if (!isUpwardOverride && (projectedMargin === null || projectedMargin < (serverContribution?.minimumPct ?? 55)) && !hasApproval) {
       return 'Sales reps need an owner/manager approval code before applying a manual price override.'
     }
   }

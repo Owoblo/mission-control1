@@ -1,3 +1,7 @@
+import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
+import { buildContributionPricingPlan, MINIMUM_CONTRIBUTION_MARGIN } from '@/lib/contribution-pricing'
+import { estimateServicePackage, servicePackageIsStale } from '@/lib/estimate-services'
+import { customerQuoteChanged, preserveQuoteVersion } from '@/lib/quote-versions'
 import { quoteEditConflict, finalQuoteMargin } from '@/lib/quote-pricing-safety'
 import { buildMoveOperatingPlan, buildCurrentCrewBrief } from '@/lib/move-operating-plan'
 import { estimateLeadQuote } from '@/lib/sales'
@@ -82,18 +86,33 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
 
     const requestBody = (await request.json()) as Partial<typeof current> & { pricingRevisionReason?: string; reactivateDeclinedQuote?: boolean }
-    const { pricingRevisionReason, reactivateDeclinedQuote, ...updates } = requestBody
+    const { pricingRevisionReason, reactivateDeclinedQuote, versionHistory: _history, commercialVersion: _version, ...updates } = requestBody
     const currentLead = current.leadId ? await getSalesLead(current.leadId) : null
     if (currentLead && !leadMatchesSessionBranch(currentLead, session)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const conflict = quoteEditConflict(current, updates)
     if (conflict) return NextResponse.json({ error: conflict }, { status: 409 })
+    if (updates.lineItems && currentLead) {
+      const plan = estimateServicePackage(currentLead.jobFactors || {})
+      if (updates.lineItems.some(line => line.serviceScopeFingerprint) && (plan.issues.length || servicePackageIsStale(currentLead.jobFactors || {}, updates.lineItems))) return NextResponse.json({ error: 'Service scope changed. Review and apply the package before saving this price.' }, { status: 409 })
+      if (!updates.customerScope && current.customerScope) {
+        updates.customerScope = buildCustomerQuoteScope({
+          inventory: current.customerScope.inventory, jobFactors: currentLead.jobFactors,
+          assemblyItems: current.customerScope.assemblyItems,
+          customerHandledAssemblyItems: current.customerScope.customerHandledAssemblyItems,
+          specialtyItems: current.customerScope.specialtyItems, lineItems: updates.lineItems,
+        })
+      }
+    }
+    let serverContribution: { marginPct: number; minimumPct: number } | undefined
     // Server-owned financial evidence: margin text supplied by the browser is not a cost calculation.
     if (currentLead && session?.role === 'sales_rep' && ['lineItems', 'discountAmount', 'priceOverrideTotal'].some(key => Object.hasOwn(updates, key))) {
       const proposed = { ...current, ...updates }
       const estimated = estimateLeadQuote(currentLead, { crewSize: proposed.crewSize, truckCount: proposed.truckCount }, currentLead.jobFactors)
-      const final = finalQuoteMargin(proposed, estimated.pricingBreakdown.internalCostEstimate.totalCost)
+      const contribution = buildContributionPricingPlan({ currentPrice: proposed.subtotal, pricing: estimated.pricingBreakdown, factors: currentLead.jobFactors, lineItems: proposed.lineItems, quoteType: proposed.quoteType, binding: proposed.billingModel === 'binding', inventory: currentLead.inventory, moveDate: proposed.moveDate })
+      serverContribution = { marginPct: contribution.contributionMarginPct, minimumPct: MINIMUM_CONTRIBUTION_MARGIN * 100 }
+      const final = { revenue: proposed.subtotal, marginPct: contribution.contributionMarginPct }
       const approvedNet = Number(current.priceOverrideApprovalAmount || 0)
-      if (final.marginPct < 55 && !(current.priceOverrideApprovalStatus === 'approved' && Math.abs(approvedNet - final.revenue) < 0.01)) {
+      if (final.marginPct < MINIMUM_CONTRIBUTION_MARGIN * 100 && !(current.priceOverrideApprovalStatus === 'approved' && Math.abs(approvedNet - final.revenue) < 0.01)) {
         return NextResponse.json({ error: `Final margin after all discounts is ${final.marginPct.toFixed(1)}%. Owner/manager approval must cover the final net service price.` }, { status: 403 })
       }
     }
@@ -109,7 +128,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       )
     }
 
-    if (hasCustomerFacingCommercialSnapshot(current) && quoteCommercialSnapshotChanged(current, updates)) {
+    if (hasCustomerFacingCommercialSnapshot(current) && customerQuoteChanged(current, updates)) {
       const reason = pricingRevisionReason?.trim() || ''
       if (reason.length < 8) {
         return NextResponse.json(
@@ -155,7 +174,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       }
     }
 
-    const pricingError = validateQuotePricingPermissions(session, current, updates)
+    const pricingError = validateQuotePricingPermissions(session, current, updates, serverContribution)
     if (pricingError) {
       return NextResponse.json({ error: pricingError }, { status: 403 })
     }
@@ -186,7 +205,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     const newTotal = updates.total ?? current.total
     const isAccepted = !!(current.acceptedAt || updates.acceptedAt)
 
-    const customerFacingPriceChanged = hasCustomerFacingCommercialSnapshot(current) && quoteCommercialSnapshotChanged(current, updates)
+    const customerFacingPriceChanged = hasCustomerFacingCommercialSnapshot(current) && customerQuoteChanged(current, updates)
     const autoChangeEntry: QuoteChangeEntry | null = customerFacingPriceChanged ? {
       id: uid('chg'),
       changedAt: new Date().toISOString(),
@@ -204,6 +223,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         ...current,
         ...updates,
         id: current.id,
+        ...(customerFacingPriceChanged ? preserveQuoteVersion(current, pricingRevisionReason!.trim(), session?.name || 'Sales') : {}),
         sentAt: nextStatus === 'sent' ? updates.sentAt || current.sentAt || today : current.sentAt,
         viewedAt: nextStatus === 'viewed' ? updates.viewedAt || current.viewedAt || today : current.viewedAt,
         acceptedAt: nextStatus === 'accepted' ? updates.acceptedAt || current.acceptedAt || today : current.acceptedAt,

@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { datePlanLabel } from '@/lib/estimate-services'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { deriveMoveLogisticsPlan } from '@/lib/move-logistics'
@@ -62,6 +63,7 @@ type PublicQuote = {
   customerScope?: CustomerQuoteScope
   scopeStatus?: 'confirmed' | 'provisional'
   lineItems: Array<{ description: string; details?: string; amount: number }>
+  commercialVersion?: number
   subtotal: number
   hst: number
   total: number
@@ -1052,7 +1054,7 @@ function QuoteAcceptPageInner() {
       const r = await fetch(`/api/public/quotes/${encodeURIComponent(id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, termsAccepted: true, scopeConfirmed: true, termsVersion: QUOTE_TERMS_VERSION }),
+        body: JSON.stringify({ token, commercialVersion: quote?.commercialVersion || 1, termsAccepted: true, scopeConfirmed: true, termsVersion: QUOTE_TERMS_VERSION }),
       })
       const payload = await r.json()
       if (payload?.expired) { setQuoteExpired(true); return }
@@ -1074,7 +1076,7 @@ function QuoteAcceptPageInner() {
       const r = await fetch(`/api/public/quotes/${encodeURIComponent(id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, action: 'decline' }),
+        body: JSON.stringify({ token, commercialVersion: quote?.commercialVersion || 1, action: 'decline' }),
       })
       const payload = await r.json()
       if (payload?.expired) { setQuoteExpired(true); return }
@@ -1098,7 +1100,7 @@ function QuoteAcceptPageInner() {
       const r = await fetch('/api/sales/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId: id, token, termsAccepted: true, scopeConfirmed: true, termsVersion: QUOTE_TERMS_VERSION }),
+        body: JSON.stringify({ quoteId: id, token, commercialVersion: quote?.commercialVersion || 1, termsAccepted: true, scopeConfirmed: true, termsVersion: QUOTE_TERMS_VERSION }),
       })
       const payload = await r.json() as { url?: string; error?: string }
       if (!r.ok || !payload.url) throw new Error(payload.error || 'Could not create payment session')
@@ -1451,6 +1453,7 @@ function QuoteAcceptPageInner() {
               </div>
             )}
 
+            {(quote.commercialVersion || 1) > 1 && <div className="mb-3 text-xs text-white/75">Updated estimate · Version {quote.commercialVersion}</div>}
             {/* Lead with the service price, then show tax and the payable total. */}
             <div className="mb-8 inline-flex flex-col gap-1 rounded-xl bg-[#C99700] px-5 py-3">
               <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#071421]/80">{bundledMove ? 'Your flat-rate move' : 'Your estimate'} · before HST</span>
@@ -1494,7 +1497,7 @@ function QuoteAcceptPageInner() {
           <SectionLabel>Your move at a glance</SectionLabel>
           <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:grid-cols-3 lg:grid-cols-5">
           {[
-            { label: 'Move Date', value: quote.moveDate ? formatDate(quote.moveDate) : 'TBD' },
+            { label: 'Move Date', value: datePlanLabel(jobFactors?.moveDatePlan) || (quote.moveDate ? formatDate(quote.moveDate) : 'TBD') },
             { label: isSingleLocationLaborOnly ? 'Work Location' : 'Route', value: isSingleLocationLaborOnly ? (quote.originCity || quote.originAddress || 'Service address') : `${quote.originCity || 'Origin'} → ${quote.destCity || 'Destination'}` },
             { label: 'Crew', value: `${crewSize} Movers` },
             { label: trucks === 1 ? 'Truck' : 'Trucks', value: `${trucks} Truck${trucks > 1 ? 's' : ''}` },

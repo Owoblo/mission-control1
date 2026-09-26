@@ -10,6 +10,9 @@ import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchL
 import { INVENTORY_PRESETS, createInventoryItemFromPreset, matchInventoryPreset } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
+import { ServicePackagePanel } from './service-package-panel'
+import { MoveTimingPanel } from './move-timing-panel'
+import { estimateServicePackage, servicePackageIsStale, SERVICE_NAMES } from '@/lib/estimate-services'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
@@ -179,6 +182,7 @@ type GroupedInventory = Array<[string, Array<{ item: InventoryItem; index: numbe
 type PackingMaterialsFlag = NonNullable<PricingBreakdown['intelligenceFlags']['packingMaterialsEstimate']>
 
 type QuoteWorkspaceSaveOptions = {
+  pricingRevisionReason?: string
   moveDescription?: string
   internalNotes?: string
   conditionalClause?: string
@@ -1214,6 +1218,7 @@ export function EstimateDraftModal({
   const [scopeConfirmationNotice, setScopeConfirmationNotice] = useState<string | null>(null)
   const [scopeConfirmationBusy, setScopeConfirmationBusy] = useState(false)
   const [sendGuardOpen, setSendGuardOpen] = useState(false)
+  const [revisionReason, setRevisionReason] = useState('')
   const [capacityBusy, setCapacityBusy] = useState(false)
   const [capacitySnapshot, setCapacitySnapshot] = useState<BranchCapacitySnapshot | null>(null)
   const presetSearchResults = useMemo(() => {
@@ -2164,14 +2169,8 @@ export function EstimateDraftModal({
       .filter(item => item.amount === 0 || Number(item.amount) === 0)
       .reduce((sum, item) => sum + (dealCosts[item.description] || 0), 0)
     const actualRevenue = quoteModalTotals.subtotal
-    const totalCost = Math.round((
-      pricingBreakdown.internalCostEstimate.laborCost +
-      pricingBreakdown.internalCostEstimate.truckOpsCost +
-      (pricingBreakdown.internalCostEstimate.commissionCost || 0) +
-      (pricingBreakdown.internalCostEstimate.suppliesCost || 0) +
-      (pricingBreakdown.internalCostEstimate.commercialDirectCost || 0) +
-      dealCost
-    ) * 100) / 100
+    const economics = buildContributionPricingPlan({ currentPrice: actualRevenue, pricing: pricingBreakdown, lineItems: quoteLineItems, factors: jobFactors, binding: quote?.billingModel === 'binding', quoteType, moveDate: selectedMoveDate, inventory: effectiveInventoryMetrics.inventory })
+    const totalCost = Math.round((economics.fixedFulfillmentCost + actualRevenue * economics.variableCostRate + dealCost) * 100) / 100
     const liveProfit = Math.round((actualRevenue - totalCost) * 100) / 100
     const liveMargin = actualRevenue > 0 ? Math.round((liveProfit / actualRevenue) * 1000) / 10 : 0
     return {
@@ -2179,10 +2178,10 @@ export function EstimateDraftModal({
       totalCost,
       liveProfit,
       liveMargin,
-      marginColor: liveMargin >= 65 ? 'text-emerald-700' : liveMargin >= 55 ? 'text-amber-700' : 'text-rose-700',
-      marginBg: liveMargin >= 65 ? 'bg-emerald-500' : liveMargin >= 55 ? 'bg-amber-500' : 'bg-rose-500',
+      marginColor: liveMargin >= 38 ? 'text-emerald-700' : liveMargin >= 30 ? 'text-amber-700' : 'text-rose-700',
+      marginBg: liveMargin >= 38 ? 'bg-emerald-500' : liveMargin >= 30 ? 'bg-amber-500' : 'bg-rose-500',
     }
-  }, [pricingBreakdown, quoteLineItems, quoteModalTotals.subtotal])
+  }, [pricingBreakdown, quoteLineItems, quoteModalTotals.subtotal, jobFactors, quote?.billingModel, quoteType, selectedMoveDate, effectiveInventoryMetrics.inventory])
   const serviceProfitabilityPlan = useMemo(() => buildServiceProfitabilityPlan({
     lineItems: quoteLineItems,
     legs: legsEnabled ? legs : undefined,
@@ -2243,11 +2242,12 @@ export function EstimateDraftModal({
     return Math.round(((projectedRevenue - liveMarginSummary.totalCost) / projectedRevenue) * 1000) / 10
   }, [liveMarginSummary, quoteModalTotals.subtotal, tenPctActive, tenPctDiscountAmount])
   const overrideProjectedMargin = useMemo(() => {
-    if (!liveMarginSummary) return null
-    const overrideAmount = overrideTaxMode ? resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode).subtotal : 0
-    if (overrideAmount <= 0) return null
-    return Math.round(((overrideAmount - liveMarginSummary.totalCost) / overrideAmount) * 1000) / 10
-  }, [liveMarginSummary, overrideInput, overrideTaxMode])
+    const baseAmount = overrideTaxMode ? resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode).subtotal : 0
+    if (baseAmount <= 0) return null
+    const services = quoteLineItems.filter(line => isProtectionLine(line.description) || [...Object.values(SERVICE_NAMES), junkLineDescription, containerHandlingLineDescription].includes(line.description)).reduce((sum, line) => sum + Number(line.amount || 0), 0)
+    const revenue = baseAmount + services
+    return Math.round(((revenue * (1 - contributionPlan.variableCostRate) - contributionPlan.fixedFulfillmentCost) / revenue) * 1000) / 10
+  }, [contributionPlan, quoteLineItems, overrideInput, overrideTaxMode])
   const overridePricing = useMemo(() => overrideTaxMode
     ? resolveOntarioPriceOverride(Number(overrideInput || 0), overrideTaxMode)
     : { subtotal: 0, hst: 0, total: 0 }, [overrideInput, overrideTaxMode])
@@ -2256,7 +2256,7 @@ export function EstimateDraftModal({
   const overrideSliderMin = Math.max(100, Math.floor((overrideSliderBase * 0.75) / 25) * 25)
   const overrideSliderMax = Math.max(overrideSliderMin + 100, Math.ceil((overrideSliderBase * 1.5) / 25) * 25)
   const overrideIsIncrease = baseQuoteSubtotal > 0 && overrideAmount >= baseQuoteSubtotal
-  const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 55)
+  const overrideNeedsApproval = currentUser?.role === 'sales_rep' && !overrideIsIncrease && (overrideProjectedMargin === null || overrideProjectedMargin < 30)
   const overrideApprovalMatches = useMemo(() => {
     if (!overrideNeedsApproval) return true
     if (overrideAmount <= 0) return false
@@ -2411,6 +2411,7 @@ export function EstimateDraftModal({
       ...(isLaborOnly ? [] : [{ category: 'logistics' as const, label: 'Destination address', ready: Boolean(destFull.trim()), critical: true, detail: 'Destination address is missing.' }]),
       { category: 'logistics', label: isLaborOnly ? 'Work location geocoded' : 'Origin geocoded', ready: Boolean(originFull.trim() && !routeError && route?.originResolved), critical: true, detail: originFull.trim() ? `${isLaborOnly ? 'Work location' : 'Origin address'} could not be located.` : `${isLaborOnly ? 'Work location' : 'Origin address'} is missing.` },
       ...(isLaborOnly ? [] : [{ category: 'logistics' as const, label: 'Destination geocoded', ready: Boolean(destFull.trim() && !routeError && route?.destResolved), critical: true, detail: destFull.trim() ? 'Destination address could not be located.' : 'Destination address is missing.' }]),
+      { category: 'logistics', label: 'Date confirmation', ready: !jobFactors.moveDatePlan || jobFactors.moveDatePlan.mode === 'confirmed', detail: 'Confirm the selected date from the customer’s date choices before booking.' },
       { category: 'logistics', label: 'Move date', ready: Boolean(selectedMoveDate), critical: true, detail: 'Move date is missing.' },
       { category: 'logistics', label: 'Origin access / parking', ready: originAccessConfirmed, detail: 'Origin stairs, elevator, parking, doorway, and carry distance are still unknown.' },
       ...(isLaborOnly ? [] : [{ category: 'logistics' as const, label: 'Destination access / parking', ready: destinationAccessConfirmed, detail: 'Destination stairs, elevator, parking, doorway, and carry distance are still unknown.' }]),
@@ -2438,12 +2439,12 @@ export function EstimateDraftModal({
           ? `${pricingBreakdown.moveIntelligence.fixedPriceReadiness.replace('_', ' ')} · ${pricingBreakdown.moveIntelligence.uncertaintyPct}% uncertainty · ${pricingBreakdown.moveIntelligence.questions.slice(0, 2).map(question => question.question).join(' ') || 'No unresolved high-impact questions.'}`
           : 'Item handling and origin/destination paths have not been assessed.',
       },
-      { category: 'commercial', label: 'Margin reviewed', ready: Boolean(liveMarginSummary && liveMarginSummary.liveMargin >= 50), critical: Boolean(liveMarginSummary && liveMarginSummary.actualRevenue > 0 && liveMarginSummary.liveMargin < 40), detail: liveMarginSummary ? `Current margin is ${liveMarginSummary.liveMargin.toFixed(1)}%; manager review may be required.` : 'Margin has not been calculated.' },
+      { category: 'commercial', label: 'Margin reviewed', ready: quoteModalTotals.subtotal >= contributionPlan.minimumAuthorizedPrice || canApproveMarginException, critical: quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !canApproveMarginException, detail: `Expected contribution is ${contributionPlan.contributionMarginPct}%; authorized floor is ${formatMoney(contributionPlan.minimumAuthorizedPrice)} before HST.` },
       { category: 'commercial', label: 'Deposit amount', ready: quoteModalTotals.deposit > 0, critical: true, detail: 'Deposit amount is missing.' },
       { category: 'commercial', label: 'Quote explanation available', ready: Boolean(quoteExplanation.detailed.trim()), detail: 'Customer-facing price explanation is not ready.' },
     ]
     return items
-  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, contributionPlan.pricingGaps, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, isLaborOnly, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, quoteReadyAssessment.hidden, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, unknownVolumeItems.length, unresolvedInventoryItems.length])
+  }, [boxesAsked, conjointInventoryPending, conjointMode, conjointPendingLabel, conjointVolumePending, conjointVolumePendingLabel, contributionPlan, canApproveMarginException, customerInventoryConfirmed, destFull, destinationAccessConfirmed, effectiveInventoryMetrics.totalItems, evidenceSources.length, isLaborOnly, jobFactors.moveDatePlan, jobFactors.packingStatus, lead.email, lead.name, lead.phone, liveMarginSummary, originAccessConfirmed, originFull, pricingBreakdown, quoteExplanation.detailed, quoteModalTotals.deposit, quoteModalTotals.total, quoteReadyAssessment.hidden, route?.destResolved, route?.originResolved, routeError, selectedMoveDate, unknownVolumeItems.length, unresolvedInventoryItems.length])
   const blockingReadiness = useMemo(
     () => readinessItems.filter(item => !item.ready && item.critical),
     [readinessItems]
@@ -2692,6 +2693,7 @@ export function EstimateDraftModal({
       junkLineDescription,
       cleaningLineDescription,
       containerHandlingLineDescription,
+      SERVICE_NAMES.hold,
     ].includes(item.description))
     onSetLineItems([{
       description: 'Moving Services — Agreed Rate',
@@ -2708,7 +2710,13 @@ export function EstimateDraftModal({
   }
 
   async function handlePreviewSend() {
-    if (blockingReadiness.length > 0 || warningReadiness.length > 0) {
+    const services = estimateServicePackage(jobFactors)
+    if (services.issues.length || servicePackageIsStale(jobFactors, quoteLineItems)) {
+      setActiveStage('handling')
+      return
+    }
+    if (blockingReadiness.length === 0 && warningReadiness.length > 0) { await handleProvisionalSend(); return }
+    if (blockingReadiness.length > 0) {
       if (estimateView === 'simple') {
         await handleProvisionalSend()
         return
@@ -2716,12 +2724,13 @@ export function EstimateDraftModal({
       setSendGuardOpen(true)
       return
     }
-    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope(), scopeStatus: 'confirmed' })
+    await onSaveAndPreview({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope(), scopeStatus: 'confirmed' })
   }
 
   async function handleProvisionalSend() {
+    if (estimateServicePackage(jobFactors).issues.length || servicePackageIsStale(jobFactors, quoteLineItems)) { setActiveStage('handling'); return }
     const missingItems = sendIssueDetails.length > 0 ? sendIssueDetails : ['Missing quote details still need confirmation.']
-    const moveNote = `Provisional estimate. Final pricing will be confirmed once we verify: ${missingItems.join(' ')}`
+    const moveNote = 'Planning estimate for the scope discussed. We will confirm the remaining inventory, access and scheduling details with you before finalizing the move.'
     const internalNote = `PROVISIONAL QUOTE — collect before final confirmation: ${missingItems.join(' ')}`
     await onSaveAndPreview({
       provisional: true,
@@ -2730,7 +2739,7 @@ export function EstimateDraftModal({
       quoteType,
       moveDescription: prependUniqueLine(moveDescription, moveNote),
       internalNotes: prependUniqueLine(internalNotes, internalNote),
-      customerScope: captureCustomerScope(),
+      pricingRevisionReason: revisionReason, customerScope: captureCustomerScope(),
     })
   }
 
@@ -3337,6 +3346,9 @@ export function EstimateDraftModal({
             )}
 
             {/* ── ADD-ON SERVICES ── */}
+            {quoteIsCustomerFacing && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><label className="text-sm font-semibold">Revise this estimate<input aria-label="Reason for estimate revision" className="crm-input mt-2 w-full" value={revisionReason} onChange={e => setRevisionReason(e.target.value)} placeholder="e.g. Customer no longer needs packing"/></label><p className="mt-1 text-xs">Changes are saved as a new version; previous prices and scope remain in history. Review before resending.</p></div>}
+            <div data-estimate-stage="lead"><MoveTimingPanel factors={jobFactors} moveDate={selectedMoveDate} onChange={onJobFactorsChange} /></div>
+            <div data-estimate-stage="handling"><ServicePackagePanel factors={jobFactors} lines={quoteLineItems} onChange={onJobFactorsChange} onApply={onSetLineItems} /></div>
             <div data-estimate-stage="handling" id="estimate-services" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
               <div>
                 <div className="crm-label">Customer Move Plan</div>
@@ -5860,7 +5872,7 @@ export function EstimateDraftModal({
                   <div className="mt-1 text-xs text-white/65">Flat-price scope preview · deposit {formatMoney(quoteModalTotals.deposit)}</div>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                     <button type="button" onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote} className="flex-1 rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{estimateView === 'simple' && (blockingReadiness.length > 0 || warningReadiness.length > 0) ? 'Preview provisional estimate →' : 'Preview customer view →'}</button>
-                    <button type="button" onClick={() => void onSaveDraft({ quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="rounded-[8px] border border-white/25 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save draft</button>
+                    <button type="button" onClick={() => void onSaveDraft({ quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="rounded-[8px] border border-white/25 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save draft</button>
                   </div>
                 </div>
               </div>
@@ -5936,7 +5948,7 @@ export function EstimateDraftModal({
               </div>
             </details>}
 
-            <details className="rounded-[8px] border border-[var(--app-line)] bg-white" open={serviceProfitabilityPlan.status !== 'healthy'}>
+            <details className="rounded-[8px] border border-[var(--app-line)] bg-white" >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3">
                 <div>
                   <div className="crm-label">Service & Margin Check</div>
@@ -7576,9 +7588,9 @@ export function EstimateDraftModal({
                     </div>
                   )}
                   {overrideProjectedMargin !== null && (
-                    <div className={`text-[11px] ${overrideProjectedMargin < 55 ? 'text-rose-700' : 'text-[var(--app-muted)]'}`}>
+                    <div className={`text-[11px] ${overrideProjectedMargin < 30 ? 'text-rose-700' : 'text-[var(--app-muted)]'}`}>
                       Projected margin after override: {overrideProjectedMargin.toFixed(1)}%
-                      {overrideProjectedMargin < 55 ? canApproveMarginException ? ' · manager approval should be documented.' : ' · owner/manager approval required below threshold.' : ' · healthy margin, approval code not required.'}
+                      {overrideProjectedMargin < 30 ? canApproveMarginException ? ' · manager approval should be documented.' : ' · owner/manager approval required below threshold.' : ' · healthy margin, approval code not required.'}
                     </div>
                   )}
                   {overrideProjectedMargin === null && currentUser?.role === 'sales_rep' && (
@@ -7836,7 +7848,7 @@ export function EstimateDraftModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => void onSaveDraft({ quoteType, customerScope: captureCustomerScope() })}
+                        onClick={() => void onSaveDraft({ quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })}
                         disabled={quoteModalBusy || !quote}
                         className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-50"
                       >
@@ -7885,7 +7897,7 @@ export function EstimateDraftModal({
                 <button onClick={() => estimateView === 'simple' ? void handlePreviewSend() : goToStage('review')} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : estimateView === 'simple' ? 'Preview & send quote →' : 'Review customer scope →'}
                 </button>
-                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
+                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
                 </button>
 

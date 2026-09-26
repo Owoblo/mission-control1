@@ -150,6 +150,7 @@ export default function SalesQuoteDetailPage() {
   const [packingQuantities, setPackingQuantities] = useState<Record<string, number>>({})
   const [copied, setCopied] = useState<'accept' | 'email' | 'sms' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [revisionReason, setRevisionReason] = useState('')
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const [deliveryJobs, setDeliveryJobs] = useState<QuoteSendJob[]>([])
   const searchParams = useSearchParams()
@@ -442,9 +443,10 @@ ${brand.fullName}`
     return false
   }
 
-  function buildQuotePricingUpdates(extra: Partial<CRMQuote> = {}): Partial<CRMQuote> {
+  function buildQuotePricingUpdates(extra: Partial<CRMQuote> = {}): Partial<CRMQuote> & { pricingRevisionReason?: string } {
     return {
       revision: quote?.revision || 0,
+      pricingRevisionReason: revisionReason.trim() || undefined,
       lineItems: quoteTotals.lineItems,
       subtotal: quoteTotals.subtotal,
       hst: quoteTotals.hst,
@@ -1187,6 +1189,8 @@ ${brand.fullName}`
               <div />
             </div>
 
+            {isRevision && canEditQuoteWorkspace && <label className="block border-b p-4 text-sm font-semibold">Reason for this revision<input aria-label="Reason for quote revision" className="crm-input mt-2 w-full" value={revisionReason} onChange={e => setRevisionReason(e.target.value)} placeholder="Customer removed packing; unpacking remains included"/><span className="mt-1 block text-xs font-normal">The previous version is retained when you save. Preview the update before resending.</span></label>}
+            {(quote.versionHistory || []).length > 0 && <details className="border-b p-4 text-sm"><summary className="cursor-pointer font-semibold">Previous estimate versions ({quote.versionHistory!.length})</summary>{quote.versionHistory!.map(version => <details key={version.version} className="mt-3 rounded border p-3"><summary>Version {version.version} · {formatMoney(version.quote.total)} incl. HST · {version.reason}</summary><p className="mt-2 text-xs">{version.changedBy} · {new Date(version.savedAt).toLocaleString()}</p>{version.quote.lineItems.map((line, i) => <div key={i} className="mt-1 flex justify-between gap-3 text-xs"><span>{line.description}</span><span>{formatMoney(line.amount)}</span></div>)}{version.quote.customerScope?.serviceNotes.map(note => <p key={note} className="mt-1 text-xs">{note}</p>)}</details>)}</details>}
             {/* Scrollable rows */}
             <fieldset disabled={!canEditQuoteWorkspace} className="flex-1 overflow-y-auto">
               {lineItems.length === 0 ? (

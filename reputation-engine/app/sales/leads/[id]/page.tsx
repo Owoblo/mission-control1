@@ -246,6 +246,7 @@ export default function SalesLeadDetailPage() {
   const [mediaUploadFiles, setMediaUploadFiles] = useState<File[]>([])
   const [mediaUploadBusy, setMediaUploadBusy] = useState(false)
   const [mediaUploadNotice, setMediaUploadNotice] = useState<string | null>(null)
+  const [similarPhotoPairs, setSimilarPhotoPairs] = useState<Array<{ firstId: string; secondId: string }>>([])
   const [loggingActivity, setLoggingActivity] = useState(false)
   const [consultationActive, setConsultationActive] = useState(false)
   const [consultationSaving, setConsultationSaving] = useState(false)
@@ -2203,9 +2204,10 @@ export default function SalesLeadDetailPage() {
     setSurveyBusy(true)
     try {
       const res = await fetch(`/api/sales/leads/${lead.id}/scan-survey`, { method: 'POST', credentials: 'include' })
-      const data = await res.json() as { ok?: boolean; error?: string; duplicatePhotosSkipped?: number; duplicatePhotoRooms?: string[] }
+      const data = await res.json() as { ok?: boolean; error?: string; duplicatePhotosSkipped?: number; duplicatePhotoRooms?: string[]; similarPhotos?: Array<{ firstId: string; secondId: string }> }
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to scan customer media')
       await refresh(lead.id)
+      setSimilarPhotoPairs(data.similarPhotos || [])
       if (data.duplicatePhotosSkipped) {
         setMediaUploadNotice(`Scan complete. ${data.duplicatePhotosSkipped} identical photo${data.duplicatePhotosSkipped === 1 ? ' was' : 's were'} counted once across rooms (${(data.duplicatePhotoRooms || []).join(', ')}). Original uploads and existing inventory in unscanned rooms are preserved; review any items from earlier scans.`)
       } else {
@@ -2353,6 +2355,7 @@ export default function SalesLeadDetailPage() {
   }
 
   async function saveQuoteDraft(overrides?: {
+    pricingRevisionReason?: string
     moveDescription?: string
     internalNotes?: string
     conditionalClause?: string
@@ -2376,8 +2379,8 @@ export default function SalesLeadDetailPage() {
       const proposedTotals = computeQuoteTotals(quoteLineItems, depositRate, proposedDiscount)
       const hasExplicitPriceRevision = Boolean(
         quoteIsLockedForPricing &&
-        proposedOverrideLineItem &&
-        Math.abs(Number(proposedTotals.total || 0) - Number(quote.total || 0)) > 0.01
+        ((overrides?.pricingRevisionReason?.trim().length || 0) >= 8 || (proposedOverrideLineItem &&
+        Math.abs(Number(proposedTotals.total || 0) - Number(quote.total || 0)) > 0.01))
       )
       // Customer-facing pricing remains protected from background recalculation.
       // A rep-applied Agreed Rate is different: it is an intentional revision,
@@ -2412,9 +2415,22 @@ export default function SalesLeadDetailPage() {
         (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && selectedQuoteType === 'labor_only'
           ? 'standard'
           : selectedQuoteType
+      if (lead) {
+        const savedInventory = deriveInventoryMetrics(filterRemovedInventoryItems(inventoryMetrics.inventory))
+        const savedLead = await updateSalesLead(lead.id, {
+          inventory: savedInventory.inventory,
+          totalItems: savedInventory.totalItems,
+          totalCubicFeet: savedInventory.totalCubicFeet,
+          totalWeightLbs: savedInventory.totalWeightLbs,
+          roomBreakdown: buildRoomBreakdown(savedInventory.inventory),
+          removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
+          jobFactors,
+        })
+        setLead(savedLead)
+      }
       const result = await updateSalesQuote(quote.id, {
         ...(hasExplicitPriceRevision ? {
-          pricingRevisionReason: proposedOverrideLineItem?.details || 'Sales rep applied an approved customer price revision.',
+          pricingRevisionReason: overrides?.pricingRevisionReason?.trim() || proposedOverrideLineItem?.details || 'Sales rep applied an approved customer price revision.',
         } : {}),
         revision: quote.revision || 0,
         truckSize: lead?.truckSize || quote.truckSize,
@@ -2469,23 +2485,6 @@ export default function SalesLeadDetailPage() {
       setQuoteMoveDescription(result.quote.moveDescription || '')
       setQuoteInternalNotes(result.quote.internalNotes || '')
       setQuoteModalDirty(false)
-      // Persist inventory + job factors to lead alongside the quote save
-      // Must await so inventory is in DB before any navigation happens
-      if (lead) {
-        try {
-          const filteredQuoteInventory = filterRemovedInventoryItems(inventoryMetrics.inventory)
-          const filteredQuoteMetrics = deriveInventoryMetrics(filteredQuoteInventory)
-          await updateSalesLead(lead.id, {
-            inventory: filteredQuoteMetrics.inventory,
-            totalItems: filteredQuoteMetrics.totalItems,
-            totalCubicFeet: filteredQuoteMetrics.totalCubicFeet,
-            totalWeightLbs: filteredQuoteMetrics.totalWeightLbs,
-            roomBreakdown: buildRoomBreakdown(filteredQuoteMetrics.inventory),
-            removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
-            ...(Object.keys(jobFactors).length > 0 ? { jobFactors } : {}),
-          })
-        } catch { /* non-critical — quote is already saved */ }
-      }
       return true
     } catch (err) {
       setError((err as Error).message)
@@ -2496,6 +2495,7 @@ export default function SalesLeadDetailPage() {
   }
 
   async function saveAndPreviewQuote(options?: {
+    pricingRevisionReason?: string
     provisional?: boolean
     missingItems?: string[]
     moveDescription?: string
@@ -2507,6 +2507,7 @@ export default function SalesLeadDetailPage() {
     if (!quote) return
     if (!ensureLeadEditable()) return
     const saved = await saveQuoteDraft({
+      pricingRevisionReason: options?.pricingRevisionReason,
       moveDescription: options?.moveDescription,
       internalNotes: options?.internalNotes,
       conditionalClause: options?.conditionalClause,
@@ -5500,6 +5501,7 @@ export default function SalesLeadDetailPage() {
                       Store fuel receipts, truck invoices, dump tickets, or any move expense directly on the lead so ops and finance can trace the job without leaving the CRM.
                     </div>
                   ) : null}
+                  {similarPhotoPairs.length > 0 && <details open className="rounded-lg border border-amber-200 bg-amber-50 p-3"><summary className="cursor-pointer text-sm font-semibold">Similar photos to review ({similarPhotoPairs.length})</summary><p className="mt-2 text-xs">These may show the same items from another angle. Both were kept; compare them before confirming inventory.</p>{similarPhotoPairs.map(pair => <div key={`${pair.firstId}-${pair.secondId}`} className="mt-3 grid grid-cols-2 gap-2">{[pair.firstId, pair.secondId].map(id => { const asset = lead.mediaAssets?.find(photo => photo.id === id); return asset ? <a key={id} href={asset.url} target="_blank" rel="noreferrer" className="text-xs"><img src={asset.url} alt={`Review ${asset.room || 'uploaded photo'}`} className="h-28 w-full rounded object-contain bg-white"/>{asset.room || 'Unassigned room'}</a> : null })}</div>)}</details>}
                   {mediaUploadNotice ? (
                     <div className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-[11px] text-[var(--app-muted)]">
                       {mediaUploadNotice}

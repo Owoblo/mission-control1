@@ -74,3 +74,12 @@ test('labour-only work still requires its service location', () => {
   assert.equal(result.quoteReady, false)
   assert.ok(result.blockers.includes('Work location is required.'))
 })
+
+
+test('a recorded customer confirmation does not require a second free-text note', () => {
+  const factors = completeFactors()
+  factors.hiddenInventoryCoverage = Object.fromEntries(areas.map(key => [key, { state: 'customer_confirmed', source: 'sales consultation', updatedAt: '2026-09-26T19:31:00Z', updatedBy: 'John' }])) as JobFactors['hiddenInventoryCoverage']
+  const result = evaluateQuoteReadiness(lead(factors))
+  assert.equal(result.quoteReady, true)
+  assert.equal(result.hidden.filter(area => !area.resolved).length, 0)
+})

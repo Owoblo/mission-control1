@@ -1,3 +1,4 @@
+import { findSimilarLeadPhotos } from '@/lib/server/photo-similarity'
 /**
  * POST /api/sales/leads/[id]/scan-survey
  *
@@ -55,6 +56,9 @@ export async function POST(_: Request, props: { params: Promise<{ id: string }> 
     const canonicalUrls = await dedupePhotosBeforeVision(surveyImageAssets.map(asset => asset.url))
     const { byRoom, duplicateAssets } = buildPhotoScanPlan(surveyImageAssets, canonicalUrls)
 
+    const duplicateIds = new Set(duplicateAssets.map(asset => asset.id))
+    const similarPhotos = await findSimilarLeadPhotos(surveyImageAssets.filter(asset => !duplicateIds.has(asset.id)))
+
     // Scan each room (this is the AI-heavy part — runs on rep's side, not customer's)
     const allDetectedItems: ReturnType<typeof normalizeLead>['inventory'] = []
     const scannedRooms = new Set<string>()
@@ -106,6 +110,7 @@ export async function POST(_: Request, props: { params: Promise<{ id: string }> 
       scannedRooms: Array.from(scannedRooms),
       detectedItems: allDetectedItems.length,
       duplicatePhotosSkipped: duplicateAssets.length,
+      similarPhotos,
       duplicatePhotoRooms: Array.from(new Set(duplicateAssets.map(asset => asset.room || 'other'))),
       totalItems: nextInventory.length,
     })

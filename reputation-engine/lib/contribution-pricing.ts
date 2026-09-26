@@ -1,3 +1,4 @@
+import { estimateServicePackage, SERVICE_NAMES } from './estimate-services'
 import type { InventoryItem, JobFactors, PricingBreakdown, QuoteLineItem } from './types'
 
 export const MAJOR_MOVE_THRESHOLD = 3000
@@ -70,6 +71,8 @@ export function buildContributionPricingPlan(input: {
   const internal = input.pricing?.internalCostEstimate
   const factors = input.factors || {}
   const lines = input.lineItems || []
+  const servicePlan = estimateServicePackage(factors)
+  const selectedServiceCost = (key: keyof typeof SERVICE_NAMES) => lines.some(line => line.description === SERVICE_NAMES[key]) ? servicePlan.costs[key] : 0
   const hasStorage = factors.temporaryStorageNeeded || lines.some(item => /storage/i.test(item.description))
   const hasJunk = lines.some(item => /junk|disposal/i.test(item.description))
   const junkRevenue = lines.filter(item => /junk|disposal/i.test(item.description)).reduce((sum, item) => sum + Number(item.amount || 0), 0)
@@ -127,10 +130,10 @@ export function buildContributionPricingPlan(input: {
   const packingIncluded = lines.some(item => /professional packing service/i.test(item.description))
   const packingDay = input.pricing?.intelligenceFlags?.packingDayEstimate
   const packingManHours = packingIncluded && packingDay ? money(packingDay.crewSize * packingDay.hours) : 0
-  const packingLaborCost = money(packingManHours * 25)
+  const packingLaborCost = factors.packingPlan ? selectedServiceCost('packing') : money(packingManHours * 25)
   const unpackingIncluded = lines.some(item => /professional unpacking service/i.test(item.description))
   const unpackingManHours = unpackingIncluded ? money(Math.max(20, suppliedKitCount) * 0.125) : 0
-  const unpackingLaborCost = money(unpackingManHours * 25)
+  const unpackingLaborCost = factors.packingPlan ? selectedServiceCost('unpacking') : money(unpackingManHours * 25)
   const mountedTvLine = lines.find(item => /wall-mounted tv dismount/i.test(item.description))
   const mountedTvCount = Number(mountedTvLine?.details?.match(/^(\d+)/)?.[1] || 0)
   const hotelNights = isLongDistance && Number(input.pricing?.totalHours || 0) > 12
@@ -156,6 +159,10 @@ export function buildContributionPricingPlan(input: {
   const liveExecutionBase = money((internal?.laborCost || 0) + (internal?.truckOpsCost || 0) + (internal?.suppliesCost || 0) + hotelCost + crewMealsCost)
   const nonBoxPackingMaterialsCost = money(Math.max(0, Number(internal?.suppliesCost || 0) - suppliedKitCount * 1.5))
   const costs = ([
+    { key: 'service_materials', label: 'Agreed packing materials kit', amount: factors.packingPlan ? selectedServiceCost('materials') : 0, classification: 'customer_selected' },
+    { key: 'service_cleaning', label: 'Scoped cleaning fulfillment', amount: factors.packingPlan ? selectedServiceCost('cleaning') : 0, classification: 'customer_selected' },
+    { key: 'truck_hold', label: 'Loaded truck overnight hold', amount: selectedServiceCost('hold'), classification: 'customer_selected' },
+    { key: 'service_contingency', label: 'Selected service contingency', amount: money((Object.keys(SERVICE_NAMES) as Array<keyof typeof SERVICE_NAMES>).reduce((sum, key) => sum + selectedServiceCost(key), 0) * (factors.packingPlan?.contingencyPct ?? 10) / 100), classification: 'customer_selected' },
     { key: 'fulfillment_labor', label: 'Crew / subcontractor fulfillment', amount: money(internal?.laborCost || 0), classification: 'core_move' },
     { key: 'truck_operations', label: 'Truck, fuel and mileage', amount: money(internal?.truckOpsCost || 0), classification: 'core_move' },
     { key: 'packing_materials', label: 'Tape, wrap and packing materials', amount: nonBoxPackingMaterialsCost, classification: 'core_move' },
