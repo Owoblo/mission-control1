@@ -93,7 +93,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     if (conflict) return NextResponse.json({ error: conflict }, { status: 409 })
     if (updates.lineItems && currentLead) {
       const plan = estimateServicePackage(currentLead.jobFactors || {})
-      if (updates.lineItems.some(line => line.serviceScopeFingerprint) && (plan.issues.length || servicePackageIsStale(currentLead.jobFactors || {}, updates.lineItems))) return NextResponse.json({ error: 'Service scope changed. Review and apply the package before saving this price.' }, { status: 409 })
+      if ((currentLead.jobFactors?.packingPlan || updates.lineItems.some(line => line.serviceScopeFingerprint)) && (plan.issues.length || servicePackageIsStale(currentLead.jobFactors || {}, updates.lineItems))) return NextResponse.json({ error: 'Service scope changed. Review and apply the package before saving this price.' }, { status: 409 })
       if (!updates.customerScope && current.customerScope) {
         updates.customerScope = buildCustomerQuoteScope({
           inventory: current.customerScope.inventory, jobFactors: currentLead.jobFactors,

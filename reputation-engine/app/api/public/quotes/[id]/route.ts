@@ -385,7 +385,10 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       },
     })
 
-    return NextResponse.json({ ok: true, quote: nextQuote, lead: savedLead })
+    return NextResponse.json({ ok: true,
+      quote: { ...nextQuote, versionHistory: undefined },
+      lead: savedLead ? { ...savedLead, jobFactors: savedLead.jobFactors ? { ...savedLead.jobFactors, packingPlan: undefined, truckHold: undefined } : undefined } : null,
+    })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to accept quote' },

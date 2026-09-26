@@ -96,6 +96,7 @@ export function estimateServicePackage(factors: JobFactors) {
   return { issues, costs, packHours, unpackHours, lineItems, fingerprint, total: money(lineItems.reduce((sum, line) => sum + line.amount, 0)) }
 }
 export function servicePackageIsStale(factors: JobFactors, lines: QuoteLineItem[]) {
+  if (factors.packingPlan && lines.some(line => (Object.values(SERVICE_NAMES) as string[]).includes(line.description) && !line.serviceScopeFingerprint)) return true
   const managed = lines.filter(line => line.serviceScopeFingerprint)
   return managed.some(line => line.serviceScopeFingerprint !== estimateServicePackage(factors).fingerprint)
 }

@@ -403,6 +403,11 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
     // A pending date/hold creates or updates one lead task without pushing an
     // existing earlier reminder into the future on every autosave.
+    if (updates.jobFactors?.moveDatePlan?.mode === 'confirmed') {
+      nextLead = { ...nextLead, moveDateFlexible: false,
+        ...(updates.jobFactors.moveDatePlan.firstDate ? { moveDate: updates.jobFactors.moveDatePlan.firstDate } : {}),
+      }
+    }
     const planningTask = planningFollowUp(nextLead.jobFactors || {})
     if (planningTask || nextLead.moveDateFlexible) {
       const due = planningTask?.date || new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10)

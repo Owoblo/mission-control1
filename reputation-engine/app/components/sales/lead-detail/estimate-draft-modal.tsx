@@ -2755,7 +2755,7 @@ export function EstimateDraftModal({
         onMouseDown={event => event.stopPropagation()}
         onClick={event => event.stopPropagation()}
       >
-        {pricingBreakdown?.planningReviewReasons?.length ? <div role="status" className="border-b border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><strong>Operating plan needs review before dispatch</strong><ul className="mt-2 list-disc pl-5">{pricingBreakdown.planningReviewReasons.map(reason => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Save the draft, then use Operating plan on the lead to record item evidence and operations review.</p></div> : null}
+        {pricingBreakdown?.planningReviewReasons?.length ? <details className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"><summary className="cursor-pointer font-semibold">Operations review · {pricingBreakdown.planningReviewReasons.length} items before dispatch</summary><ul className="mt-2 list-disc pl-5">{pricingBreakdown.planningReviewReasons.map(reason => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Save the draft, then use Operating plan on the lead to record item evidence and operations review.</p></details> : null}
         {/* Header */}
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
@@ -3346,10 +3346,11 @@ export function EstimateDraftModal({
             )}
 
             {/* ── ADD-ON SERVICES ── */}
-            {quoteIsCustomerFacing && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><label className="text-sm font-semibold">Revise this estimate<input aria-label="Reason for estimate revision" className="crm-input mt-2 w-full" value={revisionReason} onChange={e => setRevisionReason(e.target.value)} placeholder="e.g. Customer no longer needs packing"/></label><p className="mt-1 text-xs">Changes are saved as a new version; previous prices and scope remain in history. Review before resending.</p></div>}
+            {quoteIsCustomerFacing && <div data-estimate-stage="review" className="rounded-xl border border-amber-200 bg-amber-50 p-4"><label className="text-sm font-semibold">Revise this estimate<input aria-label="Reason for estimate revision" className="crm-input mt-2 w-full" value={revisionReason} onChange={e => setRevisionReason(e.target.value)} placeholder="e.g. Customer no longer needs packing"/></label><p className="mt-1 text-xs">Changes are saved as a new version; previous prices and scope remain in history. Review before resending.</p></div>}
             <div data-estimate-stage="lead"><MoveTimingPanel factors={jobFactors} moveDate={selectedMoveDate} onChange={onJobFactorsChange} /></div>
             <div data-estimate-stage="handling"><ServicePackagePanel factors={jobFactors} lines={quoteLineItems} onChange={onJobFactorsChange} onApply={onSetLineItems} /></div>
-            <div data-estimate-stage="handling" id="estimate-services" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
+            <details data-estimate-stage="handling" id="estimate-services" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
+              <summary className="cursor-pointer text-sm font-semibold">Additional services and special requests</summary>
               <div>
                 <div className="crm-label">Customer Move Plan</div>
                 <div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Start with the core move, then shape the complete transition around what this customer actually needs.</div>
@@ -3830,7 +3831,7 @@ export function EstimateDraftModal({
                   Packing added with $0 placeholders — set amounts manually in line items below.
                 </div>
               )}
-            </div>
+            </details>
 
             {/* ── MULTI-STOP / STAGED MOVE ── */}
             <div data-estimate-stage="lead" className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">

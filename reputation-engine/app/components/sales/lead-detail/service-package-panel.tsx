@@ -1,18 +1,25 @@
 'use client'
 import type { JobFactors, QuoteLineItem } from '@/lib/types'
-import { DEFAULT_PACKING_PLAN, DEFAULT_TRUCK_HOLD, estimateServicePackage, replaceServicePackage, servicePackageIsStale, suggestedPackingBoxes, type PackingPlan } from '@/lib/estimate-services'
+import { DEFAULT_PACKING_PLAN, DEFAULT_TRUCK_HOLD, estimateServicePackage, replaceServicePackage, servicePackageIsStale, suggestedPackingBoxes, SERVICE_NAMES, type PackingPlan } from '@/lib/estimate-services'
 
 export function ServicePackagePanel({ factors, lines, onChange, onApply }: { factors: JobFactors; lines: QuoteLineItem[]; onChange: (factors: JobFactors) => void; onApply: (lines: QuoteLineItem[]) => void }) {
-  const p = { ...DEFAULT_PACKING_PLAN, ...factors.packingPlan }
+  const p = { ...DEFAULT_PACKING_PLAN, ...(factors.packingPlan || {
+    pack: lines.some(line => line.description === SERVICE_NAMES.packing),
+    unpack: lines.some(line => line.description === SERVICE_NAMES.unpacking) ? 'all' as const : 'none' as const,
+    materials: lines.some(line => line.description === SERVICE_NAMES.materials),
+    boxes: factors.estimatedBoxes || 0,
+    cleaning: lines.some(line => line.description === SERVICE_NAMES.cleaning) ? 'move_out' as const : 'none' as const,
+  }) }
+  const effectiveFactors = { ...factors, packingPlan: p }
   const h = { ...DEFAULT_TRUCK_HOLD, ...factors.truckHold }
-  const plan = estimateServicePackage(factors)
+  const plan = estimateServicePackage(effectiveFactors)
   const patch = (values: Partial<PackingPlan>) => { const next = { ...p, ...values }; onChange({ ...factors, packingPlan: next, ...(values.confirmed === true ? { estimatedBoxes: next.boxes, packingStatus: next.remaining === 'all' ? 'not-started' as const : 'partial' as const } : {}) }) }
   const number = (key: keyof PackingPlan, label: string, min = 0) => <label className="text-xs">{label}<input aria-label={label} type="number" min={min} value={Number(p[key])} onChange={e => patch({ [key]: Number(e.target.value) })} className="crm-input mt-1 w-full" /></label>
   return <section className="space-y-4 rounded-xl border border-[var(--app-line)] bg-white p-4" aria-label="Packing and service package">
     <div><h3 className="font-semibold">Build their service package</h3><p className="mt-1 text-xs text-[var(--app-muted)]">One customer price. Confirm the work here; labour, materials and margin stay internal.</p></div>
     <div className="flex flex-wrap gap-3">
-      <label className="text-sm"><input type="checkbox" checked={p.pack} onChange={e => patch({ pack: e.target.checked, confirmed: false })}/> Packing</label>
-      <label className="text-sm"><input type="checkbox" checked={p.materials} onChange={e => patch({ materials: e.target.checked, confirmed: false })}/> Supply materials</label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.pack} onChange={e => patch({ pack: e.target.checked, confirmed: false })}/> Packing</label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={p.materials} onChange={e => patch({ materials: e.target.checked, confirmed: false })}/> Supply materials</label>
       <label className="text-sm">Unpacking <select aria-label="Unpacking level" className="crm-input" value={p.unpack} onChange={e => patch({ unpack: e.target.value as PackingPlan['unpack'], confirmed: false })}><option value="none">None</option><option value="essentials">Essentials only</option><option value="all">All agreed boxes</option></select></label>
     </div>
     {(p.pack || p.materials || p.unpack !== 'none') && <>
@@ -35,6 +42,6 @@ export function ServicePackagePanel({ factors, lines, onChange, onApply }: { fac
     {(p.pack || p.unpack !== 'none' || p.materials || p.cleaning !== 'none' || h.status === 'confirmed') && <div className="rounded-lg bg-slate-50 p-3 text-sm"><div>Packing: {plan.packHours} person-hours · Unpacking: {plan.unpackHours} person-hours</div><div className="mt-1 font-semibold">Service package: ${plan.total.toLocaleString()} before HST</div><p className="mt-1 text-xs">Materials are a fixed agreed kit. Additional scope is reviewed before a price change.</p></div>}
     {plan.issues.length > 0 && <ul className="list-disc pl-5 text-xs text-amber-800">{plan.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
     {servicePackageIsStale(factors, lines) && <p role="status" className="text-xs font-semibold text-amber-800">Scope changed. Apply the updated package before previewing.</p>}
-    <button type="button" disabled={plan.issues.length > 0} className="crm-button-dark disabled:opacity-50" onClick={() => onApply(replaceServicePackage(lines, factors))}>Apply service package</button>
+    <button type="button" disabled={plan.issues.length > 0} className="crm-button-dark disabled:opacity-50" onClick={() => onApply(replaceServicePackage(lines, effectiveFactors))}>Apply service package</button>
   </section>
 }
