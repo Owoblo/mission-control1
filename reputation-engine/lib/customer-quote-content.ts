@@ -1,4 +1,4 @@
-import type { CustomerQuoteScope, InventoryItem, JobFactors } from './types'
+import type { CustomerQuoteScope, InventoryItem, JobFactors, QuoteLineItem } from './types'
 
 const INTERNAL_QUOTE_SENTENCE_PATTERNS = [
   /\b(?:current|projected|gross|net|live)\s+margin\b/i,
@@ -59,6 +59,7 @@ export function buildCustomerQuoteScope(params: {
   customerHandledAssemblyItems?: string[]
   specialtyItems?: string[]
   capturedAt?: string
+  lineItems?: QuoteLineItem[]
 }): CustomerQuoteScope {
   const inventory = params.inventory
     .filter(item => item.included !== false && item.status !== 'excluded')
@@ -70,6 +71,16 @@ export function buildCustomerQuoteScope(params: {
     (params.jobFactors?.destFloors || 0) > 1 ? `${params.jobFactors?.destFloors}-floor destination access included` : null,
     params.jobFactors?.estimatedBoxes ? `${params.jobFactors.estimatedBoxes} boxes included in the planned scope` : null,
     params.jobFactors?.specialtyNotes,
+    // Preferences express interest. Only priced, selected services become inclusions.
+    ...(params.lineItems || []).filter(line => Number(line.amount) > 0).flatMap(line => {
+      const inclusions: Record<string, string> = {
+        'Professional Packing Service (Day Before Move)': 'Professional packing service included',
+        'Packing Materials Allowance': 'Packing materials allowance included',
+        'Professional Unpacking Service': 'Room-by-room unpacking and empty-box consolidation included',
+        'Move-In / Move-Out Cleaning': 'Move-in / move-out cleaning included as agreed',
+      }
+      return inclusions[line.description] ? [inclusions[line.description]] : []
+    }),
   ])
 
   return {

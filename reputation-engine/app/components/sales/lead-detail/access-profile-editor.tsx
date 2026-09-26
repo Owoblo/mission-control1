@@ -62,7 +62,7 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopR
       evidenceStatus: profile.evidenceStatus === 'customer_confirmed' ? profile.evidenceStatus : 'customer_estimated',
       evidenceNote: `${PROPERTY_OPTIONS.find(([value]) => value === propertyType)?.[1] || 'Property'} selected during address review.`,
     })
-    setExpanded(current => ({ ...current, [profile.stopId]: !['detached', 'semi_detached'].includes(propertyType) }))
+    setExpanded(current => ({ ...current, [profile.stopId]: !['detached', 'semi_detached', 'townhouse', 'multiplex'].includes(propertyType) }))
   }
 
   function confirmTypicalHouse(profile: AccessProfile) {
@@ -83,7 +83,8 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopR
       {profiles.map(profile => {
         const result = plan.stops.find(stop => stop.stopId === profile.stopId)
         const propertyType = inferredPropertyType(profile)
-        const open = expanded[profile.stopId] ?? Boolean(propertyType && !['detached', 'semi_detached'].includes(propertyType) && !profile.standardAccessConfirmed)
+        const house = Boolean(propertyType && ['detached', 'semi_detached', 'townhouse', 'multiplex'].includes(propertyType))
+        const open = expanded[profile.stopId] ?? Boolean(propertyType && !house && !profile.standardAccessConfirmed)
         const googleMapUrl = profile.addressSnapshot ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.addressSnapshot)}` : null
         const appleMapUrl = profile.addressSnapshot ? `https://maps.apple.com/?q=${encodeURIComponent(profile.addressSnapshot)}` : null
         return <div key={profile.stopId} className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
@@ -97,12 +98,16 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopR
               })}
             </div>
           </div>
-          {propertyType ? <div className="mt-3 flex flex-wrap items-center gap-2">{['detached', 'semi_detached'].includes(propertyType) && !profile.standardAccessConfirmed ? <button aria-label="Customer confirms easy house access" type="button" onClick={() => confirmTypicalHouse(profile)} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:bg-[#132537]">✓ Standard driveway access</button> : null}<button type="button" onClick={() => setExpanded(current => ({ ...current, [profile.stopId]: !open }))} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[#C99700]">{open ? 'Hide details' : 'There is a complication'}</button>{['detached', 'semi_detached'].includes(propertyType) ? <span className="text-[11px] text-[var(--app-muted)]">Confirm with customer: driveway/nearby parking, short ground-floor carry, no unusual access.</span> : null}</div> : <div className="mt-3 rounded-[6px] border border-[#C99700]/35 bg-[#C99700]/8 px-3 py-2 text-xs text-[#725700]">Choose the closest property type. We will show only the questions that matter for that property.</div>}
+          {propertyType ? <div className="mt-3 flex flex-wrap items-center gap-2">{['detached', 'semi_detached'].includes(propertyType) && !profile.standardAccessConfirmed ? <button aria-label="Customer confirms easy house access" type="button" onClick={() => confirmTypicalHouse(profile)} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white hover:bg-[#132537]">✓ Standard driveway access</button> : null}<button type="button" onClick={() => setExpanded(current => ({ ...current, [profile.stopId]: !open }))} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] hover:border-[#C99700]">{open ? 'Hide additional details' : 'More access details / restrictions'}</button>{['detached', 'semi_detached'].includes(propertyType) ? <span className="text-[11px] text-[var(--app-muted)]">Confirm with customer: driveway/nearby parking, short ground-floor carry, no unusual access.</span> : null}</div> : <div className="mt-3 rounded-[6px] border border-[#C99700]/35 bg-[#C99700]/8 px-3 py-2 text-xs text-[#725700]">Choose the closest property type. We will show only the questions that matter for that property.</div>}
+          {propertyType ? <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Select label="Where can the truck park?" value={profile.truckPosition} options={([['driveway', 'Driveway beside the home'], ['curb', 'Street beside the entrance'], ['parking_lot', 'Parking lot'], ['loading_dock', 'Loading dock'], ['unknown', 'Need to confirm'], ...(profile.truckPosition === 'street_unconfirmed' ? [['street_unconfirmed', 'Street space not guaranteed']] : []), ...(profile.truckPosition === 'cannot_reach' ? [['cannot_reach', 'Truck cannot reach building']] : [])] as Array<[AccessTruckPosition, string]>)} onChange={value => patch(profile, { truckPosition: value })}/>
+            <Select label="Walk from truck to entrance" value={profile.walkToEntrance} options={WALK_OPTIONS} onChange={value => patch(profile, { walkToEntrance: value })}/>
+            {house && (!profile.verticalMode || ['ground_floor', 'stairs', 'unknown'].includes(profile.verticalMode)) ? <Select label="Are there stairs to carry items?" value={profile.verticalMode} options={([['ground_floor', 'No — ground floor only'], ['stairs', 'Yes — stairs'], ['unknown', 'Need to confirm']] as Array<[AccessVerticalMode, string]>)} onChange={value => { patch(profile, { verticalMode: value }); if (value === 'stairs') setExpanded(current => ({ ...current, [profile.stopId]: true })) }}/>: null}
+          </div> : null}
           {open ? <div className="mt-3 grid gap-3 border-t border-[var(--app-line)] pt-3 sm:grid-cols-2">
             <Select label="Property type" value={profile.propertyType} options={PROPERTY_OPTIONS} onChange={value => patch(profile, { propertyType: value })}/>
             <Select label="Crew entrance" value={profile.entranceLocation} options={([['front', 'Front entrance'], ['rear', 'Rear entrance'], ['side', 'Side entrance'], ['loading_dock', 'Loading dock'], ['other', 'Other entrance']] as Array<[NonNullable<AccessProfile['entranceLocation']>, string]>)} onChange={value => patch(profile, { entranceLocation: value })}/>
             <Select label="Truck position" value={profile.truckPosition} options={([['driveway', 'Driveway beside entrance'], ['curb', 'Curb outside entrance'], ['loading_dock', 'Loading dock'], ['parking_lot', 'Parking lot near entrance'], ['street_unconfirmed', 'Street space not guaranteed'], ['cannot_reach', 'Truck cannot reach building'], ['unknown', 'Unknown']] as Array<[AccessTruckPosition, string]>)} onChange={value => patch(profile, { truckPosition: value })}/>
-            <Select label="Truck → entrance" value={profile.walkToEntrance} options={WALK_OPTIONS} onChange={value => patch(profile, { walkToEntrance: value })}/>
             <Select label="Entrance → elevator/stairs" value={profile.entranceToVerticalAccess} options={WALK_OPTIONS} onChange={value => patch(profile, { entranceToVerticalAccess: value })}/>
             <Select label="Elevator/stairs → unit" value={profile.verticalAccessToUnit} options={WALK_OPTIONS} onChange={value => patch(profile, { verticalAccessToUnit: value })}/>
             <Select label="Vertical access" value={profile.verticalMode} options={([['ground_floor', 'Ground floor'], ['stairs', 'Stairs only'], ['elevator', 'Elevator only'], ['stairs_or_elevator', 'Choice of stairs/elevator'], ['elevator_and_stairs', 'Elevator + stairs'], ['unknown', 'Unknown']] as Array<[AccessVerticalMode, string]>)} onChange={value => patch(profile, { verticalMode: value })}/>
@@ -119,6 +124,6 @@ export function AccessProfileEditor({ lead, factors, legs, singleLocation, stopR
         </div>
       })}
     </div>
-    {profiles.every(profile => inferredPropertyType(profile)) ? <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-muted)]"><strong className="text-[var(--app-ink)]">Access captured for {profiles.length} stop{profiles.length === 1 ? '' : 's'}.</strong> Detailed carrying time remains internal and feeds scheduling and price review.</div> : null}
+    {profiles.every(profile => inferredPropertyType(profile)) ? <div className="rounded-[6px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-muted)]"><strong className="text-[var(--app-ink)]">Access plan for {profiles.length} stop{profiles.length === 1 ? '' : 's'}.</strong> Detailed carrying time remains internal and feeds scheduling and price review.</div> : null}
   </div>
 }

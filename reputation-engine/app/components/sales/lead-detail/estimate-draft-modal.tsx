@@ -1764,6 +1764,7 @@ export function EstimateDraftModal({
       assemblyItems: includedDisassemblyItems,
       customerHandledAssemblyItems: Array.from(excludedDisassemblyItems),
       specialtyItems: pricingBreakdown?.specialtyItemFlags || [],
+      lineItems: quoteLineItems,
     })
   }
   const disassemblyScopeLabel = getDisassemblyServiceLabel(jobFactors.disassemblyMode)
@@ -2687,6 +2688,7 @@ export function EstimateDraftModal({
     const separateServices = quoteLineItems.filter(item => isProtectionLine(item.description) || [
       packingLaborLineDescription,
       packingMaterialsLineDescription,
+      unpackingLineDescription,
       junkLineDescription,
       cleaningLineDescription,
       containerHandlingLineDescription,

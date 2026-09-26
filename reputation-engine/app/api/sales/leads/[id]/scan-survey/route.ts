@@ -13,6 +13,8 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { analyzeLeadPhotosWithVision } from '@/lib/server/lead-media'
+import { dedupePhotosBeforeVision } from '@/lib/server/inventory-enrichment'
+import { buildPhotoScanPlan } from '@/lib/photo-scan-plan'
 import { applyInventoryVerificationToInventory } from '@/lib/inventory-verification'
 import { normalizeLead } from '@/lib/sales'
 import type { LeadMediaAsset } from '@/lib/types'
@@ -42,19 +44,16 @@ export async function POST(_: Request, props: { params: Promise<{ id: string }> 
     // Scan any customer-facing image assets already stored on the lead.
     // This includes uploaded survey photos, rep uploads, and persisted MMS images.
     const surveyImageAssets: LeadMediaAsset[] = (lead.mediaAssets || [])
-      .filter((a: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(a.source) && a.kind === 'image' && a.url)
+      .filter((a: LeadMediaAsset) => ['survey', 'rep_upload', 'mms'].includes(a.source) && a.kind === 'image' && a.url && !a.removed)
 
     if (surveyImageAssets.length === 0) {
       return NextResponse.json({ error: 'No customer photos found yet. Ask the customer to upload or text them first.' }, { status: 400 })
     }
 
-    // Group photos by room
-    const byRoom = new Map<string, string[]>()
-    for (const asset of surveyImageAssets) {
-      const room = asset.room || 'other'
-      if (!byRoom.has(room)) byRoom.set(room, [])
-      byRoom.get(room)!.push(asset.url)
-    }
+    // Deduplicate the entire upload BEFORE grouping by room. The same file can
+    // be labelled Bedroom 1 and Office, which room-local dedupe cannot catch.
+    const canonicalUrls = await dedupePhotosBeforeVision(surveyImageAssets.map(asset => asset.url))
+    const { byRoom, duplicateAssets } = buildPhotoScanPlan(surveyImageAssets, canonicalUrls)
 
     // Scan each room (this is the AI-heavy part — runs on rep's side, not customer's)
     const allDetectedItems: ReturnType<typeof normalizeLead>['inventory'] = []
@@ -106,6 +105,8 @@ export async function POST(_: Request, props: { params: Promise<{ id: string }> 
       ok: true,
       scannedRooms: Array.from(scannedRooms),
       detectedItems: allDetectedItems.length,
+      duplicatePhotosSkipped: duplicateAssets.length,
+      duplicatePhotoRooms: Array.from(new Set(duplicateAssets.map(asset => asset.room || 'other'))),
       totalItems: nextInventory.length,
     })
   } catch (error) {

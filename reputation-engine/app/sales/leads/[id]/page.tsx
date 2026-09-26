@@ -2203,9 +2203,14 @@ export default function SalesLeadDetailPage() {
     setSurveyBusy(true)
     try {
       const res = await fetch(`/api/sales/leads/${lead.id}/scan-survey`, { method: 'POST', credentials: 'include' })
-      const data = await res.json() as { ok?: boolean; error?: string }
+      const data = await res.json() as { ok?: boolean; error?: string; duplicatePhotosSkipped?: number; duplicatePhotoRooms?: string[] }
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to scan customer media')
       await refresh(lead.id)
+      if (data.duplicatePhotosSkipped) {
+        setMediaUploadNotice(`Scan complete. ${data.duplicatePhotosSkipped} identical photo${data.duplicatePhotosSkipped === 1 ? ' was' : 's were'} counted once across rooms (${(data.duplicatePhotoRooms || []).join(', ')}). Original uploads and existing inventory in unscanned rooms are preserved; review any items from earlier scans.`)
+      } else {
+        setMediaUploadNotice('Customer photo scan complete.')
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {

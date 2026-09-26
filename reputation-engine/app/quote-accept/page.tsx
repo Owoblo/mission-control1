@@ -1451,10 +1451,11 @@ function QuoteAcceptPageInner() {
               </div>
             )}
 
-            {/* The real total, tax-included, within the first viewport */}
-            <div className="mb-8 inline-flex items-center gap-3 rounded-xl bg-[#C99700] px-4 py-2.5">
-              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#071421]/70">Total incl. HST</span>
-              <span className="text-2xl font-black tracking-tight text-[#071421]">{formatMoney(quote.total)}</span>
+            {/* Lead with the service price, then show tax and the payable total. */}
+            <div className="mb-8 inline-flex flex-col gap-1 rounded-xl bg-[#C99700] px-5 py-3">
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#071421]/80">{bundledMove ? 'Your flat-rate move' : 'Your estimate'} · before HST</span>
+              <span className="text-3xl font-black tracking-tight text-[#071421]">{formatMoney(quote.subtotal)}</span>
+              <span className="text-xs font-medium text-[#071421]">HST {formatMoney(quote.hst)} · Total {formatMoney(quote.total)}</span>
             </div>
             </div>
 
@@ -1769,11 +1770,11 @@ function QuoteAcceptPageInner() {
                 <span className="text-xs font-semibold">−{formatMoney(quote.discountAmount!)}</span>
               </div>
             )}
-            {/* The hero number is always the tax-inclusive total — one rule everywhere */}
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">{bundledMove ? 'Flat-rate total' : 'Estimated total'} · including HST</div>
-            <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.total)}</div>
-            <div className="mt-4 flex justify-center gap-2 text-xs text-white/35">
-              <span>{formatMoney(quote.subtotal)} before tax</span><span>·</span><span>HST {formatMoney(quote.hst)}</span>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">{bundledMove ? 'Your flat-rate move' : 'Your estimate'} · before HST</div>
+            <div className="mt-3 text-5xl font-bold tracking-[-0.04em] text-white sm:text-6xl">{formatMoney(quote.subtotal)}</div>
+            <div className="mx-auto mt-5 max-w-xs space-y-3 text-sm text-white/80">
+              <div className="flex justify-between"><span>HST</span><span>{formatMoney(quote.hst)}</span></div>
+              <div className="flex justify-between border-t border-white/20 pt-3 font-semibold text-white"><span>Total including HST</span><span>{formatMoney(quote.total)}</span></div>
             </div>
           </div>
         </div>

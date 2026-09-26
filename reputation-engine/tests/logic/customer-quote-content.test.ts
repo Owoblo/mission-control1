@@ -73,3 +73,23 @@ test('builds item-specific customer care without duplicating selected services',
   assert.equal(care.find(item => item.item === 'Couch')?.service, 'Professionally blanket-wrapped and stretch-wrapped')
   assert.equal(care.filter(item => item.item === 'Electric fireplace').length, 1)
 })
+
+
+test('bundled scope retains priced services without exposing internal prices or costs', () => {
+  const scope = buildCustomerQuoteScope({ inventory: [], lineItems: [
+    { description: 'Professional Packing Service (Day Before Move)', amount: 500, details: 'Internal crew cost $200' },
+    { description: 'Professional Unpacking Service', amount: 200 },
+    { description: 'Packing Materials Allowance', amount: 100 },
+    { description: 'Move-In / Move-Out Cleaning', amount: 300 },
+  ] })
+  assert.equal(scope.serviceNotes.length, 4)
+  assert.ok(scope.serviceNotes.some(note => note.includes('unpacking')))
+  assert.ok(scope.serviceNotes.every(note => !note.includes('$') && !note.includes('Internal')))
+})
+
+test('service interest and unpriced placeholders are not customer promises', () => {
+  const scope = buildCustomerQuoteScope({ inventory: [], jobFactors: { packingPreference: 'full_service', cleaningPreference: 'both' }, lineItems: [
+    { description: 'Professional Packing Service (Day Before Move)', amount: 0 },
+  ] })
+  assert.deepEqual(scope.serviceNotes, [])
+})
