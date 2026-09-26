@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { marginReviewKey } from '@/lib/estimate-margin-review'
+import { TARGET_CONTRIBUTION_MARGIN, MINIMUM_CONTRIBUTION_MARGIN } from '@/lib/contribution-pricing'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatListingContextSummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
@@ -492,7 +494,7 @@ export function EstimateDraftModal({
     () => !quote?.longDistanceTruckCost  // treat as estimate if nothing saved yet
   )
   const [, startTransition] = useTransition()
-  const [marginGateAck, setMarginGateAck] = useState(false)
+  const [acknowledgedMarginKey, setAcknowledgedMarginKey] = useState<string | null>(null)
   const [conditionalClauseEnabled, setConditionalClauseEnabled] = useState(() => Boolean(quote?.conditionalClause))
   const [conditionalClauseText, setConditionalClauseText] = useState(() => quote?.conditionalClause || '')
   const [overrideApplied, setOverrideApplied] = useState(false)
@@ -2268,10 +2270,15 @@ export function EstimateDraftModal({
     return quoteApprovedAmount === overrideAmount || localApprovedAmount === overrideAmount
   }, [approvedOverrideAmount, overrideAmount, overrideNeedsApproval, quote?.priceOverrideApprovalAmount, quote?.priceOverrideApprovalStatus])
 
-  // Reset margin gate acknowledgement whenever the quote pricing changes
-  useEffect(() => {
-    setMarginGateAck(false)
-  }, [quoteLineItems, pricingBreakdown])
+  // Compare financial values, not recalculated object identities or generated timestamps.
+  const currentMarginKey = marginReviewKey({
+    quoteId: quote?.id, subtotal: quoteModalTotals.subtotal,
+    totalCost: liveMarginSummary?.totalCost ?? 0,
+    minimumPrice: contributionPlan.minimumAuthorizedPrice,
+    pendingInventory: conjointInventoryPending ? conjointPendingLabel : '',
+    lineItems: quoteLineItems,
+  })
+  const marginGateAck = acknowledgedMarginKey === currentMarginKey
 
   const accessAssessment = useMemo(() => deriveAccessComplexityAssessment({
     jobFactors,
@@ -7858,44 +7865,48 @@ export function EstimateDraftModal({
                     </div>
                   </div>
                 )}
-                {liveMarginSummary && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck && (
+                {liveMarginSummary && liveMarginSummary.liveMargin < TARGET_CONTRIBUTION_MARGIN * 100 && liveMarginSummary.actualRevenue > 0 && !marginGateAck && (
                   <div className={`rounded-[8px] border px-3 py-3 ${
                     conjointInventoryPending
                       ? 'border-amber-200 bg-amber-50'
-                      : liveMarginSummary.liveMargin < 40 ? 'border-rose-300 bg-rose-50' : 'border-amber-200 bg-amber-50'
+                      : liveMarginSummary.liveMargin < MINIMUM_CONTRIBUTION_MARGIN * 100 ? 'border-rose-300 bg-rose-50' : 'border-amber-200 bg-amber-50'
                   }`}>
                     <div className={`text-xs font-bold ${
                       conjointInventoryPending
                         ? 'text-amber-800'
-                        : liveMarginSummary.liveMargin < 40 ? 'text-rose-800' : 'text-amber-800'
+                        : liveMarginSummary.liveMargin < MINIMUM_CONTRIBUTION_MARGIN * 100 ? 'text-rose-800' : 'text-amber-800'
                     }`}>
                       {conjointInventoryPending
                         ? `Pricing provisional — waiting on ${conjointPendingLabel} inventory`
-                        : liveMarginSummary.liveMargin < 40 ? 'Low margin — manager review required' : 'Below target margin'}
+                        : liveMarginSummary.liveMargin < MINIMUM_CONTRIBUTION_MARGIN * 100 ? 'Low margin — manager review required' : 'Below target margin'}
                     </div>
                     <div className={`mt-1 text-[11px] ${
                       conjointInventoryPending
                         ? 'text-amber-700'
-                        : liveMarginSummary.liveMargin < 40 ? 'text-rose-700' : 'text-amber-700'
+                        : liveMarginSummary.liveMargin < MINIMUM_CONTRIBUTION_MARGIN * 100 ? 'text-rose-700' : 'text-amber-700'
                     }`}>
                       {conjointInventoryPending
                         ? `Current margin is ${liveMarginSummary.liveMargin.toFixed(1)}% from known inventory only. Add MLS/photos/manual list for ${conjointPendingLabel}; price, trucks, timing, and margin will recalculate automatically.`
-                        : `This quote is at ${liveMarginSummary.liveMargin.toFixed(1)}% margin. Target is 65%+. Revenue ${formatMoney(liveMarginSummary.actualRevenue)} — Costs ${formatMoney(liveMarginSummary.totalCost)} — Profit ${formatMoney(liveMarginSummary.liveProfit)}.`}
+                        : `This quote is at ${liveMarginSummary.liveMargin.toFixed(1)}% margin. Target is ${(TARGET_CONTRIBUTION_MARGIN * 100).toFixed(0)}%+. Revenue ${formatMoney(liveMarginSummary.actualRevenue)} — Costs ${formatMoney(liveMarginSummary.totalCost)} — Profit ${formatMoney(liveMarginSummary.liveProfit)}.`}
                     </div>
                     <button
                       type="button"
-                      onClick={() => setMarginGateAck(true)}
+                      onClick={() => {
+                        setAcknowledgedMarginKey(currentMarginKey)
+                        if (estimateView === 'simple') void handlePreviewSend()
+                        else goToStage('review')
+                      }}
                       className={`mt-2 w-full rounded-[6px] px-3 py-1.5 text-[11px] font-semibold ${
                         conjointInventoryPending
                           ? 'bg-amber-700 text-white hover:bg-amber-800'
-                          : liveMarginSummary.liveMargin < 40 ? 'bg-rose-700 text-white hover:bg-rose-800' : 'bg-amber-700 text-white hover:bg-amber-800'
+                          : liveMarginSummary.liveMargin < MINIMUM_CONTRIBUTION_MARGIN * 100 ? 'bg-rose-700 text-white hover:bg-rose-800' : 'bg-amber-700 text-white hover:bg-amber-800'
                       }`}
                     >
-                      {conjointInventoryPending ? 'Continue with current inventory' : 'I understand — send anyway'}
+                      {conjointInventoryPending ? 'Continue with current inventory' : 'Acknowledge & review quote →'}
                     </button>
                   </div>
                 )}
-                <button onClick={() => estimateView === 'simple' ? void handlePreviewSend() : goToStage('review')} disabled={quoteModalBusy || routeBusy || !quote || (contributionPlan.isMajorMove && quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && !marginGateAck) || (conjointInventoryPending && !marginGateAck) || (!conjointInventoryPending && liveMarginSummary !== null && liveMarginSummary.liveMargin < 50 && liveMarginSummary.actualRevenue > 0 && !marginGateAck)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
+                <button onClick={() => estimateView === 'simple' ? void handlePreviewSend() : goToStage('review')} disabled={quoteModalBusy || !quote || (estimateView === 'simple' && routeBusy)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : estimateView === 'simple' ? 'Preview & send quote →' : 'Review customer scope →'}
                 </button>
                 <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
