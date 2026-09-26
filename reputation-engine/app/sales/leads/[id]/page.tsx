@@ -2940,7 +2940,7 @@ export default function SalesLeadDetailPage() {
 
   async function closeQuoteModal() {
     if (quoteModalDirty) {
-      await saveQuoteDraft()
+      if (!await saveQuoteDraft()) return
     }
     setQuoteModalOpen(false)
   }

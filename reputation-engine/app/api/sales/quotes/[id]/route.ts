@@ -1,7 +1,7 @@
 import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
 import { buildContributionPricingPlan, MINIMUM_CONTRIBUTION_MARGIN } from '@/lib/contribution-pricing'
 import { estimateServicePackage, servicePackageIsStale } from '@/lib/estimate-services'
-import { customerQuoteChanged, preserveQuoteVersion } from '@/lib/quote-versions'
+import { customerQuoteChanged, preserveQuoteVersion, quoteRevisionError } from '@/lib/quote-versions'
 import { quoteEditConflict, finalQuoteMargin } from '@/lib/quote-pricing-safety'
 import { buildMoveOperatingPlan, buildCurrentCrewBrief } from '@/lib/move-operating-plan'
 import { estimateLeadQuote } from '@/lib/sales'
@@ -128,15 +128,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       )
     }
 
-    if (hasCustomerFacingCommercialSnapshot(current) && customerQuoteChanged(current, updates)) {
-      const reason = pricingRevisionReason?.trim() || ''
-      if (reason.length < 8) {
-        return NextResponse.json(
-          { error: 'Customer-facing pricing is locked. Start an explicit price revision and record why the agreed price is changing.' },
-          { status: 409 },
-        )
-      }
-    }
+    const revisionError = quoteRevisionError(current, updates, pricingRevisionReason)
+    if (revisionError) return NextResponse.json({ error: revisionError }, { status: 409 })
 
     if (current.status === 'declined' && updates.status && updates.status !== 'declined' && !reactivateDeclinedQuote) {
       return NextResponse.json(

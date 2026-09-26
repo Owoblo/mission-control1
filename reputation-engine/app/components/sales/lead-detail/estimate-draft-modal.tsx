@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { quoteRevisionError } from '@/lib/quote-versions'
 import { marginReviewKey } from '@/lib/estimate-margin-review'
 import { TARGET_CONTRIBUTION_MARGIN, MINIMUM_CONTRIBUTION_MARGIN } from '@/lib/contribution-pricing'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
@@ -1221,6 +1222,7 @@ export function EstimateDraftModal({
   const [scopeConfirmationBusy, setScopeConfirmationBusy] = useState(false)
   const [sendGuardOpen, setSendGuardOpen] = useState(false)
   const [revisionReason, setRevisionReason] = useState('')
+  const [revisionNotice, setRevisionNotice] = useState<string | null>(null)
   const [capacityBusy, setCapacityBusy] = useState(false)
   const [capacitySnapshot, setCapacitySnapshot] = useState<BranchCapacitySnapshot | null>(null)
   const presetSearchResults = useMemo(() => {
@@ -2707,6 +2709,8 @@ export function EstimateDraftModal({
       details: `${getOverrideReasonLabel(overrideReason)} — ${note}. ${calculatedContext}. ${marginText}. ${approvalText}.`,
       amount,
     }, ...separateServices])
+    setRevisionReason(`${getOverrideReasonLabel(overrideReason)} — ${note}`)
+    setRevisionNotice(null)
     setOverrideApplied(true)
     setBookTodayActive(false)
     setTenPctActive(false)
@@ -2716,7 +2720,27 @@ export function EstimateDraftModal({
     onInternalNotesChange(prependUniqueLine(internalNotes, `Route unresolved: ${routeError || routeContext?.missingRequirements?.[0] || 'manual review required'}`))
   }
 
+  function ensureRevisionReason() {
+    if (!quote) return false
+    const issue = quoteRevisionError(quote, {
+      lineItems: quoteLineItems, subtotal: quoteModalTotals.subtotal,
+      total: quoteModalTotals.total, customerScope: captureCustomerScope(),
+      discountAmount: quoteLineItems.some(line => line.description === 'Moving Services — Agreed Rate') ? 0 : quoteDiscountAmount,
+    }, revisionReason)
+    if (!issue) { setRevisionNotice(null); return true }
+    setRevisionNotice(issue)
+    goToStage('review')
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[aria-label="Reason for estimate revision"]')?.focus())
+    return false
+  }
+
+  async function saveReviewedDraft(options?: QuoteWorkspaceSaveOptions) {
+    if (!ensureRevisionReason()) return
+    await onSaveDraft(options)
+  }
+
   async function handlePreviewSend() {
+    if (!ensureRevisionReason()) return
     const services = estimateServicePackage(jobFactors)
     if (services.issues.length || servicePackageIsStale(jobFactors, quoteLineItems)) {
       setActiveStage('handling')
@@ -2735,6 +2759,7 @@ export function EstimateDraftModal({
   }
 
   async function handleProvisionalSend() {
+    if (!ensureRevisionReason()) return
     if (estimateServicePackage(jobFactors).issues.length || servicePackageIsStale(jobFactors, quoteLineItems)) { setActiveStage('handling'); return }
     const missingItems = sendIssueDetails.length > 0 ? sendIssueDetails : ['Missing quote details still need confirmation.']
     const moveNote = 'Planning estimate for the scope discussed. We will confirm the remaining inventory, access and scheduling details with you before finalizing the move.'
@@ -3353,7 +3378,7 @@ export function EstimateDraftModal({
             )}
 
             {/* ── ADD-ON SERVICES ── */}
-            {quoteIsCustomerFacing && <div data-estimate-stage="review" className="rounded-xl border border-amber-200 bg-amber-50 p-4"><label className="text-sm font-semibold">Revise this estimate<input aria-label="Reason for estimate revision" className="crm-input mt-2 w-full" value={revisionReason} onChange={e => setRevisionReason(e.target.value)} placeholder="e.g. Customer no longer needs packing"/></label><p className="mt-1 text-xs">Changes are saved as a new version; previous prices and scope remain in history. Review before resending.</p></div>}
+            {quoteIsCustomerFacing && <div data-estimate-stage="review" className="rounded-xl border border-amber-200 bg-amber-50 p-4"><label className="text-sm font-semibold">Revise this estimate<input aria-label="Reason for estimate revision" className="crm-input mt-2 w-full" value={revisionReason} onChange={e => { setRevisionReason(e.target.value); setRevisionNotice(null) }} placeholder="e.g. Customer no longer needs packing"/></label><p className="mt-1 text-xs">Changes are saved as a new version; previous prices and scope remain in history. Review before resending.</p>{revisionNotice && <p role="alert" className="mt-2 text-sm font-semibold text-rose-700">{revisionNotice}</p>}</div>}
             <div data-estimate-stage="lead"><MoveTimingPanel factors={jobFactors} moveDate={selectedMoveDate} onChange={onJobFactorsChange} /></div>
             <div data-estimate-stage="handling"><ServicePackagePanel factors={jobFactors} lines={quoteLineItems} onChange={onJobFactorsChange} onApply={onSetLineItems} /></div>
             <details data-estimate-stage="handling" id="estimate-services" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4 space-y-3">
@@ -5880,7 +5905,7 @@ export function EstimateDraftModal({
                   <div className="mt-1 text-xs text-white/65">Flat-price scope preview · deposit {formatMoney(quoteModalTotals.deposit)}</div>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                     <button type="button" onClick={() => void handlePreviewSend()} disabled={quoteModalBusy || routeBusy || !quote} className="flex-1 rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{estimateView === 'simple' && (blockingReadiness.length > 0 || warningReadiness.length > 0) ? 'Preview provisional estimate →' : 'Preview customer view →'}</button>
-                    <button type="button" onClick={() => void onSaveDraft({ quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="rounded-[8px] border border-white/25 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save draft</button>
+                    <button type="button" onClick={() => void saveReviewedDraft({ quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="rounded-[8px] border border-white/25 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save draft</button>
                   </div>
                 </div>
               </div>
@@ -7856,7 +7881,7 @@ export function EstimateDraftModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => void onSaveDraft({ quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })}
+                        onClick={() => void saveReviewedDraft({ quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })}
                         disabled={quoteModalBusy || !quote}
                         className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--app-ink)] hover:border-[var(--app-ink)] disabled:opacity-50"
                       >
@@ -7909,7 +7934,7 @@ export function EstimateDraftModal({
                 <button onClick={() => estimateView === 'simple' ? void handlePreviewSend() : goToStage('review')} disabled={quoteModalBusy || !quote || (estimateView === 'simple' && routeBusy)} className="w-full justify-center rounded-[8px] bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 transition-opacity">
                   {routeBusy ? 'Calculating route…' : quoteModalBusy ? 'Saving...' : estimateView === 'simple' ? 'Preview & send quote →' : 'Review customer scope →'}
                 </button>
-                <button onClick={() => void onSaveDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
+                <button onClick={() => void saveReviewedDraft({ conditionalClause: conditionalClauseEnabled ? conditionalClauseText : undefined, quoteType, pricingRevisionReason: revisionReason, customerScope: captureCustomerScope() })} disabled={quoteModalBusy || !quote} className="crm-button-dark w-full justify-center disabled:opacity-60">
                   Save Draft
                 </button>
 

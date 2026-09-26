@@ -182,7 +182,7 @@ export default function SalesQuoteDetailPage() {
       setPaymentTerms(nextPaymentTerms)
       setDepositRate(data.quote.total > 0 ? Math.round((data.quote.deposit / data.quote.total) * 100) : getDefaultDepositRate(data.lead?.moveType || data.quote.moveType) * 100)
       setDiscountAmount(Number(data.quote.discountAmount || 0))
-      setDiscountLabel(data.quote.discountLabel || 'Courtesy discount')
+      setDiscountLabel(data.quote.discountLabel || '')
       // Start with saved values
       const savedCrew = Number(data.quote.crewSize || 3)
       const savedHours = Number(data.quote.estimatedHours || 3)

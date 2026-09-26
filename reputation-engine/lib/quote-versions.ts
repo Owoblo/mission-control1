@@ -1,5 +1,5 @@
 import type { CRMQuote } from './types'
-import { quoteCommercialSnapshotChanged } from './quote-pricing-safety'
+import { hasCustomerFacingCommercialSnapshot, quoteCommercialSnapshotChanged } from './quote-pricing-safety'
 export interface QuoteVersionSnapshot {
   version: number
   savedAt: string
@@ -19,4 +19,10 @@ export function preserveQuoteVersion(current: CRMQuote, reason: string, actor: s
 }
 export function isCurrentQuoteVersion(quote: Pick<CRMQuote, 'commercialVersion'>, submitted?: number) {
   return (submitted ?? 1) === (quote.commercialVersion || 1)
+}
+
+export function quoteRevisionError(current: CRMQuote, updates: Partial<CRMQuote>, reason?: string) {
+  return hasCustomerFacingCommercialSnapshot(current) && customerQuoteChanged(current, updates) && (reason?.trim().length || 0) < 8
+    ? 'Add a revision reason (at least 8 characters) before saving changes to this customer’s price or scope.'
+    : null
 }
