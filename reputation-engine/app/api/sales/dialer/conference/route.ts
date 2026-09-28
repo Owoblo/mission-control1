@@ -1,3 +1,5 @@
+import { isTelnyxNumber } from '@/lib/telephony-providers'
+import { requireEnv } from '@/lib/server/runtime'
 import { getAppBaseUrl, getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { getRequestSessionUser } from '@/lib/server/request-session'
@@ -214,7 +216,8 @@ async function handleStartConference(body: StartConferenceBody) {
       method: 'POST',
       body: {
         From: callerId,
-        To: normalizedTarget.kind === 'client' ? `client:${normalizedTarget.target}` : normalizedTarget.target,
+        To: normalizedTarget.kind === 'client' ? `client:${normalizedTarget.target}` : normalizedTarget.kind === 'number' && isTelnyxNumber(callerId) ? `sip:${normalizedTarget.target}@sip.telnyx.com;transport=tls` : normalizedTarget.target,
+        ...(normalizedTarget.kind === 'number' && isTelnyxNumber(callerId) ? { SipAuthUsername: requireEnv('TELNYX_OUTBOUND_SIP_USERNAME'), SipAuthPassword: requireEnv('TELNYX_OUTBOUND_SIP_PASSWORD') } : {}),
         Twiml: conferenceTwiml({
           conferenceName,
           participantLabel: `manager_${Date.now()}`,

@@ -18,6 +18,15 @@
     "hub": "london"
   },
   {
+    "slug": "ajax",
+    "city": "Ajax",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "ajax@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "alvinston",
     "city": "Alvinston",
     "business": "Saturn Star Movers",
@@ -88,6 +97,15 @@
     "email": "arva@starmovers.ca",
     "region": "london",
     "hub": "london"
+  },
+  {
+    "slug": "aurora",
+    "city": "Aurora",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "aurora@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "aylmer",
@@ -216,6 +234,15 @@
     "hub": "chatham"
   },
   {
+    "slug": "brampton",
+    "city": "Brampton",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "brampton@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "brant",
     "city": "Brant",
     "business": "Saturn Star Movers",
@@ -270,6 +297,15 @@
     "hub": "london"
   },
   {
+    "slug": "brock",
+    "city": "Brock",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "brock@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "brooke-alvinston",
     "city": "Brooke-Alvinston",
     "business": "Saturn Star Movers",
@@ -295,6 +331,24 @@
     "email": "burgessville@starmovers.ca",
     "region": "woodstock",
     "hub": "london"
+  },
+  {
+    "slug": "burlington",
+    "city": "Burlington",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "burlington@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
+    "slug": "caledon",
+    "city": "Caledon",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "caledon@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "cambridge",
@@ -394,6 +448,15 @@
     "email": "chathamkent@starmovers.ca",
     "region": "chatham",
     "hub": "chatham"
+  },
+  {
+    "slug": "clarington",
+    "city": "Clarington",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "clarington@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "colchester",
@@ -576,6 +639,15 @@
     "hub": "guelph"
   },
   {
+    "slug": "east-gwillimbury",
+    "city": "East Gwillimbury",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "eastgwillimbury@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "east-zorra-tavistock",
     "city": "East Zorra-Tavistock",
     "business": "Saturn Star Movers",
@@ -666,6 +738,15 @@
     "hub": "windsor"
   },
   {
+    "slug": "etobicoke",
+    "city": "Etobicoke",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "etobicoke@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "fergus",
     "city": "Fergus",
     "business": "Saturn Star Movers",
@@ -691,6 +772,15 @@
     "email": "forest@starmovers.ca",
     "region": "sarnia",
     "hub": "london"
+  },
+  {
+    "slug": "georgina",
+    "city": "Georgina",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "georgina@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "glencoe",
@@ -736,6 +826,24 @@
     "email": "guelpheramosa@starmovers.ca",
     "region": "wkg",
     "hub": "guelph"
+  },
+  {
+    "slug": "halton-hills",
+    "city": "Halton Hills",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "haltonhills@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
+    "slug": "hamilton",
+    "city": "Hamilton",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "hamilton@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "harrow",
@@ -828,6 +936,15 @@
     "hub": "london"
   },
   {
+    "slug": "king",
+    "city": "King",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "king@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "kingsville",
     "city": "Kingsville",
     "business": "Saturn Star Movers",
@@ -864,6 +981,15 @@
     "hub": "london"
   },
   {
+    "slug": "lasalle",
+    "city": "LaSalle",
+    "business": "Saturn Star Movers",
+    "phone": "(226) 773-2993",
+    "email": "lasalle@starmovers.ca",
+    "region": "windsor",
+    "hub": "windsor"
+  },
+  {
     "slug": "lakeshore",
     "city": "Lakeshore",
     "business": "Saturn Star Movers",
@@ -889,15 +1015,6 @@
     "email": "hello@dexamovers.ca",
     "region": "ottawa",
     "hub": "ottawa"
-  },
-  {
-    "slug": "lasalle",
-    "city": "LaSalle",
-    "business": "Saturn Star Movers",
-    "phone": "(226) 773-2993",
-    "email": "lasalle@starmovers.ca",
-    "region": "windsor",
-    "hub": "windsor"
   },
   {
     "slug": "leamington",
@@ -990,6 +1107,15 @@
     "hub": "waterloo"
   },
   {
+    "slug": "markham",
+    "city": "Markham",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "markham@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "mcgregor",
     "city": "McGregor",
     "business": "Saturn Star Movers",
@@ -1035,6 +1161,15 @@
     "hub": "london"
   },
   {
+    "slug": "milton",
+    "city": "Milton",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "milton@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "milverton",
     "city": "Milverton",
     "business": "Saturn Star Movers",
@@ -1051,6 +1186,15 @@
     "email": "minto@starmovers.ca",
     "region": "wkg",
     "hub": "waterloo"
+  },
+  {
+    "slug": "mississauga",
+    "city": "Mississauga",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "mississauga@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "mississippi-mills",
@@ -1161,6 +1305,15 @@
     "hub": "london"
   },
   {
+    "slug": "newmarket",
+    "city": "Newmarket",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "newmarket@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "norfolk-county",
     "city": "Norfolk County",
     "business": "Saturn Star Movers",
@@ -1215,6 +1368,15 @@
     "hub": "waterloo"
   },
   {
+    "slug": "north-york",
+    "city": "North York",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "northyork@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "norwich",
     "city": "Norwich",
     "business": "Saturn Star Movers",
@@ -1222,6 +1384,15 @@
     "email": "norwich@starmovers.ca",
     "region": "woodstock",
     "hub": "london"
+  },
+  {
+    "slug": "oakville",
+    "city": "Oakville",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "oakville@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "oil-springs",
@@ -1240,6 +1411,15 @@
     "email": "hello@dexamovers.ca",
     "region": "ottawa",
     "hub": "ottawa"
+  },
+  {
+    "slug": "oshawa",
+    "city": "Oshawa",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "oshawa@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "ottawa",
@@ -1321,6 +1501,15 @@
     "email": "petrolia@starmovers.ca",
     "region": "sarnia",
     "hub": "london"
+  },
+  {
+    "slug": "pickering",
+    "city": "Pickering",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "pickering@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "plattsville",
@@ -1422,6 +1611,15 @@
     "hub": "ottawa"
   },
   {
+    "slug": "richmond-hill",
+    "city": "Richmond Hill",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "richmondhill@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "ridgetown",
     "city": "Ridgetown",
     "business": "Saturn Star Movers",
@@ -1483,6 +1681,24 @@
     "email": "sarnia@starmovers.ca",
     "region": "sarnia",
     "hub": "london"
+  },
+  {
+    "slug": "scarborough",
+    "city": "Scarborough",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "scarborough@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
+    "slug": "scugog",
+    "city": "Scugog",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "scugog@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "shakespeare",
@@ -1746,6 +1962,33 @@
     "hub": "london"
   },
   {
+    "slug": "toronto",
+    "city": "Toronto",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "toronto@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
+    "slug": "uxbridge",
+    "city": "Uxbridge",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "uxbridge@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
+    "slug": "vaughan",
+    "city": "Vaughan",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "vaughan@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
     "slug": "vienna",
     "city": "Vienna",
     "business": "Saturn Star Movers",
@@ -1852,6 +2095,24 @@
     "email": "wheatley@starmovers.ca",
     "region": "windsor",
     "hub": "windsor"
+  },
+  {
+    "slug": "whitby",
+    "city": "Whitby",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "whitby@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
+  },
+  {
+    "slug": "whitchurch-stouffville",
+    "city": "Whitchurch-Stouffville",
+    "business": "Saturn Star Movers",
+    "phone": "(437) 782-3004",
+    "email": "whitchurchstouffville@starmovers.ca",
+    "region": "toronto",
+    "hub": "toronto"
   },
   {
     "slug": "wilmot",

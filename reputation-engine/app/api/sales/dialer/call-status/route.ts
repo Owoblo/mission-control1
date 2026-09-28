@@ -1,3 +1,8 @@
+import { isSmsProviderReceipt } from '@/lib/telephony-providers'
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 /**
  * POST /api/sales/dialer/call-status
  * Twilio status callback — fires when a call ends.
@@ -24,7 +29,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const form = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'twilio_call_status', 'call')
+    const form = carrierVoiceForm(rawBody)
     const callStatus = (form.get('CallStatus') as string || '').toLowerCase()
     const from = (form.get('From') as string || '').trim()
     const callDuration = Number(form.get('CallDuration') || 0)
@@ -55,7 +64,7 @@ export async function POST(request: Request) {
     const branchLabel = getSaturnBranchLabel(branchNumber)
     const body = `${greeting} This is Saturn Star Moving${branchLabel ? ` on the ${branchLabel} line` : ''} — sorry we missed your call! Reply here or call us back here and we'll get you sorted right away.`
 
-    await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         Authorization: twilioAuth(accountSid, authToken),

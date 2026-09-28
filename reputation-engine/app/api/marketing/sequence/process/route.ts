@@ -1,8 +1,10 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { executePreparedSmsJob, PreparedSmsProviderError } from '@/lib/server/prepared-sms-worker'
 import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
-import { Resend } from 'resend'
+import { sendOutreachEmail } from '@/lib/server/email-provider'
 import {
   decodeSenderFromTemplateKey,
   ensureSmsOptOutLine,
@@ -24,7 +26,7 @@ export const maxDuration = 60
 const STALE_JOB_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7
 const STALE_RUNNING_JOB_MS = 1000 * 60 * 15
 const DEFAULT_MAX_ATTEMPTS = 3
-const SEQUENCE_JOB_BATCH_SIZE = 10
+const SEQUENCE_JOB_BATCH_SIZE = Math.max(1, Math.min(25, Number(readEnv('PARTNERSHIP_EMAIL_MAX_PER_RUN') || 10) || 10))
 
 const PARTNERSHIP_PHONE = DEFAULT_PARTNERSHIP_FROM_NUMBER
 const PARTNERSHIP_EMAIL = DEFAULT_PARTNERSHIP_EMAIL
@@ -133,9 +135,10 @@ function isPermanentSmsFailure(status: number, errorText: string) {
     '30006', // landline or unreachable carrier
     '30007', // carrier violation/filtering
   ]
-  return status === 400 ||
-    status === 404 ||
-    permanentCodes.some(code => text.includes(code)) ||
+  // Do not classify every HTTP 400 as a bad destination. Twilio returns
+  // account-level failures, including 30002 (account suspended), as 400s.
+  // Suppressing every contact in that case would corrupt the outreach list.
+  return permanentCodes.some(code => text.includes(code)) ||
     /invalid|not a valid|landline|unreachable|unknown destination|blocked|opted out/.test(text)
 }
 
@@ -301,7 +304,7 @@ async function processScheduledReply(params: {
   })
   payload.mediaUrls.forEach(mediaUrl => paramsBody.append('MediaUrl', mediaUrl))
 
-  const twilioRes = await fetch(
+  const twilioRes = await sendSmsProviderRequest(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
     {
       method: 'POST',
@@ -415,6 +418,16 @@ async function suppressSmsContact(params: {
   ])
 }
 
+async function twilioAccountIsSuspended(accountSid: string, authToken: string) {
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}` },
+    cache: 'no-store',
+  }).catch(() => null)
+  if (!response) return false
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>
+  return String(payload.status || '').toLowerCase() === 'suspended'
+}
+
 async function processSequence(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -435,6 +448,7 @@ async function processSequence(request: Request) {
 
   const claimedJobs: Record<string, unknown>[] = []
   for (const job of jobs) {
+    if (job.sms_payload && readEnv('PREPARED_SMS_EXECUTION_ENABLED') !== 'true') continue
     const claimed = await claimSequenceJob(url, headers, job)
     if (claimed) claimedJobs.push(claimed)
   }
@@ -470,9 +484,6 @@ async function processSequence(request: Request) {
     }
   }
 
-  const resend = new Resend(readEnv('RESEND_API_KEY'))
-  const accountSid = readEnv('TWILIO_ACCOUNT_SID')
-  const authToken = readEnv('TWILIO_AUTH_TOKEN')
 
   let processed = 0
   let skipped = 0
@@ -483,6 +494,21 @@ async function processSequence(request: Request) {
     const scheduledAt = typeof job.scheduled_at === 'string' ? job.scheduled_at : now
     const scheduledTime = new Date(scheduledAt).getTime()
     const scheduledReply = parseScheduledReplyTemplateKey(job.template_key)
+
+    // Provider checks belong to the job's channel, never the shared queue.
+    let accountSid = ''
+    let authToken = ''
+    if (scheduledReply || job.channel === 'sms') {
+      accountSid = readEnv('TWILIO_ACCOUNT_SID')
+      authToken = readEnv('TWILIO_AUTH_TOKEN')
+      try {
+        if (!accountSid || !authToken) throw new Error('Missing Twilio credentials')
+        if (await twilioAccountIsSuspended(accountSid, authToken)) throw new Error('twilio_account_suspended')
+      } catch (error) {
+        await releaseFailedSequenceJob(url, headers, job, error)
+        continue
+      }
+    }
 
     if (scheduledReply) {
       try {
@@ -540,7 +566,7 @@ async function processSequence(request: Request) {
         }
 
         const { subject, html, text } = buildEmail(contact, batch)
-        await resend.emails.send({
+        await sendOutreachEmail({
           from: `Saturn Star Partnerships <${PARTNERSHIP_EMAIL}>`,
           to: contact.email as string,
           subject,
@@ -579,6 +605,19 @@ async function processSequence(request: Request) {
         ])
         processed++
       } else if (job.channel === 'sms') {
+        if (job.sms_payload) {
+          try {
+            await executePreparedSmsJob({ job: job as { id: string }, contact: contact as { id: string }, url, headers, accountSid, authToken, enabled: readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true' })
+            processed++
+          } catch (error) {
+            if (error instanceof PreparedSmsProviderError && isPermanentSmsFailure(error.status, error.providerBody)) {
+              await suppressSmsContact({ url, headers, contact, job, errorText: error.providerBody, now })
+              skipped++
+            } else throw error
+          }
+          continue
+        }
+
         if (!contact.phone) {
           await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
             method: 'PATCH', headers,
@@ -622,7 +661,7 @@ async function processSequence(request: Request) {
         }
 
         const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(fromNumber)
-        const twilioRes = await fetch(
+        const twilioRes = await sendSmsProviderRequest(
           `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
           {
             method: 'POST',

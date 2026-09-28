@@ -92,7 +92,7 @@ function sesConfigurationSetForPayload(payload: ProviderEmailPayload) {
 
 async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
   if (!sesProductionAccessConfirmed()) {
-    throw new Error('SES production access is not confirmed. Keep PARTNERSHIP_EMAIL_PROVIDER on resend until AWS approves production access, then set SES_PRODUCTION_ACCESS_CONFIRMED=true.')
+    throw new Error('SES production access is not confirmed. Verify AWS approval and SES_PRODUCTION_ACCESS_CONFIRMED before sending outreach.')
   }
 
   const client = sesClient()
@@ -145,4 +145,12 @@ export function getSesLaunchReadiness() {
     engagementConfigurationSet: readEnv('AWS_SES_CONFIGURATION_SET') || null,
     deliverabilityConfigurationSet: readEnv('AWS_SES_DELIVERABILITY_CONFIGURATION_SET') || readEnv('AWS_SES_CONFIGURATION_SET') || null,
   }
+}
+
+/** Partnership sequence email is SES; never fall back to a transactional provider. */
+export async function sendOutreachEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
+  requireEmailBody(payload)
+  const receipt = await sendWithSes(payload)
+  if (!receipt.accepted || !receipt.messageId) throw new Error("SES did not return an acceptance receipt")
+  return receipt
 }

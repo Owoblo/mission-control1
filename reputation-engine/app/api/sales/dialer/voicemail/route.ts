@@ -1,3 +1,6 @@
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { sendRepAlertEmail, voicemailNotificationEmail } from '@/lib/server/internal-notifications'
 
@@ -43,7 +46,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'twilio_voicemail', 'voicemail')
+    const formData = carrierVoiceForm(rawBody)
     const callSid          = (formData.get('CallSid') as string | null)?.trim() || ''
     const recordingUrl     = (formData.get('RecordingUrl') as string | null)?.trim() || ''
     const recordingDuration = parseInt((formData.get('RecordingDuration') as string | null) || '0', 10)

@@ -1,3 +1,6 @@
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 // IVR digit handler — only active when ENABLE_IVR_MENU=true
 // Press 1 → sales rep ring (same as normal inbound)
 // Press 2 → operations/booking rep ring
@@ -12,7 +15,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData()
+  const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'twilio_ivr', 'call')
+    const formData = carrierVoiceForm(rawBody)
   const digit = (formData.get('Digits') as string | null)?.trim() || ''
 
   // Both press 1 (quote/sales) and press 2 (existing booking) route to the same team for now

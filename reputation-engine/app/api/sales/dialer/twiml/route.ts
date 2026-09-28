@@ -1,3 +1,6 @@
+import { carrierVoiceForm, carrierDialTarget } from '@/lib/server/carrier-voice'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { getSalesLeadByContact, saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
 import { notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl, requireSupabaseEnv } from '@/lib/server/runtime'
@@ -232,7 +235,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    const formData = carrierVoiceForm(rawBody)
     const to = (formData.get('To') as string | null)?.trim()
     const from = (formData.get('From') as string | null)?.trim()
     const direction = (formData.get('Direction') as string | null)?.trim()
@@ -250,6 +256,7 @@ export async function POST(request: Request) {
     const branchCity = getSaturnBranchLabel(normalizedTo) || 'Windsor'
 
     if (isInbound) {
+      await captureTwilioInteraction(formData.toString(), 'twilio_call', 'call')
       // Reject spam calls with impossible phone numbers (E.164 max is 15 digits).
       // Robocallers use 20+ digit fake numbers to evade caller ID blocking.
       if (from && isSpamPhoneNumber(from)) {
@@ -570,7 +577,7 @@ export async function POST(request: Request) {
       .join(' ')
 
     return xmlResponse(
-      `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${dialTarget}</Number></Dial></Response>`
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}>${carrierDialTarget(dialTarget, callerIdResolution.fromNumber)}</Dial></Response>`
     )
   } catch {
     // If anything at all goes wrong, still try the internal SIP reps.

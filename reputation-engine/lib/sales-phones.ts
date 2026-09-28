@@ -1,3 +1,4 @@
+import gtaCities from './data/gta-service-cities.json'
 import type { SalesBranch } from './types'
 
 export const DEFAULT_SATURN_BRANCH_NUMBER = '+12267732993'
@@ -10,6 +11,8 @@ type SaturnPhoneMetadata = {
 }
 
 export const SATURN_BRANCH_PHONE_DIRECTORY = {
+  '+14377823004': { branchLabel: 'Toronto / GTA', salesBranch: 'toronto', trackingLabel: 'GTA Sales', trackingSource: 'google_online_search' },
+  '+14374650584': { branchLabel: 'Toronto / GTA Partnerships', salesBranch: 'toronto', trackingLabel: 'GTA Partnership', trackingSource: 'partnership_outreach' },
   // ── Windsor ────────────────────────────────────────────────────────────────
   // 226-773-2993 — Windsor front number, used on GMB Windsor
   '+12267732993': {
@@ -110,6 +113,7 @@ export const SATURN_BRANCH_PHONE_DIRECTORY = {
 export type SaturnBranchPhoneNumber = keyof typeof SATURN_BRANCH_PHONE_DIRECTORY
 
 const SATURN_PRIMARY_BRANCH_NUMBERS: Record<SalesBranch, SaturnBranchPhoneNumber> = {
+  toronto: '+14377823004',
   windsor: '+12267732993',
   waterloo: '+12262423319',
   ottawa: '+16135193236',
@@ -117,6 +121,7 @@ const SATURN_PRIMARY_BRANCH_NUMBERS: Record<SalesBranch, SaturnBranchPhoneNumber
 }
 
 const SATURN_BRANCH_CITY_ALIASES: Array<{ branch: SalesBranch; patterns: RegExp[] }> = [
+  { branch: 'toronto', patterns: [new RegExp('\\b(' + [...gtaCities, 'gta', 'greater toronto area'].join('|') + ')\\b', 'i')] },
   {
     branch: 'windsor',
     patterns: [
@@ -246,7 +251,10 @@ export function digitsOnly(value?: string | null) {
 }
 
 export function normalizePhone(value?: string | null) {
-  const raw = (value || '').trim()
+  const input = (value || '').trim()
+  // SIP callbacks carry the phone in the URI user part; never include host digits.
+  const raw = /^sips?:/i.test(input) ? decodeURIComponent(input.replace(/^sips?:/i, '').split('@')[0].split(';')[0]) : input
+  if (/^sips?:/i.test(input) && !/^\+?\d{10,15}$/.test(raw)) return ''
   const digits = digitsOnly(raw)
 
   if (!digits) {
@@ -322,6 +330,7 @@ export function getSaturnPhoneMetadata(value?: string | null) {
 export function getSalesBranchFromSaturnLabel(value?: string | null): SalesBranch | undefined {
   const normalized = (value || '').trim().toLowerCase()
   if (!normalized) return undefined
+  if (/\b(toronto|gta)\b/.test(normalized) || gtaCities.some(city => city.toLowerCase() === normalized)) return 'toronto'
   if (normalized.includes('windsor')) return 'windsor'
   if (normalized.includes('kitchener') || normalized.includes('waterloo') || normalized.includes('kw')) return 'waterloo'
   if (normalized.includes('london')) return 'london'

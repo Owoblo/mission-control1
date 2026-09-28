@@ -11,10 +11,10 @@ test('city cards match Sarnia and St Thomas rather than their London phone hub',
   assert.equal(findPartnerBusinessCard('Unknown city'), null)
 })
 
-test('Ottawa cards preserve Dexa branding and all 212 cities have unique assets', () => {
+test('Ottawa cards preserve Dexa branding and all catalog cities have unique assets', () => {
   assert.equal(findPartnerBusinessCard('Ottawa')?.business, 'Dexa Movers')
-  assert.equal(PARTNER_BUSINESS_CARDS.length, 212)
-  assert.equal(new Set(PARTNER_BUSINESS_CARDS.map(card => businessCardUrl(card))).size, 212)
+  assert.ok(PARTNER_BUSINESS_CARDS.length >= 241)
+  assert.equal(new Set(PARTNER_BUSINESS_CARDS.map(card => businessCardUrl(card))).size, PARTNER_BUSINESS_CARDS.length)
 })
 
 test('changing city replaces the old library attachment without duplicating cards or removing other uploads', () => {
@@ -43,4 +43,28 @@ test('switching cards updates only the prepared card reply and retains the user 
   assert.ok(next.includes('Sarnia digital card'))
   assert.ok(!next.includes('London digital card'))
   assert.equal(appendBusinessCardReply(next, findPartnerBusinessCard('Sarnia')!), next)
+})
+
+ test('GTA and Hamilton cards use local consumer number and versioned assets', () => {
+  for (const city of ['Toronto', 'Mississauga', 'Hamilton', 'Milton', 'King', 'GTA']) {
+    const card = findPartnerBusinessCard(city)!
+    assert.ok(card, city)
+    assert.equal(card.phone, '(437) 782-3004')
+    assert.ok(businessCardUrl(card).includes('2026-09-26-gta'))
+  }
+  const toronto = findPartnerBusinessCard('Toronto')!
+  const hamilton = findPartnerBusinessCard('Hamilton')!
+  assert.deepEqual(attachBusinessCard([businessCardUrl(toronto)], hamilton), [businessCardUrl(hamilton)])
+})
+
+test('all GTA cards use Sold2Move assets and the city email convention', () => {
+  const gta = PARTNER_BUSINESS_CARDS.filter(card => card.region === 'toronto')
+  assert.equal(gta.length, 29)
+  for (const card of gta) {
+    assert.equal(card.email, `${card.slug.replaceAll('-', '')}@starmovers.ca`)
+    assert.ok(businessCardUrl(card).includes('/2026-09-26-gta-sold2move-v2/'))
+  }
+  const card = findPartnerBusinessCard('Hamilton')!
+  const old = 'https://idbyrtwdeeruiutoukct.supabase.co/storage/v1/object/public/ops-media/partnership-library/business-cards/2026-09-26-gta/toronto/card.jpg'
+  assert.deepEqual(attachBusinessCard([old, 'https://example.com/photo.jpg'], card), ['https://example.com/photo.jpg', businessCardUrl(card)])
 })

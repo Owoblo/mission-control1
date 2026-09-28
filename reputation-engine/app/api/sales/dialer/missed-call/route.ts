@@ -1,3 +1,7 @@
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { getTwilioCredentials, requireSupabaseEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import { outboundSmsRecentlySent, recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
@@ -20,7 +24,7 @@ function xmlResponse(twiml: string) {
 }
 
 async function sendSms(accountSid: string, authToken: string, to: string, from: string, body: string) {
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+  const response = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: 'POST',
     headers: {
       Authorization: twilioAuth(accountSid, authToken),
@@ -67,7 +71,11 @@ export async function POST(request: Request) {
   let whoResult: 'browser' | 'rep' | 'nobody' = 'nobody'
 
   try {
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'twilio_missed_call', 'call')
+    const formData = carrierVoiceForm(rawBody)
     const from    = (formData.get('From') as string | null)?.trim() || ''
     const to      = (formData.get('To') as string | null)?.trim() || ''
     const callSid = (formData.get('CallSid') as string | null)?.trim() || ''

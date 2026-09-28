@@ -1,5 +1,6 @@
 'use client'
 
+import gtaCities from '@/lib/data/gta-service-cities.json'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { RelationshipRecord } from '@/app/components/partnership/RelationshipRecord'
@@ -1816,7 +1817,7 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
   const priority = [...needsReply, ...promisesDue, ...warm]
     .filter((contact, index, all) => all.findIndex(item => item.id === contact.id) === index)
     .slice(0, 7)
-  const markets = ['windsor', 'waterloo', 'london', 'ottawa'].map(market => {
+  const markets = ['windsor', 'waterloo', 'london', 'ottawa', 'toronto'].map(market => {
     const rows = contacts.filter(contact => marketForContact(contact) === market)
     const summary = marketSummary?.[market as PartnershipMarketKey]
     return {
@@ -3536,7 +3537,10 @@ const OTTAWA_PARTNER_CITY_KEYS = [
   'carp',
 ]
 
+const TORONTO_PARTNER_CITY_KEYS = [...gtaCities.map(city => city.toLowerCase().replace(/[^a-z0-9]+/g, '_')), 'gta', 'greater_toronto_area']
+
 const PARTNERSHIP_AREA_GROUPS = [
+  { id: 'toronto_area', label: 'Toronto / GTA + Hamilton', cityKeys: TORONTO_PARTNER_CITY_KEYS },
   {
     id: 'windsor_area',
     label: 'Windsor / Essex / Chatham',
@@ -3640,7 +3644,7 @@ function areaForCity(cityKey: string) {
   return PARTNERSHIP_AREA_GROUPS.find(area => area.cityKeys.includes(cityKey))
 }
 
-type PartnershipMarketKey = 'windsor' | 'waterloo' | 'london' | 'ottawa'
+type PartnershipMarketKey = 'windsor' | 'waterloo' | 'london' | 'ottawa' | 'toronto'
 
 type PartnershipMarketCommand = {
   id: PartnershipMarketKey
@@ -3654,6 +3658,7 @@ type PartnershipMarketCommand = {
 }
 
 const PARTNERSHIP_MARKET_COMMANDS: PartnershipMarketCommand[] = [
+  { id: 'toronto', label: 'Toronto / GTA + Hamilton', manager: 'Unassigned', email: 'business@starmovers.ca', areaId: 'toronto_area', defaultSegment: 'toronto', defaultName: 'GTA Partnership SMS', cityKeys: TORONTO_PARTNER_CITY_KEYS },
   {
     id: 'windsor',
     label: 'Windsor / Essex',
@@ -3697,7 +3702,7 @@ const PARTNERSHIP_MARKET_COMMANDS: PartnershipMarketCommand[] = [
 ]
 
 function marketCommandForKey(value?: string | null) {
-  return PARTNERSHIP_MARKET_COMMANDS.find(market => market.id === value) || PARTNERSHIP_MARKET_COMMANDS[0]
+  return PARTNERSHIP_MARKET_COMMANDS.find(market => market.id === value) || PARTNERSHIP_MARKET_COMMANDS.find(market => market.id === 'windsor')!
 }
 
 function marketForCityKey(cityKey: string): PartnershipMarketKey | null {
@@ -6150,6 +6155,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
         rep_name: repName,
         sender_numbers: senderNumbers,
         daily_cap: dailyCap,
+        include_weekends: true,
         start_date: startDate,
         start_hour: startHour,
         end_hour: endHour,
@@ -6185,7 +6191,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
           <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
             <div className="text-3xl">Scheduled</div>
             <div className="text-base font-semibold text-[var(--app-ink)]">{result.scheduled ?? 0} SMS jobs created</div>
-            <div className="text-sm text-[var(--app-muted)]">Estimated {result.days_to_finish ?? 0} business day{result.days_to_finish === 1 ? '' : 's'} at {dailyCap}/day.</div>
+            <div className="text-sm text-[var(--app-muted)]">Estimated {result.days_to_finish ?? 0} calendar day{result.days_to_finish === 1 ? '' : 's'} at {dailyCap}/day.</div>
             <button onClick={onClose} className="crm-button-dark px-6">Done</button>
           </div>
         ) : (
@@ -6271,8 +6277,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                 </div>
 
                 <div>
-                  <label className="crm-label">Daily cap</label>
-                  <input type="number" min={1} max={1000} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                  <label className="crm-label">Sending pace (contacts/day)</label>
+                  <input type="number" min={1} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
                 </div>
 
                 <div>

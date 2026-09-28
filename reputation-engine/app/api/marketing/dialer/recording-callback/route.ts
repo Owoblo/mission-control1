@@ -1,3 +1,7 @@
+import { archiveTwilioRecording, updateArchivedRecordingAiMetadata } from '@/lib/server/recording-archive'
+import { transcribeAudioBuffer } from '@/lib/server/call-intelligence'
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 /**
  * POST /api/marketing/dialer/recording-callback
  * Twilio calls this when a partnership call recording is ready.
@@ -110,7 +114,8 @@ export async function POST(request: Request) {
       return new Response('Forbidden', { status: 403 })
     }
 
-    const formData = new URLSearchParams(rawBody)
+    await captureTwilioInteraction(rawBody, 'partnership_recording', 'call')
+    const formData = carrierVoiceForm(rawBody)
     const callSid = formData.get('CallSid') || ''
     const recordingSid = formData.get('RecordingSid') || ''
     const recordingUrl = formData.get('RecordingUrl') || ''
@@ -152,15 +157,22 @@ export async function POST(request: Request) {
     const exactMatches = contacts.filter(item => normalizePhone(item.phone) === customerNumber && contactMatchesLine(item, partnershipNumber))
     const contact = exactMatches.length === 1 ? exactMatches[0] : null
 
+    // Keep recordings for new callers too; a contact match is only needed for its timeline.
+    const archived = await archiveTwilioRecording({
+      accountSid, authToken, callSid, recordingSid, recordingUrl,
+      durationSeconds: recordingDuration,
+      phoneNumber: customerNumber,
+      city: partnershipLineForNumber(partnershipNumber)?.market,
+    })
+    const transcript = archived
+      ? await transcribeAudioBuffer(archived.buffer, archived.contentType, 'partnership-call').catch(() => null)
+      : await transcribeRecording(recordingUrl, authHeader)
+    if (archived) {
+      await updateArchivedRecordingAiMetadata({ callSid, recordingSid: archived.recordingSid || recordingSid, transcript })
+    }
     if (!contact) return new Response(null, { status: 204 })
 
     const now = new Date().toISOString()
-
-    // Transcribe + summarize
-    const [transcript, summary] = await Promise.all([
-      transcribeRecording(recordingUrl, authHeader),
-      Promise.resolve(null), // summary depends on transcript
-    ])
 
     const aiSummary = transcript ? await summarizeTranscript(transcript, contact.name) : null
 
@@ -187,7 +199,7 @@ export async function POST(request: Request) {
         metadata: {
           call_sid: callSid,
           recording_sid: recordingSid,
-          recording_url: recordingUrl,
+          recording_url: archived?.recordingUrl || recordingUrl,
           duration_seconds: recordingDuration,
           from: from || (isOutbound ? partnershipNumber : customerNumber),
           to: to || (isOutbound ? customerNumber : partnershipNumber),

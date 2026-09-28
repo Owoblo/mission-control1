@@ -176,7 +176,7 @@ export function parseSmsCampaignConfig(notes?: unknown): PartnershipSmsCampaignC
   return {
     type: 'partnership_sms_campaign',
     template: normalizeSmsToGsm(String(config.template || DEFAULT_PARTNERSHIP_SMS_TEMPLATE)),
-    dailyCap: Math.max(1, Math.min(500, Number(config.dailyCap || 100))),
+    dailyCap: Math.max(1, Math.floor(Number(config.dailyCap || 100))),
     senderNumbers: senderNumbers.length ? senderNumbers : DEFAULT_PARTNERSHIP_SENDER_NUMBERS,
     timezone: String(config.timezone || 'America/Toronto'),
     startHour: Math.max(7, Math.min(20, Number(config.startHour || 10))),
@@ -337,8 +337,10 @@ export function buildPartnershipSmsSchedule(options: {
   startHour?: number
   endHour?: number
   timezone?: string
+  includeWeekends?: boolean
 }) {
   const count = Math.max(0, options.count)
+  if (!Number.isSafeInteger(options.dailyCap) || options.dailyCap < 1) throw new Error("Invalid sending pace")
   const dailyCap = Math.max(1, options.dailyCap)
   const senders = options.senderNumbers.length ? options.senderNumbers : DEFAULT_PARTNERSHIP_SENDER_NUMBERS
   const startHour = options.startHour ?? 10
@@ -355,31 +357,32 @@ export function buildPartnershipSmsSchedule(options: {
     firstHour = nowParts.hour + Math.floor(nextMinute / 60)
     firstMinute = nextMinute % 60
     if (firstHour >= endHour) {
-      day = nextBusinessDay(day)
+      day = options.includeWeekends ? addDays(day, 1) : nextBusinessDay(day)
       firstHour = startHour
       firstMinute = 0
     }
   } else if (!options.startDate && nowParts.hour >= endHour) {
-    day = nextBusinessDay(day)
+    day = options.includeWeekends ? addDays(day, 1) : nextBusinessDay(day)
   } else {
     firstHour = startHour
     firstMinute = 0
   }
-  while (dayOfWeek(day) === 0 || dayOfWeek(day) === 6) day = nextBusinessDay(day)
+  while (!options.includeWeekends && (dayOfWeek(day) === 0 || dayOfWeek(day) === 6)) day = nextBusinessDay(day)
 
   const schedule: Array<{ scheduledAt: string; fromNumber: string }> = []
   const minutesInWindow = Math.max(60, (endHour - startHour) * 60)
   for (let index = 0; index < count; index++) {
     const dayIndex = Math.floor(index / dailyCap)
     const positionInDay = index % dailyCap
-    const scheduledDay = advanceBusinessDays(day, dayIndex)
+    const scheduledDay = options.includeWeekends ? addDays(day, dayIndex) : advanceBusinessDays(day, dayIndex)
     const spacing = minutesInWindow / Math.max(1, dailyCap)
     const initialOffset = dayIndex === 0 ? Math.max(0, (firstHour - startHour) * 60 + firstMinute) : 0
-    const minuteOffset = initialOffset + Math.floor(positionInDay * spacing) + (positionInDay % 4)
+    const minuteOffset = initialOffset + positionInDay * spacing
     const hour = startHour + Math.floor(minuteOffset / 60)
-    const minute = minuteOffset % 60
+    const minute = Math.floor(minuteOffset % 60)
+    const seconds = Math.floor((minuteOffset % 1) * 60)
     schedule.push({
-      scheduledAt: zonedDateToUtc(scheduledDay, Math.min(hour, endHour - 1), minute, timezone).toISOString(),
+      scheduledAt: new Date(zonedDateToUtc(scheduledDay, Math.min(hour, endHour - 1), minute, timezone).getTime() + seconds * 1000).toISOString(),
       fromNumber: senders[index % senders.length],
     })
   }

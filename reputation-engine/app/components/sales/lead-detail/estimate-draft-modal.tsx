@@ -219,6 +219,7 @@ const BRANCH_CAPACITY_ESTIMATES: Record<NonNullable<CRMLead['branch']>, { crew: 
   waterloo: { crew: 12, trucks: 4 },
   london: { crew: 10, trucks: 3 },
   ottawa: { crew: 10, trucks: 3 },
+  toronto: { crew: 0, trucks: 0 }, // Pilot market: operations must configure actual capacity.
 }
 
 function daysUntilDate(value?: string) {
@@ -466,7 +467,7 @@ export function EstimateDraftModal({
   const [quoteType, setQuoteType] = useState<'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'>(
     lead.quoteType || 'standard'
   )
-  const [localBranch, setLocalBranch] = useState<'windsor' | 'waterloo' | 'london' | 'ottawa'>(
+  const [localBranch, setLocalBranch] = useState<NonNullable<CRMLead['branch']>>(
     detectSalesBranchFromLocation(lead.originAddress, lead.originCity) || lead.branch || 'windsor'
   )
   const [distanceKm, setDistanceKm] = useState<number>(0)

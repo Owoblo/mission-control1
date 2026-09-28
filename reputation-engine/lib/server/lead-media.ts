@@ -199,7 +199,7 @@ export async function persistInboundMmsToLead(input: {
 
     const response = await fetch(media.url, {
       headers: {
-        Authorization: twilioAuth(accountSid, authToken),
+        ...(new URL(media.url).hostname === 'api.twilio.com' ? { Authorization: twilioAuth(accountSid, authToken) } : {}),
       },
       cache: 'no-store',
       signal: AbortSignal.timeout(20_000),
@@ -268,7 +268,7 @@ export async function persistInboundMmsToLead(input: {
         }
 
         const videoRes = await fetch(originalMedia.url, {
-          headers: { Authorization: twilioAuth(accountSid, authToken) },
+          headers: new URL(originalMedia.url).hostname === 'api.twilio.com' ? { Authorization: twilioAuth(accountSid, authToken) } : {},
           signal: AbortSignal.timeout(30000),
         })
         if (!videoRes.ok) {

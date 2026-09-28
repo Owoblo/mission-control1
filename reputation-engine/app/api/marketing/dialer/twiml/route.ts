@@ -1,3 +1,6 @@
+import { carrierVoiceForm, carrierDialTarget } from '@/lib/server/carrier-voice'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { normalizePhone } from '@/lib/sales-phones'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
@@ -45,13 +48,13 @@ function recordingCallbackUrl(baseUrl: string, customerNumber: string, partnersh
   return url.toString()
 }
 
-function dialDestinations(forwardPhone?: string | null, clientIdentities?: string[] | null) {
+function dialDestinations(forwardPhone?: string | null, clientIdentities?: string[] | null, fromNumber = DEFAULT_PARTNERSHIP_NUMBER) {
   const destinations: string[] = []
   for (const identity of Array.from(new Set(clientIdentities || []))) {
     if (identity.trim()) destinations.push(`<Client>${xmlAttr(identity.trim())}</Client>`)
   }
   if (forwardPhone?.trim()) {
-    destinations.push(`<Number>${xmlAttr(forwardPhone.trim())}</Number>`)
+    destinations.push(carrierDialTarget(forwardPhone.trim(), fromNumber))
   }
   return destinations.join('')
 }
@@ -106,7 +109,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(carrierVoiceForm(rawBody).toString(), 'partnership_call', 'call')
+    const formData = carrierVoiceForm(rawBody)
     const to = (formData.get('To') as string | null)?.trim() ?? ''
     const from = (formData.get('From') as string | null)?.trim() ?? ''
     const city = ((formData.get('City') as string | null) || '').toLowerCase()
@@ -119,7 +126,11 @@ export async function POST(request: Request) {
       const fallbackClientIdentity = readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
       const clientIdentities = marketClientIdentities.length > 0
         ? marketClientIdentities
-        : fallbackClientIdentity ? [fallbackClientIdentity] : []
+         : fallbackClientIdentity ? Array.from(new Set([
+          fallbackClientIdentity,
+          // The native app registers saturn-rep; the partnership browser registers partnership-rep.
+          fallbackClientIdentity.replace(/^partnership-rep-/, 'saturn-rep-'),
+        ])) : []
       const forwardPhone = configuredForwardPhoneForLine(dialedNumber)
       const inboundPhone = normalizePhone(from) || from
       const recordingCallback = recordingCallbackUrl(appUrl, inboundPhone, dialedNumber, 'inbound')
@@ -135,7 +146,7 @@ export async function POST(request: Request) {
       }).catch(() => null)
 
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${xmlAttr(dialedNumber)}" timeout="25" record="record-from-answer" recordingStatusCallback="${xmlAttr(recordingCallback)}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${xmlAttr(statusCallback)}" method="POST">${dialDestinations(forwardPhone, clientIdentities)}</Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${xmlAttr(dialedNumber)}" timeout="25" record="record-from-answer" recordingStatusCallback="${xmlAttr(recordingCallback)}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" action="${xmlAttr(statusCallback)}" method="POST">${dialDestinations(forwardPhone, clientIdentities, dialedNumber)}</Dial></Response>`
       )
     }
 
@@ -158,7 +169,7 @@ export async function POST(request: Request) {
     ].join(' ')
 
     return xmlResponse(
-      `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${xmlAttr(dialTarget)}</Number></Dial></Response>`
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}>${carrierDialTarget(dialTarget, callerId)}</Dial></Response>`
     )
   } catch {
     return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="rejected"/></Response>`)

@@ -239,6 +239,7 @@ const PUBLIC_BRANCH_MARKETS: Record<NonNullable<CRMLead['branch']>, string> = {
   waterloo: 'Waterloo Region, Ontario',
   london: 'London, Ontario',
   ottawa: 'Ottawa, Ontario',
+  toronto: 'Toronto / GTA, Ontario',
 }
 
 function quoteBranch(quote: PublicQuote) {

@@ -1,4 +1,5 @@
-export type PartnershipMarket = 'windsor' | 'waterloo' | 'london' | 'ottawa'
+import gtaCities from './data/gta-service-cities.json'
+export type PartnershipMarket = 'windsor' | 'waterloo' | 'london' | 'ottawa' | 'toronto'
 
 export type PartnershipLine = {
   number: string
@@ -212,6 +213,7 @@ const OTTAWA_CITIES = [
 ]
 
 export const PARTNERSHIP_LINES: PartnershipLine[] = [
+  { number: '+14374650584', label: 'Toronto / GTA Partnership', market: 'toronto', primary: true, cityKeys: [...gtaCities.map(city => city.toLowerCase()), 'gta', 'greater toronto area'] },
   {
     number: '+12268870667',
     label: 'Windsor Partnership',
@@ -294,7 +296,7 @@ export function getPartnershipLinesForMarket(market?: string | null) {
   const cityMatch = PARTNERSHIP_LINES.filter(line =>
     line.cityKeys.some(cityKey => {
       const city = normalizePartnershipCityKey(cityKey)
-      return city === key || (!!key && key.includes(city)) || (!!city && city.includes(key))
+      return Boolean(key) && (city === key || (`-${key}-`).includes(`-${city}-`) || (`-${city}-`).includes(`-${key}-`))
     })
   )
   if (cityMatch.length > 0) return cityMatch

@@ -1,3 +1,5 @@
+import gtaCities from './data/gta-service-cities.json'
+import { countsAsCommercialLead } from './interaction-classification'
 import { bookingDecision } from './booking-policy'
 import { buildMoveOperatingPlan } from './move-operating-plan'
 import { buildAssemblyPlan, needsItemAssembly } from './assembly-planning'
@@ -93,6 +95,7 @@ export const SALES_BRANCHES: Array<{ id: SalesBranch; label: string }> = [
   { id: 'waterloo', label: 'Waterloo / KW' },
   { id: 'london', label: 'London' },
   { id: 'ottawa', label: 'Ottawa' },
+  { id: 'toronto', label: 'Toronto / GTA' },
 ]
 
 export const CRM_LEAD_SOURCES: Array<{ id: string; label: string }> = [
@@ -139,6 +142,7 @@ export const FOLLOW_UP_STATUSES: Array<{ id: LeadFollowUpStatus; label: string }
 ]
 
 const SALES_BRANCH_AREAS: Record<SalesBranch, string[]> = {
+  toronto: [...gtaCities.map(city => city.toLowerCase()), 'gta', 'greater toronto area'],
   windsor: ['windsor', 'tecumseh', 'lasalle', 'la salle', 'amherstburg', 'essex', 'lakeshore', 'belle river', 'leamington', 'kingsville', 'chatham', 'chatham kent'],
   waterloo: [
     'waterloo', 'kitchener', 'cambridge', 'guelph', 'elmira', 'st jacobs', 'st. jacobs',
@@ -170,7 +174,7 @@ export function detectSalesBranchFromLocation(...values: Array<string | null | u
   if (!normalized) return undefined
 
   for (const [branch, aliases] of Object.entries(SALES_BRANCH_AREAS) as Array<[SalesBranch, string[]]>) {
-    if (aliases.some(alias => normalized.includes(normalizeLocationText(alias)))) {
+    if (aliases.some(alias => (` ${normalized} `).includes(` ${normalizeLocationText(alias)} `))) {
       return branch
     }
   }
@@ -182,7 +186,7 @@ export function isLocationWithinBranchServiceArea(branch: SalesBranch | undefine
   if (!branch) return false
   const normalized = normalizeLocationText(...values)
   if (!normalized) return false
-  return SALES_BRANCH_AREAS[branch].some(alias => normalized.includes(normalizeLocationText(alias)))
+  return SALES_BRANCH_AREAS[branch].some(alias => (` ${normalized} `).includes(` ${normalizeLocationText(alias)} `))
 }
 
 export const QUOTE_STATUSES: Array<{ id: QuoteStatus; label: string }> = [

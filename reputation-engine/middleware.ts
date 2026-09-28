@@ -9,6 +9,9 @@ const PUBLIC_PATHS = new Set(['/login'])
 // Webhooks / public API — no session cookie
 const PUBLIC_API_PATHS = new Set([
   '/api/sales/twilio/sms',
+  '/api/sales/telnyx/messaging',
+  '/api/sales/telnyx/voice',
+  '/api/sales/telnyx/bridge',
   '/api/sales/inbox/email-inbound',
   '/api/sales/operations/sms',
   '/api/sales/operations/twiml',
