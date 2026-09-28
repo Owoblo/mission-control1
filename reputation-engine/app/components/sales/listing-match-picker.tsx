@@ -19,7 +19,10 @@ export function ListingMatchPicker({
   onResolveLink: (url: string) => void
 }) {
   const [listingUrl, setListingUrl] = useState('')
-  const message = status === 'unit_not_found'
+  const noCandidates = candidates.length === 0
+  const message = noCandidates
+    ? 'We searched the origin address, but could not find a listing in the available listing data. Check the origin address or try a listing link. You can also upload customer photos to build inventory.'
+    : status === 'unit_not_found'
     ? `We found this building, but not unit ${requestedUnit || ''}. Do not use another unit unless you confirm it is the same home.`
     : status === 'ambiguous_building'
       ? 'Several units were found at this building. Select the exact home before scanning photos.'
@@ -30,7 +33,7 @@ export function ListingMatchPicker({
   return (
     <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
       <div>
-        <div className="text-sm font-semibold text-amber-950">Listing confirmation required</div>
+        <div className="text-sm font-semibold text-amber-950">{noCandidates ? 'No listing found for this address' : 'Choose the matching listing'}</div>
         <p className="mt-1 text-xs leading-5 text-amber-800">{message}</p>
       </div>
 
@@ -50,7 +53,7 @@ export function ListingMatchPicker({
                     {candidate.listingMlsId ? ` · MLS ${candidate.listingMlsId}` : ''}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <button type="button" disabled={busy} onClick={() => onSelect(candidate)} className="rounded-md bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Use this unit</button>
+                    <button type="button" disabled={busy} onClick={() => onSelect(candidate)} className="rounded-md bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Use this listing</button>
                     {candidate.detailurl && <a href={candidate.detailurl} target="_blank" rel="noreferrer" className="rounded-md border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700">Open listing</a>}
                   </div>
                 </div>
@@ -66,7 +69,7 @@ export function ListingMatchPicker({
           <input value={listingUrl} onChange={event => setListingUrl(event.target.value)} placeholder="https://… or MLS number" className="crm-input min-w-0 flex-1 bg-white" />
           <button type="button" disabled={busy || listingUrl.trim().length < 5} onClick={() => onResolveLink(listingUrl.trim())} className="rounded-md border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 disabled:opacity-50">Find listing</button>
         </div>
-        <p className="mt-1 text-[11px] leading-4 text-amber-700">Links are resolved against authorized listing data already stored in Supabase; external pages are not scraped.</p>
+        <p className="mt-1 text-[11px] leading-4 text-amber-700">A link can match a listing available to this app. If its photos are unavailable, upload customer photos instead.</p>
       </div>
     </div>
   )
