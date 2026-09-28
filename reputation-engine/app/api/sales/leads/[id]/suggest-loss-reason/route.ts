@@ -53,7 +53,7 @@ ${context}
 Loss reason options:
 ${reasonList}
 
-Based ONLY on the above activity, pick the single best loss reason ID and write a short rep-facing note (1–2 sentences, plain English, what the customer actually said or signalled). If there is no clear evidence, return null for reason.
+Based ONLY on the above activity, pick the single best loss reason ID and write a short rep-facing note (1–2 sentences, plain English, what the customer actually said or signalled). If there is no clear evidence, return null for reason. Waiting for a house sale, conditions, move date, or customer response is not a loss; return null and explain the pending follow-up instead.
 
 Respond with valid JSON only: { "reason": "<id or null>", "notes": "<short note>" }`
 

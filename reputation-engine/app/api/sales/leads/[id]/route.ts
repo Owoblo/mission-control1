@@ -1,3 +1,4 @@
+import { lostTransitionError } from '@/lib/lead-verification'
 import { buildCurrentCrewBrief, buildMoveOperatingPlan } from '@/lib/move-operating-plan'
 import { preserveInventoryHandlingEvidence } from '@/lib/assembly-planning'
 import { NextResponse } from 'next/server'
@@ -391,6 +392,10 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       id: current.id,
     })
 
+    // A reopened lead must receive a fresh decision, not silently reuse an old loss reason.
+    const lossError = lostTransitionError(current, { ...nextLead, lostReason: updates.lostReason, lostNotes: updates.lostNotes })
+    if (lossError) return NextResponse.json({ error: lossError }, { status: 422 })
+
     const quote = nextLead.quoteId ? await getSalesQuote(nextLead.quoteId).catch(() => null) : null
 
     // Don't let quote status override a closed stage (lost/booked/completed).
@@ -452,6 +457,19 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     })
     if (!operationalPlan.reviewCurrent) nextLead.opsChecklist = { ...nextLead.opsChecklist, jobPacketReady: false }
     if (['booked', 'completed'].includes(nextLead.stage)) nextLead.crewNote = buildCurrentCrewBrief(nextLead, quote)
+    // History is server-owned and persisted with the stage change in the same write.
+    nextLead.verificationHistory = current.verificationHistory
+    nextLead.stageHistory = current.stageHistory
+    if (current.stage !== nextLead.stage) {
+      const at = new Date().toISOString()
+      nextLead.stageHistory = [...(current.stageHistory || []), {
+        id: crypto.randomUUID(), from: current.stage, to: nextLead.stage, at,
+        actorName: session?.name || 'Unknown user', actorUserId: session?.userId,
+        source: 'user', reason: nextLead.stage === 'lost' ? nextLead.lostReason : undefined,
+        evidence: nextLead.stage === 'lost' ? nextLead.lostNotes : undefined,
+      }]
+      if (nextLead.stage === 'lost') nextLead.lostAt = at
+    }
     const saved = await saveSalesLead(nextLead, record!.updatedAt)
     if (
       saved.source === 'partner_referral' ||
