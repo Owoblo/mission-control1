@@ -1,3 +1,4 @@
+import { isTelnyxNumber } from '@/lib/telephony-providers'
 import { getAppBaseUrl, getTwilioCredentials, getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { getSaturnBranchPhoneNumbers, getSaturnBranchLabel, normalizePhone } from '@/lib/sales-phones'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
@@ -448,7 +449,7 @@ export async function runLeadFlowHealthCheck(requestBaseUrl?: string): Promise<L
         .filter(([phone]) => !!phone)
     )
 
-    for (const number of getSaturnBranchPhoneNumbers()) {
+    for (const number of getSaturnBranchPhoneNumbers().filter(number => !isTelnyxNumber(number))) {
       checks.push(buildNumberConfigCheck(baseUrl, numbersByPhone.get(number), number))
     }
     checks.push(buildNumberConfigCheck(baseUrl, numbersByPhone.get(ASSISTANT_NUMBER), ASSISTANT_NUMBER, 'Overflow'))

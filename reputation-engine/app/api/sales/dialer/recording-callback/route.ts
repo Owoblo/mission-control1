@@ -330,6 +330,16 @@ export async function POST(request: Request) {
           ).catch(() => null)
         : null
 
+    // Persist transcript metadata even when the caller has no CRM lead mapping yet.
+    if (archivedRecording || existingArchivedRecord?.cloudflare_object_key) {
+      await updateArchivedRecordingAiMetadata({
+        recordingSid: persistedRecordingSid,
+        callSid,
+        transcript: transcriptionQuotaExhausted ? null : transcript,
+        aiSummary: aiSummary as any,
+      })
+    }
+
     let updatedLead = lead
     if (leadId && callLogId) {
       updatedLead = await retryCallbackStep('updateLeadCallLogEntry', () => updateLeadCallLogEntry(leadId!, callLogId!, {
@@ -351,14 +361,7 @@ export async function POST(request: Request) {
         source: 'manual',
       } as any))
 
-      if (archivedRecording || existingArchivedRecord?.cloudflare_object_key) {
-        void updateArchivedRecordingAiMetadata({
-          recordingSid: persistedRecordingSid,
-          callSid,
-          transcript: transcriptionQuotaExhausted ? null : transcript,
-          aiSummary: aiSummary as any,
-        })
-      }
+
 
       if (updatedLead) {
         let nextLead = aiSummary ? applyPhoneCallSummaryToLead(updatedLead, aiSummary as any) : updatedLead

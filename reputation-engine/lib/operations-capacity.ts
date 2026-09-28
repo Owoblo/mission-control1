@@ -39,6 +39,7 @@ export const BRANCH_CAPACITY_ESTIMATES: Record<NonNullable<CRMLead['branch']>, {
   waterloo: { crew: 12, trucks: 4 },
   london: { crew: 10, trucks: 3 },
   ottawa: { crew: 10, trucks: 3 },
+  toronto: { crew: 0, trucks: 0 }, // Pilot market: operations must configure actual capacity.
 }
 
 function pct(value: number, total: number) {

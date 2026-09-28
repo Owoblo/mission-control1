@@ -1,3 +1,4 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 /**
  * POST /api/sales/leads/[id]/onsite-change
  *
@@ -21,7 +22,7 @@ const JOHN_CELL     = '+12267241730'
 const SATURN_NUMBER = '+12267732993'
 
 async function sendSms(accountSid: string, authToken: string, to: string, body: string) {
-  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+  await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: 'POST',
     headers: { Authorization: twilioAuth(accountSid, authToken), 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ To: to, From: SATURN_NUMBER, Body: body }).toString(),

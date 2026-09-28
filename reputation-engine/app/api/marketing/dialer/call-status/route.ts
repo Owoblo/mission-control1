@@ -1,3 +1,6 @@
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { PARTNERSHIP_LINES, isPartnershipSenderNumber, normalizePartnershipCityKey } from '@/lib/partnership-lines'
@@ -32,7 +35,11 @@ function normalizePhone(value?: string | null) {
 }
 
 export async function POST(request: Request) {
-  const formData = await request.formData()
+  const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'partnership_call_status', 'call')
+    const formData = carrierVoiceForm(rawBody)
   const callStatus = (formData.get('CallStatus') as string | null) ?? ''
   const from = (formData.get('From') as string | null) ?? ''
   const to = (formData.get('To') as string | null) ?? ''

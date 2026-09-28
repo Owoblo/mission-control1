@@ -1,3 +1,4 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { uid } from '@/lib/sales'
 import {
   getSaturnBranchLabel,
@@ -312,7 +313,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     const fromNumber = isWhatsApp ? `whatsapp:${rawFrom}` : rawFrom
     const toNumber = isWhatsApp ? `whatsapp:${rawTo}` : rawTo
 
-    const smsRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    const smsRes = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         Authorization: twilioAuth(accountSid, authToken),
@@ -331,7 +332,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     }
     result = { ok: true, sid: smsResult.sid, fromNumber: rawFrom, branchLabel: getSaturnBranchLabel(rawFrom) }
     // Log to sms_messages — WhatsApp SIDs start with WA, SMS with SM (detectable later)
-    void recordOutboundSmsToSupabase(rawFrom, rawTo, input.body, input.leadId, String(smsResult.sid || ''))
+    await recordOutboundSmsToSupabase(rawFrom, rawTo, input.body, input.leadId, String(smsResult.sid || ''))
   }
 
   const now = new Date().toISOString()

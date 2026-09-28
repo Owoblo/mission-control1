@@ -1,3 +1,5 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { createSmsReplyAddress } from './email-sms-reply-store'
 import { getTwilioCredentials, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
@@ -25,7 +27,7 @@ export async function sendCallerIdSms(
   const message = `📞 ${leadName} is calling · ${callerPhone} · ${branchLabel}`
 
   await Promise.all(repPhones.map(phone =>
-    fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         Authorization: twilioAuth(accountSid, authToken),
@@ -114,7 +116,7 @@ function escapeHtml(value: string) {
 export async function sendInternalAlertSms(to: string, body: string, from: string) {
   const { accountSid, authToken } = getTwilioCredentials()
 
-  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+  await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: 'POST',
     headers: {
       Authorization: twilioAuth(accountSid, authToken),

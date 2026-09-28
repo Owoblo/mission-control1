@@ -180,7 +180,7 @@ export type QuotePaymentTerms =
   | 'po_required'
 export type LeadFollowUpStatus = 'pending' | 'following_up' | 'followed_up' | 'no_response'
 export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
-export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa'
+export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa' | 'toronto'
 export type LeadKind = 'customer' | 'realtor_opportunity' | 'partner_opportunity'
 export type LeadContactRole = 'customer' | 'realtor' | 'partner'
 export type RealtorLookupStatus = 'not_checked' | 'matched' | 'partial' | 'missing'

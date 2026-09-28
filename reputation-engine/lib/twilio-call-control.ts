@@ -25,7 +25,7 @@ export function isSafeConferenceName(value?: string | null) {
 
 export function isInternalVoiceAddress(value?: string | null) {
   const normalized = (value || '').trim().toLowerCase()
-  return normalized.startsWith('client:') || normalized.startsWith('sip:')
+  return normalized.startsWith('client:') || (normalized.startsWith('sip:') && !/^sip:\+?\d{10,15}@/.test(normalized))
 }
 
 export function escapeTwiml(value: string) {

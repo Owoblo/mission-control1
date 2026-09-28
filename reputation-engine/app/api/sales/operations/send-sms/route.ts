@@ -1,3 +1,4 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 /**
  * POST /api/sales/operations/send-sms
  * Sends an SMS from the operations number (+12267746581).
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     if (mediaUrls?.length) {
       mediaUrls.forEach(url => params.append('MediaUrl', url))
     }
-    const res = await fetch(
+    const res = await sendSmsProviderRequest(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
       {
         method: 'POST',

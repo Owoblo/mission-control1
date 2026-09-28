@@ -1,3 +1,4 @@
+import { persistPartnershipInboundPause } from '@/lib/server/partnership-inbound-pause'
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
 import { partnershipPhoneLookupSuffix, partnershipPhonesMatch } from '@/lib/partnership-contact-match'
@@ -202,6 +203,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   if (!contact) return { matched: false as const }
 
   const occurredAt = input.occurredAt || new Date().toISOString()
+  await persistPartnershipInboundPause({ ...requireSupabaseEnv(), contactId: contact.id, channel: input.channel })
   try {
   const { url, headers } = requireSupabaseEnv()
   const explicitPersonName = extractExplicitPersonName(input.notes)
@@ -221,7 +223,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     contact.notes = correctedNotes
   }
   const inboundSid = String(input.metadata?.messageSid || '')
-  if (input.channel === 'sms' && /^(SM|MM)[0-9a-f]{32}$/i.test(inboundSid)) {
+  if (input.channel === 'sms' && /^(?:(?:SM|MM)[0-9a-f]{32}|telnyx:[0-9a-f-]{36})$/i.test(inboundSid)) {
     const prior = await fetch(`${url}/rest/v1/market_touches?${new URLSearchParams({contact_id:'eq.'+contact.id,direction:'eq.inbound','metadata->>messageSid':'eq.'+inboundSid,select:'id',limit:'1'})}`, {headers,cache:'no-store'})
     if (!prior.ok) throw new Error('Inbound replay lookup failed')
     if ((await prior.json()).length) {

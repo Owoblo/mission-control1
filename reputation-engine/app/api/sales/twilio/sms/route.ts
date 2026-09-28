@@ -1,3 +1,6 @@
+import { handleInboundSms } from '@/lib/server/inbound-sms'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
+import { isAutomatedLeasingNotice, needsPartnershipRoutingReview, savePartnershipRoutingReview } from '@/lib/server/partnership-routing-review'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 import {
   DEFAULT_SATURN_BRANCH_NUMBER,
@@ -173,132 +176,10 @@ export async function POST(request: Request) {
       return new Response('Forbidden', { status: 403 })
     }
 
-    const rawFrom = (formData.get('From') ?? '').trim()
-    const rawTo = (formData.get('To') ?? '').trim() || MY_NUMBER
-    const body = (formData.get('Body') ?? '').trim()
-    const messageSid = (formData.get('MessageSid') ?? formData.get('SmsSid') ?? '').trim()
-    const receivedAt = new Date().toISOString()
-    const media = extractTwilioMedia(formData)
-    const mediaUrls = media.map(item => item.url).filter(Boolean)
-    const mediaNote = mediaUrls.length > 0 ? `\n[MMS: ${mediaUrls.join(', ')}]` : ''
-    const messageText = `${body || (media.length > 0 ? `Inbound MMS (${media.length} attachment${media.length === 1 ? '' : 's'})` : '(no body)')}${mediaNote}`.trim()
-
-    // Strip WhatsApp prefix for phone matching — channel is detected from SID (WA=WhatsApp, SM=SMS)
-    const from = stripTwilioChannelPrefix(rawFrom)
-    const toField = stripTwilioChannelPrefix(rawTo) || MY_NUMBER
-    const normalized = from ? toE164(from) : ''
-
-    if (isHealthCheck) {
-      await writeSmsMessage(normalized || from || '+15550001111', toField, messageText, messageSid || `HC_SMS_${Date.now()}`)
-      return Response.json({ ok: true, healthCheck: true, twilioSid: messageSid || null })
-    }
-
-    if (from) {
-      let replyLeadId: string | null
-      try {
-        replyLeadId = await getSalesSmsReplyLeadId(normalized || from, toField)
-      } catch (error) {
-        console.error('[sales-twilio-sms] Reply ownership lookup failed', error)
-        return new Response('Unable to resolve message ownership', { status: 503 })
-      }
-      const salesReply = Boolean(replyLeadId)
-      if (salesReply) await notifyPartnershipCustomerContact({ channel: 'sms', phone: normalized || from, occurredAt: receivedAt, metadata: { to: toField } }).catch(error => console.error('Partner recognition notification failed', error))
-      const partnership = !salesReply
-        ? await pausePartnershipSequenceForInbound({
-            channel: 'sms',
-            phone: normalized || from,
-            occurredAt: receivedAt,
-            notes: body ? `Inbound SMS: ${messageText}` : messageText,
-            metadata: {
-              from,
-              to: toField,
-              messageSid,
-              numMedia: media.length,
-              media: media.length > 0 ? media : undefined,
-              mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
-            },
-          }).catch(error => {
-            console.error('[sales-twilio-sms] Partnership identity lookup failed', error)
-            return { matched: false as const }
-          })
-        : { matched: false as const }
-
-      if (!partnership.matched) {
-
-        // Check if there's an existing unclaimed inbound lead from this number.
-        // If yes, thread the reply into that lead instead of creating a duplicate.
-        const existing = await getInboundLeadByPhone(normalized).catch(() => null)
-          ?? await getInboundLeadByPhone(from).catch(() => null)
-
-        const inboundLeadId = existing?.id || crypto.randomUUID()
-
-        if (existing) {
-          await appendSmsToInboundLead(inboundLeadId, messageText, messageSid, media)
-        } else {
-          const trackingLabel = getSaturnTrackingLabel(toField)
-          const trackingSource = getSaturnTrackingSource(toField)
-          await saveInboundLead({
-            id: inboundLeadId,
-            source: 'twilio_sms',
-            phone: normalized || from,
-            message: messageText,
-            raw_data: {
-              messageSid,
-              from,
-              to: toField,
-              body,
-              numMedia: media.length,
-              media: media.length > 0 ? media : undefined,
-              trackingLabel: trackingLabel || undefined,
-              trackingSource: trackingSource || undefined,
-              smsThread: [{
-                direction: 'inbound',
-                body: messageText,
-                messageSid,
-                at: receivedAt,
-                ...(media.length > 0 ? { media } : {}),
-              }],
-            },
-          })
-        }
-
-        const automation = await processInboundAutomationEvent({
-          inboundLeadId,
-          source: 'twilio_sms',
-          channel: 'sms',
-          phone: normalized || from,
-          message: messageText,
-          receivedAt,
-          raw: { messageSid, from, to: toField, body, numMedia: media.length, media },
-        }).catch(() => null)
-
-        const resolvedLeadId = automation?.lead?.id || replyLeadId || undefined
-        if (resolvedLeadId && media.length > 0 && automation?.lead) {
-          void persistInboundMmsToLead({
-            lead: automation.lead,
-            media,
-            messageSid,
-          }).catch(() => {})
-        }
-        await writeSmsMessage(normalized || from, toField, messageText, messageSid, resolvedLeadId)
-        if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
-        void sendRepAlertEmail(
-          `New SMS from ${from}`,
-          smsNotificationEmail(from, messageText, resolvedLeadId)
-        )
-      }
-    }
-    void logEvent('sms_received', {
-        actorName: 'Customer',
-      properties: {
-        channel: 'sms',
-        message_direction: 'inbound',
-        message_length: messageText.length,
-        media_count: media.length,
-      },
-    })
-  } catch {
-    // Always return 200 to Twilio — never let errors cause retries
+    return handleInboundSms(formData, isHealthCheck)
+  } catch (error) {
+    console.error('[sales-twilio-sms] Inbound processing failed', error)
+    return new Response('Unable to preserve inbound message', { status: 503 })
   }
 
   // Twilio expects TwiML back — empty Response means no auto-reply
