@@ -42,7 +42,7 @@ export function VerificationPanel({ lead, draftLead, onSaved, onEditDetails, rea
     finally { setBusy(false) }
   }
   return <details id="verification-workspace" className="rounded-lg border border-[var(--app-line)] bg-white p-4">
-    <summary className="cursor-pointer text-sm font-semibold">Verification & follow-up · {summary.verified}/{VERIFICATION_ITEMS.length} verified{summary.followUp ? ` · ${summary.followUp} need review` : ''}</summary>
+    <summary className="cursor-pointer text-sm font-semibold">Verification & follow-up · {summary.latest ? `${summary.verified} checks confirmed` : 'No checks recorded yet'}{summary.followUp ? ` · ${summary.followUp} need review` : ''}</summary>
     <p className="mt-2 text-xs text-[var(--app-muted)]">Record what was checked, how, and what happens next. Save changed move details before verifying them.</p>
     <div className="mt-3 grid gap-2 sm:grid-cols-2">
       {VERIFICATION_ITEMS.map(item => {
