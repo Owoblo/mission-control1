@@ -1,4 +1,6 @@
 import type { CRMLead, CRMQuote, CrewPayoutEntry } from './types'
+import { confirmedMoveAccess } from './access-intelligence'
+import { accessProfileCustomerSummary } from './access-profile'
 import { assemblyText, buildAssemblyPlan, COMPLEX_ASSEMBLY } from './assembly-planning'
 import { recommendTruckLoadPlan } from './truck-planning'
 
@@ -51,11 +53,12 @@ export function buildMoveOperatingPlan(lead: CRMLead, quote?: CRMQuote | null) {
     if (item.included === false && item.status === 'confirmed') reasons.push(`${item.name || item.item || 'Excluded item'}: confirmed inventory is marked excluded; reconcile the customer's instructions.`)
   }
   const significant = inventory.some(item => COMPLEX_ASSEMBLY.test(assemblyText(item)) || Number(item.weightLbs) >= 100 || /sofa|sectional|hutch|bbq|grill|basement/i.test(assemblyText(item) + ' ' + item.room))
-  const originKnown = Boolean(lead.originAccess?.trim())
-  const destinationKnown = Boolean(lead.destAccess?.trim())
+  const access = confirmedMoveAccess(lead, noTruck)
+  const originKnown = access.origin
+  const destinationKnown = access.destination
   if (significant && !originKnown) reasons.push('Origin carrying route is unknown: confirm floors, stairs/walkout, turns and carry distance.')
   if (significant && !destinationKnown) reasons.push('Destination carrying route is unknown: confirm floors, stairs/elevator, turns and carry distance.')
-  if (significant && !lead.parkingNotes?.trim()) reasons.push('Parking and truck-to-door carrying distance are unconfirmed.')
+  if (significant && !access.parking) reasons.push('Parking and truck-to-door carrying distance are unconfirmed.')
   if (/pull[ -]?out|trundle/i.test([lead.notes, ...(lead.removedInventoryItemKeys || [])].join(' ')) &&
     inventory.some(item => /day[ -]?bed/i.test(assemblyText(item))) && !inventory.some(item => /pull[ -]?out|trundle/i.test(assemblyText(item)))) {
     reasons.push('Customer history mentions a pullout/trundle, but retained inventory does not. Reconcile the component and preserve its handling details.')
@@ -98,7 +101,7 @@ export function buildCurrentCrewBrief(lead: CRMLead, quote?: CRMQuote | null) {
     `Billing: ${billing === 'binding' ? 'BINDING — record actual time; office handles any separately authorized scope changes.' : 'HOURLY — record actual hours and breaks.'}`,
     `Crew: ${quote?.crewSize || '?'} movers. Truck: ${plan.truckPlan?.summary || 'Customer supplies transport / no truck service'}.`,
     `Working plan: ${plan.plannedHours || '?'} crew-clock hours. Assembly below is included in planning, not extra billing.`,
-    `Origin access: ${lead.originAccess || 'UNCONFIRMED'}. Destination access: ${lead.destAccess || 'UNCONFIRMED'}. Parking: ${lead.parkingNotes || 'UNCONFIRMED'}.`,
+    ...(lead.jobFactors?.accessProfiles?.length ? lead.jobFactors.accessProfiles.map(accessProfileCustomerSummary) : [`Origin access: ${lead.originAccess || 'UNCONFIRMED'}. Destination access: ${lead.destAccess || 'UNCONFIRMED'}. Parking: ${lead.parkingNotes || 'UNCONFIRMED'}.`]),
     `Operations review: ${plan.ready ? 'CURRENT' : 'REQUIRED — do not treat this packet as cleared for dispatch'}.`,
     ...plan.reasons.map(reason => `CHECK: ${reason}`),
     ...(plan.reviewCurrent ? [`Operations decision: ${lead.operatingReview!.rationale}`] : []),

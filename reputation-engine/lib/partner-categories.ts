@@ -23,6 +23,16 @@ export interface PartnerCategory {
 }
 
 export const PARTNER_CATEGORIES: Record<string, PartnerCategory> = {
+  business_relationship: {
+    id: 'business_relationship',
+    label: 'Business Relationship',
+    tier: 3,
+    icon: '🤝',
+    description: 'Bank managers, business contacts, and professional relationships',
+    color: 'border-slate-200 bg-slate-50 text-slate-700',
+    suggestedScript: 'Hi, I’m with Saturn Star Movers — I’d like to stay connected and learn how our businesses can support each other.',
+  },
+
 
   // ─── Tier 1: High-Frequency Referral Sources ─────────────────────────────
 
