@@ -3,7 +3,7 @@ import type { ListingMatch, ListingMatchDecision, ListingMatchStatus } from './t
 const STREET_SUFFIX_CANONICAL: Record<string, string> = {
   street: 'st', st: 'st', avenue: 'ave', ave: 'ave', road: 'rd', rd: 'rd',
   drive: 'dr', dr: 'dr', boulevard: 'blvd', blvd: 'blvd', lane: 'ln', ln: 'ln',
-  court: 'crt', crt: 'crt', crescent: 'cres', cres: 'cres', place: 'pl', pl: 'pl',
+  court: 'crt', crt: 'crt', ct: 'crt', crescent: 'cres', cres: 'cres', place: 'pl', pl: 'pl',
   terrace: 'terr', terr: 'terr', trail: 'trl', trl: 'trl', circle: 'cir', cir: 'cir',
   parkway: 'pkway', pkway: 'pkway', highway: 'hwy', hwy: 'hwy',
 }
@@ -11,6 +11,7 @@ const STREET_SUFFIX_CANONICAL: Record<string, string> = {
 export function normalizeListingAddress(value: string) {
   return (value.split(',')[0] || value)
     .toLowerCase()
+    .replace(/\./g, '')
     .replace(/,/g, ' ')
     .split(/\s+/)
     .filter(Boolean)
@@ -18,6 +19,18 @@ export function normalizeListingAddress(value: string) {
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Include each spelling of the street suffix in database lookups (Court / Crt / Ct). */
+export function listingStreetAddressVariants(address: string): string[] {
+  const street = (address.split(',')[0] || address).replace(/\./g, '').trim()
+  const tokens = street.split(/\s+/)
+  const suffixIndex = tokens.findIndex((token, index) => index > 1 && STREET_SUFFIX_CANONICAL[token.toLowerCase()])
+  if (suffixIndex < 0) return [street]
+  const canonical = STREET_SUFFIX_CANONICAL[tokens[suffixIndex].toLowerCase()]
+  return Object.keys(STREET_SUFFIX_CANONICAL)
+    .filter(suffix => STREET_SUFFIX_CANONICAL[suffix] === canonical)
+    .map(suffix => tokens.map((token, index) => index === suffixIndex ? suffix : token).join(' '))
 }
 
 export function extractListingUnit(value: string) {

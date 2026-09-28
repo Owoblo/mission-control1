@@ -5022,7 +5022,7 @@ export function EstimateDraftModal({
                   </>
                 ) : (
                   <div className="mt-3 rounded-[6px] border border-dashed border-[var(--app-line)] px-3 py-8 text-sm text-[var(--app-muted)]">
-                    No MLS photos linked yet. Add the address to match a listing.
+                    {lead.supabaseListing ? 'Listing matched, but no photos are available to scan. Upload customer photos to build inventory.' : originAddress.trim() ? 'Use Scan from MLS to find photos for the origin address.' : 'Add the origin address to find listing photos.'}
                   </div>
                 )}
               </div>

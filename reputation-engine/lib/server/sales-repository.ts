@@ -25,7 +25,7 @@ import {
 } from '@/lib/server/lead-identity'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { normalizePhone } from '@/lib/sales-phones'
-import { decideListingMatch, extractListingReference, listingPhotoCount, scoreListingCandidate } from '@/lib/listing-match'
+import { listingStreetAddressVariants, decideListingMatch, extractListingReference, listingPhotoCount, scoreListingCandidate } from '@/lib/listing-match'
 import type {
   CallLogEntry,
   CRMClient,
@@ -1550,7 +1550,7 @@ const STREET_SUFFIX_CANONICAL: Record<string, string> = {
 
 function buildAddressLookupVariants(address: string) {
   const normalized = normalizeAddressInput(address)
-  const variants = new Set<string>()
+  const variants = new Set<string>(listingStreetAddressVariants(address))
   const lower = normalized.toLowerCase()
   const tokens = normalized.split(' ').filter(Boolean)
   const provincePattern = /^[A-Z]{2}$/

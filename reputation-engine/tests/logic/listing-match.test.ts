@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  listingStreetAddressVariants,
   decideListingMatch,
   extractListingReference,
   extractListingUnit,
@@ -63,4 +64,15 @@ test('extracts stored Zillow and MLS references without fetching external pages'
   assert.equal(extractListingReference('MLS #X13600614').mlsId, 'X13600614')
   assert.equal(extractListingReference('X13600614').mlsId, 'X13600614')
   assert.match(extractListingReference('https://www.realtor.com/realestateandhomes-detail/203-Catherine-St-Ottawa_ON_M1-12345').address || '', /203 Catherine St Ottawa/)
+})
+
+
+test('Court origin automatically matches its Ct listing, including punctuation', () => {
+  const home = listing('annapolis', '475 Annapolis Ct, Waterloo, ON')
+  for (const suffix of ['Court', 'Crt', 'Ct.']) {
+    const origin = `475 Annapolis ${suffix}, Waterloo, ON, Canada`
+    assert.equal(decideListingMatch(origin, [home]).listing?.zpid, 'annapolis')
+    assert.ok(listingStreetAddressVariants(origin).includes('475 Annapolis ct'))
+    assert.ok(listingStreetAddressVariants(origin).includes('475 Annapolis court'))
+  }
 })

@@ -2961,7 +2961,7 @@ export default function SalesLeadDetailPage() {
         setListingDecision({ status: result.status, candidates: result.candidates || [], requestedUnit: result.requestedUnit })
         setError(result.status === 'unit_not_found'
           ? `The building was found, but unit ${result.requestedUnit || ''} was not. Confirm the correct unit below.`
-          : 'Confirm the exact listing below before scanning photos.')
+          : result.candidates?.length ? 'Choose the matching listing below before scanning photos.' : 'No listing found for the origin address. Check the address or upload customer photos.')
         setListingLookupBusy(false)
         return
       }
@@ -2978,6 +2978,11 @@ export default function SalesLeadDetailPage() {
       setError(null)
 
       // Step 2: immediately kick off streaming photo scan
+      if (!saved.supabaseListing?.carouselphotos?.length) {
+        setError('Origin listing matched, but no listing photos are available to scan. Upload customer photos to build inventory.')
+        setListingLookupBusy(false)
+        return
+      }
       void streamScanForLead(lead.id)
     } catch (err) {
       setError((err as Error).message)
@@ -3000,6 +3005,11 @@ export default function SalesLeadDetailPage() {
       setLead(saved)
       setListingDecision(null)
       setError(null)
+      if (!saved.supabaseListing?.carouselphotos?.length) {
+        setError('Origin listing matched, but no listing photos are available to scan. Upload customer photos to build inventory.')
+        setListingLookupBusy(false)
+        return
+      }
       void streamScanForLead(lead.id)
     } catch (err) {
       setError((err as Error).message)
@@ -3017,6 +3027,11 @@ export default function SalesLeadDetailPage() {
       setLead(saved)
       setListingDecision(null)
       setError(null)
+      if (!saved.supabaseListing?.carouselphotos?.length) {
+        setError('Origin listing matched, but no listing photos are available to scan. Upload customer photos to build inventory.')
+        setListingLookupBusy(false)
+        return
+      }
       void streamScanForLead(lead.id)
     } catch (err) {
       setError((err as Error).message)
@@ -3041,6 +3056,11 @@ export default function SalesLeadDetailPage() {
       setOriginAddress(newAddress)
       if (saved.originCity) setOriginCity(saved.originCity)
       setError(null)
+      if (!saved.supabaseListing?.carouselphotos?.length) {
+        setError('Origin listing matched, but no listing photos are available to scan. Upload customer photos to build inventory.')
+        setListingLookupBusy(false)
+        return
+      }
       void streamScanForLead(lead.id)
     } catch (err) {
       setError((err as Error).message)
@@ -6302,6 +6322,8 @@ export default function SalesLeadDetailPage() {
         mlsScanControls={
           <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
             <div className="text-sm font-semibold">MLS listing photos</div>
+            <p className="text-xs text-slate-600">Origin: {originAddress || 'Add an origin address in the lead details.'}</p>
+            {lead.supabaseListing ? <p className="text-xs text-slate-600">Matched listing: {lead.supabaseListing.address} · {listingPhotos.length} photos available</p> : null}
             <p className="text-xs text-slate-600">Scan the origin listing to build inventory, then review the items with the customer.</p>
             <button type="button" disabled={listingLookupBusy} onClick={() => void lookupListingForLead()}
               className="rounded-md bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
