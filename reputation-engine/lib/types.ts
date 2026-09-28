@@ -1086,6 +1086,8 @@ export interface CrewPayoutEntry {
 }
 
 export interface CRMLead {
+  verificationHistory?: import('./lead-verification').LeadVerification[]
+  stageHistory?: import('./lead-verification').LeadStageChange[]
   acquisitionInterview?: import('./acquisition-interview').AcquisitionInterview
   acquisitionInterviewHistory?: import('./acquisition-interview').AcquisitionInterview[]
   operatingReview?: import('./move-operating-plan').OperatingReview

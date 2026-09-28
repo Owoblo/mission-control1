@@ -475,7 +475,9 @@ export async function recordLeadUpdateAudit(previous: CRMLead, next: CRMLead) {
   const nextAssignedRepUserId = next.assignedRepUserId || ''
 
   if (previous.stage !== next.stage) {
-    logs.push(buildLog(next.id, 'note', `Stage updated from ${previous.stage} to ${next.stage}.`))
+    const latest = next.stageHistory?.at(-1)
+    const change = latest && latest.id !== previous.stageHistory?.at(-1)?.id && latest.from === previous.stage && latest.to === next.stage ? latest : undefined
+    logs.push(buildLog(next.id, 'status_change', `Stage updated from ${previous.stage} to ${next.stage}.${change ? ` By ${change.actorName} (${change.source}).${change.reason ? ` Reason: ${change.reason}.` : ''}${change.evidence ? ` Evidence: ${change.evidence}` : ''}` : ' Actor not recorded.'}`))
   }
 
   if (previousAssignedRep !== nextAssignedRep || previousAssignedRepUserId !== nextAssignedRepUserId) {

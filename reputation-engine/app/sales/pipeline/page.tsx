@@ -1,5 +1,7 @@
 'use client'
 
+import { LostLeadDialog } from '@/app/components/sales/lost-lead-dialog'
+import { verificationSummary } from '@/lib/lead-verification'
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -221,11 +223,15 @@ function SalesPipelineContent() {
     } catch (err) { setLeads(prev); setError((err as Error).message) } finally { setDeleteBusyId(null) }
   }
 
+  const [lossReviewIds, setLossReviewIds] = useState<string[]>([])
+  const lossReviewLead = leads.find(lead => lead.id === lossReviewIds[0])
+
   async function moveLeadToStage(leadId: string, newStage: CRMLead['stage']) {
     const lead = leads.find(l => l.id === leadId)
     if (!lead || lead.stage === newStage) return
+    if (newStage === 'lost') { setLossReviewIds([leadId]); return }
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage } : l))
-    try { await updateSalesLead(leadId, { stage: newStage }) }
+    try { const saved = await updateSalesLead(leadId, { stage: newStage }); setLeads(current => current.map(item => item.id === leadId ? saved : item)) }
     catch (err) { setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: lead.stage } : l)); setError((err as Error).message) }
   }
 
@@ -662,15 +668,10 @@ function SalesPipelineContent() {
               <button
                 disabled={bulkBusy}
                 onClick={async () => {
-                  if (!confirm(`Mark ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''} as lost?`)) return
-                  setBulkBusy(true)
-                  await Promise.all(Array.from(selectedIds).map(id => updateSalesLead(id, { stage: 'lost' }).catch(() => {})))
-                  setLeads(prev => prev.map(l => selectedIds.has(l.id) ? { ...l, stage: 'lost' as const } : l))
-                  setSelectedIds(new Set())
-                  setBulkBusy(false)
+                  setLossReviewIds(Array.from(selectedIds))
                 }}
                 className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--app-muted)] hover:text-[var(--app-ink)] transition disabled:opacity-50">
-                Mark Lost
+                Review Lost status
               </button>
               <button onClick={() => setSelectedIds(new Set())} className="text-xs text-[var(--app-muted)] hover:text-[var(--app-ink)] transition">Clear</button>
             </div>
@@ -931,6 +932,8 @@ function SalesPipelineContent() {
                           <div className="mt-2 text-[11px] text-[var(--app-ink)]">
                             <span className="font-semibold">Next:</span> {lead.opportunityContext?.nextAction || guidance?.action.nextAction || lead.intelligence?.nextAction || 'Review lead'}
                           </div>
+                          {lead.verificationHistory?.length ? <div className="mt-2 text-[11px] text-[var(--app-muted)]">Verified {verificationSummary(lead).verified}/6 · {verificationSummary(lead).followUp} need review · {verificationSummary(lead).latest?.recordedAt ? formatDate(verificationSummary(lead).latest!.recordedAt) : ''} · {verificationSummary(lead).latest?.actorName}: {verificationSummary(lead).latest?.note}</div> : null}
+                          {lead.stageHistory?.length ? <div className="mt-1 text-[11px] text-[var(--app-muted)]">Stage updated by {lead.stageHistory.at(-1)?.actorName} · {formatDate(lead.stageHistory.at(-1)!.at)}</div> : null}
                           {lead.opportunityContext?.waitingFor ? <div className="mt-1 truncate text-[11px] text-[#8a6800]">Waiting for: {lead.opportunityContext.waitingFor}</div> : null}
                           {guidance?.action.reason ? <div className="mt-1 truncate text-[11px] text-[var(--app-muted)]">{guidance.action.reason}</div> : null}
                           <div className="mt-3 flex items-center justify-between border-t border-[var(--app-line)] pt-3 text-xs text-[var(--app-muted)]">
@@ -985,6 +988,12 @@ function SalesPipelineContent() {
         </div>
       )}
 
+      {lossReviewLead ? <LostLeadDialog key={lossReviewLead.id} lead={lossReviewLead} onCancel={() => setLossReviewIds([])} onSave={async patch => {
+        const saved = await updateSalesLead(lossReviewLead.id, patch)
+        setLeads(current => current.map(lead => lead.id === saved.id ? saved : lead))
+        setSelectedIds(current => { const next = new Set(current); next.delete(saved.id); return next })
+        setLossReviewIds(current => current.slice(1))
+      }} /> : null}
       {/* Trash drawer */}
       {showDeletedDrawer && (
         <div className="fixed inset-0 z-50 flex justify-end">

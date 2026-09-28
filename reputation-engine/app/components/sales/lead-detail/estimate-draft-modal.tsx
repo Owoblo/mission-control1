@@ -20,6 +20,7 @@ import { confirmedMoveAccess, deriveAccessComplexityAssessment } from '@/lib/acc
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
+import { VerificationPanel } from './verification-panel'
 import { InventoryPhotoUpload } from './inventory-photo-upload'
 import { AccessProfileEditor } from './access-profile-editor'
 import { accessProfilesForStops } from '@/lib/access-profile'
@@ -2813,6 +2814,7 @@ export function EstimateDraftModal({
             {estimateView === 'guided' ? <style>{`[data-estimate-stage]:not([data-estimate-stage="${activeStage}"]) { display: none !important; }`}</style> : null}
 
             {/* ── SMART INTAKE ── */}
+            <VerificationPanel lead={lead} draftLead={{ ...lead, jobFactors, inventory: effectiveInventoryMetrics.inventory, originAccess, destAccess, parkingNotes }} onSaved={updated => onLeadMediaSynced?.(updated)} onEditDetails={key => goToStage(key === 'route' ? 'origin' : key === 'timing' ? 'lead' : key === 'inventory' ? 'inventory' : key === 'handling' ? 'handling' : key)} />
             <div data-estimate-stage="lead" className={`rounded-[10px] border ${intakeApplied ? 'border-emerald-300 bg-emerald-50' : 'border-[#071421]/20 bg-[#071421]/5'} overflow-hidden`}>
               <button
                 type="button"
@@ -7123,7 +7125,7 @@ export function EstimateDraftModal({
                             {categoryItems.map(item => (
                               <div key={item.label} className="flex items-start justify-between gap-2 text-[11px]" title={item.ready ? undefined : item.detail}>
                                 <span className={item.ready ? 'text-[var(--app-ink)]' : item.critical ? 'text-rose-700' : 'text-amber-700'}>{item.label}</span>
-                                {item.ready ? <span className="shrink-0 font-semibold text-emerald-700">✓</span> : <button type="button" onClick={() => resolveReadinessItem(item)} aria-label={`Resolve ${item.label}`} className="shrink-0 rounded border border-amber-300 bg-white px-2 py-0.5 font-semibold text-amber-800 hover:bg-amber-50">Confirm →</button>}
+                                {item.ready ? <button type="button" onClick={() => resolveReadinessItem(item)} className="shrink-0 font-semibold text-emerald-700 underline">✓ Review / edit</button> : <button type="button" onClick={() => resolveReadinessItem(item)} aria-label={`Resolve ${item.label}`} className="shrink-0 rounded border border-amber-300 bg-white px-2 py-0.5 font-semibold text-amber-800 hover:bg-amber-50">Confirm →</button>}
                               </div>
                             ))}
                           </div>

@@ -1038,6 +1038,10 @@ function SalesInboxPageInner() {
 
   async function markSelectedDisposition(action: 'junk' | 'lost' | 'not_interested') {
     if (!selected) return
+    if (action === 'lost' && (selected.linkedLeadId || selected.matchedLeadId)) {
+      router.push(`/sales/leads/${selected.linkedLeadId || selected.matchedLeadId}`)
+      return
+    }
     try {
       setDispositionBusy(action)
       await markInboundLeadDisposition(selected.id, action)
