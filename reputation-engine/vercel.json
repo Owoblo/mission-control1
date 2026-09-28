@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/marketing/sequence/process",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/2 * * * *"
     },
     {
       "path": "/api/marketing/recent-sales/digest",
