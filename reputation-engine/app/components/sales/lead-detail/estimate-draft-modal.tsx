@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatListingContextSummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getQuotedTruckCount } from '@/lib/operations'
@@ -326,6 +326,7 @@ type Props = {
   destAccess: string
   parkingNotes: string
   recalculateBusy: boolean
+  mlsScanControls?: ReactNode
   listingPhotos: string[]
   customerPhotos?: string[]
   mediaAssets?: LeadMediaAsset[]
@@ -406,6 +407,7 @@ export function EstimateDraftModal({
   destAccess,
   parkingNotes,
   recalculateBusy,
+  mlsScanControls,
   listingPhotos,
   customerPhotos,
   mediaAssets = [],
@@ -723,16 +725,8 @@ export function EstimateDraftModal({
 
   function handleConjointMlsScan(owner: 'person_a' | 'person_b', address: string) {
     void owner
-    if (!address || address.includes('Add ')) {
-      setConjointMlsNotice('Add the pickup address in Legs first, then close this modal and use Scan from MLS on the lead page.')
-      return
-    }
-    const mlsPhotoCount = (lead.supabaseListing?.carouselphotos || []).length
-    if (mlsPhotoCount > 0) {
-      setConjointMlsNotice(`MLS listing already loaded (${mlsPhotoCount} photos). Close this modal and hit Scan from MLS to run inventory detection.`)
-    } else {
-      setConjointMlsNotice(`No MLS listing attached yet. Close this modal → use the MLS search on the lead page for: ${address}`)
-    }
+    void address
+    setConjointMlsNotice('For the second pickup, upload that customer’s photos or request a video survey below. The origin MLS scan applies to the first pickup only.')
   }
 
   const effectiveConjointInventory = useMemo(() => {
@@ -4198,6 +4192,7 @@ export function EstimateDraftModal({
                 ) : null}
                 {customerInventoryConfirmed ? <p className="mt-3 text-xs font-semibold text-emerald-700">✓ Final inventory verified</p> : null}
                 {scopeConfirmationNotice ? <p role="status" className="mt-2 text-xs">{scopeConfirmationNotice}</p> : null}
+                {!conjointMode ? mlsScanControls : null}
                 {!conjointMode ? <InventoryPhotoUpload leadId={lead.id} onSynced={updated => onLeadMediaSynced?.(updated)} /> : null}
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="crm-kpi">
@@ -4324,14 +4319,14 @@ export function EstimateDraftModal({
                                     <span className="min-w-0 flex-1 truncate text-[11px] text-slate-600">{selectedAddress}</span>
                                   </div>
                                   <div className="mt-2 flex flex-wrap gap-1.5">
-                                    <button
+                                    {selectedOwner === 'person_a' ? mlsScanControls : <button
                                       type="button"
                                       onClick={() => handleConjointMlsScan(selectedOwner, selectedAddress)}
                                       disabled={conjointMlsBusy === selectedOwner}
                                       className="rounded-[6px] bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200 disabled:opacity-60"
                                     >
                                       {conjointMlsBusy === selectedOwner ? '…' : 'MLS / listing'}
-                                    </button>
+                                    </button>}
                                     <button
                                       type="button"
                                       onClick={() => void handleConjointSurveyRequest(selectedOwner, selectedAddress)}

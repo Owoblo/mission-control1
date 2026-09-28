@@ -3,6 +3,7 @@ import PaymentRecoveryPanel from '@/app/components/payment-recovery-panel'
 
 import { OperatingPlanPanel } from '@/app/components/sales/lead-detail/operating-plan-panel'
 import Link from 'next/link'
+import { readMlsScan } from '@/lib/mls-scan-stream'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { PromiseTracker } from '@/app/components/sales/promise-tracker'
@@ -3011,7 +3012,7 @@ export default function SalesLeadDetailPage() {
     try {
       setListingLookupBusy(true)
       const result = await enrichSalesAddress(originAddress.trim(), false, false, { listingUrl })
-      if (!result.listing) throw new Error('That link or MLS ID is not available in Supabase. Use the customer photo request instead.')
+      if (!result.listing) throw new Error('That listing could not be found. Check the link or MLS ID, or upload customer photos.')
       const saved = await updateSalesLead(lead.id, { supabaseListing: result.listing, listingScanSnapshot: null })
       setLead(saved)
       setListingDecision(null)
@@ -3034,16 +3035,10 @@ export default function SalesLeadDetailPage() {
         originCity: originCity || result.listing.city || undefined,
         supabaseListing: result.listing,
         listingScanSnapshot: null,
-        inventory: [],
-        removedInventoryItemKeys: [],
-        totalItems: 0,
-        totalCubicFeet: 0,
-        totalWeightLbs: 0,
       }
       const saved = await updateSalesLead(lead.id, updates)
-      removedInventoryKeysRef.current = new Set()
       setLead(saved)
-      setInventory([])
+      setOriginAddress(newAddress)
       if (saved.originCity) setOriginCity(saved.originCity)
       setError(null)
       void streamScanForLead(lead.id)
@@ -3084,110 +3079,58 @@ export default function SalesLeadDetailPage() {
   }
 
   async function streamScanForLead(leadId: string) {
-    if (!ensureLeadEditable()) return
-    // Warn before wiping manually-edited inventory
-    if (inventory.length > 0) {
-      const confirmed = await showConfirm(
-        'Replace inventory?',
-        `This will replace your current ${inventory.length}-item inventory with a fresh AI scan. Any manual edits will be lost.`,
-        { confirmLabel: 'Re-scan', destructive: true }
-      )
-      if (!confirmed) return
-    }
     try {
-      setListingLookupBusy(true)
-      setInventory([])
-      setScanProgress({ batch: 0, totalBatches: 0, status: 'Starting photo scan…' })
-
-      const response = await fetch(`/api/sales/leads/${leadId}/scan-stream`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        throw new Error(await response.text())
+      if (!ensureLeadEditable()) return
+      if (inventory.length > 0) {
+        const confirmed = await showConfirm(
+          'Replace inventory?',
+          `Replace the origin inventory with a fresh MLS scan? Manual edits to those items will be replaced only after the scan succeeds. Second-pickup inventory will be kept.`,
+          { confirmLabel: 'Re-scan', destructive: true }
+        )
+        if (!confirmed) return
       }
-
-      const reader = response.body!.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let allItems: InventoryItem[] = []
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const event = JSON.parse(line.slice(6)) as {
-              type: string
-              batch?: number
-              totalBatches?: number
-              totalPhotos?: number
-              status?: string
-              items?: InventoryItem[]
-              runningCount?: number
-              allItems?: InventoryItem[]
-              error?: string
-              truckRecommendation?: { count: number; size: string; label: string; bufferedCubicFeet: number }
-              validationFlags?: string[]
-              scan?: import('@/lib/types').InventoryScanDraft
-            }
-
-            if (event.type === 'start') {
-              if ((event.totalBatches ?? 0) > 0) {
-                setScanProgress({ batch: 0, totalBatches: event.totalBatches ?? 0, status: `Scanning ${event.totalPhotos ?? 0} photos…` })
-              }
-            } else if (event.type === 'progress') {
-              setScanProgress({ batch: event.batch ?? 0, totalBatches: event.totalBatches ?? 0, status: event.status ?? '' })
-            } else if (event.type === 'batch') {
-              allItems = [...allItems, ...(event.items ?? [])]
-              setInventory(filterRemovedInventoryItems(allItems))
-              setScanProgress({
-                batch: event.batch ?? 0,
-                totalBatches: event.totalBatches ?? 0,
-                status: `Room ${event.batch}/${event.totalBatches} done — ${allItems.length} items found…`,
-              })
-            } else if (event.type === 'done') {
-              const rawInventory = event.scan?.inventory || allItems
-              const nextInventory = filterRemovedInventoryItems(sanitizeInventoryRooms(rawInventory))
-              const metrics = deriveInventoryMetrics(nextInventory)
-              setInventory(metrics.inventory)
-              const finalSaved = await updateSalesLead(leadId, {
-                inventory: metrics.inventory,
-                totalItems: metrics.totalItems,
-                totalCubicFeet: metrics.totalCubicFeet,
-                totalWeightLbs: metrics.totalWeightLbs,
-                roomBreakdown: buildRoomBreakdown(metrics.inventory),
-                listingScanSnapshot: event.scan || undefined,
-                removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
-              })
-              applyLeadSnapshot(finalSaved, { hydrateForm: false })
-              setScanProgress(null)
-              if (event.truckRecommendation) {
-                setScanResult({
-                  totalItems: metrics.totalItems,
-                  truckLabel: event.truckRecommendation.label,
-                  cubicFeet: event.truckRecommendation.bufferedCubicFeet,
-                  flags: event.validationFlags ?? [],
-                })
-                setTimeout(() => setScanResult(null), 12000)
-              }
-            } else if (event.type === 'error' || event.type === 'batch_error') {
-              setError(event.error ?? 'Scan error')
-            }
-          } catch {
-            // malformed SSE line — skip
-          }
-        }
+      setListingLookupBusy(true)
+      setError(null)
+      const inventoryRevision = inventoryPersistRevisionRef.current
+      setScanProgress({ batch: 0, totalBatches: 0, status: 'Starting photo scan…' })
+      const response = await fetch(`/api/sales/leads/${leadId}/scan-stream`, {
+        method: 'POST', credentials: 'include', signal: AbortSignal.timeout(300_000),
+      })
+      const event = await readMlsScan(response, event => {
+        setScanProgress({
+          batch: event.batch ?? 0,
+          totalBatches: event.totalBatches ?? 0,
+          status: event.status || (event.type === 'batch' ? `Room ${event.batch}/${event.totalBatches} scanned…` : `Scanning ${event.totalPhotos ?? ''} photos…`),
+        })
+      })
+      if (inventoryRevision !== inventoryPersistRevisionRef.current) throw new Error('Inventory changed during the scan. Your edits were kept. Re-scan when you have finished editing.')
+      if (!event.allItems.length) throw new Error('No moving items were detected. Your existing inventory was kept. Review the listing photos or upload customer photos.')
+      const nextInventory = filterRemovedInventoryItems(sanitizeInventoryRooms(event.allItems))
+      const metrics = deriveInventoryMetrics([
+        ...nextInventory,
+        ...inventory.filter(item => item.owner === 'person_b'),
+      ])
+      const finalSaved = await updateSalesLead(leadId, {
+        inventory: metrics.inventory,
+        totalItems: metrics.totalItems,
+        totalCubicFeet: metrics.totalCubicFeet,
+        totalWeightLbs: metrics.totalWeightLbs,
+        roomBreakdown: buildRoomBreakdown(metrics.inventory),
+        listingScanSnapshot: event.scan || undefined,
+        removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
+      })
+      setInventory(metrics.inventory)
+      applyLeadSnapshot(finalSaved, { hydrateForm: false })
+      setQuoteModalDirty(true)
+      if (event.truckRecommendation) {
+        setScanResult({ totalItems: metrics.totalItems, truckLabel: event.truckRecommendation.label,
+          cubicFeet: event.truckRecommendation.bufferedCubicFeet, flags: event.validationFlags ?? [] })
+        setTimeout(() => setScanResult(null), 12000)
       }
     } catch (err) {
-      setError((err as Error).message)
-      setScanProgress(null)
+      setError(err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')
+        ? 'MLS scan timed out. Your inventory was kept. Please retry.'
+        : (err as Error).message)
     } finally {
       setListingLookupBusy(false)
       setScanProgress(null)
@@ -6356,6 +6299,21 @@ export default function SalesLeadDetailPage() {
         onOperationalPlanChange={plan => {
           pricingMetaRef.current = { ...pricingMetaRef.current, ...plan }
         }}
+        mlsScanControls={
+          <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="text-sm font-semibold">MLS listing photos</div>
+            <p className="text-xs text-slate-600">Scan the origin listing to build inventory, then review the items with the customer.</p>
+            <button type="button" disabled={listingLookupBusy} onClick={() => void lookupListingForLead()}
+              className="rounded-md bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
+              {listingLookupBusy ? 'Scanning MLS…' : 'Scan from MLS'}
+            </button>
+            {scanProgress ? <p role="status" className="text-xs">{scanProgress.status}</p> : null}
+            {error ? <p role="alert" className="text-xs text-red-700">{error}</p> : null}
+            {listingDecision ? <ListingMatchPicker {...listingDecision} busy={listingLookupBusy}
+              onSelect={candidate => void chooseListingForLead(candidate)}
+              onResolveLink={url => void resolveListingLinkForLead(url)} /> : null}
+          </div>
+        }
         listingPhotos={listingPhotos}
         mediaAssets={lead.mediaAssets || []}
         customerPhotos={(lead.mediaAssets || [])
