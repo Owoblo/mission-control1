@@ -1,4 +1,5 @@
 import type { CRMLead, JobFactors, ListingMatch } from './types'
+import { calculateStopAccess } from './access-profile'
 import { getListingOperationalHighlights, getListingParkingFeatures } from './listing'
 
 export type AccessComplexityStatus = 'clear' | 'review' | 'high_risk' | 'unknown'
@@ -94,10 +95,39 @@ function hasApartmentLikeContext(lead: Partial<Pick<CRMLead, 'propertyType'>> = 
   return /\b(condo|apartment|suite|unit|high[- ]?rise|elevator|underground)\b/.test(`${highlights} ${parking}`)
 }
 
+/** Structured stop answers take precedence over legacy free-text fields. */
+export function confirmedMoveAccess(lead: Partial<Pick<CRMLead, 'jobFactors' | 'originAccess' | 'destAccess' | 'parkingNotes'>>, singleLocation = false) {
+  const factors = lead.jobFactors || {}
+  const profiles = (factors.accessProfiles || []).filter(profile => !singleLocation || profile.stopRole !== 'dropoff')
+  const sideReady = (side: 'origin' | 'destination') => {
+    const profile = profiles.find(item => item.stopId === `primary-${side}`) || profiles.find(item => item.stopRole === (side === 'origin' ? 'pickup' : 'dropoff'))
+    if (profile) return calculateStopAccess(profile, 0).ready
+    return Boolean(side === 'origin' ? lead.originAccess?.trim() || (factors.originFloors !== undefined && factors.originHasElevator !== undefined && factors.originParkingOk !== undefined) : lead.destAccess?.trim() || (factors.destFloors !== undefined && factors.destHasElevator !== undefined && factors.destParkingOk !== undefined))
+  }
+  const origin = sideReady('origin')
+  const destination = singleLocation || sideReady('destination')
+  const allStops = profiles.every(profile => calculateStopAccess(profile, 0).ready)
+  const parking = profiles.length ? origin && destination && allStops && profiles.every(profile => profile.standardAccessConfirmed || ['driveway', 'curb', 'loading_dock', 'parking_lot'].includes(profile.truckPosition || '')) : Boolean(lead.parkingNotes?.trim() || (factors.originParkingOk === true && (singleLocation || factors.destParkingOk === true)))
+  return { origin, destination, parking, allStops }
+}
+
 export function deriveAccessComplexityAssessment(
-  lead: Partial<Pick<CRMLead, 'jobFactors' | 'parkingNotes' | 'originAccess' | 'destAccess' | 'propertyType' | 'supabaseListing'>>
+  lead: Partial<Pick<CRMLead, 'jobFactors' | 'parkingNotes' | 'originAccess' | 'destAccess' | 'propertyType' | 'supabaseListing'>>,
+  singleLocation = false
 ): AccessComplexityAssessment {
   const factors = lead.jobFactors || {}
+  if (factors.accessProfiles?.length) {
+    const confirmed = confirmedMoveAccess(lead, singleLocation)
+    const stops = factors.accessProfiles.filter(profile => !singleLocation || profile.stopRole !== 'dropoff').map(profile => calculateStopAccess(profile, 1))
+    const signals: AccessComplexitySignal[] = stops.flatMap(stop => [
+      ...stop.manualReviewReasons.map(label => ({ side: 'route' as const, label, minutes: 0, severity: 'high_risk' as const })),
+      ...stop.warnings.map(label => ({ side: 'route' as const, label, minutes: 0, severity: 'review' as const })),
+    ])
+    const status = signals.some(signal => signal.severity === 'high_risk') ? 'high_risk' : signals.length ? 'review' : confirmed.origin && confirmed.destination && confirmed.allStops ? 'clear' : 'unknown'
+    return { status, label: status === 'clear' ? 'Access confirmed' : status === 'high_risk' ? 'Access risk' : status === 'review' ? 'Access review' : 'Access unknown', extraMinutes: 0, extraHours: 0,
+      accessAutoClear: status === 'clear', parkingAutoClear: confirmed.parking,
+      signals, summary: status === 'clear' ? 'Your confirmed access answers are saved for the estimate and operating plan.' : signals.map(signal => signal.label).join(' · ') || 'Confirm the remaining stop in the access plan.' }
+  }
   const signals = [
     ...sideSignals('origin', factors.originFloors, factors.originHasElevator, factors.originElevatorReserved, factors.originParkingOk),
     ...sideSignals('destination', factors.destFloors, factors.destHasElevator, factors.destElevatorReserved, factors.destParkingOk),
@@ -146,7 +176,7 @@ export function deriveAccessComplexityAssessment(
   }
 
   const extraMinutes = signals.reduce((sum, signal) => sum + signal.minutes, 0)
-  const confirmedRoutes = Boolean(lead.originAccess?.trim() && lead.destAccess?.trim())
+  const confirmedRoutes = confirmedMoveAccess(lead).origin && confirmedMoveAccess(lead).destination
   const status: AccessComplexityStatus =
     !confirmedRoutes && signals.length === 0
       ? 'unknown'

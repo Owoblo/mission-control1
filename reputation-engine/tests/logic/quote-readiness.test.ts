@@ -23,10 +23,10 @@ function completeFactors(): JobFactors {
   }
 }
 
-test('all five hidden inventory areas must be resolved independently', () => {
+test('an unfinished inventory still requires area verification', () => {
   const factors = completeFactors()
   delete factors.hiddenInventoryCoverage?.garage
-  const result = evaluateQuoteReadiness(lead(factors), { billingModel: 'binding', quoteType: 'standard', originAddress: '1 Main St', destAddress: '2 King St' })
+  const result = evaluateQuoteReadiness({ ...lead(factors), inventoryVerification: undefined }, { billingModel: 'binding', quoteType: 'standard', originAddress: '1 Main St', destAddress: '2 King St' })
   assert.equal(result.quoteReady, false)
   assert.ok(result.blockers.some(item => item.includes('Garage')))
 })
@@ -73,4 +73,39 @@ test('labour-only work still requires its service location', () => {
   const result = evaluateQuoteReadiness(laborLead, { billingModel: 'binding', quoteType: 'labor_only', originAddress: '', destAddress: '' })
   assert.equal(result.quoteReady, false)
   assert.ok(result.blockers.includes('Work location is required.'))
+})
+
+test('final inventory confirmation carries forward instead of reopening missing template areas', () => {
+  const factors = completeFactors()
+  factors.hiddenInventoryCoverage = undefined
+  const result = evaluateQuoteReadiness(lead(factors))
+  assert.equal(result.quoteReady, true)
+  assert.equal(result.inventoryConfidence, 100)
+  assert.ok(result.hidden.every(area => area.resolved))
+})
+
+test('inventory confidence is independent of missing access and explicit empty areas count', () => {
+  const factors = completeFactors()
+  factors.hiddenInventoryCoverage = Object.fromEntries(areas.map(area => [area, { state: 'customer_confirmed_empty' }]))
+  delete factors.originFloors
+  delete factors.destFloors
+  const result = evaluateQuoteReadiness(lead(factors))
+  assert.equal(result.inventoryConfidence, 100)
+  assert.equal(result.quoteReady, false)
+  assert.ok(result.blockers.some(item => /access/.test(item)))
+})
+
+test('a newly reopened area is not erased by an older final confirmation', () => {
+  const factors = completeFactors()
+  factors.hiddenInventoryCoverage!.garage = { state: 'unknown', updatedAt: '2026-09-28T12:00:00Z' }
+  assert.equal(evaluateQuoteReadiness(lead(factors)).hidden.find(area => area.key === 'garage')?.resolved, false)
+})
+
+test('new unconfirmed inventory items require fresh final verification', () => {
+  const factors = completeFactors()
+  factors.hiddenInventoryCoverage = undefined
+  const value = lead(factors)
+  value.inventory!.push({ name: 'New photo item', cubicFeet: 10, status: 'needs_confirmation' })
+  assert.equal(evaluateQuoteReadiness(value).quoteReady, false)
+  assert.ok(evaluateQuoteReadiness(value).hidden.some(area => !area.resolved))
 })

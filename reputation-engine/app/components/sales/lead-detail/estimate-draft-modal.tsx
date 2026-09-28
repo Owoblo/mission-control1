@@ -16,10 +16,11 @@ import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
 import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
 import { estimateAdjustmentAmount } from '@/lib/estimate-adjustment'
 import { resolveOntarioPriceOverride, type OntarioPriceOverrideMode } from '@/lib/quote-pricing-safety'
-import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
+import { confirmedMoveAccess, deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
 import { deriveMoveLogisticsPlan, type LogisticsOption } from '@/lib/move-logistics'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PhotoLightbox } from '@/app/components/sales/photo-lightbox'
+import { InventoryPhotoUpload } from './inventory-photo-upload'
 import { AccessProfileEditor } from './access-profile-editor'
 import { accessProfilesForStops } from '@/lib/access-profile'
 import { DEFAULT_ROOM_OPTIONS } from './helpers'
@@ -29,7 +30,7 @@ import { buildContributionPricingPlan, buildProtectionRecommendation } from '@/l
 import { buildConsultativeMovePlan } from '@/lib/consultative-move-plan'
 import { removeStorageQuoteScope, type QuoteType } from '@/lib/storage-quote-scope'
 import { isCrossBorderMove, qualifyMoveAddress } from '@/lib/route-address'
-import { coverageResolved, evaluateQuoteReadiness, HIDDEN_INVENTORY_AREAS } from '@/lib/quote-readiness'
+import { resolvedInventoryCoverage, evaluateQuoteReadiness, HIDDEN_INVENTORY_AREAS } from '@/lib/quote-readiness'
 import { buildEstimateWorkflowStages, nextEstimateWorkflowStage, type EstimateWorkflowStageId } from '@/lib/estimate-workflow'
 import { selectedAddressCity } from '@/lib/address-city'
 import type { HiddenInventoryArea, MoveEvidenceState } from '@/lib/types'
@@ -1572,10 +1573,7 @@ export function EstimateDraftModal({
       setScopeConfirmationNotice('Add a customer phone number before sending the checklist.')
       return
     }
-    const unresolved = HIDDEN_INVENTORY_AREAS.filter(area => {
-      const value = jobFactors.hiddenInventoryCoverage?.[area.key]
-      return !coverageResolved(value)
-    })
+    const unresolved = quoteReadyAssessment.hidden.filter(area => !area.resolved)
     if (unresolved.length === 0) {
       setScopeConfirmationNotice('All hidden inventory areas are already confirmed.')
       return
@@ -2279,8 +2277,10 @@ export function EstimateDraftModal({
     destAccess,
     propertyType: lead.propertyType,
     supabaseListing: lead.supabaseListing,
-  }), [destAccess, jobFactors, lead.propertyType, lead.supabaseListing, originAccess, parkingNotes])
+  }, quoteType === 'labor_only'), [destAccess, jobFactors, lead.propertyType, lead.supabaseListing, originAccess, parkingNotes, quoteType])
   const boxesAsked = Boolean(
+    resolvedInventoryCoverage({ ...lead, jobFactors, inventory: effectiveInventoryMetrics.inventory }).find(area => area.key === 'boxes')?.resolved ||
+    jobFactors.estimatedBoxes === 0 ||
     Number(jobFactors.estimatedBoxes || 0) > 0 ||
     packingMaterialsEstimate?.plannedBoxes ||
     effectiveInventoryMetrics.inventory.some(item => getInventoryDisplayLabel(item).toLowerCase().includes('box'))
@@ -2323,9 +2323,7 @@ export function EstimateDraftModal({
     return Array.from(sources)
   }, [includedInventory, lead.inventoryVerification?.completedAt, lead.listingScanSnapshot, lead.supabaseListing, lead.surveyCompletedAt, mediaAssets])
   const customerInventoryConfirmed = Boolean(
-    lead.surveyCompletedAt ||
-    lead.inventoryVerification?.completedAt ||
-    (includedInventory.length > 0 && unresolvedInventoryItems.length === 0 && includedInventory.every(item => item.status === 'confirmed'))
+    lead.inventoryVerification?.completedAt && includedInventory.length > 0 && unresolvedInventoryItems.length === 0 && includedInventory.every(item => item.status === 'confirmed' || item.source === 'customer_verification')
   )
   const quoteReadyAssessment = useMemo(() => evaluateQuoteReadiness({ ...lead, inventory: effectiveInventoryMetrics.inventory, jobFactors }, {
     billingModel: quote?.billingModel,
@@ -2333,18 +2331,9 @@ export function EstimateDraftModal({
     originAddress: originFull,
     destAddress: destFull,
   }), [destFull, effectiveInventoryMetrics.inventory, jobFactors, lead, originFull, quote?.billingModel, quoteType])
-  const originAccessConfirmed = Boolean(
-    originAccess ||
-    jobFactors.originParkingOk !== undefined ||
-    jobFactors.originHasElevator !== undefined ||
-    jobFactors.accessProfiles?.some(profile => profile.stopRole === 'pickup' && (profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown')))
-  )
-  const destinationAccessConfirmed = Boolean(
-    destAccess ||
-    jobFactors.destParkingOk !== undefined ||
-    jobFactors.destHasElevator !== undefined ||
-    jobFactors.accessProfiles?.some(profile => profile.stopRole === 'dropoff' && (profile.standardAccessConfirmed || (profile.evidenceStatus && profile.evidenceStatus !== 'unknown')))
-  )
+  const confirmedAccess = confirmedMoveAccess({ ...lead, jobFactors, originAccess, destAccess, parkingNotes }, quoteType === 'labor_only')
+  const originAccessConfirmed = confirmedAccess.origin
+  const destinationAccessConfirmed = confirmedAccess.destination
   const isLaborOnly = quoteType === 'labor_only'
   const quoteExplanation = useMemo(() => {
     if (!pricingBreakdown || quoteModalTotals.total <= 0) {
@@ -2470,7 +2459,7 @@ export function EstimateDraftModal({
   }
   function resolveReadinessItem(item: QuoteReadinessItem) {
     const hidden = HIDDEN_INVENTORY_AREAS.some(area => area.label === item.label)
-    const stage: EstimateWorkflowStageId = hidden || ['Packing status', 'Boxes asked', 'Item-path intelligence', 'Specialty fulfillment priced'].includes(item.label)
+    const stage: EstimateWorkflowStageId = hidden ? 'inventory' : ['Packing status', 'Boxes asked', 'Item-path intelligence', 'Specialty fulfillment priced'].includes(item.label)
       ? 'handling'
       : /destination/i.test(item.label) ? 'destination'
       : /origin|work location/i.test(item.label) ? 'origin'
@@ -4197,13 +4186,16 @@ export function EstimateDraftModal({
                     disabled={inventoryConfirmBusy}
                     onClick={() => {
                       setInventoryConfirmBusy(true)
-                      void onConfirmInventory().finally(() => setInventoryConfirmBusy(false))
+                      void onConfirmInventory().catch(error => setScopeConfirmationNotice(error instanceof Error ? error.message : 'Could not save inventory verification. Please retry.')).finally(() => setInventoryConfirmBusy(false))
                     }}
                     className="mt-3 rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
                   >
-                    {inventoryConfirmBusy ? 'Saving confirmation…' : 'Customer confirmed this full inventory'}
+                    {inventoryConfirmBusy ? 'Saving confirmation…' : 'Verify final inventory — all moving items included'}
                   </button>
                 ) : null}
+                {customerInventoryConfirmed ? <p className="mt-3 text-xs font-semibold text-emerald-700">✓ Final inventory verified</p> : null}
+                {scopeConfirmationNotice ? <p role="status" className="mt-2 text-xs">{scopeConfirmationNotice}</p> : null}
+                {!conjointMode ? <InventoryPhotoUpload leadId={lead.id} onSynced={updated => onLeadMediaSynced?.(updated)} /> : null}
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="crm-kpi">
                     <div className="crm-label">Pieces</div>
@@ -5060,6 +5052,55 @@ export function EstimateDraftModal({
             </div>
 
             {/* ── JOB FACTORS ── */}
+            <div data-estimate-stage="inventory">
+                <details id="estimate-hidden-inventory" className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
+                    <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">+ Check additional inventory areas</div><p className="mt-1 text-xs text-amber-800">Review areas relevant to this move. Final inventory verification carries these answers forward.</p></div>
+                    <div className={`rounded-full px-3 py-1 text-xs font-bold ${quoteReadyAssessment.hidden.every(area => area.resolved) ? 'bg-emerald-600 text-white' : 'bg-white text-amber-900'}`}>{quoteReadyAssessment.hidden.filter(area => area.resolved).length} / {quoteReadyAssessment.hidden.length} areas verified</div>
+                  </summary>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[7px] border border-amber-200 bg-white p-3">
+                    <div className="mr-auto min-w-[220px]"><div className="text-xs font-semibold text-[var(--app-ink)]">Confirm directly with the customer</div><div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Send one concise checklist or call, then record each factual answer below.</div></div>
+                    <button type="button" onClick={() => void textCustomerForScopeConfirmation()} disabled={scopeConfirmationBusy || !lead.phone} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{scopeConfirmationBusy ? 'Sending…' : 'Text checklist'}</button>
+                    <button type="button" onClick={callCustomerForScopeConfirmation} disabled={!lead.phone} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] disabled:opacity-40">Call customer</button>
+                    {scopeConfirmationNotice ? <div role="status" className="w-full text-[11px] text-amber-900">{scopeConfirmationNotice}</div> : null}
+                  </div>
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                    {quoteReadyAssessment.hidden.map(area => {
+                      const value = area.value
+                      const areaItems = includedInventory.filter(item => new RegExp(area.key === 'storage' ? 'storage|closet|locker' : area.key === 'outdoor' ? 'outdoor|patio|shed|garden' : area.key === 'boxes' ? 'box|boxes|bin|tote' : area.key, 'i').test(`${item.room || ''} ${item.name || item.item || ''}`))
+                      return <div key={area.key} className="rounded-[8px] border border-amber-200 bg-white p-3">
+                        <div className="text-xs font-bold text-[var(--app-ink)]">{area.label}</div>
+                        <p className="mt-1 text-[11px] leading-4 text-[var(--app-muted)]">{area.resolved ? value?.note || 'Verified with the customer.' : areaItems.length ? `${areaItems.length} inventory entries already captured here. Verify these cover everything moving from this area.` : `Anything moving from ${area.label.toLowerCase()} that is missing from the list?`}</p>
+                        <div className="mt-2 grid grid-cols-2 gap-1.5">
+                          {([
+                            ['customer_confirmed_empty', '✓ Customer says empty'],
+                            ['not_applicable', '✓ No such area'],
+                            ['customer_confirmed', 'Items confirmed'],
+                            ['observed', 'Seen in evidence'],
+                            ['estimated', 'Estimated range'],
+                            ['unknown', 'Still unverified'],
+                          ] as Array<[MoveEvidenceState, string]>).map(([state, label]) => (
+                            <button
+                              key={state}
+                              type="button"
+                              onClick={() => setHiddenCoverage(area.key, state)}
+                              className={`rounded-[6px] border px-2 py-1.5 text-left text-[11px] font-semibold ${value?.state === state
+                                ? state === 'unknown' ? 'border-amber-500 bg-amber-100 text-amber-950' : 'border-emerald-600 bg-emerald-600 text-white'
+                                : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)]'}`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="What is there, why empty, or estimate basis" className="crm-input mt-2 w-full py-1.5 text-xs"/>
+                        {value?.state === 'estimated' && area.key !== 'boxes' ? <input type="number" min="0" value={value.estimatedCubicFeet ?? ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, estimatedCubicFeet: event.target.value ? Number(event.target.value) : undefined } } })} placeholder="Estimated cubic feet" className="crm-input mt-2 w-full py-1.5 text-xs"/> : null}
+                      </div>
+                    })}
+                  </div>
+
+                </details>
+            </div>
+
             <div data-estimate-stage="handling" id="estimate-operations" className="scroll-mt-16 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -5371,51 +5412,7 @@ export function EstimateDraftModal({
                   <div className="text-xs leading-relaxed">{accessAssessment.summary}</div>
                 </div>
 
-                <details id="estimate-hidden-inventory" open={estimateView === 'guided' ? true : undefined} className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
-                  <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
-                    <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">Hidden Inventory Check</div><p className="mt-1 text-xs text-amber-800">Every area needs its own factual answer. Silence and a general inventory confirmation do not count.</p></div>
-                    <div className={`rounded-full px-3 py-1 text-xs font-bold ${blockingReadiness.length === 0 ? 'bg-emerald-600 text-white' : 'bg-white text-amber-900'}`}>{blockingReadiness.length === 0 ? 'QUOTE READY' : `${quoteReadyAssessment.inventoryConfidence}% inventory confidence`}</div>
-                  </summary>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[7px] border border-amber-200 bg-white p-3">
-                    <div className="mr-auto min-w-[220px]"><div className="text-xs font-semibold text-[var(--app-ink)]">Confirm directly with the customer</div><div className="mt-0.5 text-[11px] text-[var(--app-muted)]">Send one concise checklist or call, then record each factual answer below.</div></div>
-                    <button type="button" onClick={() => void textCustomerForScopeConfirmation()} disabled={scopeConfirmationBusy || !lead.phone} className="rounded-[6px] bg-[#071421] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{scopeConfirmationBusy ? 'Sending…' : 'Text checklist'}</button>
-                    <button type="button" onClick={callCustomerForScopeConfirmation} disabled={!lead.phone} className="rounded-[6px] border border-[var(--app-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-ink)] disabled:opacity-40">Call customer</button>
-                    {scopeConfirmationNotice ? <div role="status" className="w-full text-[11px] text-amber-900">{scopeConfirmationNotice}</div> : null}
-                  </div>
-                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                    {HIDDEN_INVENTORY_AREAS.map(area => {
-                      const value = jobFactors.hiddenInventoryCoverage?.[area.key]
-                      return <div key={area.key} className="rounded-[8px] border border-amber-200 bg-white p-3">
-                        <div className="text-xs font-bold text-[var(--app-ink)]">{area.label}</div>
-                        <p className="mt-1 text-[11px] leading-4 text-[var(--app-muted)]">{area.prompt}</p>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5">
-                          {([
-                            ['customer_confirmed_empty', '✓ Customer says empty'],
-                            ['not_applicable', '✓ No such area'],
-                            ['customer_confirmed', 'Items confirmed'],
-                            ['observed', 'Seen in evidence'],
-                            ['estimated', 'Estimated range'],
-                            ['unknown', 'Still unverified'],
-                          ] as Array<[MoveEvidenceState, string]>).map(([state, label]) => (
-                            <button
-                              key={state}
-                              type="button"
-                              onClick={() => setHiddenCoverage(area.key, state)}
-                              className={`rounded-[6px] border px-2 py-1.5 text-left text-[11px] font-semibold ${value?.state === state
-                                ? state === 'unknown' ? 'border-amber-500 bg-amber-100 text-amber-950' : 'border-emerald-600 bg-emerald-600 text-white'
-                                : 'border-[var(--app-line)] bg-white text-[var(--app-muted)] hover:border-[var(--app-ink)]'}`}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="What is there, why empty, or estimate basis" className="crm-input mt-2 w-full py-1.5 text-xs"/>
-                        {value?.state === 'estimated' && area.key !== 'boxes' ? <input type="number" min="0" value={value.estimatedCubicFeet ?? ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, estimatedCubicFeet: event.target.value ? Number(event.target.value) : undefined } } })} placeholder="Estimated cubic feet" className="crm-input mt-2 w-full py-1.5 text-xs"/> : null}
-                      </div>
-                    })}
-                  </div>
-                  {blockingReadiness.length > 0 && <div className="rounded-[6px] border border-amber-300 bg-white px-3 py-2 text-xs text-amber-900"><strong>Fixed price remains locked:</strong> {blockingReadiness.slice(0, 4).map(item => item.detail).join(' · ')}{blockingReadiness.length > 4 ? ` · +${blockingReadiness.length - 4} more` : ''}</div>}
-                </details>
+
 
                 {/* Packing Status */}
                 <div className="space-y-3">

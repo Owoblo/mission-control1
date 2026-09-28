@@ -79,3 +79,24 @@ test('access intelligence keeps unknown access from being treated as ready', () 
   assert.equal(result.accessAutoClear, false)
   assert.equal(result.parkingAutoClear, false)
 })
+
+test('confirmed driveway profiles clear access without legacy text fields', async () => {
+  const { createStandardAccessProfile } = await import('../../lib/access-profile')
+  const { buildMoveOperatingPlan, buildCurrentCrewBrief } = await import('../../lib/move-operating-plan')
+  const profiles = [
+    createStandardAccessProfile({ id: 'o', stopId: 'primary-origin', stopRole: 'pickup', label: 'Origin' }),
+    createStandardAccessProfile({ id: 'd', stopId: 'primary-destination', stopRole: 'dropoff', label: 'Destination' }),
+  ]
+  const lead = { id: 'driveway', name: 'Customer', stage: 'pricing' as const, createdAt: '2026-09-28', jobFactors: { accessProfiles: profiles }, inventory: [{ name: 'Sofa', cubicFeet: 70, weightLbs: 120 }] }
+  const assessment = deriveAccessComplexityAssessment(lead)
+  assert.equal(assessment.status, 'clear')
+  assert.equal(assessment.parkingAutoClear, true)
+  assert.equal(assessment.extraMinutes, 0)
+  const plan = buildMoveOperatingPlan(lead)
+  assert.equal(plan.originKnown, true)
+  assert.equal(plan.destinationKnown, true)
+  assert.ok(!plan.reasons.some(reason => /carrying route|Parking/.test(reason)))
+  assert.doesNotMatch(buildCurrentCrewBrief(lead), /access: UNCONFIRMED|Parking: UNCONFIRMED/)
+  assert.notEqual(deriveAccessComplexityAssessment({ ...lead, jobFactors: { accessProfiles: profiles.slice(0, 1) } }).status, 'clear')
+  assert.notEqual(deriveAccessComplexityAssessment({ ...lead, jobFactors: { accessProfiles: [profiles[0], { ...profiles[1], unsafeAccess: true }] } }).status, 'clear')
+})

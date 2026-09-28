@@ -6384,12 +6384,13 @@ export default function SalesLeadDetailPage() {
         onSaveDraft={options => void saveQuoteDraft(options)}
         onSaveAndPreview={options => void saveAndPreviewQuote(options)}
         onLeadMediaSynced={updatedLead => {
+          setQuoteModalDirty(true)
           ;(updatedLead.removedInventoryItemKeys || []).forEach(key => removedInventoryKeysRef.current.add(key))
           setInventory(current => {
             const incoming = (updatedLead.inventory || []).filter(item => !isRemovedInventoryItem(item))
-            const merged = [...incoming]
+            const merged = current.filter(item => !isRemovedInventoryItem(item))
             const keys = new Set(merged.map(item => String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()))
-            current.forEach(item => {
+            incoming.forEach(item => {
               if (isRemovedInventoryItem(item)) return
               const key = String(item.id || `${item.owner || 'person_a'}:${item.room || ''}:${item.name || item.item || ''}`).toLowerCase()
               if (!keys.has(key)) {
