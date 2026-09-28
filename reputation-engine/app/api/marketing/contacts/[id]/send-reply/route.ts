@@ -1,3 +1,4 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { NextResponse } from 'next/server'
 import { getRequestSessionUser } from '@/lib/server/request-session'
 import { getTwilioCredentials, requireSupabaseEnv } from '@/lib/server/runtime'
@@ -119,7 +120,7 @@ export async function POST(
   })
   for (const mediaUrl of mediaUrls) twilioBody.append('MediaUrl', mediaUrl)
 
-  const twilioRes = await fetch(
+  const twilioRes = await sendSmsProviderRequest(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
     {
       method: 'POST',
