@@ -65,3 +65,7 @@ import { validateLeadPatchPayload } from '../../lib/server/sales-validation'
   assert.equal(updates.attributionSignals?.length, 1)
   assert.equal(updates.moveRelationships?.[0]?.role, 'listing_realtor')
 }
+
+// Partnership handoffs already store Toronto; ordinary lead edits must accept it.
+assert.equal(validateLeadPatchPayload({ branch: 'toronto', name: 'Toronto Customer' }).branch, 'toronto')
+assert.throws(() => validateLeadPatchPayload({ branch: 'not-a-branch' } as never), /Invalid branch/)

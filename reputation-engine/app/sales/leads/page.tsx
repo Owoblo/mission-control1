@@ -10,7 +10,7 @@ import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStag
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 import { ConfirmDialog } from '@/app/components/confirm-dialog'
 
-type LeadViewMode = 'focus' | 'booked' | 'all' | 'realtor' | 'deleted'
+type LeadViewMode = 'focus' | 'nurture' | 'booked' | 'all' | 'realtor' | 'deleted'
 type DeletedLeadRow = CRMLead & { _deletedAt?: string }
 type DecoratedLeadRow = {
   lead: CRMLead
@@ -23,6 +23,7 @@ type DecoratedLeadRow = {
 
 const LEAD_VIEW_MODES: Array<{ id: LeadViewMode; label: string; description: string }> = [
   { id: 'focus', label: 'Needs Follow-Up', description: 'Only leads with a live next action.' },
+  { id: 'nurture', label: 'Nurture', description: 'Waiting on timing or a reply. Review the history and record the next follow-up.' },
   { id: 'booked', label: 'Booked', description: 'Booked and completed jobs that still matter operationally.' },
   { id: 'all', label: 'All Active', description: 'Everything active except deleted and lost.' },
   { id: 'realtor', label: '🏠 Realtor Opps', description: 'Destination-side leads — pitch the listing agent for the current occupant\'s move.' },
@@ -257,6 +258,7 @@ function SalesLeadsIndexContent() {
     () => decoratedLeads.filter(item => item.isActionable).sort((left, right) => compareLeadsByGuidance(left, right)),
     [decoratedLeads]
   )
+  const nurtureLeads = useMemo(() => decoratedLeads.filter(item => item.lead.stage === 'nurture').sort((a, b) => compareLeadsByGuidance(a, b)), [decoratedLeads])
   const bookedLeads = useMemo(
     () => decoratedLeads.filter(item => item.isBooked).sort(sortBookedLeads),
     [decoratedLeads]
@@ -293,8 +295,8 @@ function SalesLeadsIndexContent() {
     [decoratedLeads, today]
   )
 
-  const visibleLeads = viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : viewMode === 'realtor' ? realtorLeads : activeLeads
-  const emptyText =
+  const visibleLeads = viewMode === 'nurture' ? nurtureLeads : viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : viewMode === 'realtor' ? realtorLeads : activeLeads
+  const emptyText = viewMode === 'nurture' ? 'No leads in Nurture match this filter.' :
     viewMode === 'focus'
       ? 'No leads currently need live follow-up.'
       : viewMode === 'booked'
@@ -327,7 +329,7 @@ function SalesLeadsIndexContent() {
           <div className="flex flex-wrap gap-2">
             {LEAD_VIEW_MODES.map(mode => {
               const count =
-                mode.id === 'focus'
+                mode.id === 'nurture' ? nurtureLeads.length : mode.id === 'focus'
                   ? focusLeads.length
                   : mode.id === 'booked'
                     ? bookedLeads.length

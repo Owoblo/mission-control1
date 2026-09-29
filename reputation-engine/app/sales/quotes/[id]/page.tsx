@@ -123,6 +123,7 @@ export default function SalesQuoteDetailPage() {
   const [depositRate, setDepositRate] = useState(30)
   const [paymentTerms, setPaymentTerms] = useState<CRMQuote['paymentTerms']>('deposit_required')
   const [discountAmount, setDiscountAmount] = useState(0)
+  const [pricingRevisionReason, setPricingRevisionReason] = useState('')
   const [discountLabel, setDiscountLabel] = useState('Courtesy discount')
   const [crewSize, setCrewSize] = useState(3)
   const [estimatedHours, setEstimatedHours] = useState(3)
@@ -181,7 +182,7 @@ export default function SalesQuoteDetailPage() {
       setPaymentTerms(nextPaymentTerms)
       setDepositRate(data.quote.total > 0 ? Math.round((data.quote.deposit / data.quote.total) * 100) : getDefaultDepositRate(data.lead?.moveType || data.quote.moveType) * 100)
       setDiscountAmount(Number(data.quote.discountAmount || 0))
-      setDiscountLabel(data.quote.discountLabel || 'Courtesy discount')
+      setDiscountLabel(data.quote.discountLabel || '')
       // Start with saved values
       const savedCrew = Number(data.quote.crewSize || 3)
       const savedHours = Number(data.quote.estimatedHours || 3)
@@ -442,9 +443,10 @@ ${brand.fullName}`
     return false
   }
 
-  function buildQuotePricingUpdates(extra: Partial<CRMQuote> = {}): Partial<CRMQuote> {
+  function buildQuotePricingUpdates(extra: Partial<CRMQuote> = {}): Partial<CRMQuote> & { pricingRevisionReason?: string } {
     return {
       revision: quote?.revision || 0,
+      pricingRevisionReason: pricingRevisionReason.trim() || undefined,
       lineItems: quoteTotals.lineItems,
       subtotal: quoteTotals.subtotal,
       hst: quoteTotals.hst,
@@ -1387,6 +1389,13 @@ ${brand.fullName}`
                 <div role="alert" className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium leading-5 text-rose-700">
                   {error}
                 </div>
+              )}
+              {isRevision && quote && quoteCommercialSnapshotChanged(quote, buildQuotePricingUpdates()) && (
+                <label className="block text-sm font-semibold">
+                  Reason for this price revision
+                  <textarea aria-label="Reason for this price revision" className="crm-input mt-2 w-full" value={pricingRevisionReason} onChange={event => setPricingRevisionReason(event.target.value)} placeholder="Explain what changed and why the customer price is being updated." />
+                  <span className="mt-1 block text-xs font-normal text-[var(--app-muted)]">Enter at least 8 characters. This explanation is recorded with the revision.</span>
+                </label>
               )}
               {/* Price confirmation */}
               <div className="rounded-[10px] border border-[var(--app-line)] bg-[var(--app-bg)] px-4 py-3">

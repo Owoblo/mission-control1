@@ -1,3 +1,4 @@
+import { knownCustomerName, customerFirstName } from '../customer-name'
 import {
   dateStamp,
   detectSalesBranchFromLocation,
@@ -158,7 +159,7 @@ function buildSmsQuoteSummary(
 ): string {
   const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
   const acceptUrl = `${appUrl}/quote-accept?id=${encodeURIComponent(quoteId)}&token=${encodeURIComponent(acceptToken)}`
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const route = [lead.originCity || lead.originAddress, lead.destCity || lead.destAddress].filter(Boolean).join(' → ') || 'your move'
   const moveLine = lead.moveDate
     ? new Date(lead.moveDate + 'T12:00').toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -1001,7 +1002,7 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
 
   const next = normalizePaidLeadStage(normalizeLead({
     ...lead,
-    name: lead.name || signals.name || lead.name,
+    name: knownCustomerName(lead.name) || knownCustomerName(signals.name) || lead.name,
     email: lead.email || normalizeEmail(signals.email),
     phone: lead.phone || normalizePhone(signals.phone),
     stage: lead.stage,
@@ -1102,13 +1103,13 @@ function describeInventorySnapshot(lead: CRMLead) {
 }
 
 function buildEstimateScopeConfirmation(lead: CRMLead, channel: ConversationChannel) {
-  const firstName = (lead.name || 'there').trim().split(/\s+/)[0]
+  const firstName = customerFirstName(lead.name)
   const route = `${lead.originAddress || lead.originCity || 'pickup'} → ${lead.destAddress || lead.destCity || 'destination'}`
   const moveDate = lead.moveDate
     ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'flexible date'
   const inventory = describeInventorySnapshot(lead)
-  const question = 'Does that cover the main furniture, aside from boxes you are still packing?'
+  const question = knownCustomerName(lead.name) ? 'Does that cover everything you want moved?' : 'What name should we put on your estimate?'
   if (channel === 'sms') {
     return `Thanks, ${firstName} — that helps. I have ${moveDate}, ${route}, and ${inventory}. ${question}`
   }
@@ -1152,7 +1153,7 @@ async function findOrCreateClientForLead(lead: CRMLead): Promise<CRMClient> {
 function buildAutomatedQuoteEmail(lead: CRMLead, quoteId: string, acceptToken: string, lineItems: QuoteLineItem[], total: number, deposit: number) {
   const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
   const acceptUrl = `${appUrl}/quote-accept?id=${encodeURIComponent(quoteId)}&token=${encodeURIComponent(acceptToken)}`
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const summary = lineItems.map(item => `- ${item.description}: ${formatMoney(item.amount)}`).join('\n')
   const route = [lead.originCity || lead.originAddress, lead.destCity || lead.destAddress].filter(Boolean).join(' → ') || 'your move'
   const moveDateLine = lead.moveDate
@@ -2016,7 +2017,7 @@ Return JSON only:
 }
 
 function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: ConversationChannel, inboundMessage?: string): AutomationCopy {
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const qualification = buildQualificationState(lead, lead.qualificationState || {})
   const missing = qualification.missingFields || []
 
@@ -3369,7 +3370,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
 
     if (pendingQuote && ['sent', 'viewed'].includes(pendingQuote.status || '')) {
       const nowIso = new Date().toISOString()
-      const firstName = (lead.name || 'there').split(' ')[0]
+      const firstName = customerFirstName(lead.name)
 
       // Mark quote accepted
       const acceptedQuote = await saveSalesQuote(normalizeQuote({
@@ -4209,7 +4210,7 @@ export async function scheduleMoveReminder(leadId: string) {
 
   const moveDay = new Date(`${lead.moveDate}T10:00:00`)
   if (moveDay.getTime() <= Date.now()) return null
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const moveDateFormatted = moveDay.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
   const channel = lead.phone ? 'sms' : lead.email ? 'email' : null
 

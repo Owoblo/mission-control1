@@ -64,7 +64,7 @@ export default function EconomicTruthPage() {
     </div>
     <div className="flex flex-wrap gap-3">
       <label className="text-sm">Branch<select aria-label="Branch" className="ml-2 rounded-lg border p-2" value={branch} onChange={e => setBranch(e.target.value)}>
-        <option value="">All authorized branches</option>{['windsor', 'london', 'waterloo', 'ottawa', 'unassigned'].map(b => <option key={b} value={b}>{b}</option>)}
+        <option value="">All authorized branches</option>{['windsor', 'london', 'waterloo', 'ottawa', 'toronto', 'unassigned'].map(b => <option key={b} value={b}>{b}</option>)}
       </select></label>
       <label className="text-sm">Review<select aria-label="Review filter" className="ml-2 rounded-lg border p-2" value={view} onChange={e => setView(e.target.value)}>
         <option value="all">All records</option><option value="completed">Completed jobs</option><option value="partner">Explicit partner referrals</option><option value="source">Source question not asked</option><option value="action">Missing action details</option>
