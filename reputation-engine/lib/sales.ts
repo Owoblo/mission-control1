@@ -47,7 +47,7 @@ export const SALES_LEAD_STAGES: Array<{ id: SalesLeadStage; label: string }> = [
   { id: 'pricing', label: 'Building Quote' },
   { id: 'quoted', label: 'Quoted' },
   { id: 'tentative', label: 'Tentative Reservation' },
-  { id: 'nurture', label: 'Shopping Around' },
+  { id: 'nurture', label: 'Nurture' },
   { id: 'booked', label: 'Booked' },
   { id: 'completed', label: 'Move Completed' },
   { id: 'customer_success', label: 'Customer Success' },

@@ -14,6 +14,7 @@ const SALES_BRANCHES = new Set<NonNullable<CRMLead['branch']>>([
   'waterloo',
   'london',
   'ottawa',
+  'toronto',
 ])
 
 const SALES_LEAD_STAGES = new Set<NonNullable<CRMLead['stage']>>([

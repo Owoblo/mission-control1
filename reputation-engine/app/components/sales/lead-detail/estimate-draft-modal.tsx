@@ -148,7 +148,7 @@ function AddressMapLinks({ address }: { address: string }) {
 }
 
 type RouteResult = {
-  branch?: 'windsor' | 'waterloo' | 'london' | 'ottawa'
+  branch?: NonNullable<CRMLead['branch']>
   pricingStatus: 'ready' | 'provisional'
   category: 'local' | 'medium' | 'long-distance'
   originResolved: string
@@ -1246,7 +1246,7 @@ export function EstimateDraftModal({
     return buildRouteAddress(destAddress || lead.destAddress, destCity || lead.destCity)
   })()
   const crossBorderMove = Boolean(originFull && destFull && isCrossBorderMove(originFull, destFull))
-  const selectedBranch = (localBranch || branch || lead.branch || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
+  const selectedBranch = (localBranch || branch || lead.branch || 'windsor') as NonNullable<CRMLead['branch']>
   const baseQuoteSubtotal = useMemo(
     () => quoteLineItems.reduce((sum, item) => {
       const amount = Number(item.amount || 0)
@@ -1319,10 +1319,10 @@ export function EstimateDraftModal({
       branchManuallySelectedRef.current
         ? (branch || localBranch || lead.branch)
         : (detected || branch || lead.branch)
-    || 'windsor') as 'windsor' | 'waterloo' | 'london' | 'ottawa'
+    || 'windsor') as NonNullable<CRMLead['branch']>
     setLocalBranch(resolved)
     if (!branchManuallySelectedRef.current && detected && detected !== (branch || lead.branch)) {
-      onBranchChange?.(detected as 'windsor' | 'waterloo' | 'london' | 'ottawa')
+      onBranchChange?.(detected as NonNullable<CRMLead['branch']>)
     }
   }, [branch, lead.branch, localBranch, open, originAddress, originCity, lead.originAddress, lead.originCity, onBranchChange])
 
@@ -1776,7 +1776,7 @@ export function EstimateDraftModal({
       }))
   }, [effectiveInventoryMetrics.inventory])
 
-  function handleBranchChange(nextBranch: 'windsor' | 'waterloo' | 'london' | 'ottawa') {
+  function handleBranchChange(nextBranch: NonNullable<CRMLead['branch']>) {
     branchManuallySelectedRef.current = true
     setLocalBranch(nextBranch)
     onBranchChange?.(nextBranch)
@@ -2494,7 +2494,7 @@ export function EstimateDraftModal({
 
   useEffect(() => {
     if (!open) return
-    if (route?.serviceAreaMode === 'open_market') {
+    if (route?.serviceAreaMode === 'open_market' || selectedBranch === 'toronto') {
       setCapacitySnapshot(null)
       setCapacityBusy(false)
       return
@@ -4058,12 +4058,14 @@ export function EstimateDraftModal({
             {/* Branch Selector */}
             <div data-estimate-stage="plan">
               <div className="crm-label mb-2">Branch / Yard Origin</div>
+              {selectedBranch === 'toronto' && <p className="mb-2 text-xs text-amber-800">Toronto / GTA: confirm the dispatch depot and crew availability. Until a depot is selected, routing starts at the customer’s origin.</p>}
               <div className="flex flex-wrap gap-2">
                 {([
                   { id: 'windsor', label: 'Windsor' },
                   { id: 'waterloo', label: 'Waterloo / KW' },
                   { id: 'london', label: 'London' },
                   { id: 'ottawa', label: 'Ottawa' },
+                  { id: 'toronto', label: 'Toronto / GTA' },
                 ] as const).map(opt => (
                   <button
                     key={opt.id}

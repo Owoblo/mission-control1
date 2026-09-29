@@ -283,6 +283,7 @@ export default function AdminUsersPage() {
                     <option value="waterloo">Waterloo / KW</option>
                     <option value="london">London</option>
                     <option value="ottawa">Ottawa</option>
+                    <option value="toronto">Toronto / GTA</option>
                   </select>
                 </label>
               )}
