@@ -676,8 +676,8 @@ function ThreadScreen({
             </Pressable>
           </View>
           {conversation.workspace === 'sales' && <ScrollView horizontal contentContainerStyle={styles.sheetChoices}>
-            <Pressable onPress={() => setManualSender(undefined)} style={[styles.sheetChoice, !manualSender && styles.sheetChoiceSelected]}><Text style={styles.sheetChoiceText}>Customer’s line</Text></Pressable>
-            {lines.filter(line => line.workspace === 'sales').map(line => <Pressable key={line.number} onPress={() => setManualSender(line.number)} style={[styles.sheetChoice, manualSender === line.number && styles.sheetChoiceSelected]}><Text style={styles.sheetChoiceText}>{line.label}</Text></Pressable>)}
+            <Pressable onPress={() => setManualSender(undefined)} style={[styles.sheetChoice, !manualSender && styles.sheetChoiceSelected]}><Text style={[styles.sheetChoiceText, !manualSender && styles.sheetChoiceTextSelected]}>Customer’s line</Text></Pressable>
+            {lines.filter(line => line.workspace === 'sales').map(line => <Pressable key={line.number} onPress={() => setManualSender(line.number)} style={[styles.sheetChoice, manualSender === line.number && styles.sheetChoiceSelected]}><Text style={[styles.sheetChoiceText, manualSender === line.number && styles.sheetChoiceTextSelected]}>{line.label}</Text></Pressable>)}
           </ScrollView>}
           <Text style={styles.sendingLine}>
             {conversation.workspace === 'sales' ? manualSender ? `Sending from ${manualSender} (chosen by you)` : senderNotice : `Sending from ${conversation.line}`}
