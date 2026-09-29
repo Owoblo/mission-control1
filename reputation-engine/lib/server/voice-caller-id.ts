@@ -1,3 +1,4 @@
+import { latestInboundCallbackNumber } from '@/lib/inbound-callback-number'
 import {
   DEFAULT_SATURN_BRANCH_NUMBER,
   getSaturnBranchLabel,
@@ -10,12 +11,13 @@ import {
   normalizePhone,
   pickSaturnBranchPhoneNumber,
 } from '@/lib/sales-phones'
-import { getSalesLeadByContact, getInboundLead, getSalesLead } from '@/lib/server/sales-repository'
+import { listInboundLeadsByPhone, getSalesLeadByContact, getInboundLead, getSalesLead } from '@/lib/server/sales-repository'
 import { listSmsMessages, type SmsMessageRecord } from '@/lib/server/sms-threads'
 import type { CRMLead } from '@/lib/types'
 
 export type VoiceCallerIdResolutionReason =
   | 'explicit'
+  | 'customer_inbound_call'
   | 'lead_sms_thread'
   | 'lead_recent_call'
   | 'lead_inbound_number'
@@ -153,19 +155,22 @@ export async function resolveVoiceCallerId(input: ResolveVoiceCallerIdInput): Pr
   const inboundId = input.inboundId?.trim() || null
 
   const directLead = input.leadId ? await getSalesLead(input.leadId).catch(() => null) : null
-  if (directLead) {
-    const leadResolution = await resolveLeadDerivedCallerId(directLead, 'lead')
-    if (leadResolution) {
-      return leadResolution
-    }
+  const matchedLead = directLead || await getSalesLeadByContact(normalizedPhone, normalizedEmail, inboundId, { includeClosed: true }).catch(() => null)
+  const contactPhone = normalizedPhone || normalizePhone(matchedLead?.phone)
+  const inboundCalls = contactPhone ? await listInboundLeadsByPhone(contactPhone).catch(() => []) : []
+  const callbackNumber = latestInboundCallbackNumber({
+    phone: contactPhone,
+    leadPhone: matchedLead?.phone,
+    calls: matchedLead?.callLogs,
+    inbound: inboundCalls,
+  })
+  if (callbackNumber) {
+    return { fromNumber: callbackNumber, branchLabel: getSaturnBranchLabel(callbackNumber),
+      matchedLeadId: matchedLead?.id || null, reason: 'customer_inbound_call' }
   }
-
-  const matchedLead = await getSalesLeadByContact(normalizedPhone, normalizedEmail, inboundId).catch(() => null)
-  if (matchedLead && matchedLead.id !== directLead?.id) {
-    const matchedResolution = await resolveLeadDerivedCallerId(matchedLead, 'contact_match')
-    if (matchedResolution) {
-      return matchedResolution
-    }
+  if (matchedLead) {
+    const resolution = await resolveLeadDerivedCallerId(matchedLead, directLead ? 'lead' : 'contact_match')
+    if (resolution) return resolution
   }
 
   const areaCodeBranch = inferSaturnBranchPhoneNumberFromPhone(normalizedPhone)

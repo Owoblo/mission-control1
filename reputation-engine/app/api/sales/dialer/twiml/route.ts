@@ -451,7 +451,7 @@ export async function POST(request: Request) {
                         notes: `Incoming call from ${from} → ${branchCity} line — routing to rep…`,
                         date: now,
                         phone: from,
-                        branchNumber: to || undefined,
+                        branchNumber: normalizedTo || to || undefined,
                         direction: 'inbound',
                         callSid,
                         source: 'inbound',
