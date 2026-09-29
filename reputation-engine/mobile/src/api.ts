@@ -345,6 +345,7 @@ export function sendConversationMessage(
   conversation: Conversation,
   body: string,
   mediaUrls: string[] = [],
+  manualFromNumber?: string,
 ) {
   if (conversation.workspace === 'partnership') {
     return request<{ ok: boolean }>(
@@ -372,7 +373,7 @@ export function sendConversationMessage(
       channel: 'sms',
       to: conversation.phone,
       body,
-      fromNumber: conversation.line,
+      ...(manualFromNumber ? { fromNumber: manualFromNumber } : { senderMode: 'customer_history' }),
       mediaUrls,
       actor: 'human',
     }),

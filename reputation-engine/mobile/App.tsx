@@ -56,6 +56,7 @@ import {
   StaffUser,
 } from './src/api';
 import { MessagesScreen } from './src/messages-screen';
+import { customerPhoneForCall, phoneFromVoiceAddress } from './src/phone-address';
 import { callReducer, initialCallState } from './src/call-state';
 import { clearSession, readSession, saveSession } from './src/storage';
 import { colors } from './src/theme';
@@ -88,6 +89,16 @@ function friendlyError(error: unknown) {
   return error instanceof Error ? error.message : 'Something went wrong';
 }
 
+function voiceErrorCode(error: unknown) {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'number') return code;
+    if (typeof code === 'string' && /^\d+$/.test(code)) return Number(code);
+  }
+  const match = friendlyError(error).match(/\b(\d{5})\b/);
+  return match ? Number(match[1]) : null;
+}
+
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(
@@ -112,6 +123,18 @@ function normalizeDialTarget(value: string) {
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
   return clean.startsWith('+') ? `+${digits}` : `+${digits}`;
+}
+
+function formatDialEntry(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+
+  // Keep partial entry natural, then make the North American country code
+  // explicit as soon as a complete local number is available. This makes
+  // pasted and keypad-entered numbers visibly match the number we dial.
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return value.startsWith('+') ? `+${digits}` : digits;
 }
 
 function App() {
@@ -302,6 +325,7 @@ function PhoneScreen({
   const [lines, setLines] = useState<PhoneLine[]>([]);
   const [selectedLine, setSelectedLine] = useState('');
   const [lineMode, setLineMode] = useState<'automatic' | 'manual'>('automatic');
+  const [lineNotice, setLineNotice] = useState('Enter a customer number to find the line they contacted.');
   const callRef = useRef<Call | null>(null);
   const inviteRef = useRef<CallInvite | null>(null);
   const noteRef = useRef('');
@@ -311,6 +335,8 @@ function PhoneScreen({
   const callDisplayNameRef = useRef('');
   const loggedCallSidsRef = useRef(new Set<string>());
   const registrationPromiseRef = useRef<Promise<void> | null>(null);
+  const registrationRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const registrationRetryCountRef = useRef(0);
   const presenceSessionIdRef = useRef(
     `ios-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
@@ -375,7 +401,7 @@ function PhoneScreen({
       const durationSeconds = connectedAt
         ? Math.max(0, Math.floor((Date.now() - connectedAt) / 1000))
         : 0;
-      const phone = call.getFrom() || call.getTo() || fallbackPhone;
+      const phone = customerPhoneForCall(callDirectionRef.current, call.getFrom(), call.getTo(), fallbackPhone);
       try {
         await logMobileCall(token, {
           phone,
@@ -470,6 +496,7 @@ function PhoneScreen({
       // push registrations remain valid for up to a year and should only be
       // unregistered when a user intentionally changes identity.
       await voice.register(result.token);
+      registrationRetryCountRef.current = 0;
       dispatch({ type: 'CLEAR_ERROR' });
       setRegistered(true);
       setStatus('Ready for company calls');
@@ -512,7 +539,7 @@ function PhoneScreen({
   const attachCall = useCallback(
     (call: Call, fallbackPhone = '') => {
       callRef.current = call;
-      const phone = call.getFrom() || call.getTo() || fallbackPhone;
+      const phone = customerPhoneForCall(callDirectionRef.current, call.getFrom(), call.getTo(), fallbackPhone);
       call.on(Call.Event.Ringing, () => dispatch({ type: 'RINGING' }));
       call.on(Call.Event.Connected, () => {
         connectedAtRef.current = Date.now();
@@ -537,25 +564,25 @@ function PhoneScreen({
 
   useEffect(() => {
     if (lineMode !== 'automatic') return;
+    setSelectedLine('');
     const target = normalizeDialTarget(number);
-    if (target.replace(/\D/g, '').length < 10) return;
+    if (target.replace(/\D/g, '').length < 10) {
+      setLineNotice('Enter a customer number to find the line they contacted.');
+      return;
+    }
+    setLineNotice('Checking the customer’s incoming call and text history…');
     let cancelled = false;
     const timer = setTimeout(() => {
       resolveSuggestedLine(token, target)
         .then(result => {
-          if (
-            !cancelled &&
-            lines.some(line => line.number === result.line.number)
-          ) {
-            setSelectedLine(result.line.number);
-          }
+          if (cancelled) return;
+          if (!lines.some(line => line.number === result.line.number)) throw new Error('Choose an available company line.');
+          setSelectedLine(result.line.number);
+          setLineNotice(`Customer contacted ${result.line.label} · ${result.line.number}`);
         })
-        .catch(() => undefined);
+        .catch(error => { if (!cancelled) { setSelectedLine(''); setLineNotice(friendlyError(error)); } });
     }, 350);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [lineMode, lines, number, token]);
 
   useEffect(() => {
@@ -564,7 +591,7 @@ function PhoneScreen({
       // cancellation releases the native invite, so its getters must not be
       // called from the Cancelled handler afterward.
       const callSid = invite.getCallSid();
-      const from = invite.getFrom();
+      const from = phoneFromVoiceAddress(invite.getFrom()) || invite.getFrom();
       const parameters = invite.getCustomParameters();
       const displayName =
         parameters.DisplayName || parameters.CustomerName || from;
@@ -613,8 +640,26 @@ function PhoneScreen({
     };
     const onVoiceError = (error: unknown) => {
       if (/registration in progress/i.test(friendlyError(error))) return;
+      const code = voiceErrorCode(error);
       setStatus('Company line needs attention');
       dispatch({ type: 'ERROR', message: friendlyError(error) });
+
+      // 31005 is a dropped signaling WebSocket. It is transient on mobile
+      // networks, so bring the company line back automatically instead of
+      // requiring a force-quit. Cap retries to avoid masking a real setup
+      // problem that needs attention.
+      if (
+        code === 31005 &&
+        !registrationRetryRef.current &&
+        registrationRetryCountRef.current < 3
+      ) {
+        registrationRetryCountRef.current += 1;
+        setStatus(`Reconnecting company line (${registrationRetryCountRef.current}/3)…`);
+        registrationRetryRef.current = setTimeout(() => {
+          registrationRetryRef.current = null;
+          register().catch(onVoiceError);
+        }, 3_000);
+      }
     };
     const onRegistered = () => {
       dispatch({ type: 'CLEAR_ERROR' });
@@ -637,6 +682,10 @@ function PhoneScreen({
     return () => {
       clearInterval(refresh);
       appSubscription.remove();
+      if (registrationRetryRef.current) {
+        clearTimeout(registrationRetryRef.current);
+        registrationRetryRef.current = null;
+      }
       voice.removeListener(Voice.Event.CallInvite, onInvite);
       voice.removeListener(Voice.Event.Registered, onRegistered);
       voice.removeListener(Voice.Event.Unregistered, onUnregistered);
@@ -720,9 +769,15 @@ function PhoneScreen({
     setNote('');
     dispatch({ type: 'DIAL', phone: target, displayName: dialName });
     try {
+      if (lineMode === 'automatic') {
+        const resolved = await resolveSuggestedLine(token, target);
+        if (!lines.some(line => line.number === resolved.line.number)) throw new Error('Choose an available company line.');
+        setSelectedLine(resolved.line.number);
+      } else if (!selectedLine) throw new Error('Choose a company line before calling.');
       const call = await voice.connect(voiceToken, {
         params: {
           To: target,
+          ...(lineMode === 'automatic' ? { CallerIdMode: 'customer_history' } : {}),
           ...(lineMode === 'manual' && selectedLine
             ? { PreferredFromNumber: selectedLine }
             : {}),
@@ -1134,9 +1189,9 @@ function PhoneScreen({
                     lineMode === 'automatic' && styles.callerIdLabelSelected,
                   ]}
                 >
-                  Auto ·{' '}
+                  Customer’s line ·{' '}
                   {lines.find(line => line.number === selectedLine)?.label ||
-                    'Closest'}
+                    'Choose a line'}
                 </Text>
               </Pressable>
               {lines.map(line => (
@@ -1171,7 +1226,7 @@ function PhoneScreen({
             <TextInput
               value={number}
               onChangeText={value => {
-                setNumber(value);
+                setNumber(formatDialEntry(value));
                 setDialName('');
               }}
               keyboardType="phone-pad"
@@ -1203,23 +1258,24 @@ function PhoneScreen({
           </View>
           <Keypad
             onDigit={digit => {
-              setNumber(current => `${current}${digit}`);
+              setNumber(current => formatDialEntry(`${current}${digit}`));
               setDialName('');
             }}
           />
+          {lineMode === 'automatic' && <Text style={styles.promiseCopy}>{lineNotice}</Text>}
           {!!state.error && <Text style={styles.errorText}>{state.error}</Text>}
           <Pressable
-            disabled={!registered || !normalizeDialTarget(number) || busy}
+            disabled={!registered || !normalizeDialTarget(number) || busy || (lineMode === 'automatic' && !selectedLine)}
             onPress={placeCall}
             style={({ pressed }) => [
               styles.callButton,
-              (!registered || !normalizeDialTarget(number) || busy) &&
+              (!registered || !normalizeDialTarget(number) || busy || (lineMode === 'automatic' && !selectedLine)) &&
                 styles.buttonDisabled,
               pressed && styles.pressed,
             ]}
           >
             <Text style={styles.callButtonText}>
-              Call from {lineMode === 'automatic' ? 'Auto · ' : ''}
+              Call from {lineMode === 'automatic' ? 'Customer’s line · ' : ''}
               {lines.find(line => line.number === selectedLine)?.label ||
                 'Saturn Star'}
             </Text>
