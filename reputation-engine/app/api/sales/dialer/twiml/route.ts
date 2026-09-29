@@ -552,16 +552,19 @@ export async function POST(request: Request) {
       : null
     const outboundPreferredFrom =
       ((formData.get('preferredFromNumber') as string | null) || (formData.get('PreferredFromNumber') as string | null) || '').trim() || null
+    const historyOnly = formData.get('CallerIdMode') === 'customer_history'
     const callerIdResolution = await resolveVoiceCallerId({
+      historyOnly,
       leadId: outboundLeadId,
       phone: dialTarget,
       preferredFromNumber: outboundPreferredFrom,
-    }).catch(() => ({
+    }).catch(() => historyOnly ? null : ({
       fromNumber: getDefaultSaturnBranchNumber(),
       branchLabel: getSaturnBranchLabel(getDefaultSaturnBranchNumber()),
       matchedLeadId: outboundLeadId,
       reason: 'default' as const,
     }))
+    if (!callerIdResolution) return xmlResponse('<?xml version="1.0" encoding="UTF-8"?><Response><Say>We could not verify the customer line. Please choose a company number in the app and try again.</Say><Hangup/></Response>')
     const appUrl = getRequestOrigin(request) || getAppUrl()
     const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
     const dialStatusParams = new URLSearchParams()

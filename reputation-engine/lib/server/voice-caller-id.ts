@@ -1,12 +1,12 @@
 import { latestInboundCallbackNumber } from '@/lib/inbound-callback-number'
 import {
+  coerceSaturnBranchPhoneNumber,
   DEFAULT_SATURN_BRANCH_NUMBER,
   getSaturnBranchLabel,
   getSaturnBranchNumberForSalesBranch,
   getSaturnBranchNumberFromRawData,
   getSaturnBusinessNumberFromSmsMessage,
   inferSaturnBranchPhoneNumberFromCity,
-  inferSaturnBranchPhoneNumberFromPhone,
   isSaturnBranchPhoneNumber,
   normalizePhone,
   pickSaturnBranchPhoneNumber,
@@ -18,6 +18,7 @@ import type { CRMLead } from '@/lib/types'
 export type VoiceCallerIdResolutionReason =
   | 'explicit'
   | 'customer_inbound_call'
+  | 'customer_inbound_sms'
   | 'lead_sms_thread'
   | 'lead_recent_call'
   | 'lead_inbound_number'
@@ -43,6 +44,7 @@ type ResolveVoiceCallerIdInput = {
   phone?: string | null
   email?: string | null
   inboundId?: string | null
+  historyOnly?: boolean
   preferredFromNumber?: string | null
 }
 
@@ -168,19 +170,20 @@ export async function resolveVoiceCallerId(input: ResolveVoiceCallerIdInput): Pr
     return { fromNumber: callbackNumber, branchLabel: getSaturnBranchLabel(callbackNumber),
       matchedLeadId: matchedLead?.id || null, reason: 'customer_inbound_call' }
   }
+  if (contactPhone) {
+    const messages = await listSmsMessages(contactPhone).catch(() => [] as SmsMessageRecord[])
+    const incomingNumber = [...messages]
+      .filter(message => message.direction === 'inbound' && normalizePhone(message.from_number) === contactPhone)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map(message => coerceSaturnBranchPhoneNumber(message.to_number))
+      .find(Boolean)
+    if (incomingNumber) return { fromNumber: incomingNumber, branchLabel: getSaturnBranchLabel(incomingNumber),
+      matchedLeadId: matchedLead?.id || null, reason: 'customer_inbound_sms' }
+  }
+  if (input.historyOnly) throw new Error('No incoming call or text identifies this customer’s company line. Choose a company number to continue.')
   if (matchedLead) {
     const resolution = await resolveLeadDerivedCallerId(matchedLead, directLead ? 'lead' : 'contact_match')
     if (resolution) return resolution
-  }
-
-  const areaCodeBranch = inferSaturnBranchPhoneNumberFromPhone(normalizedPhone)
-  if (areaCodeBranch) {
-    return {
-      fromNumber: areaCodeBranch,
-      branchLabel: getSaturnBranchLabel(areaCodeBranch),
-      matchedLeadId: matchedLead?.id || directLead?.id || null,
-      reason: 'phone_area_code',
-    }
   }
 
   const fallback = pickSaturnBranchPhoneNumber(DEFAULT_SATURN_BRANCH_NUMBER)

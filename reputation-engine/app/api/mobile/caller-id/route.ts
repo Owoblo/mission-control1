@@ -16,16 +16,16 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const resolution = await resolveVoiceCallerId({
-    phone: searchParams.get('phone'),
-    leadId: searchParams.get('leadId'),
-  })
-  const suggested = allowedSalesLines.find(line => line.number === resolution.fromNumber)
-    || allowedSalesLines[0]
-
-  return NextResponse.json({
-    ok: true,
-    line: suggested,
-    reason: suggested.number === resolution.fromNumber ? resolution.reason : 'assigned_branch',
-  })
+  try {
+    const resolution = await resolveVoiceCallerId({
+      phone: searchParams.get('phone'),
+      leadId: searchParams.get('leadId'),
+      historyOnly: true,
+    })
+    const suggested = allowedSalesLines.find(line => line.number === resolution.fromNumber)
+    if (!suggested) return NextResponse.json({ error: 'The customer contacted a line you cannot use. Choose an available company number or ask your manager.', requiresSelection: true }, { status: 403 })
+    return NextResponse.json({ ok: true, line: suggested, reason: resolution.reason })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not verify the customer’s line. Choose a company number.', requiresSelection: true }, { status: 422 })
+  }
 }

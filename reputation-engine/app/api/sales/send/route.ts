@@ -1,3 +1,4 @@
+import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace, canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import {
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       quoteId?: string
       notes?: string
       fromNumber?: string
+      senderMode?: 'customer_history'
       mediaUrls?: string[]
       replyEmailIds?: string[]
       actor?: 'human' | 'automation'
@@ -75,6 +77,14 @@ export async function POST(request: Request) {
 
     if (!payload.channel || !payload.to || !body) {
       return NextResponse.json({ error: 'channel, to, and body are required' }, { status: 400 })
+    }
+    if (payload.channel === 'sms' && payload.senderMode === 'customer_history') {
+      try {
+        const resolution = await resolveVoiceCallerId({ phone: payload.to, leadId: payload.leadId, historyOnly: true })
+        payload.fromNumber = resolution.fromNumber
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Choose a company number before sending.' }, { status: 422 })
+      }
     }
     if (
       request.headers.get('authorization') &&
