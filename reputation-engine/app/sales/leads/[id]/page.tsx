@@ -1,4 +1,6 @@
 'use client'
+
+import { lostTransitionError } from '@/lib/lead-verification'
 import PaymentRecoveryPanel from '@/app/components/payment-recovery-panel'
 
 import { OperatingPlanPanel } from '@/app/components/sales/lead-detail/operating-plan-panel'
@@ -1807,6 +1809,7 @@ export default function SalesLeadDetailPage() {
   }
 
   function openLostModal() {
+    setError(null)
     setLostReason('')
     setLostNotes('')
     setAiLossSuggested(false)
@@ -1828,10 +1831,12 @@ export default function SalesLeadDetailPage() {
 
   async function handleConfirmLost() {
     if (!lostReason || (!['timing', 'no_response'].includes(lostReason) && !lostNotes.trim())) return
-    setShowLostModal(false)
     const target = ['timing', 'no_response'].includes(lostReason) ? 'nurture' : pendingStage || 'lost'
-    setPendingStage(null)
-    await saveLead({ skipLostCheck: true, pendingStageName: target })
+    if (!lead) return
+    const validation = target === 'lost' ? lostTransitionError({ ...lead, stage: 'new' }, { ...lead, stage: 'lost', lostReason, lostNotes }) : null
+    if (validation) { setError(validation); return }
+    const saved = await saveLead({ skipLostCheck: true, pendingStageName: target })
+    if (saved) { setShowLostModal(false); setPendingStage(null) }
   }
 
   async function handleApptSmsConfirm(sendSms: boolean) {
@@ -5900,7 +5905,7 @@ export default function SalesLeadDetailPage() {
 
       {showUnsavedLeaveModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
+          <div role="dialog" aria-modal="true" aria-labelledby="lead-loss-title" className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
             <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Leave before changes finish syncing?</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">
               <strong className="text-[var(--app-ink)]">{lead?.name || 'This lead'}</strong> still has edits waiting to sync. Save once now, or leave without the latest changes.
@@ -5980,9 +5985,9 @@ export default function SalesLeadDetailPage() {
       {/* ── Lost Reason Modal ────────────────────────────────────── */}
       {showLostModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
+          <div role="dialog" aria-modal="true" aria-labelledby="lead-loss-title" className="w-full max-w-md rounded-[16px] border border-[var(--app-line)] bg-white p-6 shadow-none">
             <div className="flex items-start justify-between gap-3">
-              <h2 className="font-display text-lg font-semibold text-[var(--app-ink)]">Why was this lead lost?</h2>
+              <h2 id="lead-loss-title" className="font-display text-lg font-semibold text-[var(--app-ink)]">Why was this lead lost?</h2>
               {aiLossLoading && <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-500 animate-pulse">AI reading…</span>}
               {!aiLossLoading && aiLossSuggested && <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-600">AI pre-filled</span>}
             </div>
@@ -6006,10 +6011,11 @@ export default function SalesLeadDetailPage() {
               placeholder="Required for Lost: what confirms the loss? Include the message, call date, or other evidence."
             />
             <div className="mt-4 flex items-center justify-end gap-3">
-              <button onClick={() => { setShowLostModal(false); setStage(lead?.stage || 'new') }} className="crm-button text-sm">Cancel</button>
+              {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+              <button disabled={saving} onClick={() => { setShowLostModal(false); setStage(lead?.stage || 'new') }} className="crm-button text-sm">Cancel</button>
               <button
                 onClick={() => void handleConfirmLost()}
-                disabled={!lostReason || (!['timing', 'no_response'].includes(lostReason) && !lostNotes.trim())}
+                disabled={saving || !lostReason || (!['timing', 'no_response'].includes(lostReason) && !lostNotes.trim())}
                 className="crm-button-dark text-sm disabled:opacity-50"
               >
                 {['timing', 'no_response'].includes(lostReason) ? 'Keep active — move to Nurture' : 'Mark as Lost'}

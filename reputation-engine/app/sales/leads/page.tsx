@@ -8,6 +8,7 @@ import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/l
 import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDeletedSalesLead, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
+import { LostLeadDialog } from '@/app/components/sales/lost-lead-dialog'
 import { ConfirmDialog } from '@/app/components/confirm-dialog'
 
 type LeadViewMode = 'focus' | 'nurture' | 'booked' | 'all' | 'realtor' | 'deleted'
@@ -196,23 +197,13 @@ function SalesLeadsIndexContent() {
     setPendingRowAction({ kind: 'not-interested', lead })
   }
 
-  async function executeMarkNotInterested(lead: CRMLead) {
-    setPendingRowAction(null)
+  async function saveReviewedStatus(lead: CRMLead, patch: Partial<CRMLead>) {
+    setRowActionId(lead.id)
     try {
-      setRowActionId(lead.id)
-      await updateSalesLead(lead.id, {
-        stage: 'lost',
-        lostReason: 'not_interested',
-        lostAt: new Date().toISOString(),
-      })
-      setLeads(current => current.filter(item => item.id !== lead.id))
-    } catch (err) {
-      const msg = (err as Error).message || ''
-      if (msg.includes('only edit') || msg.includes('403')) {
-        setError(`Can't mark "${lead.name}" as lost — this lead is assigned to another rep. Ask your manager to update it.`)
-      } else {
-        setError(msg || 'Failed to update lead.')
-      }
+      const saved = await updateSalesLead(lead.id, patch)
+      setLeads(current => current.map(item => item.id === saved.id ? saved : item))
+      setPendingRowAction(null)
+      setError(null)
     } finally {
       setRowActionId(null)
     }
@@ -597,8 +588,14 @@ function SalesLeadsIndexContent() {
           </div>
         </div>
       )}
+      {pendingRowAction?.kind === 'not-interested' && <LostLeadDialog
+        key={pendingRowAction.lead.id}
+        lead={pendingRowAction.lead}
+        onCancel={() => setPendingRowAction(null)}
+        onSave={patch => saveReviewedStatus(pendingRowAction.lead, patch)}
+      />}
       <ConfirmDialog
-        open={pendingRowAction !== null}
+        open={pendingRowAction?.kind === 'delete'}
         title={pendingRowAction?.kind === 'delete' ? 'Delete this lead?' : 'Mark as not interested?'}
         message={
           pendingRowAction?.kind === 'delete'
@@ -611,7 +608,7 @@ function SalesLeadsIndexContent() {
         onConfirm={() => {
           if (!pendingRowAction) return
           if (pendingRowAction.kind === 'delete') void executeDeleteLead(pendingRowAction.lead)
-          else void executeMarkNotInterested(pendingRowAction.lead)
+
         }}
         onCancel={() => setPendingRowAction(null)}
       />
