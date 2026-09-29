@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { CRMLead } from '@/lib/types'
+import { lostTransitionError } from '@/lib/lead-verification'
 import { LOST_REASONS } from '@/lib/sales'
 
 export function LostLeadDialog({ lead, onCancel, onSave }: { lead: CRMLead; onCancel: () => void; onSave: (patch: Partial<CRMLead>) => Promise<void> }) {
@@ -10,6 +11,8 @@ export function LostLeadDialog({ lead, onCancel, onSave }: { lead: CRMLead; onCa
   const [error, setError] = useState('')
   const nurture = reason === 'timing' || reason === 'no_response'
   async function save() {
+    const validation = nurture ? null : lostTransitionError({ ...lead, stage: 'new' }, { ...lead, stage: 'lost', lostReason: reason, lostNotes: note.trim() })
+    if (validation) { setError(validation); return }
     setBusy(true); setError('')
     try { await onSave(nurture ? { stage: 'nurture', followUpNote: note.trim() || (reason === 'timing' ? 'Waiting for the customer’s move timing.' : 'Awaiting a customer response.') } : { stage: 'lost', lostReason: reason, lostNotes: note.trim() }) }
     catch(error) { setError(error instanceof Error ? error.message : 'Could not save stage change.') }
