@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { isWithinNurtureReturnWindow, nextNurtureCheckInDate, applyNurtureTransition, recordNurtureCheckIn, validNurtureDate } from '../../lib/nurture-policy'
+import { isWithinNurtureReturnWindow, nextNurtureCheckInDate, applyNurtureTransition, recordNurtureCheckIn, validNurtureDate, nurtureReminderDue } from '../../lib/nurture-policy'
 
 test('nurture leads return inside the configured move window', () => {
   const today = new Date('2026-10-02T12:00:00Z')
@@ -45,4 +45,12 @@ test('Nurture → Follow-Up clears the nurture reminder', () => {
   const result = applyNurtureTransition(current, { ...current, stage: 'contacted', followUpDate: '2026-10-02' }, now)
   assert.equal(result.nurtureNextCheckInAt, undefined)
   assert.equal(result.followUpDate, '2026-10-02')
+})
+
+test('nurture notification is due only for the current schedule and active nurture stage', () => {
+  const current = { ...lead, stage: 'nurture' as const, followUpDate: '2026-10-02' }
+  assert.equal(nurtureReminderDue(current, now), true)
+  assert.equal(nurtureReminderDue({ ...current, followUpDate: '2026-10-03' }, now), false)
+  assert.equal(nurtureReminderDue({ ...current, stage: 'lost' }, now), false)
+  assert.equal(nurtureReminderDue(recordNurtureCheckIn(current, 'Customer contacted', { name: 'Rep' }, now), now), false)
 })

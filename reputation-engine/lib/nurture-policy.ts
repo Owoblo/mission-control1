@@ -38,3 +38,7 @@ export function recordNurtureCheckIn(lead: CRMLead, notes: string, actor: { name
   const date = nextNurtureCheckInDate(now, lead.nurtureIntervalDays)
   return { ...lead, nurtureLastCheckInAt: now.toISOString(), followUpDate: date, followUpStatus: 'pending', nurtureNextCheckInAt: date + 'T14:00:00.000Z', nurtureCheckIns: [...(lead.nurtureCheckIns || []), { id: crypto.randomUUID(), at: now.toISOString(), notes: notes.trim(), actorName: actor.name, actorUserId: actor.userId }] }
 }
+
+export function nurtureReminderDue(lead: CRMLead, now = new Date()) {
+  return lead.stage === 'nurture' && validNurtureDate(lead.followUpDate) && lead.followUpDate <= calendarDate(now)
+}
