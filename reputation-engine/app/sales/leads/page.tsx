@@ -452,7 +452,7 @@ function SalesLeadsIndexContent() {
             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-4">
               <div><dt>Market</dt><dd>{guidance.branchLabel}</dd></div>
               <div><dt>Expected move</dt><dd>{lead.moveDate || 'Needs confirmation'}</dd></div>
-              <div><dt>Last contact</dt><dd>{lead.nurtureLastCheckInAt ? formatRelativeTime(lead.nurtureLastCheckInAt) : formatRelativeTime(guidance.latestActivity.at)}</dd></div>
+              <div><dt>Last contact</dt><dd>{(() => { const at = [lead.nurtureLastCheckInAt, lead.lastInboundAt, lead.lastOutboundAt, ...(lead.callLogs || []).map(call => call.date), ...followUps.filter(log => log.leadId === lead.id && ['call', 'email', 'sms'].includes(log.type)).map(log => log.date)].filter((value): value is string => Boolean(value)).sort().at(-1); return at ? formatRelativeTime(at) : 'No contact recorded' })()}</dd></div>
               <div><dt>Next check-in</dt><dd>{lead.followUpDate || 'Set check-in date'}</dd></div>
             </dl>
             <p className="mt-3 text-sm text-violet-700">Open to log a check-in or update the schedule</p>
