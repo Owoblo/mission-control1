@@ -2,15 +2,18 @@
 import { useState } from 'react'
 import type { CRMLead } from '@/lib/types'
 import { lostTransitionError } from '@/lib/lead-verification'
+import { NurtureDialog } from './nurture-dialog'
 import { LOST_REASONS } from '@/lib/sales'
 
 export function LostLeadDialog({ lead, onCancel, onSave }: { lead: CRMLead; onCancel: () => void; onSave: (patch: Partial<CRMLead>) => Promise<void> }) {
+  const [showNurture, setShowNurture] = useState(false)
   const [reason, setReason] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const nurture = reason === 'timing' || reason === 'no_response'
   async function save() {
+    if (nurture) { setShowNurture(true); return }
     const validation = nurture ? null : lostTransitionError({ ...lead, stage: 'new' }, { ...lead, stage: 'lost', lostReason: reason, lostNotes: note.trim() })
     if (validation) { setError(validation); return }
     setBusy(true); setError('')
@@ -18,6 +21,7 @@ export function LostLeadDialog({ lead, onCancel, onSave }: { lead: CRMLead; onCa
     catch(error) { setError(error instanceof Error ? error.message : 'Could not save stage change.') }
     finally { setBusy(false) }
   }
+  if (showNurture) return <NurtureDialog lead={lead} onClose={onCancel} onSaved={() => { window.location.reload() }} />
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-labelledby="lost-review-title" className="w-full max-w-md space-y-3 rounded-xl bg-white p-6">
     <h2 id="lost-review-title" className="text-lg font-semibold">Review {lead.name}’s status</h2>
     <p className="text-sm">Record evidence of the loss. Waiting for a house sale, a date, or a reply belongs in Nurture.</p>

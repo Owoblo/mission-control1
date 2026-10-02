@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { generateConditionTasks } from '../../lib/server/task-generation'
+import { generateConditionTasks, isLeadTaskCurrent } from '../../lib/server/task-generation'
 import type { CRMLead } from '../../lib/types'
 
 function lead(overrides: Partial<CRMLead> = {}): CRMLead {
@@ -24,4 +24,28 @@ test('tentative reservations receive a decision task with a stable source key', 
   const decision = tasks.find(task => task.sourceKey === 'tentative-decision:lead-task-1:2026-08-11')
   assert.equal(decision?.priority, 'urgent')
   assert.match(decision?.description || '', /deposit or release/i)
+})
+
+test('nurture check-ins create accountable work without becoming sales follow-up tasks', () => {
+  const tasks = generateConditionTasks([
+    lead({ stage: 'nurture', assignedRepUserId: 'rep-2', assignedRepName: 'Jordan', followUpDate: '2026-10-16', followUpNote: 'Check in on the move date' }),
+  ], [], new Date('2026-10-16T12:00:00Z'))
+  const nurtureTask = tasks.find(task => task.sourceKey === 'lead-nurture-check-in:lead-task-1:2026-10-16')
+  assert.equal(nurtureTask?.category, 'nurture')
+  assert.equal(nurtureTask?.ownerUserId, 'rep-2')
+})
+
+test('Lost creates no new tasks and removes persisted open tasks', () => {
+  const current = lead({ stage: 'lost', followUpDate: '2026-10-02', tentativeReservationStatus: 'active', tentativeDecisionDate: '2026-10-02' })
+  assert.equal(generateConditionTasks([current], []).length, 0)
+  const task = generateConditionTasks([lead({followUpDate: '2026-10-02'})], [])[0]
+  assert.equal(isLeadTaskCurrent(task, current), false)
+  assert.equal(isLeadTaskCurrent(task, { ...current, stage: 'nurture' }), false)
+})
+test('previous nurture reminders become obsolete after a check-in or return', () => {
+  const current = lead({ stage: 'nurture', followUpDate: '2026-10-16' })
+  const task = generateConditionTasks([current], [])[0]
+  assert.equal(isLeadTaskCurrent(task, current), true)
+  assert.equal(isLeadTaskCurrent(task, { ...current, followUpDate: '2026-10-30' }), false)
+  assert.equal(isLeadTaskCurrent(task, { ...current, stage: 'contacted' }), false)
 })
