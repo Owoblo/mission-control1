@@ -168,6 +168,9 @@ const OPTIONAL_TEXT_FIELDS = [
   'identityPhone',
   'identityEmail',
   'followUpDate',
+  'nurtureLastCheckInAt',
+  'nurtureNextCheckInAt',
+  'nurtureReturnedAt',
   'moveDateFlexibleReason',
   'originAddress',
   'originCity',
@@ -275,6 +278,8 @@ const BOOLEAN_FIELDS = [
 ] satisfies Array<keyof CRMLead>
 
 const NUMERIC_FIELDS = [
+  'nurtureIntervalDays',
+  'nurtureReturnWindowDays',
   'additionalStops',
   'originStairFlights',
   'destStairFlights',

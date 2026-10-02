@@ -26,3 +26,10 @@ test('Missing quote, partial payment timestamp and default zero balance do not i
  assert.equal(hasFullQuotePayment({paymentStatus:'deposit_received'},{...quote,balance:0,balancePaidAt:'2026-09-16',balancePaidAmount:100}),false)
  assert.equal(hasFullQuotePayment({paymentStatus:'pending'},{...quote,depositPaidAmount:250,balancePaidAmount:750}),true)
 })
+
+test('Lost and Nurture survive stale quote refreshes but allow a paid booking', () => {
+ for (const stage of ['lost', 'nurture'] as const) {
+  for (const status of ['draft', 'sent', 'viewed', 'declined'] as const) assert.equal(syncLeadFromQuoteStatus({...lead, stage}, {...quote, status}).stage, stage)
+  assert.equal(syncLeadFromQuoteStatus({...lead, stage}, {...quote, depositPaidAmount:250}).stage, 'booked')
+ }
+})

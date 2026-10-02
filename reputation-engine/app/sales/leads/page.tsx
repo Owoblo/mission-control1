@@ -11,7 +11,7 @@ import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 import { LostLeadDialog } from '@/app/components/sales/lost-lead-dialog'
 import { ConfirmDialog } from '@/app/components/confirm-dialog'
 
-type LeadViewMode = 'focus' | 'nurture' | 'booked' | 'all' | 'realtor' | 'deleted'
+type LeadViewMode = 'focus' | 'lost' | 'nurture' | 'booked' | 'all' | 'realtor' | 'deleted'
 type DeletedLeadRow = CRMLead & { _deletedAt?: string }
 type DecoratedLeadRow = {
   lead: CRMLead
@@ -24,6 +24,7 @@ type DecoratedLeadRow = {
 
 const LEAD_VIEW_MODES: Array<{ id: LeadViewMode; label: string; description: string }> = [
   { id: 'focus', label: 'Needs Follow-Up', description: 'Only leads with a live next action.' },
+  { id: 'lost', label: 'Lost', description: 'Confirmed losses, kept out of active follow-up.' },
   { id: 'nurture', label: 'Nurture', description: 'Waiting on timing or a reply. Review the history and record the next follow-up.' },
   { id: 'booked', label: 'Booked', description: 'Booked and completed jobs that still matter operationally.' },
   { id: 'all', label: 'All Active', description: 'Everything active except deleted and lost.' },
@@ -240,7 +241,7 @@ function SalesLeadsIndexContent() {
       const guidance = getLeadGuidance(lead, quote, followUps)
       const isBooked = isBookedLikeStage(lead.stage)
       const isClosed = isClosedLeadStage(lead.stage)
-      const isActionable = !isBooked && !isClosed && guidance.action.priority >= 50
+      const isActionable = !isBooked && !isClosed && lead.stage !== 'nurture' && guidance.action.priority >= 50
       return { lead, quote, guidance, isBooked, isClosed, isActionable }
     })
   }, [followUps, leads, query, quotes])
@@ -249,6 +250,7 @@ function SalesLeadsIndexContent() {
     () => decoratedLeads.filter(item => item.isActionable).sort((left, right) => compareLeadsByGuidance(left, right)),
     [decoratedLeads]
   )
+  const lostLeads = decoratedLeads.filter(item => item.lead.stage === 'lost')
   const nurtureLeads = useMemo(() => decoratedLeads.filter(item => item.lead.stage === 'nurture').sort((a, b) => compareLeadsByGuidance(a, b)), [decoratedLeads])
   const bookedLeads = useMemo(
     () => decoratedLeads.filter(item => item.isBooked).sort(sortBookedLeads),
@@ -281,13 +283,13 @@ function SalesLeadsIndexContent() {
   const todaysCallList = useMemo(
     () => decoratedLeads.filter(({ lead }) =>
       lead.followUpDate && lead.followUpDate <= today &&
-      !isBookedLikeStage(lead.stage) && !isClosedLeadStage(lead.stage)
+      lead.stage !== 'nurture' && !isBookedLikeStage(lead.stage) && !isClosedLeadStage(lead.stage)
     ).sort((a, b) => (a.lead.followUpDate || '').localeCompare(b.lead.followUpDate || '')),
     [decoratedLeads, today]
   )
 
-  const visibleLeads = viewMode === 'nurture' ? nurtureLeads : viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : viewMode === 'realtor' ? realtorLeads : activeLeads
-  const emptyText = viewMode === 'nurture' ? 'No leads in Nurture match this filter.' :
+  const visibleLeads = viewMode === 'lost' ? lostLeads : viewMode === 'nurture' ? nurtureLeads : viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : viewMode === 'realtor' ? realtorLeads : activeLeads
+  const emptyText = viewMode === 'lost' ? 'No lost leads match this filter.' : viewMode === 'nurture' ? 'No leads in Nurture match this filter.' :
     viewMode === 'focus'
       ? 'No leads currently need live follow-up.'
       : viewMode === 'booked'
@@ -320,7 +322,7 @@ function SalesLeadsIndexContent() {
           <div className="flex flex-wrap gap-2">
             {LEAD_VIEW_MODES.map(mode => {
               const count =
-                mode.id === 'nurture' ? nurtureLeads.length : mode.id === 'focus'
+                mode.id === 'lost' ? lostLeads.length : mode.id === 'nurture' ? nurtureLeads.length : mode.id === 'focus'
                   ? focusLeads.length
                   : mode.id === 'booked'
                     ? bookedLeads.length
@@ -440,6 +442,21 @@ function SalesLeadsIndexContent() {
               ))}
             </div>
           )}
+        </div>
+      ) : viewMode === 'nurture' ? (
+        <div className="space-y-3">
+          {!nurtureLeads.length && <p>{emptyText}</p>}
+          {nurtureLeads.map(({ lead, guidance }) => <Link key={lead.id} href={`/sales/leads/${lead.id}`} className="block rounded-lg border bg-white p-4">
+            <div className="font-semibold">{lead.name}</div>
+            <div className="text-sm">{[lead.phone, lead.email].filter(Boolean).join(' · ') || 'Contact details missing'}</div>
+            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-4">
+              <div><dt>Market</dt><dd>{guidance.branchLabel}</dd></div>
+              <div><dt>Expected move</dt><dd>{lead.moveDate || 'Needs confirmation'}</dd></div>
+              <div><dt>Last contact</dt><dd>{(() => { const at = [lead.nurtureLastCheckInAt, lead.lastInboundAt, lead.lastOutboundAt, ...(lead.callLogs || []).map(call => call.date), ...followUps.filter(log => log.leadId === lead.id && ['call', 'email', 'sms'].includes(log.type)).map(log => log.date)].filter((value): value is string => Boolean(value)).sort().at(-1); return at ? formatRelativeTime(at) : 'No contact recorded' })()}</dd></div>
+              <div><dt>Next check-in</dt><dd>{lead.followUpDate || 'Set check-in date'}</dd></div>
+            </dl>
+            <p className="mt-3 text-sm text-violet-700">Open to log a check-in or update the schedule</p>
+          </Link>)}
         </div>
       ) : (
         <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-panel)]">

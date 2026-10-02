@@ -1175,6 +1175,12 @@ export interface CRMLead {
   followUpDate?: string
   followUpNote?: string
   followUpStatus?: LeadFollowUpStatus
+  nurtureCheckIns?: Array<{ id: string; at: string; notes: string; actorName?: string; actorUserId?: string }>
+  nurtureIntervalDays?: number
+  nurtureReturnWindowDays?: number
+  nurtureLastCheckInAt?: string
+  nurtureNextCheckInAt?: string
+  nurtureReturnedAt?: string
   surveyToken?: string
   surveyTokenExpiresAt?: string
   surveyTokenPartyB?: string

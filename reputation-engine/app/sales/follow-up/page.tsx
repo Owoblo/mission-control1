@@ -40,7 +40,7 @@ function urgencyScore(lead: CRMLead): number {
 }
 
 function hasLiveFollowUp(lead: CRMLead) {
-  if (isClosedLeadStage(lead.stage) || lead.stage === 'booked') return false
+  if (isClosedLeadStage(lead.stage) || lead.stage === 'booked' || lead.stage === 'nurture') return false
 
   // A lead belongs on the Follow-Up Wall only when it has an explicit next
   // touch or a workflow status that still requires one. Previously this view
