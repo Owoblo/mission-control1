@@ -4063,6 +4063,7 @@ export default function SalesLeadDetailPage() {
             {leadGuidance ? <div className="mt-5 space-y-2">
               <button type="button" onClick={() => void handleLeadCommandAction(leadGuidance.action.primaryCta.key)} className="crm-button-dark w-full">{leadGuidance.action.primaryCta.label}</button>
               {leadGuidance.ownerLabel === 'Unassigned' ? <button type="button" onClick={() => void handleLeadCommandAction('assign_to_me')} className="crm-button w-full border-amber-300 bg-amber-50 text-amber-900">Assign to me</button> : null}
+              <button type="button" onClick={() => void handleLeadCommandAction('move_to_nurture')} className="crm-button w-full border-violet-200 text-violet-700">{lead.stage === 'nurture' ? 'Nurture settings & check-in' : 'Move to Nurture'}</button>
               <details className="pt-1">
                 <summary className="min-h-11 cursor-pointer rounded-[4px] px-3 py-3 text-center text-sm font-medium text-[var(--app-muted)] hover:bg-white">More actions</summary>
                 <div className="mt-2 grid gap-2">
