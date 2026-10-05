@@ -29,6 +29,8 @@ interface Props {
   onClose: () => void
 }
 
+const DRAFT_KEY = 'crm:new-lead-draft:v1'
+
 const EMPTY = {
   name: '',
   phone: '',
@@ -57,11 +59,13 @@ export function NewLeadModal({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open) {
-      setForm({ ...EMPTY })
+      try {
+        const draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null')
+        if (draft?.form) setForm({ ...EMPTY, ...draft.form })
+        if (draft?.partnerReferral) setPartnerReferral(draft.partnerReferral)
+      } catch { /* Draft storage is optional; keep the in-memory form. */ }
       setError(null)
-      setSaving(false)
       setExistingLead(null)
-      setPartnerReferral(null)
       setTimeout(() => firstInputRef.current?.focus(), 80)
     }
   }, [open])
@@ -74,6 +78,11 @@ export function NewLeadModal({ open, onClose }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  useEffect(() => {
+    if (!open) return
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ form, partnerReferral })) } catch { /* Keep in-memory draft. */ }
+  }, [open, form, partnerReferral])
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm(f => ({ ...f, [key]: value }))
@@ -106,6 +115,7 @@ export function NewLeadModal({ open, onClose }: Props) {
   }, [existingLead])
 
   async function save(openEstimate = false) {
+    if (saving) return
     if (!form.name.trim() && !form.phone.trim()) {
       setError('Add at least a name or phone number.')
       return
@@ -139,6 +149,9 @@ export function NewLeadModal({ open, onClose }: Props) {
         destCity: form.destCity,
         notes: form.notes,
       } as Partial<CRMLead>)
+      try { sessionStorage.removeItem(DRAFT_KEY) } catch { /* Storage unavailable. */ }
+      setForm({ ...EMPTY })
+      setPartnerReferral(null)
       onClose()
       router.push(openEstimate ? `/sales/leads/${lead.id}?estimate=1` : `/sales/leads/${lead.id}`)
     } catch (err) {

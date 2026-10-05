@@ -1,3 +1,4 @@
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   getOperationsCalendarOccurrences,
@@ -63,3 +64,9 @@ assert.deepEqual(
   getOperationsCalendarOccurrences({ id: 'undated' }, { id: 'undated_quote' } as CRMQuote),
   [],
 )
+
+test('same-move supplements use the original calendar slot; separate bookings retain their own', () => {
+  const supplemental = { id: 'extra', parentLeadId: 'original', additionalJobKind: 'supplement' as const, moveDate: '2026-10-24' }
+  assert.deepEqual(getOperationsCalendarOccurrences(supplemental, null), [])
+  assert.equal(getOperationsCalendarOccurrences({ ...supplemental, additionalJobKind: 'separate' }, null).length, 1)
+})

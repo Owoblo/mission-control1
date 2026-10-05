@@ -1,5 +1,6 @@
 'use client'
 
+import { bundledPriceItems } from '@/lib/quote-bundled-price'
 import Link from 'next/link'
 import { type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
@@ -346,6 +347,9 @@ type Props = {
     total: number
     deposit: number
   }
+  saveError?: string
+  saveNotice?: string
+  onDismissSaveError?: () => void
   quoteModalBusy: boolean
   jobFactors: JobFactors
   destAddress: string
@@ -420,6 +424,9 @@ export function EstimateDraftModal({
   quoteDiscountLabel,
   quoteModalTotals,
   quoteModalBusy,
+  saveError,
+  saveNotice,
+  onDismissSaveError,
   jobFactors,
   moveDescription,
   internalNotes,
@@ -1277,11 +1284,12 @@ export function EstimateDraftModal({
     if (overrideItem && overrideItem.amount > 0) {
       setOverrideApplied(true)
       const savedCustomerTotal = Number(quote?.priceOverrideTotal || 0)
-      const derivedCustomerTotal = Math.round(Number(overrideItem.amount) * 1.13 * 100) / 100
+      const currentSubtotal = quoteLineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+      const derivedCustomerTotal = Math.round(currentSubtotal * 1.13 * 100) / 100
       const savedTotal = savedCustomerTotal > 0 ? savedCustomerTotal : derivedCustomerTotal
       const savedAsAllIn = Math.abs(savedTotal - derivedCustomerTotal) < 0.02
       setOverrideTaxMode(savedAsAllIn ? 'hst_included' : 'plus_hst')
-      setOverrideInput(String(savedAsAllIn ? savedTotal : overrideItem.amount))
+      setOverrideInput(String(savedAsAllIn ? savedTotal : currentSubtotal))
     } else if (!overrideItem) {
       setOverrideApplied(false)
     }
@@ -1484,9 +1492,15 @@ export function EstimateDraftModal({
     legsEnabled,
     legs,
     routeContext,
+    jobFactors,
+    inventory,
   ])
 
-  const pricingBreakdown = useMemo(() => {
+  useEffect(() => {
+    if (open && (saveError || saveNotice)) document.querySelector('[data-testid="quote-save-feedback"]')?.scrollIntoView({ block: 'nearest' })
+  }, [open, saveError, saveNotice])
+
+  const calculatedEstimate = useMemo(() => {
     if (!open) return null
     const inventoryMetricsSnapshot = deriveInventoryMetrics(inventory)
     const snapshot = {
@@ -1501,8 +1515,9 @@ export function EstimateDraftModal({
       distanceKm: distanceKm || route?.distanceKm || undefined,
       routeContext,
       legs: legsEnabled ? legs : undefined,
-    }, jobFactors).pricingBreakdown
+    }, jobFactors)
   }, [open, lead, inventory, jobFactors, quoteType, distanceKm, route, routeContext, legs, legsEnabled])
+  const pricingBreakdown = calculatedEstimate?.pricingBreakdown
   const operationalInventoryWeightLbs = deriveInventoryMetrics(inventory).totalWeightLbs
 
   useEffect(() => {
@@ -2285,6 +2300,8 @@ export function EstimateDraftModal({
     () => effectiveInventoryMetrics.inventory.filter(item => item.included !== false && item.status !== 'excluded'),
     [effectiveInventoryMetrics.inventory]
   )
+  const inventoryBoxCount = includedInventory.reduce((sum, item) => !/\bbox[\s-]*spring/i.test(item.name || item.item || '') && /\b(box(?:es)?|cartons?|bins?|totes?)\b/i.test(item.name || item.item || '') ? sum + Math.max(0, Number(item.qty || 1)) : sum, 0)
+  const extraBoxVolume = Math.max(0, Number(jobFactors.estimatedBoxes || 0) - Math.max(50, inventoryBoxCount)) * 1.5
   const unknownVolumeItems = useMemo(
     () => includedInventory.filter(item => Number(item.cubicFeet || 0) <= 0),
     [includedInventory]
@@ -2656,6 +2673,16 @@ export function EstimateDraftModal({
     }
   }
 
+  function separateCustomerServices() {
+    return quoteLineItems.filter(item => isProtectionLine(item.description) || [
+      packingLaborLineDescription,
+      packingMaterialsLineDescription,
+      junkLineDescription,
+      cleaningLineDescription,
+      containerHandlingLineDescription,
+    ].includes(item.description))
+  }
+
   function applyOverrideLineItem() {
     const amount = overrideAmount
     if (amount <= 0) return
@@ -2669,18 +2696,10 @@ export function EstimateDraftModal({
     const calculatedContext = pricingBreakdown
       ? `Calculated baseline before override: ${formatMoney(baseQuoteSubtotal)} pre-tax; operational estimate: ${pricingBreakdown.crewSize} movers, ${pricingBreakdown.truckCount} truck${pricingBreakdown.truckCount === 1 ? '' : 's'}, about ${pricingBreakdown.totalHours}h at ${formatMoney(pricingBreakdown.crewRatePerHour)}/hr`
       : `Calculated baseline before override: ${formatMoney(baseQuoteSubtotal)} pre-tax`
-    const separateServices = quoteLineItems.filter(item => isProtectionLine(item.description) || [
-      packingLaborLineDescription,
-      packingMaterialsLineDescription,
-      junkLineDescription,
-      cleaningLineDescription,
-      containerHandlingLineDescription,
-    ].includes(item.description))
-    onSetLineItems([{
-      description: 'Moving Services — Agreed Rate',
-      details: `${getOverrideReasonLabel(overrideReason)} — ${note}. ${calculatedContext}. ${marginText}. ${approvalText}.`,
-      amount,
-    }, ...separateServices])
+    try {
+      onSetLineItems(bundledPriceItems(amount, separateCustomerServices(), `${getOverrideReasonLabel(overrideReason)} — ${note}. ${calculatedContext}. ${marginText}. ${approvalText}.`))
+    } catch (error) { setOverrideApprovalNotice((error as Error).message); return }
+    onQuoteDiscountAmountChange(0)
     setOverrideApplied(true)
     setBookTodayActive(false)
     setTenPctActive(false)
@@ -2730,11 +2749,14 @@ export function EstimateDraftModal({
         onClick={event => event.stopPropagation()}
       >
         {pricingBreakdown?.planningReviewReasons?.length ? <div role="status" className="border-b border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><strong>Operating plan needs review before dispatch</strong><ul className="mt-2 list-disc pl-5">{pricingBreakdown.planningReviewReasons.map(reason => <li key={reason}>{reason}</li>)}</ul><p className="mt-2">Save the draft, then use Operating plan on the lead to record item evidence and operations review.</p></div> : null}
+        {saveError && <div data-testid="quote-save-feedback" role="alert" className="sticky top-0 z-40 flex items-start justify-between gap-3 border-b border-red-300 bg-red-50 px-5 py-4 text-sm text-red-900"><div><strong>Unable to complete this action</strong><p>{saveError}</p><p className="mt-1">Your current edits are still in this window.</p></div><button type="button" onClick={onDismissSaveError} aria-label="Dismiss save error" className="shrink-0 underline">Dismiss</button></div>}
+        {!saveError && saveNotice && <div data-testid="quote-save-feedback" role="status" className="sticky top-0 z-40 border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-900">{saveNotice}</div>}
         {/* Header */}
         <div className="flex flex-col gap-3 border-b border-[var(--app-line)] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
             <div className="crm-label">Estimate Draft</div>
-            <h2 id="estimate-draft-title" className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Preparing draft...'}</h2>
+            <h2 id="estimate-draft-title" className="mt-1 text-2xl font-semibold text-[var(--app-ink)]">{quote?.number || 'Estimate draft'}</h2>
+            <div data-testid="customer-quote-total" className="mt-2 text-lg font-bold text-[var(--app-ink)]">Customer price: {formatMoney(quoteModalTotals.total)} <span className="text-xs font-normal">including HST · {overrideApplied ? 'agreed price' : 'draft'}</span></div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--app-muted)]">
               <span>{quoteType === 'labor_only' ? `Work location: ${originFull || 'TBD'}` : `${originFull || 'Origin TBD'} → ${destFull || 'Destination TBD'}`}</span>
               <span>· {effectiveInventoryMetrics.totalCubicFeet} cu ft · {effectiveInventoryMetrics.totalWeightLbs} lbs</span>
@@ -4583,7 +4605,7 @@ export function EstimateDraftModal({
                                   </span>
                                   <span className="mt-0.5 shrink-0 text-[var(--app-muted)] text-[11px] select-none" title="Drag to move to another room">⠿</span>
                                   <div className="min-w-0">
-                                    <span className={`font-medium ${forceExcluded ? 'text-slate-500 line-through' : 'text-[var(--app-ink)]'}`}>{getInventoryDisplayLabel(el.item)}</span>
+                                    <input aria-label="Inventory item name" value={getInventoryDisplayLabel(el.item)} onChange={event => onUpdateInventoryItem(el.index, 'name', event.target.value)} className={`crm-input h-8 py-1 font-medium ${forceExcluded ? 'text-slate-500 line-through' : 'text-[var(--app-ink)]'}`} />
                                     {policyFinding ? (
                                       <div className="mt-1">
                                         <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -4628,6 +4650,10 @@ export function EstimateDraftModal({
                                   placeholder="Notes / scope details"
                                 />
                               </div>
+                              <details className="mt-2 text-xs"><summary className="cursor-pointer">Edit volume / weight per item</summary><div className="mt-2 flex flex-wrap gap-3">
+                                <label>Cu ft each <input aria-label="Cubic feet per item" type="number" min="0" step="0.5" value={el.item.cubicFeet || 0} onChange={event => onUpdateInventoryItem(el.index, 'cubicFeet', event.target.value)} className="crm-input w-20 py-1" /></label>
+                                <label>Lbs each <input aria-label="Pounds per item" type="number" min="0" value={el.item.weightLbs || 0} onChange={event => onUpdateInventoryItem(el.index, 'weightLbs', event.target.value)} className="crm-input w-20 py-1" /></label>
+                              </div></details>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 {conjointMode && (
                                   <button
@@ -5053,7 +5079,7 @@ export function EstimateDraftModal({
 
             {/* ── JOB FACTORS ── */}
             <div data-estimate-stage="inventory">
-                <details id="estimate-hidden-inventory" className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
+                <details open id="estimate-hidden-inventory" className="space-y-3 rounded-[8px] border-2 border-[#C99700]/50 bg-amber-50 p-4 lg:col-span-3">
                   <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
                     <div><div className="text-xs font-bold uppercase tracking-[0.14em] text-amber-900">+ Check additional inventory areas</div><p className="mt-1 text-xs text-amber-800">Review areas relevant to this move. Final inventory verification carries these answers forward.</p></div>
                     <div className={`rounded-full px-3 py-1 text-xs font-bold ${quoteReadyAssessment.hidden.every(area => area.resolved) ? 'bg-emerald-600 text-white' : 'bg-white text-amber-900'}`}>{quoteReadyAssessment.hidden.filter(area => area.resolved).length} / {quoteReadyAssessment.hidden.length} areas verified</div>
@@ -5070,12 +5096,13 @@ export function EstimateDraftModal({
                       const areaItems = includedInventory.filter(item => new RegExp(area.key === 'storage' ? 'storage|closet|locker' : area.key === 'outdoor' ? 'outdoor|patio|shed|garden' : area.key === 'boxes' ? 'box|boxes|bin|tote' : area.key, 'i').test(`${item.room || ''} ${item.name || item.item || ''}`))
                       return <div key={area.key} className="rounded-[8px] border border-amber-200 bg-white p-3">
                         <div className="text-xs font-bold text-[var(--app-ink)]">{area.label}</div>
+                        {areaItems.length > 0 && <ul className="mt-2 text-xs text-slate-700">{areaItems.map((item, index) => <li key={index}>{item.qty || 1} × {item.name || item.item}</li>)}</ul>}
                         <p className="mt-1 text-[11px] leading-4 text-[var(--app-muted)]">{area.resolved ? value?.note || 'Verified with the customer.' : areaItems.length ? `${areaItems.length} inventory entries already captured here. Verify these cover everything moving from this area.` : `Anything moving from ${area.label.toLowerCase()} that is missing from the list?`}</p>
                         <div className="mt-2 grid grid-cols-2 gap-1.5">
                           {([
                             ['customer_confirmed_empty', '✓ Customer says empty'],
                             ['not_applicable', '✓ No such area'],
-                            ['customer_confirmed', 'Items confirmed'],
+                            ['customer_confirmed', '✓ All moving items listed'],
                             ['observed', 'Seen in evidence'],
                             ['estimated', 'Estimated range'],
                             ['unknown', 'Still unverified'],
@@ -5092,7 +5119,7 @@ export function EstimateDraftModal({
                             </button>
                           ))}
                         </div>
-                        <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="What is there, why empty, or estimate basis" className="crm-input mt-2 w-full py-1.5 text-xs"/>
+                        <input value={value?.note || ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, state: value?.state || 'unknown', note: event.target.value, updatedAt: new Date().toISOString(), updatedBy: currentUser?.name || 'Sales' } } })} placeholder="Call notes — e.g. garage complete; loose tools will be boxed" className="crm-input mt-2 w-full py-1.5 text-xs"/>
                         {value?.state === 'estimated' && area.key !== 'boxes' ? <input type="number" min="0" value={value.estimatedCubicFeet ?? ''} onChange={event => onJobFactorsChange({ ...jobFactors, hiddenInventoryCoverage: { ...(jobFactors.hiddenInventoryCoverage || {}), [area.key]: { ...value, estimatedCubicFeet: event.target.value ? Number(event.target.value) : undefined } } })} placeholder="Estimated cubic feet" className="crm-input mt-2 w-full py-1.5 text-xs"/> : null}
                       </div>
                     })}
@@ -5435,26 +5462,16 @@ export function EstimateDraftModal({
                   </div>
                 </div>
 
-                {/* Boxes — always ask */}
                 <div className="space-y-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--app-ink)]">Boxes</div>
-                  <div className="text-xs text-[var(--app-muted)] leading-5">Always ask — boxes are the most commonly missed volume. Each standard box = ~1.5 cu ft.</div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-medium text-[var(--app-ink)]">Box count</span>
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={jobFactors.estimatedBoxes ?? ''}
-                      onChange={e => setFactor('estimatedBoxes', e.target.value ? Number(e.target.value) : undefined)}
-                      className="crm-input w-24 py-1.5 text-right text-sm font-semibold"
-                    />
-                  </div>
-                  {(jobFactors.estimatedBoxes || 0) > 0 && (
-                    <div className="rounded-[6px] bg-[var(--app-bg)] border border-[var(--app-line)] px-3 py-2 text-xs text-[var(--app-muted)]">
-                      +{Math.round((jobFactors.estimatedBoxes || 0) * 1.5)} cu ft added to estimate
-                    </div>
-                  )}
+                  <div className="text-xs font-semibold uppercase">Boxes</div>
+                  {inventoryBoxCount > 0 ? <div className="text-sm">✓ {inventoryBoxCount} boxes / bins already in inventory. Their recorded volume is included once. Edit those items in Inventory.</div> : <div className="text-xs text-slate-600">No box rows recorded yet. Add them in Inventory, or enter the customer's expected total below.</div>}
+                  <details open={inventoryBoxCount === 0 || Number(jobFactors.estimatedBoxes || 0) > inventoryBoxCount}>
+                    <summary className="cursor-pointer text-xs">{inventoryBoxCount > 0 ? 'Planning more boxes than listed?' : 'Expected box total'}</summary>
+                    <label className="mt-2 flex items-center justify-between gap-3 text-xs">Total expected boxes, including listed boxes
+                      <input type="number" min={inventoryBoxCount} value={jobFactors.estimatedBoxes ?? ''} onChange={e => setFactor('estimatedBoxes', e.target.value ? Number(e.target.value) : undefined)} className="crm-input w-24 py-1.5 text-right" />
+                    </label>
+                    <p className="mt-2 text-xs text-slate-500">{extraBoxVolume > 0 ? `${extraBoxVolume} cu ft added beyond recorded inventory and the 50-box allowance.` : 'No additional volume beyond recorded inventory and the standard allowance.'}</p>
+                  </details>
                 </div>
 
                 {/* Specialty Items — only items that need human confirmation; AI handles hot tub/pool table */}
@@ -5810,6 +5827,12 @@ export function EstimateDraftModal({
             </div>
 
             <div data-estimate-stage="review" className="space-y-4">
+              <div className="mt-4 rounded-lg border-2 border-slate-900 bg-white p-4">
+                <div className="text-xs font-semibold uppercase">Customer quote total · HST included</div>
+                <div className="text-2xl font-bold">{formatMoney(quoteModalTotals.total)}</div>
+                <p className="mt-1 text-xs text-slate-600">{overrideApplied ? 'An agreed price is active. Handling changes update the recommendation, but keep this agreed price until you apply a new price or clear the override.' : 'This is the current draft total. Internal costs and recommendations are for your review.'} Save your draft before sending the revised quote.</p>
+              </div>
+
               <div className="rounded-[12px] border border-[var(--app-line)] bg-white p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
@@ -5923,10 +5946,11 @@ export function EstimateDraftModal({
                 <div className="mt-2 rounded bg-slate-50 p-2">Current expected contribution: <strong>{formatMoney(contributionPlan.expectedContribution)} ({contributionPlan.contributionMarginPct}%)</strong></div>
                 {quoteModalTotals.subtotal < contributionPlan.minimumAuthorizedPrice && <div className="mt-2 rounded bg-rose-50 p-2 font-semibold text-rose-800">Current price is below the authorized contribution floor.</div>}
                 {quoteModalTotals.subtotal !== contributionPlan.recommendedPrice && <button type="button" onClick={() => {
-                  const next = [...quoteLineItems]
-                  const otherRevenue = next.slice(1).reduce((sum, item) => sum + Math.max(0, Number(item.amount || 0)), 0)
-                  if (next[0]) next[0] = { ...next[0], amount: Math.max(0, contributionPlan.recommendedPrice - otherRevenue) }
-                  onSetLineItems(next)
+                  onQuoteDiscountAmountChange(0)
+                  try { onSetLineItems(bundledPriceItems(contributionPlan.recommendedPrice, separateCustomerServices(), 'Recommended bundled price applied to the current move scope.')) } catch (error) { setOverrideApprovalNotice((error as Error).message); return }
+                  setOverrideInput(String(contributionPlan.recommendedPrice))
+                  setOverrideTaxMode('plus_hst')
+                  setOverrideApplied(true)
                 }} className="crm-button-dark mt-3 w-full justify-center text-xs">Apply recommended bundled price</button>}
               </div>
             </details>}
@@ -7462,8 +7486,10 @@ export function EstimateDraftModal({
                     <button
                       type="button"
                       onClick={() => {
+                        onSetLineItems(calculatedEstimate?.lineItems || [])
                         setOverrideApplied(false)
                         setOverrideInput('')
+                        setApprovedOverrideAmount(null)
                       }}
                         className="shrink-0 text-[11px] underline"
                     >

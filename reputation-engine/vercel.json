@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/ops/database-health",
+      "schedule": "*/2 * * * *"
+    },
+    {
       "path": "/api/marketing/partnership-discovery/process",
       "schedule": "0 12 * * *"
     },
@@ -56,5 +60,8 @@
       "path": "/api/marketing/lead-handoffs/process",
       "schedule": "*/2 * * * *"
     }
+  ],
+  "regions": [
+    "sfo1"
   ]
 }

@@ -908,7 +908,7 @@ export function suggestTruckCount(totalCubicFeet: number, totalWeightLbs = 0, mo
   return Math.max(1, estimateRequiredTrucks(totalCubicFeet, totalWeightLbs))
 }
 
-export function computeJobPenalties(factors: JobFactors): {
+export function computeJobPenalties(factors: JobFactors, inventory: InventoryItem[] = []): {
   penalties: JobPenalty[]
   extraHours: number
   extraCubicFeet: number
@@ -1005,7 +1005,8 @@ export function computeJobPenalties(factors: JobFactors): {
   // Boxes: first 50 are standard and included — only count the overage above 50
   const BOX_STANDARD_ALLOWANCE = 50
   const totalBoxes = factors.estimatedBoxes || 0
-  const billableBoxes = Math.max(0, totalBoxes - BOX_STANDARD_ALLOWANCE)
+  const listedBoxes = inventory.filter(item => item.included !== false && item.status !== 'excluded').reduce((sum, item) => !/\bbox[\s-]*spring/i.test(item.name || item.item || '') && /\b(box(?:es)?|cartons?|bins?|totes?)\b/i.test(item.name || item.item || '') ? sum + Math.max(0, Number(item.qty || 1)) : sum, 0)
+  const billableBoxes = Math.max(0, totalBoxes - Math.max(BOX_STANDARD_ALLOWANCE, listedBoxes))
   const extraCubicFeet =
     (factors.garageCubicFeet || 0) +
     (factors.basementCubicFeet || 0) +
@@ -1139,7 +1140,7 @@ function estimateSingleLeadQuote(
       ? { disassemblyItemCount: autoDisassemblyCount }
       : undefined)
   const { penalties, extraHours: penaltyHoursFromFactors, extraCubicFeet } = activeFactors
-    ? computeJobPenalties(activeFactors)
+    ? computeJobPenalties(activeFactors, lead.inventory || [])
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
   const assemblyPlan = buildAssemblyPlan(lead.inventory || [], activeFactors?.disassemblyMode)
   const legacyAssemblyHours = penalties.filter(penalty => penalty.category === 'disassembly').reduce((sum, penalty) => sum + penalty.hours, 0)

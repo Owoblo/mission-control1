@@ -1,3 +1,4 @@
+import { fetchRead } from '@/lib/resilient-read'
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
@@ -149,10 +150,16 @@ export async function GET(request: Request) {
     if (searchClause) query += `&or=(${searchClause})`
   }
 
-  const res = await fetch(query, { headers: { ...headers, Prefer: 'count=exact' }, cache: 'no-store' })
-  if (!res.ok) return NextResponse.json({ error: 'Failed to load contacts' }, { status: 500 })
-
-  const contacts = await res.json() as MarketContact[]
+  let res: Response
+  let contacts: MarketContact[]
+  try {
+    res = await fetchRead(query, { headers: { ...headers, Prefer: 'count=exact' }, cache: 'no-store', signal: request.signal })
+    contacts = await res.json() as MarketContact[]
+  } catch {
+    return NextResponse.json({ error: 'Partnership records are temporarily unavailable. Please retry.' }, {
+      status: 503, headers: { 'Cache-Control': 'private, no-store', 'Retry-After': '15' },
+    })
+  }
   const total = parseInt(res.headers.get('content-range')?.split('/')[1] ?? '0')
 
   if (contacts.length === 0) {

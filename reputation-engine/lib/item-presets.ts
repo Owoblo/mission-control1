@@ -23,7 +23,7 @@ function p(
     label,
     icon,
     room,
-    item: { name: label.split(' · ')[0], qty: 1, cubicFeet, weightLbs, included: true, icon, ...(notes ? { notes } : {}) },
+    item: { name: label.replace(' · ', ' — '), room, qty: 1, cubicFeet, weightLbs, included: true, icon, ...(notes ? { notes } : {}) },
   }
 }
 
@@ -159,6 +159,7 @@ export const INVENTORY_PRESETS: InventoryPreset[] = [
   p('single-bed',         'Bed Frame · Single',        '🛏️', 'Bedroom',      18,  50,  'Disassembly required'),
   p('twin-bed',           'Bed Frame · Twin',          '🛏️', 'Bedroom',      20,  55,  'Disassembly required'),
   p('full-bed',           'Bed Frame · Full',          '🛏️', 'Bedroom',      28,  80,  'Disassembly required'),
+  p('queen-bed-set', 'Queen Bed Set (frame + headboard + mattress)', '🛏️', 'Bedroom', 85, 230, 'Estimated volume: frame 35 + headboard 15 + mattress 35 cu ft. Box spring not included. Use instead of separate component rows; adjust to the actual bed.'),
   p('queen-bed',          'Bed Frame · Queen',         '🛏️', 'Bedroom',      35, 100,  'Disassembly required'),
   p('king-bed',           'Bed Frame · King',          '🛏️', 'Bedroom',      45, 130,  'Disassembly required'),
   p('grand-king-bed',     'Bed Frame · Grand King',    '🛏️', 'Bedroom',      55, 155,  'Disassembly required'),

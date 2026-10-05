@@ -1,6 +1,8 @@
 'use client'
 
+import { resolveQuoteDraftPricing } from '@/lib/quote-draft-pricing'
 import { lostTransitionError } from '@/lib/lead-verification'
+import { AdditionalJobsPanel } from '@/app/components/sales/lead-detail/additional-jobs-panel'
 import PaymentRecoveryPanel from '@/app/components/payment-recovery-panel'
 
 import { OperatingPlanPanel } from '@/app/components/sales/lead-detail/operating-plan-panel'
@@ -368,6 +370,8 @@ export default function SalesLeadDetailPage() {
   const [incidentBusy, setIncidentBusy] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [quoteModalBusy, setQuoteModalBusy] = useState(false)
+  const quoteSaveInFlight = useRef(false)
+  const [quoteSaveNotice, setQuoteSaveNotice] = useState('')
   const [quoteModalDirty, setQuoteModalDirty] = useState(false)
   const [additionalQuotes, setAdditionalQuotes] = useState<CRMQuote[]>([])
   const [quoteLineItems, setQuoteLineItems] = useState<QuoteLineItem[]>([])
@@ -742,6 +746,7 @@ export default function SalesLeadDetailPage() {
   async function refresh(currentLeadId: string): Promise<{ quoteId?: string } | null> {
     try {
       const nextLead = await fetchSalesLead(currentLeadId)
+      if (nextLead && !lead) applyLeadSnapshot(nextLead, { hydrateForm: true })
       // Quote and timeline data are useful, but they must never make the lead itself
       // disappear when an auxiliary Supabase request is temporarily slow.
       const quotePayload = nextLead?.quoteId
@@ -2368,6 +2373,7 @@ export default function SalesLeadDetailPage() {
   }
 
   async function saveQuoteDraft(overrides?: {
+    allowPricingRevision?: boolean
     moveDescription?: string
     internalNotes?: string
     conditionalClause?: string
@@ -2375,8 +2381,12 @@ export default function SalesLeadDetailPage() {
     customerScope?: CustomerQuoteScope
     scopeStatus?: 'confirmed' | 'provisional'
   }): Promise<boolean> {
-    if (!quote) return false
+    if (!quote) { setError('The quote has not loaded. Reopen the estimate and try again.'); return false }
     if (!ensureLeadEditable()) return false
+    if (quoteSaveInFlight.current) return false
+    quoteSaveInFlight.current = true
+    setError(null)
+    setQuoteSaveNotice('')
     try {
       setQuoteModalBusy(true)
       const nextMoveDescription = overrides?.moveDescription ?? quoteMoveDescription
@@ -2385,38 +2395,10 @@ export default function SalesLeadDetailPage() {
       const depositRate = effectivePaymentTerms === 'deposit_required'
         ? (quote.total > 0 ? quote.deposit / quote.total : 0.3)
         : 0
-      const quoteIsLockedForPricing = isCustomerFacingQuote(quote)
-      const proposedOverrideLineItem = quoteLineItems.find(item => item.description === 'Moving Services — Agreed Rate')
-      const proposedDiscount = proposedOverrideLineItem ? 0 : quoteDiscountAmount
-      const proposedTotals = computeQuoteTotals(quoteLineItems, depositRate, proposedDiscount)
-      const hasExplicitPriceRevision = Boolean(
-        quoteIsLockedForPricing &&
-        proposedOverrideLineItem &&
-        Math.abs(Number(proposedTotals.total || 0) - Number(quote.total || 0)) > 0.01
-      )
-      // Customer-facing pricing remains protected from background recalculation.
-      // A rep-applied Agreed Rate is different: it is an intentional revision,
-      // so save it through the API's approval, arithmetic, and audit controls.
-      const preserveCustomerFacingPricing = quoteIsLockedForPricing && !hasExplicitPriceRevision
-      const sourceLineItems = preserveCustomerFacingPricing ? (quote.lineItems || []) : quoteLineItems
-
-      // An explicit override is the agreed customer price; existing saved pricing keeps its recorded discount.
-      const overrideLineItem = sourceLineItems.find(li => li.description === 'Moving Services — Agreed Rate')
-      const hasOverride = Boolean(overrideLineItem)
-      const effectiveDiscount = preserveCustomerFacingPricing
-        ? Number(quote.discountAmount || 0)
-        : hasOverride ? 0 : quoteDiscountAmount
-
-      const totals = preserveCustomerFacingPricing
-        ? {
-            lineItems: quote.lineItems || [],
-            subtotal: quote.subtotal,
-            hst: quote.hst,
-            total: quote.total,
-            deposit: quote.deposit,
-            balance: quote.balance,
-          }
-        : computeQuoteTotals(sourceLineItems, depositRate, effectiveDiscount)
+      const { hasExplicitPriceRevision, preserveCustomerFacingPricing, sourceLineItems, effectiveDiscount,
+        totals, overrideLineItem, proposedOverride: proposedOverrideLineItem, priceOverrideTotal } = resolveQuoteDraftPricing(
+          quote, quoteLineItems, quoteDiscountAmount, depositRate, isCustomerFacingQuote(quote), overrides?.allowPricingRevision,
+        )
       const quoteHasMovingScope = sourceLineItems.some(item => /moving service|full-service moving|moving labor|\[leg\s+\d+\]/i.test(`${item.description} ${item.details || ''}`))
       const selectedQuoteType = overrides?.quoteType || quote.quoteType || 'standard'
       const effectiveQuoteMoveType: CRMLead['moveType'] =
@@ -2429,7 +2411,7 @@ export default function SalesLeadDetailPage() {
           : selectedQuoteType
       const result = await updateSalesQuote(quote.id, {
         ...(hasExplicitPriceRevision ? {
-          pricingRevisionReason: proposedOverrideLineItem?.details || 'Sales rep applied an approved customer price revision.',
+          pricingRevisionReason: proposedOverrideLineItem?.details || 'Sales rep saved a revised estimate after inventory, access or handling changes.',
         } : {}),
         revision: quote.revision || 0,
         truckSize: lead?.truckSize || quote.truckSize,
@@ -2441,7 +2423,7 @@ export default function SalesLeadDetailPage() {
         paymentTerms: effectivePaymentTerms,
         lineItems: totals.lineItems,
         discountAmount: effectiveDiscount,
-        discountLabel: hasOverride ? '' : (quoteDiscountLabel || undefined),
+        discountLabel: effectiveDiscount > 0 ? quoteDiscountLabel || undefined : '',
         subtotal: totals.subtotal,
         hst: totals.hst,
         total: totals.total,
@@ -2469,12 +2451,10 @@ export default function SalesLeadDetailPage() {
         moveDescription: nextMoveDescription || undefined,
         internalNotes: nextInternalNotes || undefined,
         conditionalClause: overrides?.conditionalClause !== undefined ? (overrides.conditionalClause || undefined) : quote.conditionalClause,
-        priceOverrideTotal: preserveCustomerFacingPricing
-          ? quote.priceOverrideTotal
-          : overrideLineItem ? totals.total : undefined,
+        priceOverrideTotal,
         priceOverrideReason: preserveCustomerFacingPricing
           ? quote.priceOverrideReason
-          : overrideLineItem?.details || undefined,
+          : overrideLineItem?.details || '',
       })
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
@@ -2483,7 +2463,6 @@ export default function SalesLeadDetailPage() {
       setQuoteDiscountLabel(result.quote.discountLabel || '')
       setQuoteMoveDescription(result.quote.moveDescription || '')
       setQuoteInternalNotes(result.quote.internalNotes || '')
-      setQuoteModalDirty(false)
       // Persist inventory + job factors to lead alongside the quote save
       // Must await so inventory is in DB before any navigation happens
       if (lead) {
@@ -2499,13 +2478,19 @@ export default function SalesLeadDetailPage() {
             removedInventoryItemKeys: Array.from(removedInventoryKeysRef.current),
             ...(Object.keys(jobFactors).length > 0 ? { jobFactors } : {}),
           })
-        } catch { /* non-critical — quote is already saved */ }
+        } catch (err) {
+          setError(`The quote was saved, but inventory/handling could not be saved: ${(err as Error).message}. Please retry before previewing.`)
+          return false
+        }
       }
+      setQuoteModalDirty(false)
+      setQuoteSaveNotice('Draft saved successfully.')
       return true
     } catch (err) {
       setError((err as Error).message)
       return false
     } finally {
+      quoteSaveInFlight.current = false
       setQuoteModalBusy(false)
     }
   }
@@ -2522,6 +2507,7 @@ export default function SalesLeadDetailPage() {
     if (!quote) return
     if (!ensureLeadEditable()) return
     const saved = await saveQuoteDraft({
+      allowPricingRevision: true,
       moveDescription: options?.moveDescription,
       internalNotes: options?.internalNotes,
       conditionalClause: options?.conditionalClause,
@@ -2954,7 +2940,8 @@ export default function SalesLeadDetailPage() {
 
   async function closeQuoteModal() {
     if (quoteModalDirty) {
-      await saveQuoteDraft()
+      const saved = await saveQuoteDraft()
+      if (!saved) return
     }
     setQuoteModalOpen(false)
   }
@@ -4008,7 +3995,7 @@ export default function SalesLeadDetailPage() {
   }
 
   if (!lead) {
-    return <div className="crm-shell"><h1 className="sr-only">Lead record</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-stone-500">{error || 'Lead not found'}</div></div>
+    return <div className="crm-shell"><h1 className="sr-only">Lead record</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-stone-500">{error ? 'The lead could not be loaded. Your saved record has not been changed.' : 'Loading lead…'}<button type="button" className="crm-button mx-auto mt-4 block" onClick={() => { setError(null); void refresh(params.id!) }}>Retry loading</button></div></div>
   }
 
   const displayLeadName =
@@ -4024,6 +4011,11 @@ export default function SalesLeadDetailPage() {
 
   return (
     <div className="crm-shell space-y-4">
+      {lead.parentLeadId && <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
+        <strong>{lead.additionalJobLabel || 'Additional work'} · {lead.additionalJobKind === 'supplement' ? 'Same move, additional scope' : 'Separate booking'}</strong>
+        <p>This job has its own inventory, quote and payments. The original agreement and deposit are unchanged. {lead.additionalJobKind === 'supplement' && 'Coordinate the added stop with the original crew after customer acceptance.'}</p>
+        <Link href={`/sales/leads/${lead.parentLeadId}`} className="font-semibold underline">Open original booking</Link>
+      </div>}
       <section className="border border-[var(--app-line)] bg-white">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="p-5 md:px-7 md:py-6">
@@ -5327,22 +5319,7 @@ export default function SalesLeadDetailPage() {
                       Edit Estimate
                     </button>
                   ) : null}
-              {/* Add a second job for the same contact (e.g. residential + commercial) */}
-              {quote && (
-                <div className="rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] p-3">
-                  <button
-                    onClick={() => void createQuote(true)}
-                    disabled={!canEditCurrentLead || creatingQuote}
-                    className="crm-button w-full justify-center disabled:opacity-60"
-                    title="Create a separate quote for a different booking, not for conjoint inventory inside the same move"
-                  >
-                    {creatingQuote ? 'Building...' : '+ Add Separate Job'}
-                  </button>
-                  <div className="mt-2 text-[11px] leading-4 text-[var(--app-muted)]">
-                    Use conjoint move inside the estimate for two pickups going to one destination. Add a separate job only for another date, commercial work, standalone junk, or a different booking.
-                  </div>
-                </div>
-              )}
+              {quote && <AdditionalJobsPanel lead={lead} canEdit={canEditCurrentLead} />}
                 </div>
               </details>
               {/* Linked jobs panel */}
@@ -6370,6 +6347,9 @@ export default function SalesLeadDetailPage() {
         quoteDiscountLabel={quoteDiscountLabel}
         quoteModalTotals={quoteModalTotals}
         quoteModalBusy={quoteModalBusy}
+        saveError={error || undefined}
+        saveNotice={quoteSaveNotice}
+        onDismissSaveError={() => setError(null)}
         jobFactors={jobFactors}
         moveDescription={quoteMoveDescription}
         internalNotes={quoteInternalNotes}
@@ -6388,7 +6368,7 @@ export default function SalesLeadDetailPage() {
         onRemoveLineItem={removeQuoteLineItem}
         onSetLineItems={setQuoteLineItems}
         onQuoteApprovalUpdated={setQuote}
-        onSaveDraft={options => void saveQuoteDraft(options)}
+        onSaveDraft={options => void saveQuoteDraft({ ...options, allowPricingRevision: true })}
         onSaveAndPreview={options => void saveAndPreviewQuote(options)}
         onLeadMediaSynced={updatedLead => {
           setQuoteModalDirty(true)

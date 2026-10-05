@@ -94,7 +94,7 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
               placeholder="Item name"
             />
           ) : (
-            <span className="text-sm font-medium text-stone-900 truncate block">{displayLabel || 'Item'}</span>
+            <button type="button" onClick={() => setEditing(true)} className="text-left text-sm font-medium text-stone-900 truncate block">{displayLabel || 'Item'}</button>
           )}
           {!editing && (
             <div className="mt-0.5 space-y-0.5">
@@ -154,6 +154,7 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
             title={editing ? 'Done' : 'Edit'}
             className={`rounded p-1 text-xs transition-colors ${editing ? 'text-emerald-600 hover:bg-emerald-50' : 'text-stone-400 hover:text-stone-700 hover:bg-stone-100'}`}
           >
+            <span>{editing ? 'Done' : 'Edit'}</span>
             {editing ? (
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
             ) : (
@@ -173,6 +174,10 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
       {/* Expanded edit: cu ft + lbs + notes */}
       {editing && (
         <div className="ml-8 mb-2 space-y-1.5">
+          <label className="block text-xs text-stone-500">Room
+            <input aria-label="Inventory room" list={`inventory-room-options-${index}`} value={item.room || ''} onChange={e => onUpdate(index, 'room', e.target.value)} className="w-full rounded border border-stone-200 px-2 py-1 text-sm" placeholder="e.g. Dining Room or Patio" />
+          </label>
+          <datalist id={`inventory-room-options-${index}`}>{['Living Room', 'Dining Room', 'Kitchen', 'Bedroom', 'Basement', 'Garage', 'Outdoor / Patio', 'Storage'].map(room => <option key={room} value={room} />)}</datalist>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5">
               <span className="text-[11px] text-stone-400">Cu ft</span>

@@ -1,3 +1,4 @@
+import { fetchWithReadDeadline as fetch } from './resilient-read'
 import type {
   CRMLead,
   CRMQuote,
@@ -56,14 +57,14 @@ async function readJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function fetchSalesOverview(): Promise<{
+export async function fetchSalesOverview(options?: { fresh?: boolean }): Promise<{
   leads: CRMLead[]
   quotes: CRMQuote[]
   clients: CRMClient[]
   followUps: FollowUpLog[]
   summary: SalesDashboardSummary
 }> {
-  const response = await fetch('/api/sales/overview', { cache: 'no-store', credentials: 'include' })
+  const response = await fetch(options?.fresh ? '/api/sales/overview?fresh=1' : '/api/sales/overview', { cache: 'no-store', credentials: 'include' })
   return readJson(response)
 }
 
@@ -99,6 +100,10 @@ export async function createSalesLead(payload: Partial<CRMLead>): Promise<CRMLea
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(25_000),
+  }).catch(error => {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw new Error('Creation has not been confirmed. Your entries are kept. Check for the lead before trying again; the server may still have saved it.')
+    throw error
   })
   return readJson(response)
 }

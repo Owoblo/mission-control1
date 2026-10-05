@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { LostLeadDialog } from '@/app/components/sales/lost-lead-dialog'
+import { saveFollowUpLosses } from '@/lib/follow-up-loss'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteSalesLead, fetchSalesOverview, saveSalesFollowUp, updateSalesLead } from '@/lib/sales-api'
 import { deriveLeadFollowUpStatus, FOLLOW_UP_STATUSES, formatDate, formatMoney, isClosedLeadStage } from '@/lib/sales'
@@ -193,7 +195,7 @@ function NoteModal({ lead, onClose, onSaved }: {
     try {
       const label = UPDATE_OPTIONS.find(o => o.id === updateType)?.label || updateType
       const notes = detail.trim() ? `${label}: ${detail.trim()}` : label
-      const followUpDate = isLost ? undefined : (snoozeDate || tomorrow)
+      const followUpDate = snoozeDate || tomorrow
 
       await saveSalesFollowUp({
         leadId: lead.id,
@@ -207,7 +209,6 @@ function NoteModal({ lead, onClose, onSaved }: {
         followUpDate,
         followUpNote: notes,
         followUpStatus,
-        ...(isLost ? { stage: 'lost' } : {}),
       }
       const saved = await updateSalesLead(lead.id, updates)
       onSaved(saved)
@@ -217,6 +218,12 @@ function NoteModal({ lead, onClose, onSaved }: {
       setBusy(false)
     }
   }
+
+  if (isLost) return <LostLeadDialog lead={lead} onCancel={() => setUpdateType('')} onSave={async patch => {
+    const result = await saveFollowUpLosses([lead], patch, updateSalesLead)
+    if (result.failed.length) throw new Error(result.failed[0].error)
+    onSaved(result.saved[0])
+  }} />
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
@@ -470,6 +477,8 @@ export default function FollowUpWallPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | LeadFollowUpStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkLostOpen, setBulkLostOpen] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   function toggleSelect(id: string) {
     setSelectedIds(prev => {
@@ -498,13 +507,20 @@ export default function FollowUpWallPage() {
   }
 
   async function bulkMarkLost() {
-    if (!confirm(`Mark ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''} as lost?`)) return
+    setBulkLostOpen(true)
+  }
+
+  async function saveBulkLoss(patch: Partial<CRMLead>) {
     setBulkBusy(true)
-    const ids = Array.from(selectedIds)
-    await Promise.all(ids.map(id => updateSalesLead(id, { stage: 'lost' }).catch(() => {})))
-    setLeads(prev => prev.map(l => selectedIds.has(l.id) ? { ...l, stage: 'lost' as const } : l))
-    setSelectedIds(new Set())
-    setBulkBusy(false)
+    try {
+      const targets = leads.filter(lead => selectedIds.has(lead.id))
+      const { saved, failed } = await saveFollowUpLosses(targets, patch, updateSalesLead)
+      const confirmed = new Map(saved.map(lead => [lead.id, lead]))
+      setLeads(prev => prev.map(lead => confirmed.get(lead.id) || lead))
+      setSelectedIds(new Set(failed.map(item => item.id)))
+      if (failed.length) throw new Error(`${saved.length} saved; ${failed.length} could not be saved. ${failed.map(item => `${item.name}: ${item.error}`).join(' ')} Failed leads remain selected for retry.`)
+      setBulkLostOpen(false)
+    } finally { setBulkBusy(false) }
   }
 
   async function bulkSnooze() {
@@ -519,10 +535,11 @@ export default function FollowUpWallPage() {
 
   async function load() {
     try {
-      const data = await fetchSalesOverview()
+      setLoadError(null)
+      const data = await fetchSalesOverview({ fresh: true })
       setLeads(data.leads)
       setQuotes(data.quotes)
-    } catch { /* ignore */ } finally {
+    } catch (err) { setLoadError(err instanceof Error ? err.message : 'Could not load follow-ups.') } finally {
       setLoading(false)
     }
   }
@@ -767,6 +784,13 @@ export default function FollowUpWallPage() {
         </div>
       )}
 
+      {loadError && <div role="alert" className="rounded border border-rose-200 p-3 text-rose-700">{loadError} <button onClick={() => void load()} className="underline">Retry</button></div>}
+      {bulkLostOpen && selectedIds.size > 0 && leads.find(lead => selectedIds.has(lead.id)) && <LostLeadDialog
+        lead={leads.find(lead => selectedIds.has(lead.id))!}
+        bulkCount={selectedIds.size}
+        onCancel={() => setBulkLostOpen(false)}
+        onSave={saveBulkLoss}
+      />}
       {/* Note modal */}
       {noteTarget && (
         <NoteModal

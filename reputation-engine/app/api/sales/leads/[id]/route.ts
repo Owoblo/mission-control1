@@ -1,3 +1,4 @@
+import { loadLinkedMovePlan } from '@/lib/server/linked-move-plan'
 import { listTasks } from '@/lib/server/task-repository'
 import { applyNurtureTransition, recordNurtureCheckIn } from '@/lib/nurture-policy'
 import { lostTransitionError } from '@/lib/lead-verification'
@@ -448,10 +449,15 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       }
     }
 
-    const operationalPlan = buildMoveOperatingPlan(nextLead, quote)
+    let operationalPlan: { ready: boolean; reasons: string[]; fingerprint: string; reviewCurrent: boolean } = buildMoveOperatingPlan(nextLead, quote)
     const attemptedDispatch = (updates.crewPayouts || []).some(entry =>
       ['sent', 'confirmed'].includes(entry.dispatchStatus || '') &&
       current.crewPayouts?.find(old => old.id === entry.id)?.dispatchStatus !== entry.dispatchStatus)
+    if (attemptedDispatch && nextLead.parentLeadId && nextLead.additionalJobKind === 'supplement') return NextResponse.json({ error: 'Dispatch same-move additions through the original booking and its combined operations review.' }, { status: 409 })
+    if (attemptedDispatch) {
+      const linked = (await loadLinkedMovePlan(nextLead, quote)).plan
+      operationalPlan = { ...linked, fingerprint: linked.dispatchFingerprint }
+    }
     if (attemptedDispatch && !operationalPlan.ready) return NextResponse.json({ error: 'Review the current operating plan before dispatching the crew.', reasons: operationalPlan.reasons }, { status: 409 })
     nextLead.crewPayouts = nextLead.crewPayouts?.map(entry => {
       const previous = current.crewPayouts?.find(old => old.id === entry.id)

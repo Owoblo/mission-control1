@@ -1,4 +1,5 @@
-import { buildCurrentCrewBrief, buildMoveOperatingPlan, crewAcknowledgedPlan } from '@/lib/move-operating-plan'
+import { buildLinkedMovePlan, linkedJobScopes, customerApproved, type LinkedJobScope } from '@/lib/linked-move-plan'
+import { buildCurrentCrewBrief, crewAcknowledgedPlan } from '@/lib/move-operating-plan'
 import { NextResponse } from 'next/server'
 import { formatDate } from '@/lib/sales'
 import { getSalesLeadForUpdate, listSalesLeads, listSalesQuotes, saveSalesLead } from '@/lib/server/sales-repository'
@@ -15,7 +16,17 @@ function findCrewAssignment(leads: CRMLead[], token: string) {
   return null
 }
 
-function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayoutEntry, awardedBrief?: string) {
+function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayoutEntry, awardedBrief?: string, scopes: LinkedJobScope[] = []) {
+  const plan = buildLinkedMovePlan(lead, quote, scopes)
+  const briefing = buildLiveCrewBriefing(lead, quote, awardedBrief || '')
+  for (const scope of scopes.filter(s => s.lead.additionalJobKind === 'supplement' && customerApproved(s.quote))) {
+    const extra = buildLiveCrewBriefing(scope.lead, scope.quote)
+    briefing.inventory.push(...extra.inventory.map(i => ({ ...i, id: `${scope.lead.id}:${i.id}`, room: `${scope.lead.additionalJobLabel}: ${i.room}` })))
+    briefing.routeLegs.push(...extra.routeLegs.map(l => ({ ...l, id: `${scope.lead.id}:${l.id}`, label: `${scope.lead.additionalJobLabel}: ${l.label}` })))
+    briefing.specialInstructions.push(...extra.specialInstructions)
+  }
+  if (plan.brief) briefing.specialInstructions.unshift(plan.brief)
+  if (plan.pending.length) briefing.specialInstructions.push(`${plan.pending.length} additional scope request(s) are awaiting customer approval. They are not included in the authorized load; contact operations before adding work.`)
   return {
     leadId: lead.id,
     customerName: lead.name,
@@ -39,21 +50,21 @@ function publicJobPayload(lead: CRMLead, quote: CRMQuote | null, entry: CrewPayo
     crew: {
       workerName: entry.workerName,
       role: entry.role,
-      expectedHours: entry.approvedHours || quote?.estimatedHours || null,
-      status: entry.dispatchStatus === 'confirmed' && !crewAcknowledgedPlan(entry, buildMoveOperatingPlan(lead, quote).fingerprint) ? 'pending' : entry.dispatchStatus || 'pending',
+      expectedHours: (plan.approved.length && plan.reviewCurrent ? lead.linkedPlanReview?.plannedHours : entry.approvedHours || quote?.estimatedHours) || null,
+      status: entry.dispatchStatus === 'confirmed' && !crewAcknowledgedPlan(entry, plan.dispatchFingerprint) ? 'pending' : entry.dispatchStatus || 'pending',
     },
     job: {
-      planFingerprint: buildMoveOperatingPlan(lead, quote).fingerprint,
+      planFingerprint: plan.dispatchFingerprint,
       crewSize: quote?.crewSize || null,
       truckCount: quote?.truckCount || null,
       estimatedHours: quote?.estimatedHours || null,
-      crewNote: buildCurrentCrewBrief(lead, quote),
+      crewNote: [buildCurrentCrewBrief(lead, quote), plan.brief].filter(Boolean).join('\n\n'),
       equipmentReady: !!lead.opsChecklist?.toolsReady,
-      briefingReady: buildMoveOperatingPlan(lead, quote).ready,
+      briefingReady: plan.ready,
       crewBriefing: '',
       partnerWorkspaceEnabled: !!entry.subcontractorId,
     },
-    briefing: buildLiveCrewBriefing(lead, quote, awardedBrief || ''),
+    briefing,
   }
 }
 
@@ -68,7 +79,7 @@ export async function GET(_: Request, props: { params: Promise<{ token: string }
 
   const quote = quotes.find(item => item.id === match.lead.quoteId) || quotes.find(item => item.leadId === match.lead.id) || null
   const awardedBrief = offers.find(item => item.id === match.entry.subcontractorOfferId)?.awardedCrewBriefing
-  return NextResponse.json({ job: publicJobPayload(match.lead, quote, match.entry, awardedBrief) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
+  return NextResponse.json({ job: publicJobPayload(match.lead, quote, match.entry, awardedBrief, linkedJobScopes(match.lead, leads, quotes)) }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
 }
 
 export async function POST(request: Request, props: { params: Promise<{ token: string }> }) {
@@ -90,7 +101,8 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
 
   const quotes = await listSalesQuotes()
   const quote = quotes.find(q => q.id === match.lead.quoteId) || quotes.find(q => q.leadId === match.lead.id) || null
-  if (body.action === 'confirm' && (body.planFingerprint !== buildMoveOperatingPlan(match.lead, quote).fingerprint || !buildMoveOperatingPlan(match.lead, quote).ready)) {
+  const combined = buildLinkedMovePlan(match.lead, quote, linkedJobScopes(match.lead, leads, quotes))
+  if (body.action === 'confirm' && (body.planFingerprint !== combined.dispatchFingerprint || !combined.ready)) {
     return NextResponse.json({ error: 'Operations must review the current truck, assembly and access plan before crew confirmation.' }, { status: 409 })
   }
   const now = new Date().toISOString()

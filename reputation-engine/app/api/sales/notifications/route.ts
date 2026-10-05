@@ -1,3 +1,4 @@
+import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import { nurtureReminderDue } from '@/lib/nurture-policy'
 import { NextResponse } from 'next/server'
 import { displayEmailSubject } from '@/lib/email-display'
@@ -12,7 +13,7 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
 import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-state'
 import { getSessionUser } from '@/lib/server/session'
-import { listAllInboundLeads, listSalesLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots } from '@/lib/server/sales-repository'
+import { listAllInboundLeads, listNurtureNotificationLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
@@ -41,8 +42,25 @@ type NotificationsPayload = {
   totalCount: number
 }
 
-const NOTIFICATIONS_CACHE_TTL_MS = 10_000
+const NOTIFICATIONS_CACHE_TTL_MS = 30_000
 const notificationsCache = new Map<string, { expiresAt: number; payload: NotificationsPayload }>()
+let sourceSnapshot: { expiresAt: number; value: Awaited<ReturnType<typeof readNotificationSources>> } | undefined
+let sourcePending: ReturnType<typeof readNotificationSources> | undefined
+let sourceRetryAfter = 0
+async function readNotificationSources() {
+  return Promise.all([listAllInboundLeads(), listSalesLeadInboxSnapshots(), listSalesEmails(), listFollowUpLogs(), listSmsMessages(), listNurtureNotificationLeads().then(leads => leads.filter(lead => nurtureReminderDue(lead)))])
+}
+async function getNotificationSources() {
+  if (sourceSnapshot && sourceSnapshot.expiresAt > Date.now()) return sourceSnapshot.value
+  if (sourcePending) return sourcePending
+  if (Date.now() < sourceRetryAfter) throw new Error('Notification refresh cooling down')
+  sourcePending = readNotificationSources().then(value => {
+    sourceSnapshot = { value, expiresAt: Date.now() + 60_000 }
+    return value
+  }).catch(error => { sourceRetryAfter = Date.now() + 30_000; throw error }).finally(() => { sourcePending = undefined })
+  return sourcePending
+}
+
 const NOTIFICATION_DISPOSITION_TYPE = 'notification_disposition'
 
 async function listAcknowledgedKeys(userId: string) {
@@ -81,6 +99,14 @@ function formatNotificationPhone(value?: string | null) {
 }
 
 export async function GET() {
+  try { return await loadNotifications() } catch {
+    return NextResponse.json({ error: 'Notifications are temporarily unavailable.' }, {
+      status: 503, headers: { 'Cache-Control': 'private, no-store', 'Retry-After': '30' },
+    })
+  }
+}
+
+async function loadNotifications() {
   const session = await getSessionUser()
   if (!session || !canAccessSalesWorkspace(session)) {
     return NextResponse.json({ items: [], totalCount: 0, breakdown: { leads: 0, sms: 0, emails: 0, alerts: 0 } })
@@ -95,14 +121,9 @@ export async function GET() {
   // Notifications are a current work surface, not an archive counter.
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
-  const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, acknowledgedKeys, nurtureLeads] = await Promise.all([
-    listAllInboundLeads().catch(() => [] as Awaited<ReturnType<typeof listAllInboundLeads>>),
-    listSalesLeadInboxSnapshots().catch(() => [] as Awaited<ReturnType<typeof listSalesLeadInboxSnapshots>>),
-    listSalesEmails().catch(() => [] as Awaited<ReturnType<typeof listSalesEmails>>),
-    listFollowUpLogs().catch(() => [] as Awaited<ReturnType<typeof listFollowUpLogs>>),
-    listSmsMessages().catch(() => []),
-    listAcknowledgedKeys(session.userId || session.name || 'unknown').catch(() => new Set<string>()),
-    listSalesLeads().then(leads => leads.filter(lead => nurtureReminderDue(lead))).catch(() => []),
+  const [[allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, nurtureLeads], acknowledgedKeys] = await Promise.all([
+    getNotificationSources(),
+    listAcknowledgedKeys(session.userId || session.name || 'unknown'),
   ])
 
   // ── 1. Unclaimed inbound leads ──────────────────────────────────────────

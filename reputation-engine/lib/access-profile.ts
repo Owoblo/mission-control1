@@ -47,6 +47,7 @@ function roundHundredth(value: number) {
 }
 
 function sumWalkMinutes(profile: AccessProfile) {
+  if (Number.isFinite(profile.totalWalkMinutes) && Number(profile.totalWalkMinutes) >= 0) return Number(profile.totalWalkMinutes)
   const buckets = [profile.walkToEntrance, profile.entranceToVerticalAccess, profile.verticalAccessToUnit]
   if (buckets.some(bucket => !bucket || bucket === 'unknown')) return null
   return buckets.reduce((sum, bucket) => sum + Number(WALK_MINUTES[bucket!] || 0), 0)

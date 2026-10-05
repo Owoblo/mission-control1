@@ -1,11 +1,14 @@
 'use client'
 
+import { fetchRead } from '@/lib/resilient-read'
+import { loadContactDirectory } from '@/lib/contact-directory-loader'
 import gtaCities from '@/lib/data/gta-service-cities.json'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { RelationshipRecord } from '@/app/components/partnership/RelationshipRecord'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { MessageText } from '@/app/components/partnership/message-text'
+import { partnershipMediaKind } from '@/lib/partnership-media'
 import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
 import { businessCardFirstName, appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
 import { sendSalesMessage } from '@/lib/sales-api'
@@ -5214,15 +5217,21 @@ function PhoneTab({
                     {bubbleText && <div className="whitespace-pre-wrap break-words"><MessageText text={bubbleText} /></div>}
                     {touchMedia.length > 0 && (
                       <div className="mt-2 grid gap-2">
-                        {touchMedia.map(url => (
-                          isVideoUrl(url) ? (
-                            <video key={url} src={mediaPlaybackUrl(url)} controls className="max-h-64 rounded-[12px] bg-black" />
-                          ) : (
-                            <a key={url} href={mediaPlaybackUrl(url)} target="_blank" rel="noreferrer">
-                              <img src={mediaPlaybackUrl(url)} alt="" className="max-h-64 rounded-[12px] object-cover" />
-                            </a>
+                        {touchMedia.map(url => {
+                          const kind = partnershipMediaKind(url, touch.metadata || {})
+                          const src = mediaPlaybackUrl(url)
+                          return (
+                            <div key={url} className="min-w-0">
+                              {kind === 'audio' && <audio src={src} controls preload="none" aria-label="Audio MMS" className="max-w-full" />}
+                              {kind === 'video' && <video src={src} controls preload="metadata" className="max-h-64 rounded-[12px] bg-black" />}
+                              {kind === 'image' && <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="MMS attachment" className="max-h-64 rounded-[12px] object-cover" /></a>}
+                              <a href={src} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm underline">
+                                Open {kind === 'file' ? 'attachment' : `${kind} attachment`}
+                              </a>
+                              {kind === 'audio' && /\.amr(?:[?#]|$)/i.test(url) && <p className="mt-1 text-xs">If playback is unavailable, open the audio file in a compatible player.</p>}
+                            </div>
                           )
-                        ))}
+                        })}
                       </div>
                     )}
                     {!groupedWithNext && <div className={`mt-1.5 text-[11px] ${touch.direction === 'outbound' ? 'text-white/55' : 'text-slate-500'}`}>{fmtDate(touch.created_at)} · {fmtTime(touch.created_at)}</div>}
@@ -6956,45 +6965,89 @@ function PartnershipEngineInner() {
   const [relationshipSummaryLoading, setRelationshipSummaryLoading] = useState(true)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
 
-  const loadContacts = useCallback(async () => {
-    setContactsLoading(true)
-    const collected: Contact[] = []
-    const pageSize = 500
-    // Load the complete scoped directory. The old 2,000-row ceiling made owner
-    // totals and search silently omit contacts once a market crossed that size.
-    for (let offset = 0; ; offset += pageSize) {
-      const r = await fetch(`/api/marketing/contacts?mode=directory&limit=${pageSize}&offset=${offset}`, { credentials: 'include' })
-      if (!r.ok) break
-      const d = await r.json() as { contacts?: Contact[]; total?: number }
-      const page = d.contacts ?? []
-      collected.push(...page)
-      if (page.length < pageSize || collected.length >= Number(d.total || 0)) break
-    }
-    setContacts(collected)
-    setContactsLoading(false)
+  const contactsLoadedRef = useRef(false)
+  const contactsRef = useRef<Contact[]>([])
+  const contactsRequestRef = useRef<AbortController | null>(null)
+  const [loadErrors, setLoadErrors] = useState<Record<string, string>>({})
+  useEffect(() => { contactsRef.current = contacts }, [contacts])
+  const [contactsRefreshing, setContactsRefreshing] = useState(false)
+  const setLoadError = useCallback((key: string, message = '') => {
+    setLoadErrors(current => ({ ...current, [key]: message }))
   }, [])
+
+  useEffect(() => () => {
+    contactsRequestRef.current?.abort()
+    contactsRequestRef.current = null
+  }, [])
+
+  const loadContacts = useCallback(async (force = false) => {
+    if (contactsRequestRef.current || (contactsLoadedRef.current && !force)) return
+    const controller = new AbortController()
+    contactsRequestRef.current = controller
+    setContactsRefreshing(true)
+    setContactsLoading(contactsRef.current.length === 0)
+    setLoadError('contacts')
+    try {
+      await loadContactDirectory<Contact>({
+        previous: contactsRef.current,
+        readPage: async offset => {
+          const response = await fetchRead(`/api/marketing/contacts?mode=directory&limit=500&offset=${offset}`, {
+            credentials: 'include', signal: controller.signal,
+          }, { timeoutMs: 12_000, retries: 1 })
+          return response.json()
+        },
+        publish: rows => {
+          if (controller.signal.aborted) return
+          contactsRef.current = rows
+          setContacts(rows)
+          setContactsLoading(false)
+        },
+      })
+      contactsLoadedRef.current = true
+    } catch {
+      if (!controller.signal.aborted) {
+        contactsLoadedRef.current = false
+        setLoadError('contacts', 'Partnership records could not fully load. Any records already loaded are still shown; totals and search may be incomplete.')
+      }
+    } finally {
+      if (contactsRequestRef.current === controller) contactsRequestRef.current = null
+      if (!controller.signal.aborted) {
+        setContactsLoading(false)
+        setContactsRefreshing(false)
+      }
+    }
+  }, [setLoadError])
 
   const loadBatches = useCallback(async () => {
     setBatchesLoading(true)
-    const r = await fetch('/api/marketing/batches', { credentials: 'include' })
-    if (r.ok) setBatches(await r.json() as Batch[])
-    setBatchesLoading(false)
-  }, [])
+    try {
+      const r = await fetchRead('/api/marketing/batches', { credentials: 'include' }, { timeoutMs: 12_000 })
+      setBatches(await r.json() as Batch[])
+      setLoadError('batches')
+    } catch {
+      setLoadError('batches', 'Campaign batches are temporarily unavailable.')
+    } finally { setBatchesLoading(false) }
+  }, [setLoadError])
 
   const loadLists = useCallback(async () => {
-    const r = await fetch('/api/marketing/lists', { credentials: 'include' })
-    if (r.ok) setLists(await r.json() as List[])
-  }, [])
+    try {
+      const r = await fetchRead('/api/marketing/lists', { credentials: 'include' }, { timeoutMs: 12_000 })
+      setLists(await r.json() as List[])
+      setLoadError('lists')
+    } catch { setLoadError('lists', 'Contact lists are temporarily unavailable.') }
+  }, [setLoadError])
 
   const loadRelationshipSummary = useCallback(async () => {
     setRelationshipSummaryLoading(true)
-    const response = await fetch('/api/marketing/relationship-summary', { credentials: 'include' })
-    if (response.ok) {
+    try {
+      const response = await fetchRead('/api/marketing/relationship-summary', { credentials: 'include' }, { timeoutMs: 20_000 })
       const payload = await response.json() as { markets?: RelationshipMarketSummary }
       setRelationshipSummary(payload.markets || null)
-    }
-    setRelationshipSummaryLoading(false)
-  }, [])
+      setLoadError('summary')
+    } catch {
+      setLoadError('summary', 'Relationship totals are temporarily unavailable. Previously loaded totals may be out of date.')
+    } finally { setRelationshipSummaryLoading(false) }
+  }, [setLoadError])
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
@@ -7124,6 +7177,23 @@ function PartnershipEngineInner() {
           )}
         </div>
 
+        {Object.values(loadErrors).some(Boolean) && (
+          <div role="alert" className="m-2 flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <div>
+              <strong>Some CRM data is temporarily unavailable.</strong>
+              {Object.entries(loadErrors).filter(([, message]) => message).map(([key, message]) => <p key={key}>{message}</p>)}
+            </div>
+            <button type="button" disabled={contactsRefreshing}
+              className="shrink-0 rounded-lg border border-amber-400 px-3 py-2 font-semibold disabled:opacity-50"
+              onClick={() => {
+                if (loadErrors.contacts) void loadContacts(true)
+                if (loadErrors.batches) void loadBatches()
+                if (loadErrors.lists) void loadLists()
+                if (loadErrors.summary) void loadRelationshipSummary()
+              }}>Retry</button>
+          </div>
+        )}
+
         {tab === 'today' && (
           <RelationshipLobby
             contacts={contacts}
@@ -7151,7 +7221,7 @@ function PartnershipEngineInner() {
         )}
         {tab === 'overview' && (
           <OverviewTab batches={batches} contacts={contacts} loading={batchesLoading || contactsLoading}
-            onRefresh={() => { void loadBatches(); void loadContacts() }} onTabChange={handleTabChange} />
+            onRefresh={() => { void loadBatches(); void loadContacts(true) }} onTabChange={handleTabChange} />
         )}
         {tab === 'lists' && (
           <ListsTab contacts={contacts} onSelectContact={setSelectedContact} />
@@ -7178,7 +7248,7 @@ function PartnershipEngineInner() {
             contact={selectedContact}
             lists={lists}
             onClose={() => setSelectedContact(null)}
-            onRefresh={() => { void loadContacts(); void loadBatches() }}
+            onRefresh={() => { void loadContacts(true); void loadBatches() }}
           />
         )}
 
@@ -7189,7 +7259,7 @@ function PartnershipEngineInner() {
           <ScheduledSmsCampaignModal
             initialMarket={scheduledSmsOpen.market}
             onClose={() => setScheduledSmsOpen(null)}
-            onDone={() => { void loadBatches(); void loadContacts() }}
+            onDone={() => { void loadBatches(); void loadContacts(true) }}
           />
         )}
       </div>
