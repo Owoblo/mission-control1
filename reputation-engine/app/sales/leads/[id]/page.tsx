@@ -3265,20 +3265,18 @@ export default function SalesLeadDetailPage() {
     return () => clearInterval(interval)
   }, [activeTab, lead?.phone, lead?.id])
 
-  const leadPreferredBranchNumber = useMemo(() => {
-    for (let index = smsMessages.length - 1; index >= 0; index -= 1) {
-      const branchNumber = getSaturnBusinessNumberFromSmsMessage(smsMessages[index])
-      if (branchNumber) return branchNumber
-    }
-
-    const recentCallBranch = (lead?.callLogs || [])
-      .slice()
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .map(item => item.branchNumber)
-      .find(Boolean)
-
-    return pickSaturnBranchPhoneNumber(recentCallBranch, getDefaultSaturnBranchNumber())
-  }, [lead?.callLogs, smsMessages])
+  const [leadPreferredBranchNumber, setLeadPreferredBranchNumber] = useState<string>('')
+  useEffect(() => {
+    setLeadPreferredBranchNumber('')
+    if (!lead?.phone || !lead.id) return
+    const controller = new AbortController()
+    const query = new URLSearchParams({ leadId: lead.id, phone: lead.phone })
+    void fetch(`/api/sales/dialer/caller-id?${query}`, { credentials: 'include', signal: controller.signal })
+      .then(response => response.ok ? response.json() : null)
+      .then(result => { if (!controller.signal.aborted && result?.fromNumber) setLeadPreferredBranchNumber(result.fromNumber) })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [lead?.id, lead?.phone, lead?.lastInboundAt, lead?.callLogs, smsMessages])
 
   const leadPreferredBranchLabel = useMemo(
     () => getSaturnBranchLabel(leadPreferredBranchNumber),
@@ -3415,7 +3413,7 @@ export default function SalesLeadDetailPage() {
         body: composerBody.trim(),
         leadId: lead.id,
         quoteId: quote?.id,
-        fromNumber: composerChannel === 'sms' ? leadPreferredBranchNumber : undefined,
+        // Automatic sender is resolved on the server from this customer's inbound call history.
         notes: `${composerChannel.toUpperCase()} sent from lead detail`,
       })
       setComposerOpen(false)
@@ -3549,7 +3547,7 @@ export default function SalesLeadDetailPage() {
         to: lead.phone,
         body,
         leadId: lead.id,
-        fromNumber: leadPreferredBranchNumber,
+        // Resolve the automatic sender on the server at send time.
       })
       setSmsMessages(current => [
         ...current,

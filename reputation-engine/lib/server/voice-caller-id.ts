@@ -1,21 +1,24 @@
+import { latestInboundCallbackNumber } from '@/lib/inbound-callback-number'
 import {
+  coerceSaturnBranchPhoneNumber,
   DEFAULT_SATURN_BRANCH_NUMBER,
   getSaturnBranchLabel,
   getSaturnBranchNumberForSalesBranch,
   getSaturnBranchNumberFromRawData,
   getSaturnBusinessNumberFromSmsMessage,
   inferSaturnBranchPhoneNumberFromCity,
-  inferSaturnBranchPhoneNumberFromPhone,
   isSaturnBranchPhoneNumber,
   normalizePhone,
   pickSaturnBranchPhoneNumber,
 } from '@/lib/sales-phones'
-import { getSalesLeadByContact, getInboundLead, getSalesLead } from '@/lib/server/sales-repository'
+import { listInboundLeadsByPhone, getSalesLeadByContact, getInboundLead, getSalesLead } from '@/lib/server/sales-repository'
 import { listSmsMessages, type SmsMessageRecord } from '@/lib/server/sms-threads'
 import type { CRMLead } from '@/lib/types'
 
 export type VoiceCallerIdResolutionReason =
   | 'explicit'
+  | 'customer_inbound_call'
+  | 'customer_inbound_sms'
   | 'lead_sms_thread'
   | 'lead_recent_call'
   | 'lead_inbound_number'
@@ -41,6 +44,7 @@ type ResolveVoiceCallerIdInput = {
   phone?: string | null
   email?: string | null
   inboundId?: string | null
+  historyOnly?: boolean
   preferredFromNumber?: string | null
 }
 
@@ -153,29 +157,33 @@ export async function resolveVoiceCallerId(input: ResolveVoiceCallerIdInput): Pr
   const inboundId = input.inboundId?.trim() || null
 
   const directLead = input.leadId ? await getSalesLead(input.leadId).catch(() => null) : null
-  if (directLead) {
-    const leadResolution = await resolveLeadDerivedCallerId(directLead, 'lead')
-    if (leadResolution) {
-      return leadResolution
-    }
+  const matchedLead = directLead || await getSalesLeadByContact(normalizedPhone, normalizedEmail, inboundId, { includeClosed: true }).catch(() => null)
+  const contactPhone = normalizedPhone || normalizePhone(matchedLead?.phone)
+  const inboundCalls = contactPhone ? await listInboundLeadsByPhone(contactPhone).catch(() => []) : []
+  const callbackNumber = latestInboundCallbackNumber({
+    phone: contactPhone,
+    leadPhone: matchedLead?.phone,
+    calls: matchedLead?.callLogs,
+    inbound: inboundCalls,
+  })
+  if (callbackNumber) {
+    return { fromNumber: callbackNumber, branchLabel: getSaturnBranchLabel(callbackNumber),
+      matchedLeadId: matchedLead?.id || null, reason: 'customer_inbound_call' }
   }
-
-  const matchedLead = await getSalesLeadByContact(normalizedPhone, normalizedEmail, inboundId).catch(() => null)
-  if (matchedLead && matchedLead.id !== directLead?.id) {
-    const matchedResolution = await resolveLeadDerivedCallerId(matchedLead, 'contact_match')
-    if (matchedResolution) {
-      return matchedResolution
-    }
+  if (contactPhone) {
+    const messages = await listSmsMessages(contactPhone).catch(() => [] as SmsMessageRecord[])
+    const incomingNumber = [...messages]
+      .filter(message => message.direction === 'inbound' && normalizePhone(message.from_number) === contactPhone)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map(message => coerceSaturnBranchPhoneNumber(message.to_number))
+      .find(Boolean)
+    if (incomingNumber) return { fromNumber: incomingNumber, branchLabel: getSaturnBranchLabel(incomingNumber),
+      matchedLeadId: matchedLead?.id || null, reason: 'customer_inbound_sms' }
   }
-
-  const areaCodeBranch = inferSaturnBranchPhoneNumberFromPhone(normalizedPhone)
-  if (areaCodeBranch) {
-    return {
-      fromNumber: areaCodeBranch,
-      branchLabel: getSaturnBranchLabel(areaCodeBranch),
-      matchedLeadId: matchedLead?.id || directLead?.id || null,
-      reason: 'phone_area_code',
-    }
+  if (input.historyOnly) throw new Error('No incoming call or text identifies this customer’s company line. Choose a company number to continue.')
+  if (matchedLead) {
+    const resolution = await resolveLeadDerivedCallerId(matchedLead, directLead ? 'lead' : 'contact_match')
+    if (resolution) return resolution
   }
 
   const fallback = pickSaturnBranchPhoneNumber(DEFAULT_SATURN_BRANCH_NUMBER)
