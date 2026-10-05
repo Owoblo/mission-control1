@@ -1,2 +1,7 @@
-reputation-engine/.tmp-*
+reputation-engine/.git
+reputation-engine/node_modules
+reputation-engine/.next
+reputation-engine/.tmp*
+reputation-engine/.env*
+reputation-engine/*.tsbuildinfo
 **/.env*.local

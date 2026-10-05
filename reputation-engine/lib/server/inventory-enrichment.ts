@@ -298,7 +298,8 @@ function sanitizeRoomLabel(roomName: string, items: Array<{ label?: string; name
 export async function classifyPhotosByRoom(
   photos: string[],
   config: { apiKey: string; model: string },
-  propertyContext?: PropertyContext
+  propertyContext?: PropertyContext,
+  signal?: AbortSignal
 ): Promise<Record<string, string[]>> {
   const bedroomsHint = propertyContext?.bedrooms ? `- ${propertyContext.bedrooms} bedrooms` : ''
   const bathroomsHint = propertyContext?.bathrooms ? `- ${propertyContext.bathrooms} bathrooms` : ''
@@ -307,7 +308,7 @@ export async function classifyPhotosByRoom(
   const bathsCount = propertyContext?.bathrooms || 0
   const expectedRooms = bedsCount > 0
     ? `EXPECTED LAYOUT: ${bedsCount} bedroom${bedsCount > 1 ? 's' : ''}, ${bathsCount || '?'} bathroom${bathsCount !== 1 ? 's' : ''}.
-- You MUST produce exactly ${bedsCount} bedroom groups: bedroom_1 through bedroom_${bedsCount}
+- The listing bedroom count is context only. Group only rooms actually visible; never invent rooms to match the listing.
 - bedroom_1 = PRIMARY/MASTER bedroom (largest, usually has en-suite, walk-in closet, or is clearly the owner's room)
 - bedroom_2, bedroom_3, etc. = secondary bedrooms in order of size
 - Do NOT merge two different bedrooms into one group`
@@ -342,7 +343,8 @@ GROUPING RULES (follow strictly):
 3. A bedroom with a king bed + large walk-in closet = bedroom_1 (primary).
 4. Never assign a photo to a room that doesn't match its contents (e.g., a kitchen photo cannot be bedroom_1).
 5. If a photo shows an exterior, deck, or yard → outdoor.
-6. If you see a staircase only → skip it (assign to "other").
+6. If you see a staircase only → assign to "other".
+8. Assign EVERY photo index exactly once. Outdoor, patio, balcony, garage and shed photos must be included. Open-plan areas may show both dining and living furniture; do not call all of it kitchen.
 7. When in doubt, create a separate group rather than merging.
 
 Return ONLY a valid JSON object — photo indices start at 0:
@@ -352,6 +354,7 @@ Return ONLY the JSON object, no explanation or markdown.`
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000),
     headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: config.model,
@@ -383,11 +386,15 @@ Return ONLY the JSON object, no explanation or markdown.`
   const classification = JSON.parse(jsonMatch[1]) as Record<string, number[]>
 
   const result: Record<string, string[]> = {}
+  const assigned = new Set<number>()
   for (const [room, indices] of Object.entries(classification)) {
-    if (Array.isArray(indices)) {
-      result[room] = indices.map((i: number) => photos[i]).filter(Boolean)
-    }
+    if (!Array.isArray(indices)) continue
+    const valid = indices.filter(i => Number.isInteger(i) && i >= 0 && i < photos.length && !assigned.has(i) && Boolean(assigned.add(i)))
+    if (valid.length) result[room] = valid.map(i => photos[i])
   }
+  const remaining = photos.filter((_, i) => !assigned.has(i))
+  if (remaining.length) result.other = [...(result.other || []), ...remaining]
+
   return result
 }
 
@@ -504,9 +511,10 @@ function buildInventoryItemFromDetection(
 export async function detectFurnitureInRoom(
   roomName: string,
   roomPhotos: string[],
-  config: { apiKey: string; model: string }
+  config: { apiKey: string; model: string },
+  signal?: AbortSignal
 ): Promise<InventoryItem[]> {
-  const scopedPhotos = selectRepresentativeRoomPhotos(roomPhotos)
+  const scopedPhotos = Array.from(new Set(roomPhotos))
   const isBedroomRoom = roomName.includes('bedroom')
   const isBathroomRoom = roomName.includes('bathroom')
   const isGarage = roomName.includes('garage')
@@ -514,9 +522,9 @@ export async function detectFurnitureInRoom(
 
   const bedroomRules = isBedroomRoom ? `
 BEDROOM RULES:
-- ONE BED PER BEDROOM — if multiple photos show beds, they are the SAME bed from different angles
+- Deduplicate repeated views of the same bed using visual evidence. Count multiple distinct beds when visible.
 - Typical bedroom: 1 bed, 1-2 nightstands, 1 dresser, sometimes 1 chair or desk
-- If photos show different bed sizes (king vs queen), pick the one with highest confidence — DO NOT list both` : ''
+- Do not discard distinct beds or separate mattresses merely because they share a bedroom.` : ''
 
   const bathroomRules = isBathroomRoom ? `
 BATHROOM RULES:
@@ -551,6 +559,9 @@ REQUIREMENTS:
 9. If a likely fixture is visible but you think it might be removable (custom cabinetry, island, built-in storage system), list it with included:false and notes "Likely built-in fixture — confirm separately if customer is removing it"
 10. Every item needs a confidence score from 0.00 to 1.00
 11. If unsure whether something is movable or built-in, err toward included:false with an explanatory note
+12. Include visible patio chairs, outdoor tables, loungers and movable planters; mark uncertain ownership for customer confirmation. Never infer furniture from room count.
+13. In open-plan photos, set each item room to its visible functional area (dining_room, living_room, kitchen, outdoor); do not label a dining table or sofa as kitchen merely because cabinets appear nearby.
+14. A complete bed set must explicitly state included components and combined volume; never also list those same components separately.
 
 Return ONLY a JSON array:
 [{"label":"Queen Platform Bed","qty":1,"confidence":0.92,"room":"${roomName}","size":"Queen (60×80 in)","cubicFeet":65,"weightLbs":175,"notes":"Upholstered headboard, wrap recommended"}]
@@ -559,6 +570,7 @@ Return ONLY valid JSON array, no other text.`
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000),
     headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: config.model,
@@ -586,35 +598,27 @@ Return ONLY valid JSON array, no other text.`
   const content = data.choices[0]?.message?.content || ''
 
   const jsonMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/) || content.match(/(\[[\s\S]*?\])/)
-  if (!jsonMatch) return []
+  if (!jsonMatch) throw new Error("Inventory detection returned an incomplete response. Please retry.")
 
   const detections = JSON.parse(jsonMatch[1]) as Array<Record<string, unknown>>
-  if (!Array.isArray(detections)) return []
+  if (!Array.isArray(detections)) throw new Error("Inventory detection was not a valid list.")
 
   // Room sanity check — fix mislabeled rooms before processing
   const sanitizedRoom = sanitizeRoomLabel(roomName, detections as Array<{ label?: string; name?: string }>)
   const effectiveRoom = sanitizedRoom !== roomName ? sanitizedRoom : roomName
 
-  // Post-process: enforce one bed per bedroom
   let processed = detections
-  if (isBedroomRoom) {
-    const beds = processed.filter(d => {
-      const label = String(d.label || '').toLowerCase()
-      return label.includes('bed') && !label.includes('nightstand') && !label.includes('bedside')
-    })
-    if (beds.length > 1) {
-      const bestBed = beds.reduce((best, cur) =>
-        (Number(cur.confidence) || 0) > (Number(best.confidence) || 0) ? cur : best
-      )
-      processed = processed.filter(d => !beds.includes(d) || d === bestBed)
-    }
-  }
 
   // Drop items below 0.50 confidence — too uncertain to include at all
-  processed = processed.filter(d => (Number(d.confidence) || 1) >= 0.50)
+  processed = processed.filter(d => (Number.isFinite(Number(d.confidence)) ? Number(d.confidence) : 0.5) >= 0.50)
 
   return processed
-    .map(d => buildInventoryItemFromDetection(roomName, effectiveRoom, d))
+    .map(d => {
+      const functionalRoom = String(d.room || '').toLowerCase().replace(/ /g, '_')
+      const allowed = ['living_room', 'dining_room', 'kitchen', 'outdoor', 'garage', 'storage']
+      const itemRoom = allowed.includes(functionalRoom) ? functionalRoom : effectiveRoom
+      return buildInventoryItemFromDetection(roomName, itemRoom, d)
+    })
     .filter((item): item is InventoryItem => !!item)
 }
 
@@ -682,19 +686,19 @@ export function validateInventory(
 export async function analyzePhotoBatch(
   photos: string[],
   batchIndex: number,
-  propertyContext?: PropertyContext
+  propertyContext?: PropertyContext,
+  signal?: AbortSignal
 ): Promise<InventoryItem[]> {
   const config = getOpenAIConfig()
   if (!config || photos.length === 0) return []
-  const scopedPhotos = selectRepresentativeRoomPhotos(photos, Math.min(photos.length, 5))
+  const scopedPhotos = Array.from(new Set(photos))
   const propertyHintParts = [
     propertyContext?.bedrooms ? `${propertyContext.bedrooms} bedrooms` : '',
     propertyContext?.bathrooms ? `${propertyContext.bathrooms} bathrooms` : '',
   ].filter(Boolean)
   const propertyHint = propertyHintParts.length > 0 ? `Property context: ${propertyHintParts.join(', ')}. ` : ''
 
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 90000)
+  const batchSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000)
 
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -702,7 +706,7 @@ export async function analyzePhotoBatch(
       Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
-    signal: controller.signal,
+    signal: batchSignal,
     body: JSON.stringify({
       model: config.model,
       input: [
@@ -742,7 +746,6 @@ export async function analyzePhotoBatch(
       ],
     }),
   })
-  clearTimeout(timeout)
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -774,6 +777,7 @@ export async function analyzeListingPhotos(
   propertyContext?: PropertyContext
 ): Promise<InventoryScanDraft | null> {
   const config = getOpenAIConfig()
+  const scanSignal = AbortSignal.timeout(250_000)
   const allPhotos = Array.from(new Set((listing.carouselphotos || [])
     .map(photo => (typeof photo === 'string' ? photo : photo?.url))
     .filter((value): value is string => !!value)
@@ -781,15 +785,15 @@ export async function analyzeListingPhotos(
 
   if (!config || allPhotos.length === 0) return null
 
-  // Limit to 20 photos — skip first 3 (usually exterior shots)
-  const rawInteriorPhotos = allPhotos.slice(3, 23)
+  // Exterior and late-listing photos can contain patio, garage and storage inventory.
+  const rawInteriorPhotos = allPhotos
   const photos = await dedupePhotosBeforeVision(rawInteriorPhotos)
   const duplicatePhotoCount = Math.max(0, rawInteriorPhotos.length - photos.length)
 
   // ── Phase 1: Classify photos by room ──────────────────────────────────────
   let roomMap: Record<string, string[]> = {}
   try {
-    roomMap = await classifyPhotosByRoom(photos, config, propertyContext)
+    roomMap = await classifyPhotosByRoom(photos, config, propertyContext, scanSignal)
   } catch (err) {
     console.warn('Room classification failed, falling back to single-pass:', err)
   }
@@ -800,17 +804,9 @@ export async function analyzeListingPhotos(
   if (roomCount > 0) {
     const allItems: InventoryItem[] = []
 
-    for (const [roomName, roomPhotos] of Object.entries(roomMap)) {
-      if (roomPhotos.length === 0) continue
-      try {
-        // Small delay between rooms to avoid rate limits
-        if (allItems.length > 0) await new Promise(r => setTimeout(r, 1500))
-        const items = await detectFurnitureInRoom(roomName, roomPhotos, config)
-        allItems.push(...items)
-      } catch (err) {
-        console.warn(`Detection failed for room ${roomName}:`, err)
-      }
-    }
+    const entries = Object.entries(roomMap).filter(([, urls]) => urls.length)
+    const results = await mapScanRooms(entries, async ([roomName, roomPhotos]) => detectFurnitureInRoom(roomName, roomPhotos, config, scanSignal))
+    allItems.push(...results.flat())
 
     // ── Phase 3: Validation + bucketing ───────────────────────────────────
     const validationFlags = validateInventory(allItems, propertyContext)
@@ -821,7 +817,7 @@ export async function analyzeListingPhotos(
     return buildInventoryScanDraftFromInventory({
       inventory: allItems,
       source: 'mls_photo_ai',
-      confidence: roomCount >= 4 ? 'high' : roomCount >= 2 ? 'medium' : 'low',
+      confidence: 'medium',
       validationFlags,
       notes: `3-phase scan: ${roomCount} room instances classified from ${photos.length} deduped photos${duplicatePhotoCount > 0 ? ` (${duplicatePhotoCount} duplicate photo${duplicatePhotoCount > 1 ? 's' : ''} removed before vision)` : ''}. ${validationFlags.length > 0 ? 'Flags: ' + validationFlags.join('; ') : ''}`.trim(),
     })
@@ -919,4 +915,20 @@ export async function analyzeListingPhotos(
     validationFlags: fallbackValidationFlags,
     notes: parsed.notes || `Single-pass scan from ${photos.length} MLS photos. (Room classification unavailable — results may include duplicates.)`,
   })
+}
+
+/** Bounded room concurrency; failed rooms reject the entire scan instead of publishing partial inventory. */
+export async function mapScanRooms<T, R>(entries: T[], scan: (entry: T, index: number) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(entries.length)
+  let next = 0
+  let failed = false
+  await Promise.all(Array.from({ length: Math.min(2, entries.length) }, async () => {
+    while (!failed) {
+      const index = next++
+      if (index >= entries.length) return
+      try { results[index] = await scan(entries[index], index) }
+      catch (error) { failed = true; throw error }
+    }
+  }))
+  return results
 }

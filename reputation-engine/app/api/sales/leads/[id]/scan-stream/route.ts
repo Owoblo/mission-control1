@@ -8,6 +8,8 @@ import {
   suggestTruckConfig,
   validateInventory,
   analyzePhotoBatch,
+  dedupePhotosBeforeVision,
+  mapScanRooms,
 } from '@/lib/server/inventory-enrichment'
 import { applyMovePolicyToInventory } from '@/lib/move-policy'
 import { hasInternalSession } from '@/lib/server/session'
@@ -24,9 +26,10 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
   const lead = await getSalesLead(params.id)
   if (!lead) return new Response('Lead not found', { status: 404 })
 
-  const photos = (lead.supabaseListing?.carouselphotos || [])
+  const rawPhotos = (lead.supabaseListing?.carouselphotos || [])
     .map((p: string | { url?: string }) => (typeof p === 'string' ? p : p?.url))
     .filter((u): u is string => !!u)
+  const photos = await dedupePhotosBeforeVision(rawPhotos)
   const propertyContext = getListingPropertyContext(lead.supabaseListing)
 
   if (photos.length === 0) return new Response('No MLS photos on this lead', { status: 400 })
@@ -34,6 +37,8 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
   const config = getOpenAIConfig()
   if (!config) return new Response('OpenAI not configured', { status: 400 })
 
+  const scanController = new AbortController()
+  const scanSignal = AbortSignal.any([_req.signal, scanController.signal, AbortSignal.timeout(250_000)])
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -42,7 +47,7 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
         } catch {
-          // client disconnected
+          scanController.abort() // client disconnected
         }
       }
 
@@ -64,7 +69,7 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
         // Phase 1: classify all photos by room
         let roomMap: Record<string, string[]> = {}
         try {
-          roomMap = await classifyPhotosByRoom(photos, config, propertyContext)
+          roomMap = await classifyPhotosByRoom(photos, config, propertyContext, scanSignal)
         } catch {
           // Phase 1 failure: fall back to batch scan
         }
@@ -98,11 +103,11 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
               status: `Scanning photos ${from}–${to} of ${photos.length}…`,
             })
             try {
-              const items = await analyzePhotoBatch(batches[i], i, propertyContext)
+              const items = await analyzePhotoBatch(batches[i], i, propertyContext, scanSignal)
               allItems.push(...items)
               send({ type: 'batch', batch: i + 1, totalBatches: batches.length, items, runningCount: allItems.length })
             } catch (err) {
-              send({ type: 'batch_error', batch: i + 1, error: (err as Error).message })
+              throw new Error(`Photos ${from}–${to} could not be scanned. Your existing inventory is unchanged. ${(err as Error).message}`)
             }
           }
 
@@ -144,33 +149,16 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
 
         const allItems: InventoryItem[] = []
 
-        for (let i = 0; i < rooms.length; i++) {
-          const [roomName, roomPhotos] = rooms[i]
+        let completed = 0
+        const results = await mapScanRooms(rooms, async ([roomName, roomPhotos]) => {
           const displayRoom = roomName.replace(/_\d+$/, '').replace(/_/g, ' ')
-
-          send({
-            type: 'progress',
-            batch: i + 1,
-            totalBatches: roomCount,
-            status: `Scanning ${displayRoom} (${roomPhotos.length} photo${roomPhotos.length > 1 ? 's' : ''})…`,
-          })
-
-          if (i > 0) await new Promise(r => setTimeout(r, 1200))
-
-          try {
-            const items = await detectFurnitureInRoom(roomName, roomPhotos, config)
-            allItems.push(...items)
-            send({
-              type: 'batch',
-              batch: i + 1,
-              totalBatches: roomCount,
-              items,
-              runningCount: allItems.length,
-            })
-          } catch (err) {
-            send({ type: 'batch_error', batch: i + 1, error: (err as Error).message })
-          }
-        }
+          send({ type: 'progress', batch: completed, totalBatches: roomCount, status: `Scanning ${displayRoom} (${roomPhotos.length} photos)…` })
+          const items = await detectFurnitureInRoom(roomName, roomPhotos, config, scanSignal)
+          completed++
+          send({ type: 'batch', batch: completed, totalBatches: roomCount, items })
+          return items
+        })
+        allItems.push(...results.flat())
 
         // Phase 3: validate
         const policyInventory = applyMovePolicyToInventory(allItems, { enforceExclusion: true })
@@ -178,7 +166,7 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
         const scan = buildInventoryScanDraftFromInventory({
           inventory: policyInventory,
           source: 'mls_photo_ai',
-          confidence: roomCount >= 4 ? 'high' : roomCount >= 2 ? 'medium' : 'low',
+          confidence: 'medium',
           validationFlags,
           notes: `Stream scan across ${roomCount} room groups from ${photos.length} MLS photos.`,
         })
@@ -193,9 +181,10 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
           propertyContext: propertyContext ?? null,
         })
       } catch (err) {
+        scanController.abort()
         send({ type: 'error', error: (err as Error).message })
       } finally {
-        controller.close()
+        try { controller.close() } catch { /* stream was cancelled */ }
       }
     },
   })

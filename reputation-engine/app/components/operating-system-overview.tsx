@@ -9,6 +9,7 @@ type Props = {
   leads: CRMLead[]
   quotes: CRMQuote[]
   loading: boolean
+  branch?: string
 }
 
 function localDateStamp(offsetDays = 0) {
@@ -40,7 +41,7 @@ function statusTone(stage: ReturnType<typeof deriveOperatingStage>) {
   return 'border-[var(--app-line)] bg-white text-[#344054]'
 }
 
-export function OperatingSystemOverview({ leads, quotes, loading }: Props) {
+export function OperatingSystemOverview({ leads, quotes, loading, branch }: Props) {
   const quoteById = new Map(quotes.map(item => [item.id, item]))
   const quoteFor = (lead: CRMLead) => lead.quoteId ? quoteById.get(lead.quoteId) || null : null
   const today = localDateStamp()
@@ -74,7 +75,7 @@ export function OperatingSystemOverview({ leads, quotes, loading }: Props) {
     <section className="space-y-8 border-b border-[var(--app-line)] pb-10">
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a6800]">Saturn Star operating system</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a6800]">{branch === 'ottawa' ? 'Dexa Movers · Ottawa operations' : branch ? `${branch} operations` : 'Saturn Star operating system'}</div>
           <h1 className="mt-2 font-display text-[2rem] font-semibold tracking-tight text-[#071421] md:text-[34px]">What is happening, and what needs intervention?</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">One operational view from incoming demand to prepared jobs, live execution and final care.</p>
         </div>

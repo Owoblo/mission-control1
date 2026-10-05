@@ -3,6 +3,7 @@ import { digitsOnly, normalizePhone } from '../sales-phones'
 import type { CRMLead } from '../types'
 
 type LeadIdentityShape = {
+  parentLeadId?: string
   id: string
   name: string
   stage: CRMLead['stage']
@@ -175,6 +176,8 @@ export function leadSharesIdentity(
   lead: LeadIdentityShape,
   input: { phone?: string | null; email?: string | null; inboundId?: string | null }
 ) {
+  // Explicit additional jobs share a customer, but must never be auto-merged.
+  if (lead.parentLeadId) return false
   if (input.inboundId && lead.inboundId && input.inboundId === lead.inboundId) {
     return true
   }
@@ -279,6 +282,7 @@ export function mergeLeadRecords(
   duplicate: CRMLead,
   options: { mergedAt?: string; mergedByUserId?: string | null; mergedByName?: string | null; mergedReason?: string } = {},
 ) {
+  if (primary.parentLeadId || duplicate.parentLeadId) throw new Error('Additional jobs must remain separate from customer identity merges.')
   const mergedAt = options.mergedAt || new Date().toISOString()
   const mergedQuoteIds = mergeStringArrays(
     mergeStringArrays(primary.quoteIds, primary.quoteId ? [primary.quoteId] : []),

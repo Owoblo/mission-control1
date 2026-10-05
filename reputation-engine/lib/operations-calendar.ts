@@ -40,9 +40,11 @@ function occurrenceFromLeg(
  * Multi-leg moves use their leg dates; ordinary moves retain the lead/quote date.
  */
 export function getOperationsCalendarOccurrences(
-  lead: Pick<CRMLead, 'id' | 'moveDate'>,
+  lead: Pick<CRMLead, 'id' | 'moveDate' | 'parentLeadId' | 'additionalJobKind'>,
   quote: CRMQuote | null,
 ): OperationsCalendarOccurrence[] {
+  // A same-move supplement uses the original job's crew/calendar slot.
+  if (lead.parentLeadId && lead.additionalJobKind === 'supplement') return []
   const baseDate = validCalendarDate(lead.moveDate)
     ? lead.moveDate
     : validCalendarDate(quote?.moveDate)
@@ -69,7 +71,7 @@ export function getOperationsCalendarOccurrences(
 }
 
 export function hasOperationsOccurrenceOnDate(
-  lead: Pick<CRMLead, 'id' | 'moveDate'>,
+  lead: Pick<CRMLead, 'id' | 'moveDate' | 'parentLeadId' | 'additionalJobKind'>,
   quote: CRMQuote | null,
   date: string,
 ) {

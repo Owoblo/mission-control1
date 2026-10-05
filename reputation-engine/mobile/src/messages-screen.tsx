@@ -30,6 +30,7 @@ import {
   peekConversations,
   PhoneLine,
   sendConversationMessage,
+  resolveSuggestedLine,
   uploadMessageMedia,
 } from './api';
 import {colors} from './theme';
@@ -218,11 +219,12 @@ export function MessagesScreen({
       <ThreadScreen
         token={token}
         conversation={selected}
+        lines={lines}
         onBack={() => {
           setSelected(null);
           refresh(true);
         }}
-        onCall={() => onOpenDialer(selected.phone, selected.line)}
+        onCall={() => onOpenDialer(selected.phone, selected.workspace === 'partnership' ? selected.line : undefined)}
       />
     );
   }
@@ -432,6 +434,7 @@ export function MessagesScreen({
 }
 
 function ThreadScreen({
+  lines,
   token,
   conversation,
   onBack,
@@ -439,6 +442,7 @@ function ThreadScreen({
 }: {
   token: string;
   conversation: Conversation;
+  lines: PhoneLine[];
   onBack: () => void;
   onCall: () => void;
 }) {
@@ -453,17 +457,37 @@ function ThreadScreen({
   const [error, setError] = useState('');
   const list = useRef<FlatList<ConversationMessage>>(null);
 
+  const [manualSender, setManualSender] = useState<string | undefined>();
+  const [suggestedSender, setSuggestedSender] = useState('');
+  const [senderNotice, setSenderNotice] = useState('Checking customer history…');
+  useEffect(() => {
+    if (conversation.workspace !== 'sales' || manualSender) return;
+    let cancelled = false;
+    setSuggestedSender('');
+    setSenderNotice('Checking customer history…');
+    void resolveSuggestedLine(token, conversation.phone).then(result => {
+      if (!cancelled) { setSuggestedSender(result.line.number); setSenderNotice(`Customer contacted ${result.line.label} · ${result.line.number}`); }
+    }).catch(reason => { if (!cancelled) setSenderNotice(reason instanceof Error ? reason.message : 'Choose a company line.'); });
+    return () => { cancelled = true; };
+  }, [token, conversation.phone, conversation.workspace, manualSender]);
+  const senderReady = conversation.workspace !== 'sales' || !!manualSender || !!suggestedSender;
+
   const load = useCallback(async () => {
     setError('');
     try {
+      const replyLine = manualSender || suggestedSender;
       const result = await loadConversationMessages(token, conversation);
-      setMessages(result.messages);
+      if (conversation.workspace === 'sales' && replyLine && replyLine !== conversation.line) {
+        const replies = await loadConversationMessages(token, {...conversation, line: replyLine});
+        const merged = new Map([...result.messages, ...replies.messages].map(message => [message.id, message]));
+        setMessages([...merged.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)));
+      } else setMessages(result.messages);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Conversation is temporarily unavailable.');
     } finally {
       setLoading(false);
     }
-  }, [conversation, token]);
+  }, [conversation, token, manualSender, suggestedSender]);
 
   useEffect(() => {
     load();
@@ -482,7 +506,7 @@ function ThreadScreen({
 
   async function send() {
     const body = draft.trim();
-    if ((!body && !attachment) || sending) return;
+    if ((!body && !attachment) || sending || !senderReady) return;
     const optimistic = createPendingMessage(body || `Attachment: ${attachment?.name}`);
     setDraft('');
     setSending(true);
@@ -491,7 +515,7 @@ function ThreadScreen({
       const mediaUrls = attachment
         ? [(await uploadMessageMedia(token, attachment)).url]
         : [];
-      await sendConversationMessage(token, conversation, body, mediaUrls);
+      await sendConversationMessage(token, conversation, body, mediaUrls, manualSender);
       setAttachment(null);
       await load();
     } catch (reason) {
@@ -640,19 +664,23 @@ function ThreadScreen({
             />
             <Pressable
               accessibilityLabel="Send message"
-              disabled={(!draft.trim() && !attachment) || sending}
+              disabled={(!draft.trim() && !attachment) || sending || !senderReady}
               onPress={send}
               style={[
                 styles.send,
-                ((!draft.trim() && !attachment) || sending) && styles.sendDisabled,
+                ((!draft.trim() && !attachment) || sending || !senderReady) && styles.sendDisabled,
               ]}>
               {sending
                 ? <ActivityIndicator size="small" color="white" />
                 : <Icon name="arrow-up" size={20} color="white" />}
             </Pressable>
           </View>
+          {conversation.workspace === 'sales' && <ScrollView horizontal contentContainerStyle={styles.sheetChoices}>
+            <Pressable onPress={() => setManualSender(undefined)} style={[styles.sheetChoice, !manualSender && styles.sheetChoiceSelected]}><Text style={[styles.sheetChoiceText, !manualSender && styles.sheetChoiceTextSelected]}>Customer’s line</Text></Pressable>
+            {lines.filter(line => line.workspace === 'sales').map(line => <Pressable key={line.number} onPress={() => setManualSender(line.number)} style={[styles.sheetChoice, manualSender === line.number && styles.sheetChoiceSelected]}><Text style={[styles.sheetChoiceText, manualSender === line.number && styles.sheetChoiceTextSelected]}>{line.label}</Text></Pressable>)}
+          </ScrollView>}
           <Text style={styles.sendingLine}>
-            Sending from {conversation.line}
+            {conversation.workspace === 'sales' ? manualSender ? `Sending from ${manualSender} (chosen by you)` : senderNotice : `Sending from ${conversation.line}`}
           </Text>
         </View>
         <Modal

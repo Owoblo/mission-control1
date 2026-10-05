@@ -1,3 +1,5 @@
+import { listSalesLeads } from '@/lib/server/sales-repository'
+import { isLeadTaskCurrent } from './task-generation'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMTask } from '@/lib/tasks'
 
@@ -46,7 +48,11 @@ export async function listTasks(filters?: { relatedId?: string; branch?: string 
   if (filters?.branch) query.set('branch', `eq.${filters.branch}`)
   const response = await fetch(`${url}/rest/v1/crm_tasks?${query}`, { headers, cache: 'no-store' })
   if (!response.ok) throw new Error('Failed to load tasks')
-  return ((await response.json()) as TaskRow[]).map(fromRow)
+  const tasks = ((await response.json()) as TaskRow[]).map(fromRow)
+  const leads = new Map((await listSalesLeads()).map(lead => [lead.id, lead]))
+  const stale = tasks.filter(task => !isLeadTaskCurrent(task, leads.get(task.relatedId || '')))
+  for (const task of stale) await saveTask({ ...task, status: 'cancelled', updatedAt: new Date().toISOString(), outcomeNote: 'Lead status or next check-in changed.' })
+  return tasks.filter(task => isLeadTaskCurrent(task, leads.get(task.relatedId || '')))
 }
 
 export async function getTask(id: string) {

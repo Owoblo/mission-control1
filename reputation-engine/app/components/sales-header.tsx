@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { fetchRead, startReadPolling } from '@/lib/resilient-read'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
@@ -255,10 +256,8 @@ export function SalesHeader() {
 
   // ── Fetch notifications (poll every 30s) ───────────────────────────────
   useEffect(() => {
-    async function fetchNotifications() {
-      try {
-        const res = await fetch('/api/sales/notifications', { credentials: 'include' })
-        if (!res.ok) return
+    async function fetchNotifications(signal: AbortSignal) {
+        const res = await fetchRead('/api/sales/notifications', { credentials: 'include', signal }, { timeoutMs: 12_000 })
         const data = await res.json() as { items: NotificationItem[]; totalCount: number; breakdown: { leads: number; sms: number; emails: number; alerts: number } }
 
         // Detect new items for toast + chime + push
@@ -291,24 +290,12 @@ export function SalesHeader() {
           emails: visibleItems.filter(i => i.type === 'email').length,
           alerts: visibleItems.filter(i => i.type === 'alert').length,
         })
-      } catch { /* non-fatal */ }
     }
 
-    let interval: ReturnType<typeof setInterval> | null = null
-
-    function schedule() {
-      if (interval) clearInterval(interval)
-      const delay = typeof document !== 'undefined' && document.hidden ? 60_000 : 20_000
-      interval = setInterval(() => void fetchNotifications(), delay)
-    }
-
-    void fetchNotifications()
-    schedule()
-    document.addEventListener('visibilitychange', schedule)
-    return () => {
-      if (interval) clearInterval(interval)
-      document.removeEventListener('visibilitychange', schedule)
-    }
+    return startReadPolling(fetchNotifications, {
+      intervalMs: () => document.hidden ? 60_000 : 20_000,
+      maxDelayMs: 120_000,
+    })
   }, [isDexaView])
 
   useEffect(() => {

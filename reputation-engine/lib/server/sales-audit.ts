@@ -14,6 +14,7 @@ const ACCEPTED_QUOTE_LOCKED_FIELDS: Array<{ key: keyof CRMQuote; label: string }
   { key: 'quoteType', label: 'quote type' },
   { key: 'originAddress', label: 'origin address' },
   { key: 'originCity', label: 'origin city' },
+  { key: 'destAddress', label: 'destination address' },
   { key: 'destCity', label: 'destination city' },
   { key: 'crewSize', label: 'crew size' },
   { key: 'estimatedHours', label: 'estimated hours' },
@@ -33,6 +34,10 @@ const ACCEPTED_QUOTE_LOCKED_FIELDS: Array<{ key: keyof CRMQuote; label: string }
   { key: 'hst', label: 'HST' },
   { key: 'total', label: 'total price' },
   { key: 'deposit', label: 'deposit' },
+  { key: 'depositPaidAmount', label: 'paid deposit' },
+  { key: 'depositPaidAt', label: 'deposit receipt date' },
+  { key: 'balancePaidAmount', label: 'paid balance' },
+  { key: 'balancePaidAt', label: 'balance receipt date' },
   { key: 'balance', label: 'balance' },
   { key: 'moveDescription', label: 'move description' },
 ]
@@ -93,7 +98,7 @@ function hasOwn<T extends object>(source: T, key: keyof any) {
 }
 
 function isAcceptedOrBookedQuote(current: CRMQuote, lead?: CRMLead | null) {
-  return current.status === 'accepted' || current.status === 'invoiced' || !!current.acceptedAt || lead?.stage === 'booked'
+  return current.status === 'accepted' || current.status === 'invoiced' || !!current.acceptedAt || !!current.depositPaidAt || Number(current.depositPaidAmount || 0) > 0 || lead?.stage === 'booked'
 }
 
 function comparableValue(value: unknown) {

@@ -47,7 +47,7 @@ export const SALES_LEAD_STAGES: Array<{ id: SalesLeadStage; label: string }> = [
   { id: 'pricing', label: 'Building Quote' },
   { id: 'quoted', label: 'Quoted' },
   { id: 'tentative', label: 'Tentative Reservation' },
-  { id: 'nurture', label: 'Shopping Around' },
+  { id: 'nurture', label: 'Nurture' },
   { id: 'booked', label: 'Booked' },
   { id: 'completed', label: 'Move Completed' },
   { id: 'customer_success', label: 'Customer Success' },
@@ -908,7 +908,7 @@ export function suggestTruckCount(totalCubicFeet: number, totalWeightLbs = 0, mo
   return Math.max(1, estimateRequiredTrucks(totalCubicFeet, totalWeightLbs))
 }
 
-export function computeJobPenalties(factors: JobFactors): {
+export function computeJobPenalties(factors: JobFactors, inventory: InventoryItem[] = []): {
   penalties: JobPenalty[]
   extraHours: number
   extraCubicFeet: number
@@ -1005,7 +1005,8 @@ export function computeJobPenalties(factors: JobFactors): {
   // Boxes: first 50 are standard and included — only count the overage above 50
   const BOX_STANDARD_ALLOWANCE = 50
   const totalBoxes = factors.estimatedBoxes || 0
-  const billableBoxes = Math.max(0, totalBoxes - BOX_STANDARD_ALLOWANCE)
+  const listedBoxes = inventory.filter(item => item.included !== false && item.status !== 'excluded').reduce((sum, item) => !/\bbox[\s-]*spring/i.test(item.name || item.item || '') && /\b(box(?:es)?|cartons?|bins?|totes?)\b/i.test(item.name || item.item || '') ? sum + Math.max(0, Number(item.qty || 1)) : sum, 0)
+  const billableBoxes = Math.max(0, totalBoxes - Math.max(BOX_STANDARD_ALLOWANCE, listedBoxes))
   const extraCubicFeet =
     (factors.garageCubicFeet || 0) +
     (factors.basementCubicFeet || 0) +
@@ -1054,6 +1055,7 @@ export function normalizeFollowUp(log: FollowUpLog): FollowUpLog {
 }
 
 export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead {
+  if ((lead.stage === 'lost' || lead.stage === 'nurture') && !bookingDecision(lead, quote).confirmed) return normalizeLead({ ...lead, quoteId: quote.id })
   const nextStage =
     quote.status === 'accepted' || quote.status === 'invoiced'
       ? isBookedLikeStage(lead.stage) ? lead.stage : bookingDecision(lead, quote).confirmed ? 'booked' : 'tentative'
@@ -1066,14 +1068,10 @@ export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead
           : quote.status === 'draft'
             ? isBookedLikeStage(lead.stage)
               ? lead.stage
-              : lead.stage === 'lost'
-                ? 'lost'
-                : 'pricing'
+              : 'pricing'
           : isBookedLikeStage(lead.stage)
             ? lead.stage
-            : lead.stage === 'lost'
-              ? 'lost'
-              : 'contacted'
+            : 'contacted'
 
   return normalizeLead({
     ...lead,
@@ -1142,7 +1140,7 @@ function estimateSingleLeadQuote(
       ? { disassemblyItemCount: autoDisassemblyCount }
       : undefined)
   const { penalties, extraHours: penaltyHoursFromFactors, extraCubicFeet } = activeFactors
-    ? computeJobPenalties(activeFactors)
+    ? computeJobPenalties(activeFactors, lead.inventory || [])
     : { penalties: [], extraHours: 0, extraCubicFeet: 0 }
   const assemblyPlan = buildAssemblyPlan(lead.inventory || [], activeFactors?.disassemblyMode)
   const legacyAssemblyHours = penalties.filter(penalty => penalty.category === 'disassembly').reduce((sum, penalty) => sum + penalty.hours, 0)

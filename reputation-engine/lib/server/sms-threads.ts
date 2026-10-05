@@ -1,3 +1,4 @@
+import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import { excludePartnershipMessages, listPartnershipMessageSids } from '@/lib/server/partnership-message-context'
 import {
   DEFAULT_SATURN_BRANCH_NUMBER,

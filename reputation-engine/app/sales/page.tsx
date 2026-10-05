@@ -9,6 +9,7 @@ import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/l
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead, CRMQuote, FollowUpLog, SalesDashboardSummary } from '@/lib/types'
 import type { DashboardDrilldownMetric, DashboardDrilldownResponse } from '@/lib/sales-api'
+import { BranchBreakdown } from '@/app/components/branch-breakdown'
 import { OperatingSystemOverview } from '@/app/components/operating-system-overview'
 
 type TelephonyMetrics = {
@@ -200,8 +201,9 @@ export default function SalesDashboardPage() {
           setFollowUps(data.followUps)
           setSummary(data.summary)
           setTelephonyHealth(telephonyResponse)
+          setError(null)
         })
-        .catch(() => {/* silently ignore — stale data is fine */})
+        .catch(() => { setError('Dashboard refresh failed. Sales figures shown are from the last successful update.') })
     }, 60_000)
     return () => clearInterval(interval)
   }, [])
@@ -401,8 +403,9 @@ export default function SalesDashboardPage() {
   return (
     <div className="crm-shell">
       <div className="space-y-10">
+        {currentUser?.role === 'manager' && currentUser.branch && <BranchBreakdown branch={currentUser.branch} leads={leads} quotes={quotes} loading={loading} onRefresh={refresh} />}
         {dashboardMode !== 'rep' && (
-          <OperatingSystemOverview leads={leads} quotes={quotes} loading={loading} />
+          <OperatingSystemOverview leads={leads} quotes={quotes} loading={loading} branch={currentUser?.branch || undefined} />
         )}
 
         <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -413,7 +416,7 @@ export default function SalesDashboardPage() {
             <div className="mt-2 text-sm text-[var(--app-muted)]">
               {dashboardMode === 'rep'
                 ? 'Start with the required actions queue. Everything else should help you close or unblock leads faster.'
-                : 'Focus on the customer decisions, response gaps and booking blockers inside the company-wide operating picture above.'}
+                : currentUser?.branch ? 'Customer decisions, response gaps and booking blockers for your branch.' : 'Focus on the customer decisions, response gaps and booking blockers inside the company-wide operating picture above.'}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -657,7 +660,7 @@ export default function SalesDashboardPage() {
                   title="Click to see today's calls"
                 >
                   <div className="crm-label">Calls Today</div>
-                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.totalCallsToday ?? 0}</div>
+                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.totalCallsToday ?? '—'}</div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.browserPresence?.sessionCount ?? 0} browser sessions · <span className="text-[#071421] underline text-xs">view calls →</span></div>
                 </button>
                 <button
@@ -666,8 +669,8 @@ export default function SalesDashboardPage() {
                   className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
                 >
                   <div className="crm-label">Missed Calls</div>
-                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.missedCallsToday ?? 0}</div>
-                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.abandonedBeforeAnswerToday ?? 0} abandoned before answer</div>
+                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.missedCallsToday ?? '—'}</div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.abandonedBeforeAnswerToday ?? '—'} abandoned before answer</div>
                 </button>
                 <button
                   type="button"
@@ -675,8 +678,8 @@ export default function SalesDashboardPage() {
                   className="border-b border-[var(--app-line)] p-5 text-left transition hover:bg-[var(--app-bg)] md:border-b-0 md:border-r"
                 >
                   <div className="crm-label">Failed Calls</div>
-                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.failedCallsToday ?? 0}</div>
-                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.mediaConnectionFailuresToday ?? 0} media failures (53405)</div>
+                  <div className="mt-2 text-4xl font-semibold leading-none text-[var(--app-ink)]">{telephonyHealth?.metrics?.failedCallsToday ?? '—'}</div>
+                  <div className="mt-2 text-sm text-[var(--app-muted)]">{telephonyHealth?.metrics?.mediaConnectionFailuresToday ?? '—'} media failures (53405)</div>
                 </button>
                 <button
                   type="button"
@@ -685,7 +688,7 @@ export default function SalesDashboardPage() {
                 >
                   <div className="crm-label">Browser vs Mobile</div>
                   <div className="mt-2 text-2xl font-semibold leading-none text-[var(--app-ink)]">
-                    {telephonyHealth?.metrics?.browserCallsToday ?? 0} / {telephonyHealth?.metrics?.mobileCallsToday ?? 0}
+                    {telephonyHealth?.metrics?.browserCallsToday ?? '—'} / {telephonyHealth?.metrics?.mobileCallsToday ?? '—'}
                   </div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">Browser answered / Groundwire-mobile answered</div>
                 </button>

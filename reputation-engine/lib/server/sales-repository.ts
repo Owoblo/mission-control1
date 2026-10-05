@@ -1,3 +1,4 @@
+import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import {
   buildSalesSummary,
   BOOKED_LIKE_STAGES,
@@ -50,6 +51,7 @@ type LeadLifecycleSnapshot = {
   createdAt?: string
 }
 type LeadIdentityRow = {
+  parentLeadId?: string | null
   id: string
   createdAt?: string | null
   name?: string | null
@@ -81,7 +83,7 @@ type LeadSearchRow = LeadIdentityRow & {
   notes?: string | null
 }
 
-export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'createdAt' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId'>
+export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'createdAt' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId' | 'parentLeadId'>
 export type SalesLeadInboxSnapshot =
   SalesLeadIdentitySnapshot &
   Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs' | 'inboxState' | 'assignedRep' | 'assignedRepName' | 'assignedRepUserId'>
@@ -136,6 +138,7 @@ function normalizeLeadIdentitySnapshot(row: LeadIdentityRow): SalesLeadIdentityS
     stage: (normalizeProjectedText(row.stage) || 'new') as CRMLead['stage'],
     phone: normalizeProjectedText(row.phone),
     email: normalizeProjectedText(row.email),
+    parentLeadId: normalizeProjectedText(row.parentLeadId),
     inboundId: normalizeProjectedText(row.inboundId),
     mergedIntoLeadId: normalizeProjectedText(row.mergedIntoLeadId),
   }
@@ -206,6 +209,7 @@ function filterDisplayDuplicateSalesLeads(leads: CRMLead[]) {
 
   for (const lead of leads) {
     if (seenIds.has(lead.id)) continue
+    if (lead.parentLeadId) { keepIds.add(lead.id); seenIds.add(lead.id); continue }
 
     const matches = findLeadIdentityMatches(leads, {
       phone: lead.identityPhone || lead.phone,
@@ -234,6 +238,7 @@ const LEAD_IDENTITY_SELECT = [
   'stage:data->>stage',
   'phone:data->>phone',
   'email:data->>email',
+  'parentLeadId:data->>parentLeadId',
   'inboundId:data->>inboundId',
   'mergedIntoLeadId:data->>mergedIntoLeadId',
 ].join(',')
@@ -245,6 +250,7 @@ const LEAD_INBOX_SELECT = [
   'stage:data->>stage',
   'phone:data->>phone',
   'email:data->>email',
+  'parentLeadId:data->>parentLeadId',
   'inboundId:data->>inboundId',
   'mergedIntoLeadId:data->>mergedIntoLeadId',
   'branch:data->>branch',
@@ -267,6 +273,7 @@ const LEAD_SEARCH_SELECT = [
   'stage:data->>stage',
   'phone:data->>phone',
   'email:data->>email',
+  'parentLeadId:data->>parentLeadId',
   'inboundId:data->>inboundId',
   'mergedIntoLeadId:data->>mergedIntoLeadId',
   'originAddress:data->>originAddress',
@@ -299,7 +306,8 @@ function isRetryableSupabaseStatus(status: number) {
 }
 
 async function fetchSupabaseWithRetry(input: string, init?: RequestInit) {
-  const maxAttempts = 2
+  const method = (init?.method || 'GET').toUpperCase()
+  const maxAttempts = method === 'GET' || method === 'HEAD' ? 2 : 1
   let lastError: unknown
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -516,6 +524,7 @@ export async function listBookedSalesLeads() {
   const archivedLeadIds = getArchivedLeadIds(lifecycle)
   return filterDisplayDuplicateSalesLeads(records
     .map(record => normalizeLead(record.data))
+    .filter(lead => !(lead.parentLeadId && lead.additionalJobKind === 'supplement'))
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds)))
 }
 
@@ -547,6 +556,17 @@ export async function listSalesLeadIdentitySnapshots() {
   return rows
     .map(normalizeLeadIdentitySnapshot)
     .filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
+}
+
+export async function listNurtureNotificationLeads(): Promise<CRMLead[]> {
+  const { url, headers } = requireSupabase()
+  const fields = ['name', 'phone', 'stage', 'branch', 'assignedRepUserId', 'assignedRepName', 'assignedRep', 'followUpDate', 'followUpStatus', 'moveDate', 'mergedIntoLeadId']
+  const select = ['id', ...fields.map(field => `${field}:data->>${field}`)].join(',')
+  const response = await fetch(`${url}/rest/v1/crm_leads?select=${encodeURIComponent(select)}&deleted=eq.false&data->>stage=eq.nurture`, { headers, cache: 'no-store' })
+  if (!response.ok) throw new Error('Nurture notifications unavailable')
+  const leads = await response.json() as CRMLead[]
+  const archivedLeadIds = getArchivedLeadIds(await selectLeadLifecycleSnapshots())
+  return leads.filter(lead => isVisibleSalesLead(lead, archivedLeadIds))
 }
 
 export async function listSalesLeadInboxSnapshots() {
@@ -875,7 +895,7 @@ export async function deleteSalesLead(id: string) {
   const current = await selectById<CRMLead>('crm_leads', id)
   await markDeleted('crm_leads', id)
 
-  if (!current) {
+  if (!current || current.parentLeadId) {
     return [id]
   }
 
@@ -1814,4 +1834,26 @@ export async function saveListingInventoryScan(zpid: string, scan: InventoryScan
   }
 
   return response.json()
+}
+
+/** Additional job creation is insert-only: repeating a request cannot reset a draft. */
+export async function insertAdditionalSalesJob(lead: CRMLead) {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(`${url}/rest/v1/crm_leads?on_conflict=id`, {
+    method: 'POST', headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=representation' },
+    body: JSON.stringify([{ id: lead.id, data: lead, updated_at: new Date().toISOString(), deleted: false }]),
+  })
+  if (!response.ok) throw new Error('Could not create the additional job. Retry with the same form; the original booking is unchanged.')
+  const rows = await response.json() as PersistedRecord<CRMLead>[]
+  const saved = rows[0]?.data || await getSalesLead(lead.id)
+  if (!saved || saved.parentLeadId !== lead.parentLeadId) throw new Error('This additional-job request is unavailable. Refresh the linked jobs before trying again.')
+  return normalizeLead(saved)
+}
+
+export async function listAdditionalSalesJobs(parentLeadId: string) {
+  const { url, headers } = requireSupabase()
+  const query = new URLSearchParams({ select: 'data', 'data->>parentLeadId': `eq.${parentLeadId}`, deleted: 'eq.false', order: 'updated_at.desc', limit: '100' })
+  const response = await fetchSupabaseWithRetry(`${url}/rest/v1/crm_leads?${query}`, { headers, cache: 'no-store' })
+  if (!response.ok) throw new Error('Could not load additional jobs. Try again before creating another.')
+  return (await response.json() as PersistedRecord<CRMLead>[]).map(row => normalizeLead(row.data))
 }

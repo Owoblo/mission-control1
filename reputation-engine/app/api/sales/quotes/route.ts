@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { dateStamp, estimateLeadQuote, genQuoteNumber, getDefaultPaymentTerms, normalizeClient, normalizeQuote, syncLeadFromQuoteStatus, uid } from '@/lib/sales'
 import { recordQuoteCreatedAudit } from '@/lib/server/sales-audit'
-import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { canAccessSalesWorkspace, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
-import { getLatestSalesQuoteByLeadId, getSalesLead, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
+import { getLatestSalesQuoteByLeadId, getSalesLead, getSalesQuote, listSalesClients, saveSalesClient, saveSalesLead, saveSalesQuote } from '@/lib/server/sales-repository'
 import { randomToken } from '@/lib/server/security'
 import type { CRMClient, CRMQuote } from '@/lib/types'
 
@@ -24,8 +24,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
+    if (!leadMatchesSessionBranch(lead, session)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (payload.separateJob) return NextResponse.json({ error: 'Use Add additional quote to create an independent job scope. Existing bookings and deposits stay unchanged.' }, { status: 409 })
+
     // If lead has a primary quote, allow adding more (multi-job support — e.g. residential + commercial)
     // Don't block — just create a new quote and track it in quoteIds
+
+    if (lead.quoteId) {
+      const primary = await getSalesQuote(lead.quoteId)
+      if (!primary) throw new Error('The linked quote could not be found. Resolve its link before creating another quote.')
+      return NextResponse.json({ quote: primary, lead })
+    }
 
     const existingQuote = await getLatestSalesQuoteByLeadId(lead.id)
     if (existingQuote && !lead.quoteId) {
@@ -76,7 +85,9 @@ export async function POST(request: Request) {
       moveDate: lead.moveDate,
       moveType: quoteMoveType,
       quoteType,
-      jobLabel,
+      jobLabel: lead.additionalJobLabel || jobLabel,
+      parentQuoteId: lead.parentQuoteId,
+      additionalJobKind: lead.additionalJobKind,
       originAddress: lead.originAddress,
       originCity: lead.originCity,
       destAddress: lead.destAddress,
@@ -96,7 +107,7 @@ export async function POST(request: Request) {
       validDays: 30,
       acceptToken: randomToken('accept'),
       lineItems: estimate.lineItems,
-      moveDescription: jobLabel ? `Quote option: ${jobLabel}` : undefined,
+      moveDescription: lead.parentQuoteId ? `${lead.additionalJobLabel || 'Additional work'} — separately priced additional scope. The original booking and its payment remain unchanged. ${lead.notes || ''}` : jobLabel ? `Quote option: ${jobLabel}` : undefined,
       discountAmount: 0,
       discountLabel: '',
       subtotal: estimate.subtotal,

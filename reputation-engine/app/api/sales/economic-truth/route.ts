@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const session = await getSessionUser()
   if (!session || (session.role !== 'owner' && session.role !== 'manager')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const branch = new URL(request.url).searchParams.get('branch')
-  if (branch && !['windsor', 'london', 'waterloo', 'ottawa', 'unassigned'].includes(branch)) return NextResponse.json({ error: 'Invalid branch' }, { status: 400 })
+  if (branch && !['windsor', 'london', 'waterloo', 'ottawa', 'toronto', 'unassigned'].includes(branch)) return NextResponse.json({ error: 'Invalid branch' }, { status: 400 })
   try {
     const [allLeads, allQuotes] = await Promise.all([listSalesLeads(), listSalesQuotes()])
     const leads = allLeads.filter(lead => leadMatchesSessionBranch(lead, session) && (!branch || (lead.branch || 'unassigned') === branch))

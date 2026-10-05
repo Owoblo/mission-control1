@@ -1,3 +1,5 @@
+import { recordNurtureCheckIn } from '@/lib/nurture-policy'
+import { getSalesLeadForUpdate, saveSalesLead } from '@/lib/server/sales-repository'
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { getTask, saveTask } from '@/lib/server/task-repository'
@@ -21,6 +23,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Add an outcome note before completing the task.' }, { status: 400 })
     }
     const now = new Date().toISOString()
+    if (body.status === 'completed' && current.status !== 'completed' && current.category === 'nurture' && current.relatedId) {
+      const record = await getSalesLeadForUpdate(current.relatedId)
+      if (!record || record.lead.stage !== 'nurture') return NextResponse.json({ error: 'This lead is no longer in Nurture.' }, { status: 409 })
+      if (current.sourceKey === `lead-nurture-check-in:${record.lead.id}:${record.lead.followUpDate}`) {
+        await saveSalesLead(recordNurtureCheckIn(record.lead, body.outcomeNote!.trim(), { name: session.name, userId: session.userId }), record.updatedAt)
+      }
+    }
     let nextTaskId = current.nextTaskId
     let createdNextTask: CRMTask | undefined
     if (body.status === 'completed' && body.nextTask?.title?.trim()) {

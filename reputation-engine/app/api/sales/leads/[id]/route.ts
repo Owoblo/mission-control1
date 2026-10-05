@@ -1,3 +1,6 @@
+import { loadLinkedMovePlan } from '@/lib/server/linked-move-plan'
+import { listTasks } from '@/lib/server/task-repository'
+import { applyNurtureTransition, recordNurtureCheckIn } from '@/lib/nurture-policy'
 import { lostTransitionError } from '@/lib/lead-verification'
 import { buildCurrentCrewBrief, buildMoveOperatingPlan } from '@/lib/move-operating-plan'
 import { preserveInventoryHandlingEvidence } from '@/lib/assembly-planning'
@@ -334,8 +337,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean }
-    const { sendAppointmentSms: sendApptSmsFlag, ...rawUpdates } = rawBody
+    const rawBody = (await request.json()) as Partial<typeof current> & { sendAppointmentSms?: boolean; nurtureCheckInNote?: string }
+    const { sendAppointmentSms: sendApptSmsFlag, nurtureCheckInNote, ...rawUpdates } = rawBody
     const updates = validateLeadPatchPayload(rawUpdates)
     if (hasOwn(updates, 'inventory') && Array.isArray(updates.inventory)) {
       updates.inventory = preserveInventoryHandlingEvidence(current.inventory || [], applyInventoryVerificationToInventory(
@@ -392,6 +395,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       id: current.id,
     })
 
+    // Closed leads never remain in Follow-Up when the PATCH omits the optional
+    // follow-up fields.
+    if (nextLead.stage === 'lost') {
+      nextLead = { ...nextLead, followUpDate: undefined, followUpNote: undefined, followUpStatus: undefined }
+    }
+
     // A reopened lead must receive a fresh decision, not silently reuse an old loss reason.
     const lossError = lostTransitionError(current, { ...nextLead, lostReason: updates.lostReason, lostNotes: updates.lostNotes })
     if (lossError) return NextResponse.json({ error: lossError }, { status: 422 })
@@ -407,7 +416,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
     // When Date TBD is active and no explicit followUpDate was sent in this update,
     // keep a rolling 3-day follow-up so the lead never goes cold
-    if (nextLead.moveDateFlexible && !updates.followUpDate) {
+    if (nextLead.moveDateFlexible && !updates.followUpDate && !['lost', 'nurture'].includes(nextLead.stage)) {
       const threeDaysOut = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
       nextLead = { ...nextLead, followUpDate: threeDaysOut, followUpNote: nextLead.followUpNote || 'Check in — pending house close' }
     }
@@ -440,10 +449,15 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       }
     }
 
-    const operationalPlan = buildMoveOperatingPlan(nextLead, quote)
+    let operationalPlan: { ready: boolean; reasons: string[]; fingerprint: string; reviewCurrent: boolean } = buildMoveOperatingPlan(nextLead, quote)
     const attemptedDispatch = (updates.crewPayouts || []).some(entry =>
       ['sent', 'confirmed'].includes(entry.dispatchStatus || '') &&
       current.crewPayouts?.find(old => old.id === entry.id)?.dispatchStatus !== entry.dispatchStatus)
+    if (attemptedDispatch && nextLead.parentLeadId && nextLead.additionalJobKind === 'supplement') return NextResponse.json({ error: 'Dispatch same-move additions through the original booking and its combined operations review.' }, { status: 409 })
+    if (attemptedDispatch) {
+      const linked = (await loadLinkedMovePlan(nextLead, quote)).plan
+      operationalPlan = { ...linked, fingerprint: linked.dispatchFingerprint }
+    }
     if (attemptedDispatch && !operationalPlan.ready) return NextResponse.json({ error: 'Review the current operating plan before dispatching the crew.', reasons: operationalPlan.reasons }, { status: 409 })
     nextLead.crewPayouts = nextLead.crewPayouts?.map(entry => {
       const previous = current.crewPayouts?.find(old => old.id === entry.id)
@@ -470,7 +484,16 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       }]
       if (nextLead.stage === 'lost') nextLead.lostAt = at
     }
+    nextLead.nurtureCheckIns = current.nurtureCheckIns
+    nextLead = applyNurtureTransition(current, nextLead)
+    if (nurtureCheckInNote !== undefined) {
+      if (current.stage !== 'nurture' || nextLead.stage !== 'nurture' || typeof nurtureCheckInNote !== 'string' || !nurtureCheckInNote.trim()) throw new Error('Record check-in notes on a Nurture lead.')
+      nextLead = recordNurtureCheckIn(nextLead, nurtureCheckInNote, { name: session?.name, userId: session?.userId })
+    }
     const saved = await saveSalesLead(nextLead, record!.updatedAt)
+    if (current.stage !== saved.stage || current.followUpDate !== saved.followUpDate) {
+      await listTasks({ relatedId: saved.id }).catch(error => console.error('Task reconciliation will retry on next task refresh', error))
+    }
     if (
       saved.source === 'partner_referral' ||
       current.source === 'partner_referral' ||

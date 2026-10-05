@@ -108,7 +108,7 @@ export default function BookedJobsPage() {
       : leads
 
     return scopedLeads
-      .filter(l => isBookedLikeStage(l.stage))
+      .filter(l => isBookedLikeStage(l.stage) && !(l.parentLeadId && l.additionalJobKind === 'supplement'))
       .sort((a, b) => {
         const aQuote = quoteByLead.get(a.id) || (a.quoteId ? quoteMap.get(a.quoteId) : undefined)
         const bQuote = quoteByLead.get(b.id) || (b.quoteId ? quoteMap.get(b.quoteId) : undefined)

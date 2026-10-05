@@ -216,6 +216,7 @@ export interface AccessProfile {
   standardAccessConfirmed?: boolean
   entranceLocation?: 'front' | 'rear' | 'side' | 'loading_dock' | 'other'
   truckPosition?: AccessTruckPosition
+  totalWalkMinutes?: number
   walkToEntrance?: AccessWalkBucket
   entranceToVerticalAccess?: AccessWalkBucket
   verticalAccessToUnit?: AccessWalkBucket
@@ -1086,6 +1087,12 @@ export interface CrewPayoutEntry {
 }
 
 export interface CRMLead {
+  linkedPlanReview?: import('./linked-move-plan').LinkedPlanReview
+  linkedPlanReviewHistory?: import('./linked-move-plan').LinkedPlanReview[]
+  parentLeadId?: string
+  parentQuoteId?: string
+  additionalJobKind?: 'supplement' | 'separate'
+  additionalJobLabel?: string
   verificationHistory?: import('./lead-verification').LeadVerification[]
   stageHistory?: import('./lead-verification').LeadStageChange[]
   acquisitionInterview?: import('./acquisition-interview').AcquisitionInterview
@@ -1175,6 +1182,12 @@ export interface CRMLead {
   followUpDate?: string
   followUpNote?: string
   followUpStatus?: LeadFollowUpStatus
+  nurtureCheckIns?: Array<{ id: string; at: string; notes: string; actorName?: string; actorUserId?: string }>
+  nurtureIntervalDays?: number
+  nurtureReturnWindowDays?: number
+  nurtureLastCheckInAt?: string
+  nurtureNextCheckInAt?: string
+  nurtureReturnedAt?: string
   surveyToken?: string
   surveyTokenExpiresAt?: string
   surveyTokenPartyB?: string
@@ -1386,6 +1399,8 @@ export interface CustomerQuoteScope {
 }
 
 export interface CRMQuote {
+  parentQuoteId?: string
+  additionalJobKind?: 'supplement' | 'separate'
   revision?: number
   truckSize?: string
   id: string
