@@ -1,3 +1,4 @@
+import { customerFirstName } from './customer-name'
 import {
   applyInventoryVerificationToInventory,
   buildInventoryVerificationChoiceKeyMap,
@@ -94,7 +95,7 @@ export function buildInventorySmsReference(lead: CRMLead) {
 }
 
 export function buildMlsInventoryConfirmationSms(lead: CRMLead) {
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const grouped = new Map<string, string[]>()
   const listingItems = listingBaseInventory(lead)
 
@@ -123,7 +124,7 @@ export function buildMlsInventoryConfirmationSms(lead: CRMLead) {
 }
 
 export function buildPhotoSurveyFallbackMessage(lead: CRMLead, surveyUrl: string, channel: ConversationChannel = 'sms') {
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   if (channel === 'email') {
     return `Hi ${firstName},\n\nI couldn't confirm the inventory from the property information in our system. That’s completely fine—please upload a few room photos and we’ll build it for you.\n\n${surveyUrl}\n\nOr simply reply with the main furniture—whichever is easier.\n\nSaturn Star Moving`
   }

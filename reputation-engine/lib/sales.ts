@@ -47,7 +47,7 @@ export const SALES_LEAD_STAGES: Array<{ id: SalesLeadStage; label: string }> = [
   { id: 'pricing', label: 'Building Quote' },
   { id: 'quoted', label: 'Quoted' },
   { id: 'tentative', label: 'Tentative Reservation' },
-  { id: 'nurture', label: 'Shopping Around' },
+  { id: 'nurture', label: 'Nurture' },
   { id: 'booked', label: 'Booked' },
   { id: 'completed', label: 'Move Completed' },
   { id: 'customer_success', label: 'Customer Success' },
@@ -1054,6 +1054,7 @@ export function normalizeFollowUp(log: FollowUpLog): FollowUpLog {
 }
 
 export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead {
+  if ((lead.stage === 'lost' || lead.stage === 'nurture') && !bookingDecision(lead, quote).confirmed) return normalizeLead({ ...lead, quoteId: quote.id })
   const nextStage =
     quote.status === 'accepted' || quote.status === 'invoiced'
       ? isBookedLikeStage(lead.stage) ? lead.stage : bookingDecision(lead, quote).confirmed ? 'booked' : 'tentative'
@@ -1066,14 +1067,10 @@ export function syncLeadFromQuoteStatus(lead: CRMLead, quote: CRMQuote): CRMLead
           : quote.status === 'draft'
             ? isBookedLikeStage(lead.stage)
               ? lead.stage
-              : lead.stage === 'lost'
-                ? 'lost'
-                : 'pricing'
+              : 'pricing'
           : isBookedLikeStage(lead.stage)
             ? lead.stage
-            : lead.stage === 'lost'
-              ? 'lost'
-              : 'contacted'
+            : 'contacted'
 
   return normalizeLead({
     ...lead,

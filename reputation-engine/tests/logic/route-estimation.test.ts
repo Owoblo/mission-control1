@@ -78,3 +78,8 @@ test('route sanity guard rejects a wrong-country distance mismatch', () => {
   assert.equal(isDrivingRoutePlausible(windsor, cantonMichigan, 65), true)
   assert.equal(isDrivingRoutePlausible(windsor, cantonMichigan, 400), false)
 })
+
+test('Toronto remains the selected market without substituting Windsor', () => {
+  assert.equal(resolveRouteBranchForEstimate({ branch: 'toronto', origin: 'Toronto, ON' }), 'toronto')
+  assert.equal(resolveRouteBranchForEstimate({ origin: '100 Queen Street, Toronto, ON', destination: 'Windsor, ON' }), 'toronto')
+})

@@ -1,3 +1,4 @@
+import { nurtureReminderDue } from '@/lib/nurture-policy'
 import { NextResponse } from 'next/server'
 import { displayEmailSubject } from '@/lib/email-display'
 import { decorateInboundLead, getInboundStatus, parseInboundRawData } from '@/lib/inbound-inbox'
@@ -11,7 +12,7 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
 import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-state'
 import { getSessionUser } from '@/lib/server/session'
-import { listAllInboundLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots } from '@/lib/server/sales-repository'
+import { listAllInboundLeads, listSalesLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
@@ -94,13 +95,14 @@ export async function GET() {
   // Notifications are a current work surface, not an archive counter.
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
-  const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, acknowledgedKeys] = await Promise.all([
+  const [allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, acknowledgedKeys, nurtureLeads] = await Promise.all([
     listAllInboundLeads().catch(() => [] as Awaited<ReturnType<typeof listAllInboundLeads>>),
     listSalesLeadInboxSnapshots().catch(() => [] as Awaited<ReturnType<typeof listSalesLeadInboxSnapshots>>),
     listSalesEmails().catch(() => [] as Awaited<ReturnType<typeof listSalesEmails>>),
     listFollowUpLogs().catch(() => [] as Awaited<ReturnType<typeof listFollowUpLogs>>),
     listSmsMessages().catch(() => []),
     listAcknowledgedKeys(session.userId || session.name || 'unknown').catch(() => new Set<string>()),
+    listSalesLeads().then(leads => leads.filter(lead => nurtureReminderDue(lead))).catch(() => []),
   ])
 
   // ── 1. Unclaimed inbound leads ──────────────────────────────────────────
@@ -253,6 +255,15 @@ export async function GET() {
     })
     .filter(Boolean) as NotificationItem[]
 
+  const nurtureItems: NotificationItem[] = nurtureLeads
+    .filter(lead => (!session.branch || lead.branch === session.branch) && (session.role !== 'sales_rep' || (lead.assignedRepUserId ? lead.assignedRepUserId === session.userId : (lead.assignedRepName || lead.assignedRep) === session.name)))
+    .map(lead => ({
+      id: `nurture:${lead.id}:${lead.followUpDate}`, type: 'alert', source: 'nurture_reminder',
+      title: `Nurture check-in: ${lead.name}`, preview: `Check-in due ${lead.followUpDate}. Expected move: ${lead.moveDate || 'needs confirmation'}.`,
+      time: `${lead.followUpDate}T14:00:00.000Z`, leadId: lead.id, phone: lead.phone || null,
+      href: `/sales/leads/${lead.id}`, priority: 'today', reason: 'The scheduled Nurture check-in is due.',
+      requiredAction: 'Log check-in and schedule next', dedupeKey: `nurture:${lead.id}:${lead.followUpDate}`,
+    }))
   const leadById = new Map(crmLeads.map(lead => [lead.id, lead]))
   const visibleToSession = (item: NotificationItem) => {
     const lead = item.leadId ? leadById.get(item.leadId) : null
@@ -263,7 +274,7 @@ export async function GET() {
     return (!ownerId && !ownerName) || ownerId === session.userId || ownerName === session.name
   }
   const seen = new Set<string>()
-  const allItems = [...alertItems, ...leadItems, ...smsItems, ...emailItems]
+  const allItems = [...nurtureItems, ...alertItems, ...leadItems, ...smsItems, ...emailItems]
     .filter(visibleToSession)
     .filter(item => !acknowledgedKeys.has(item.dedupeKey))
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())

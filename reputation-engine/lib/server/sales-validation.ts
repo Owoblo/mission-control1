@@ -14,6 +14,7 @@ const SALES_BRANCHES = new Set<NonNullable<CRMLead['branch']>>([
   'waterloo',
   'london',
   'ottawa',
+  'toronto',
 ])
 
 const SALES_LEAD_STAGES = new Set<NonNullable<CRMLead['stage']>>([
@@ -167,6 +168,9 @@ const OPTIONAL_TEXT_FIELDS = [
   'identityPhone',
   'identityEmail',
   'followUpDate',
+  'nurtureLastCheckInAt',
+  'nurtureNextCheckInAt',
+  'nurtureReturnedAt',
   'moveDateFlexibleReason',
   'originAddress',
   'originCity',
@@ -274,6 +278,8 @@ const BOOLEAN_FIELDS = [
 ] satisfies Array<keyof CRMLead>
 
 const NUMERIC_FIELDS = [
+  'nurtureIntervalDays',
+  'nurtureReturnWindowDays',
   'additionalStops',
   'originStairFlights',
   'destStairFlights',

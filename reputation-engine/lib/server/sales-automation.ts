@@ -1,3 +1,7 @@
+import { generateConditionTasks } from './task-generation'
+import { saveGeneratedTasks } from './task-repository'
+import { knownCustomerName, customerFirstName } from '../customer-name'
+import { DEFAULT_NURTURE_RETURN_WINDOW_DAYS, isWithinNurtureReturnWindow } from '../nurture-policy'
 import {
   dateStamp,
   detectSalesBranchFromLocation,
@@ -86,6 +90,7 @@ import {
   getListingInventoryScan,
   getLatestSalesQuoteByLeadId,
   getSalesLead,
+  getSalesLeadForUpdate,
   getSalesLeadByContact,
   getSalesLeadByInboundId,
   getSalesQuote,
@@ -158,7 +163,7 @@ function buildSmsQuoteSummary(
 ): string {
   const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
   const acceptUrl = `${appUrl}/quote-accept?id=${encodeURIComponent(quoteId)}&token=${encodeURIComponent(acceptToken)}`
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const route = [lead.originCity || lead.originAddress, lead.destCity || lead.destAddress].filter(Boolean).join(' → ') || 'your move'
   const moveLine = lead.moveDate
     ? new Date(lead.moveDate + 'T12:00').toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -1001,7 +1006,7 @@ function mergeExtractedSignals(lead: CRMLead, signals: ExtractedLeadSignals | nu
 
   const next = normalizePaidLeadStage(normalizeLead({
     ...lead,
-    name: lead.name || signals.name || lead.name,
+    name: knownCustomerName(lead.name) || knownCustomerName(signals.name) || lead.name,
     email: lead.email || normalizeEmail(signals.email),
     phone: lead.phone || normalizePhone(signals.phone),
     stage: lead.stage,
@@ -1102,13 +1107,13 @@ function describeInventorySnapshot(lead: CRMLead) {
 }
 
 function buildEstimateScopeConfirmation(lead: CRMLead, channel: ConversationChannel) {
-  const firstName = (lead.name || 'there').trim().split(/\s+/)[0]
+  const firstName = customerFirstName(lead.name)
   const route = `${lead.originAddress || lead.originCity || 'pickup'} → ${lead.destAddress || lead.destCity || 'destination'}`
   const moveDate = lead.moveDate
     ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'flexible date'
   const inventory = describeInventorySnapshot(lead)
-  const question = 'Does that cover the main furniture, aside from boxes you are still packing?'
+  const question = knownCustomerName(lead.name) ? 'Does that cover everything you want moved?' : 'What name should we put on your estimate?'
   if (channel === 'sms') {
     return `Thanks, ${firstName} — that helps. I have ${moveDate}, ${route}, and ${inventory}. ${question}`
   }
@@ -1152,7 +1157,7 @@ async function findOrCreateClientForLead(lead: CRMLead): Promise<CRMClient> {
 function buildAutomatedQuoteEmail(lead: CRMLead, quoteId: string, acceptToken: string, lineItems: QuoteLineItem[], total: number, deposit: number) {
   const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
   const acceptUrl = `${appUrl}/quote-accept?id=${encodeURIComponent(quoteId)}&token=${encodeURIComponent(acceptToken)}`
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const summary = lineItems.map(item => `- ${item.description}: ${formatMoney(item.amount)}`).join('\n')
   const route = [lead.originCity || lead.originAddress, lead.destCity || lead.destAddress].filter(Boolean).join(' → ') || 'your move'
   const moveDateLine = lead.moveDate
@@ -2016,7 +2021,7 @@ Return JSON only:
 }
 
 function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: ConversationChannel, inboundMessage?: string): AutomationCopy {
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const qualification = buildQualificationState(lead, lead.qualificationState || {})
   const missing = qualification.missingFields || []
 
@@ -2366,7 +2371,12 @@ async function resolveCanonicalLeadForAutomationJob(job: CRMAutomationJob, lead:
 }
 
 function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
+  if (lead.stage === 'nurture' && job.kind !== 'lead_response') return 'Nurture check-ins are handled by the assigned representative.'
   if (lead.automationStatus === 'do_not_contact') return 'Lead is marked do-not-contact.'
+  // A lost-feedback job can remain queued while a rep reopens the lead to
+  // Nurture. Re-check current stage and ownership before delivery.
+  if (job.kind === 'lost_feedback' && lead.stage !== 'lost') return 'Lead was reopened; cancel stale lost feedback.'
+  if (job.kind === 'lost_feedback' && (lead.automationStatus === 'paused' || lead.automationStatus === 'handoff')) return 'Lost feedback is paused for representative follow-up.'
   const settingsReason = disabledNudgeReason(lead, job.kind)
   if (settingsReason) return settingsReason
   const repWorkflowReason = humanConversationOwnershipReason(lead)
@@ -3369,7 +3379,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
 
     if (pendingQuote && ['sent', 'viewed'].includes(pendingQuote.status || '')) {
       const nowIso = new Date().toISOString()
-      const firstName = (lead.name || 'there').split(' ')[0]
+      const firstName = customerFirstName(lead.name)
 
       // Mark quote accepted
       const acceptedQuote = await saveSalesQuote(normalizeQuote({
@@ -3899,6 +3909,9 @@ async function handleLostFeedbackJob(job: CRMAutomationJob, lead: CRMLead) {
   if (lead.stage !== 'lost') {
     return { status: 'cancelled' as const, reason: 'Lead is not marked lost.' }
   }
+  if (lead.automationStatus === 'paused' || lead.automationStatus === 'handoff' || lead.automationStatus === 'do_not_contact') {
+    return { status: 'cancelled' as const, reason: 'Lost feedback is paused because a representative owns this conversation.' }
+  }
   return handleLeadResponseJob({
     ...job,
     payload: {
@@ -3990,6 +4003,7 @@ export async function processAutomationJob(job: CRMAutomationJob) {
 }
 
 export async function processDueAutomationJobs(limit = 25) {
+  await reconcileNurtureLeads()
   const jobs = await listDueAutomationJobs(limit)
   const results: CRMAutomationJob[] = []
   for (const job of jobs) {
@@ -3997,6 +4011,45 @@ export async function processDueAutomationJobs(limit = 25) {
     if (job.payload?.task === 'listing_inventory_scan') break
   }
   return results
+}
+
+/** Return future Nurture leads to the active Follow-Up workflow as their move approaches. */
+export async function reconcileNurtureLeads(now = new Date()) {
+  const leads = await listSalesLeads()
+  const returned: CRMLead[] = []
+  for (const candidate of leads) {
+    if (candidate.stage !== 'nurture') continue
+    const record = await getSalesLeadForUpdate(candidate.id)
+    if (!record) continue
+    const lead = record.lead
+    if (lead.stage !== 'nurture' || !isWithinNurtureReturnWindow(
+      lead.moveDate,
+      now,
+      lead.nurtureReturnWindowDays ?? DEFAULT_NURTURE_RETURN_WINDOW_DAYS,
+    )) continue
+    const today = now.toISOString().slice(0, 10)
+    const saved = await saveSalesLead({
+      ...lead,
+      stage: 'contacted',
+      followUpDate: today,
+      followUpNote: 'Nurture window reached — active follow-up required before the move.',
+      followUpStatus: 'pending',
+      nurtureReturnedAt: now.toISOString(),
+      nurtureNextCheckInAt: undefined,
+      stageHistory: [...(lead.stageHistory || []), { id: crypto.randomUUID(), from: 'nurture', to: 'contacted', at: now.toISOString(), actorName: 'Nurture scheduler', source: 'system', reason: 'Expected move is within the configured return window.' }],
+    }, record.updatedAt)
+    await saveFollowUpLog({
+      id: uid('followup'),
+      leadId: saved.id,
+      type: 'status_change',
+      notes: `Stage: Nurture → Follow-Up. Move date ${lead.moveDate}; nurture return window reached.`,
+      date: now.toISOString(),
+      createdAt: now.toISOString(),
+    }).catch(() => {})
+    returned.push(saved)
+  }
+  await saveGeneratedTasks(generateConditionTasks(leads.filter(lead => lead.stage === 'nurture' && !returned.some(item => item.id === lead.id)), [], now))
+  return returned
 }
 
 export async function processInboundAutomationEvent(event: InboundAutomationEvent) {
@@ -4209,7 +4262,7 @@ export async function scheduleMoveReminder(leadId: string) {
 
   const moveDay = new Date(`${lead.moveDate}T10:00:00`)
   if (moveDay.getTime() <= Date.now()) return null
-  const firstName = (lead.name || 'there').split(' ')[0]
+  const firstName = customerFirstName(lead.name)
   const moveDateFormatted = moveDay.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })
   const channel = lead.phone ? 'sms' : lead.email ? 'email' : null
 

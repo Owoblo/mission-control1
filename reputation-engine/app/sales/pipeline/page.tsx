@@ -49,7 +49,7 @@ const COLUMN_LABELS: Record<CRMLead['stage'], string> = {
   pricing: 'Building Quote',
   quoted: 'Quote Sent',
   tentative: 'Tentative',
-  nurture: 'Shopping Around',
+  nurture: 'Nurture',
   booked: 'Booked ✓',
   completed: 'Completed',
   customer_success: 'Customer Success',
