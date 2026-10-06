@@ -135,7 +135,6 @@ export function SalesHeader() {
 
   const [query, setQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
-  const [leadsLoaded, setLeadsLoaded] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchLoadError, setSearchLoadError] = useState(false)
   const [searchReloadToken, setSearchReloadToken] = useState(0)
@@ -215,36 +214,44 @@ export function SalesHeader() {
     }
   }
 
-  // Load searchable lead data only after the user actually uses search.
+  // This header persists across navigation; refresh while searching so new
+  // website leads appear without reloading the whole CRM.
   useEffect(() => {
-    if (!searchFocused && query.trim().length === 0) return
-    if (leadsLoaded) return
-    if (!canUseSalesActions) return
+    if (!searchFocused || !canUseSalesActions) return
     let cancelled = false
-    setSearchLoading(true)
-    setSearchLoadError(false)
-    fetchSalesLeadSearchIndex()
-      .then(leads => {
-        if (cancelled) return
-        setAllLeads(leads as CRMLead[])
-        setLeadsLoaded(true)
-        setSearchLoading(false)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setSearchLoading(false)
-        setSearchLoadError(true)
-      })
+    let inFlight = false
+    const refresh = async () => {
+      if (inFlight || document.hidden) return
+      inFlight = true
+      setSearchLoading(true)
+      setSearchLoadError(false)
+      try {
+        const leads = await fetchSalesLeadSearchIndex()
+        if (!cancelled) setAllLeads(leads as CRMLead[])
+      } catch {
+        if (!cancelled) setSearchLoadError(true)
+      } finally {
+        inFlight = false
+        if (!cancelled) setSearchLoading(false)
+      }
+    }
+    const debounce = window.setTimeout(() => void refresh(), 250)
+    const interval = window.setInterval(() => void refresh(), 30_000)
+    window.addEventListener('focus', refresh)
     return () => {
       cancelled = true
+      window.clearTimeout(debounce)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refresh)
     }
-  }, [canUseSalesActions, leadsLoaded, query, searchFocused, searchReloadToken])
+  }, [canUseSalesActions, query, searchFocused, searchReloadToken])
 
   // Close search dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowDropdown(false)
+        setSearchFocused(false)
       }
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false)
