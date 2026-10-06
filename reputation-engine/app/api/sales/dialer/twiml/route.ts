@@ -1,3 +1,5 @@
+import { partnershipCellForwardTarget } from '@/lib/partnership-call-forwarding'
+import { POST as partnershipVoice } from '@/app/api/marketing/dialer/twiml/route'
 import { carrierVoiceForm, carrierDialTarget } from '@/lib/server/carrier-voice'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
@@ -256,7 +258,8 @@ export async function POST(request: Request) {
     const branchCity = getSaturnBranchLabel(normalizedTo) || 'Windsor'
 
     if (isInbound) {
-      await captureTwilioInteraction(formData.toString(), 'twilio_call', 'call')
+      const partnershipForward = partnershipCellForwardTarget(normalizedTo)
+      if (!partnershipForward) await captureTwilioInteraction(formData.toString(), 'twilio_call', 'call')
       // Reject spam calls with impossible phone numbers (E.164 max is 15 digits).
       // Robocallers use 20+ digit fake numbers to evade caller ID blocking.
       if (from && isSpamPhoneNumber(from)) {
@@ -267,6 +270,14 @@ export async function POST(request: Request) {
       const dialerSettings = await getDialerSettings().catch(() => null)
       if (dialerSettings && findBlockedCaller(dialerSettings, from)) {
         return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="rejected"/></Response>`)
+      }
+      // Some partnership numbers still point at the sales webhook. Send their
+      // inbound calls through the partnership handler so recordings and call
+      // history retain the original business line as well as the caller.
+      if (partnershipForward) {
+        return partnershipVoice(new Request(request.url, {
+          method: 'POST', headers: request.headers, body: rawBody,
+        }))
       }
       const appUrl = getRequestOrigin(request) || getAppUrl()
 
