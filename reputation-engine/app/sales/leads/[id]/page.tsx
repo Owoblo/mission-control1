@@ -1,6 +1,7 @@
 'use client'
 
 import { resolveQuoteDraftPricing } from '@/lib/quote-draft-pricing'
+import { rebaseQuoteDraftUpdate } from '@/lib/quote-draft-revision'
 import { lostTransitionError } from '@/lib/lead-verification'
 import { AdditionalJobsPanel } from '@/app/components/sales/lead-detail/additional-jobs-panel'
 import PaymentRecoveryPanel from '@/app/components/payment-recovery-panel'
@@ -2409,7 +2410,7 @@ export default function SalesLeadDetailPage() {
         (jobFactors.conjointMove || quoteLegs.length > 1 || quoteHasMovingScope) && selectedQuoteType === 'labor_only'
           ? 'standard'
           : selectedQuoteType
-      const result = await updateSalesQuote(quote.id, {
+      const draftUpdates = {
         ...(hasExplicitPriceRevision ? {
           pricingRevisionReason: proposedOverrideLineItem?.details || 'Sales rep saved a revised estimate after inventory, access or handling changes.',
         } : {}),
@@ -2455,7 +2456,10 @@ export default function SalesLeadDetailPage() {
         priceOverrideReason: preserveCustomerFacingPricing
           ? quote.priceOverrideReason
           : overrideLineItem?.details || '',
-      })
+      } satisfies Partial<CRMQuote> & { pricingRevisionReason?: string }
+      const latest = await fetchSalesQuote(quote.id)
+      if (!latest) throw new Error('The quote could not be reloaded. Your draft is still open; please try again.')
+      const result = await updateSalesQuote(quote.id, rebaseQuoteDraftUpdate(quote, latest.quote, draftUpdates))
       setQuote(result.quote)
       if (result.lead) setLead(result.lead)
       setQuoteLineItems(result.quote.lineItems || [])
