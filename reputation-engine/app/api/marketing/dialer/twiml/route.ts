@@ -1,3 +1,4 @@
+import { partnershipCellForwardTarget } from '@/lib/partnership-call-forwarding'
 import { carrierVoiceForm, carrierDialTarget } from '@/lib/server/carrier-voice'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
@@ -122,8 +123,9 @@ export async function POST(request: Request) {
     const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
     if (!fromBrowser) {
       const dialedNumber = normalizePhone(to) || DEFAULT_PARTNERSHIP_NUMBER
-      const marketClientIdentities = await clientIdentitiesForPartnershipLine(dialedNumber)
-      const fallbackClientIdentity = readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
+      const directCell = partnershipCellForwardTarget(dialedNumber)
+      const marketClientIdentities = directCell ? [] : await clientIdentitiesForPartnershipLine(dialedNumber)
+      const fallbackClientIdentity = directCell ? '' : readEnv('PARTNERSHIP_FORWARD_CLIENT_IDENTITY')
       const clientIdentities = marketClientIdentities.length > 0
         ? marketClientIdentities
          : fallbackClientIdentity ? Array.from(new Set([
@@ -131,7 +133,7 @@ export async function POST(request: Request) {
           // The native app registers saturn-rep; the partnership browser registers partnership-rep.
           fallbackClientIdentity.replace(/^partnership-rep-/, 'saturn-rep-'),
         ])) : []
-      const forwardPhone = configuredForwardPhoneForLine(dialedNumber)
+      const forwardPhone = directCell || configuredForwardPhoneForLine(dialedNumber)
       const inboundPhone = normalizePhone(from) || from
       const recordingCallback = recordingCallbackUrl(appUrl, inboundPhone, dialedNumber, 'inbound')
       const callSid = (formData.get('CallSid') as string | null)?.trim() || null
