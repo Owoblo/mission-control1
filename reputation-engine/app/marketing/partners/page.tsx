@@ -1,5 +1,6 @@
 'use client'
 
+import { PartnerSalesHandoffButton } from '@/app/components/partnership/sales-handoff'
 import { fetchRead } from '@/lib/resilient-read'
 import { loadContactDirectory } from '@/lib/contact-directory-loader'
 import gtaCities from '@/lib/data/gta-service-cities.json'
@@ -5055,6 +5056,7 @@ function PhoneTab({
                   </button>
                 )
               )}
+              <PartnerSalesHandoffButton key={selected.id} contactId={selected.id} />
               <button onClick={() => onSelectContact(selected)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 hover:bg-slate-50 xl:hidden">Info</button>
             </div>
             </div>

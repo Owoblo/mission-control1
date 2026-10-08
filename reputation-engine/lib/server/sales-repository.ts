@@ -19,6 +19,7 @@ import {
 } from '@/lib/server/inbox-state'
 import { LEAD_ARCHIVED_NOTE, LEAD_RESTORED_NOTE, recordLeadArchivedAudit } from '@/lib/server/sales-audit'
 import {
+  hasSeparateLeadIdentity,
   chooseCanonicalLead,
   findLeadIdentityMatches,
   leadSharesIdentity,
@@ -895,7 +896,7 @@ export async function deleteSalesLead(id: string) {
   const current = await selectById<CRMLead>('crm_leads', id)
   await markDeleted('crm_leads', id)
 
-  if (!current || current.parentLeadId) {
+  if (!current || hasSeparateLeadIdentity(current)) {
     return [id]
   }
 

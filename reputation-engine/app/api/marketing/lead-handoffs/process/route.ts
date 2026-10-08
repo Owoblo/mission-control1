@@ -1,45 +1,101 @@
-import { partnershipHandoffBranch } from '@/lib/partnership-handoff-branch'
-import { NextResponse } from 'next/server'
-import { detectPartnershipLeadSignal } from '@/lib/server/partnership-lead-detection'
-import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
-import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
-import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
-
-export const dynamic = 'force-dynamic'
-export const maxDuration = 60
-type Touch = { id: string; contact_id: string; notes: string | null; created_at: string; metadata?: Record<string, unknown> | null }
-type Contact = { id: string; name: string | null; company: string | null; title: string | null; email: string | null; phone: string | null; city: string | null; category: string | null; industry: string | null }
-const enc = (value: unknown) => encodeURIComponent(String(value))
-function phone(value: unknown) { const digits = String(value || '').replace(/\D/g, ''); return digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : String(value || '').trim() }
-function isPartnershipTouch(touch: Touch) { return isPartnershipSenderNumber(phone(touch.metadata?.to || touch.metadata?.To || touch.metadata?.to_number || touch.metadata?.toNumber)) }
-
-function displayName(contact: Contact) { const name = String(contact.name || '').trim(); return name && !/^unknown contact$/i.test(name) && !/^\+?\d[\d ()-]+$/.test(name) ? name : String(contact.company || name || 'Partner referral').trim() }
-async function readJson<T>(url: string, headers: Record<string, string>): Promise<T> { const response = await fetch(url, { headers, cache: 'no-store' }); if (!response.ok) throw new Error(`Supabase read failed (${response.status})`); return response.json() as Promise<T> }
-async function mutate(url: string, headers: Record<string, string>, body: unknown, method = 'POST') { const response = await fetch(url, { method, headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(body) }); if (!response.ok) throw new Error(`Supabase write failed (${response.status})`) }
-
+import { NextResponse } from "next/server";
+import { detectPartnershipLeadSignal } from "@/lib/server/partnership-lead-detection";
+import { isAuthorizedCronRequest } from "@/lib/server/cron-auth";
+import {
+  handoffDb,
+  handoffContact,
+  contactHandoffLeads,
+} from "@/lib/server/partner-sales-handoff";
+import {
+  currentHandoffCandidates,
+  type HandoffTouch,
+} from "@/lib/partner-sales-handoff";
+import { isPartnershipSenderNumber } from "@/lib/partnership-lines";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+// Detection creates review work only. A reviewed handoff creates a Sales lead.
 export async function GET(request: Request) {
-  if (!isAuthorizedCronRequest(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { url, headers } = requireSupabaseEnv(); const now = new Date().toISOString()
+  if (!isAuthorizedCronRequest(request))
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const touches = await readJson<Touch[]>(`${url}/rest/v1/market_touches?direction=eq.inbound&channel=eq.sms&select=id,contact_id,notes,created_at,metadata&order=created_at.desc&limit=5000`, headers)
-    const latest = new Map<string, Touch>()
-    for (const touch of touches.filter(isPartnershipTouch)) if (detectPartnershipLeadSignal(touch.notes).is_lead && !latest.has(touch.contact_id)) latest.set(touch.contact_id, touch)
-    const ids = [...latest.keys()]; if (!ids.length) return NextResponse.json({ ok: true, scanned: touches.length, detected: 0, created: 0 })
-    const contacts = await readJson<Contact[]>(`${url}/rest/v1/market_contacts?id=in.(${ids.map(enc).join(',')})&select=id,name,company,title,email,phone,city,category,industry`, headers)
-    const byId = new Map<string, Contact>(contacts.map(contact => [contact.id, contact])); const existing = await readJson<Array<{ id: string; data?: Record<string, unknown> }>>(`${url}/rest/v1/crm_leads?select=id,data&limit=10000`, headers); const existingByContact = new Map<string, { id: string; data?: Record<string, unknown> }>(); for (const row of existing) { const contactId = String(row.data?.partnerReferralContactId || ''); if (contactId) existingByContact.set(contactId, row) }; let created = 0; const createdHandoffs: string[] = []
-    for (const [contactId, touch] of latest) {
-      const contact = byId.get(contactId); if (!contact) continue; const signal = detectPartnershipLeadSignal(touch.notes); const city = String(contact.city || '').trim(); const person = displayName(contact); const old = existingByContact.get(contact.id); const leadId = `partner-handoff-${contact.id}`
-      const existingHandoffStatus = String(old?.data?.handoffStatus || '')
-      const data: Record<string, unknown> = { id: leadId, partnerHandoffSourceTouchId: touch.id, partnerHandoffPolicyVersion: 'affirmative-current-need-v2', name: person, company: contact.company || undefined, title: contact.title || undefined, stage: existingHandoffStatus === 'completed' ? 'qualified' : 'new', leadKind: 'partner_opportunity', primaryContactRole: 'partner', source: 'partner_referral', sourceDetail: 'partnership_sms_live_lead', partnerReferralContactId: contact.id, partnerReferralName: person, partnerReferralCompany: contact.company || undefined, partnerReferralCategory: contact.category || contact.industry || undefined, partnerReferralEmail: contact.email || undefined, partnerReferralPhone: contact.phone || undefined, partnerReferralLinkedAt: now, phone: contact.phone || undefined, email: contact.email || undefined, branch: partnershipHandoffBranch(contact.city), partnerReferralCity: city || undefined, originCity: old?.data?.originCity || undefined, inboundMessage: touch.notes || '', partnerLeadSignal: signal.kind, partnerLeadPriority: signal.priority, partnerLeadSummary: 'Partner reported a current service need. Confirm whether the job is for the partner or a referred customer before collecting scope.', handoffStatus: existingHandoffStatus || 'new', handoffAt: old?.data?.handoffAt || now, handoffCommunication: { nextAction: 'sales_call_partner', introScript: 'Hi, this is [rep] from Saturn Star Movers. John from our Partnerships team asked me to follow up because [partner or business] mentioned a possible moving or staging need. I am calling to get the client details and see how we can help.', checklist: ['Confirm the partner name and business.', 'Collect the referred client name and best phone/email.', 'Collect move or staging date, origin, destination, inventory, access, parking, timing, and quote requirements.', 'Confirm the service city and route before quoting.', 'Record the call outcome and next step on this partner opportunity.'], quoteRule: 'Do not quote until the customer scope and route are confirmed.' }, notes: ['Partner-sourced sales handoff.', 'System detected a current service request; verify the source reply before contacting the partner.', 'Call the partner first, introduce yourself as calling from Saturn Star Movers because John asked you to follow up, and collect the referred customer details.', 'Collect client name and phone, move or staging date, origin, destination, inventory, access and parking details, timing, and quote requirements.', 'The partner is the referrer, not necessarily the customer. Do not quote until the job scope and route are confirmed.', city ? `Partner location recorded as ${city}. Confirm service coverage and exact route with the partner.` : 'Partner city is not recorded. Confirm location during the call.', `Priority: ${signal.priority}.`, `Latest partner reply: ${String(touch.notes || '').trim()}`].join('\n'), assignedRep: 'Thelma Ufot', assignedRepName: 'Thelma Ufot', leadOwnerStatus: 'assigned', followUpDate: now.slice(0, 10), followUpNote: 'Call partner for referred customer details', lastInboundAt: touch.created_at, createdAt: old?.data?.createdAt || now, updatedAt: now }
-      for (const key of Object.keys(data)) if (data[key] === undefined) delete data[key]
-      if (old) await mutate(`${url}/rest/v1/crm_leads?id=eq.${enc(old.id)}`, headers, { data, deleted: false, updated_at: now }, 'PATCH'); else { await mutate(`${url}/rest/v1/crm_leads`, headers, { id: leadId, data, deleted: false, updated_at: now }); created++; createdHandoffs.push(`${person}${contact.company ? ` (${contact.company})` : ''} · ${city || 'city not recorded'} · ${signal.priority}`) }
-      await mutate(`${url}/rest/v1/market_contacts?id=eq.${enc(contact.id)}`, headers, { priority: signal.priority, sequence_paused: true, sequence_paused_reason: 'live_sales_lead_detected' }, 'PATCH')
+    const touches = await handoffDb<HandoffTouch[]>("market_touches", {
+      direction: "eq.inbound",
+      channel: "eq.sms",
+      created_at: `gte.${new Date(Date.now() - 7 * 86400000).toISOString()}`,
+      select: "id,contact_id,channel,direction,notes,created_at,metadata",
+      order: "created_at.desc",
+      limit: "5000",
+    });
+    const candidates = currentHandoffCandidates(
+      touches.filter((t) =>
+        isPartnershipSenderNumber(
+          String(
+            t.metadata?.to ||
+              t.metadata?.To ||
+              t.metadata?.to_number ||
+              t.metadata?.toNumber ||
+              "",
+          ),
+        ),
+      ),
+      detectPartnershipLeadSignal,
+    );
+    let reviewed = 0;
+    for (const t of candidates) {
+      const contact = await handoffContact(t.contact_id);
+      if (
+        !contact ||
+        contact.do_not_contact ||
+        contact.cross_channel_suppressed_at
+      )
+        continue;
+      const leads = await contactHandoffLeads(t.contact_id);
+      // Existing/deleted opportunities need deliberate review, never resurrection or reset.
+      if (
+        leads.some(
+          (l) =>
+            l.deleted ||
+            !l.data.partnerHandoff ||
+            Date.parse(l.data.partnerHandoff.reviewedAt) >=
+              Date.parse(t.created_at),
+        )
+      )
+        continue;
+      const id = `partner-handoff-review-${t.id}`;
+      await handoffDb(
+        "crm_tasks",
+        { on_conflict: "source_key" },
+        "POST_IGNORE",
+        {
+          id,
+          source_key: id,
+          title: `Review possible Sales opportunity: ${contact.name}`,
+          description: `Review the conversation before assigning Sales.\n${t.notes}\n/marketing/partners?contact=${contact.id}`,
+          status: "open",
+          priority: "high",
+          category: "partnership",
+          related_type: "partner",
+          related_id: contact.id,
+          related_label: contact.name,
+          source: "condition",
+          owner_name: contact.owner_name || "John",
+          owner_user_id: contact.assigned_manager_user_id || null,
+        },
+      );
+      reviewed++;
     }
-    if (createdHandoffs.length) {
-      const rows = createdHandoffs.map(item => `<li>${item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')
-      await sendRepAlertEmail(`Partner lead handoff: ${createdHandoffs.length} new sales lead${createdHandoffs.length === 1 ? '' : 's'}`, `<div style="font-family:Arial,sans-serif"><h2>New partner-sourced sales handoff${createdHandoffs.length === 1 ? '' : 's'}</h2><p>The CRM has been updated. Thelma should call the referring partner first, not treat this as a normal consumer lead.</p><p><strong>Suggested introduction:</strong> Hi, this is [rep] from Saturn Star Movers. John from our Partnerships team asked me to follow up because [partner or business] mentioned a possible moving or staging need. I am calling to get the client details and see how we can help.</p><ul>${rows}</ul><p>Collect the client name and contact, date, origin, destination, inventory, access, parking, timing, and quote requirements. Confirm the route before quoting and record the outcome in the partner opportunity.</p></div>`, ['business@starmovers.ca', 'thelma.ufot@starmovers.ca'])
-    }
-    return NextResponse.json({ ok: true, scanned: touches.length, detected: latest.size, created })
-  } catch (error) { console.error('Partner lead handoff processor:', error); return NextResponse.json({ error: error instanceof Error ? error.message : 'Lead handoff processing failed' }, { status: 500 }) }
+    return NextResponse.json({
+      ok: true,
+      scanned: touches.length,
+      candidates: candidates.length,
+      reviewTasksEnsured: reviewed,
+      createdSalesLeads: 0,
+    });
+  } catch (e) {
+    console.error("Handoff review processor:", e);
+    return NextResponse.json(
+      { error: "Handoff review failed" },
+      { status: 500 },
+    );
+  }
 }

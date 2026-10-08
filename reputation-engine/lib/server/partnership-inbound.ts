@@ -1,3 +1,4 @@
+import { queueHandoffInbound } from './partner-sales-handoff'
 import { persistPartnershipInboundPause } from '@/lib/server/partnership-inbound-pause'
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
@@ -389,6 +390,8 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     }),
     getPartnershipAlertRecipients(contact.city)
   )
+
+  if (!optedOut) await queueHandoffInbound(contact.id, String(input.metadata?.messageSid || input.metadata?.callSid || input.metadata?.call_sid || ''), touchNotes).catch(error => console.error('Handoff follow-up task failed', error))
 
   if (input.channel === 'sms' && !optedOut) {
     await queueRequestedOttawaCard(contact.id, String(input.metadata?.messageSid || ''))

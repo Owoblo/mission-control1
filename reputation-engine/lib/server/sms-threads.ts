@@ -47,6 +47,7 @@ export interface SalesSmsThread {
   lastReadByName?: string
   lastActionAt?: string
   lastActionByName?: string
+  partnerOpportunities?: Array<{id: string; summary: string}>
   partnerOpportunity?: boolean
   partnerLeadSummary?: string
   partnerHandoffStatus?: string
@@ -389,7 +390,8 @@ export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[], 
       .map(id => leadsById.get(id))
       .find(lead => leadHasThreadPhone(lead, thread.contactPhone)) || null
     const phoneMatchedLead = findLeadByPhone(thread.contactPhone, leadsByPhone)
-    const resolvedLead = directLead || phoneMatchedLead
+    const partnerJobs = leads.filter(lead => lead.id.startsWith('partner-handoff-') && lead.handoffStatus !== 'completed' && leadHasThreadPhone(lead, thread.contactPhone))
+    const resolvedLead = partnerJobs.length > 1 ? null : directLead || phoneMatchedLead
     const inboundLead = inboundByPhone.get(digitsOnly(thread.contactPhone)) || null
     const leadState = resolvedLead?.inboxState?.sms
     const inboundState = inboundLead ? getInboundInboxChannelState(inboundLead, undefined, 'sms') : undefined
@@ -413,6 +415,12 @@ export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[], 
       thread.partnerOpportunity = true
       thread.partnerLeadSummary = resolvedLead.partnerLeadSummary
       thread.partnerHandoffStatus = typeof resolvedLead.handoffStatus === 'string' ? resolvedLead.handoffStatus : undefined
+    }
+    if (partnerJobs.length > 1) {
+      thread.partnerOpportunity = true
+      thread.leadName = partnerJobs[0].partnerReferralName || partnerJobs[0].name
+      thread.partnerLeadSummary = 'Several jobs share this partner’s number. Confirm which job they mean before updating an opportunity.'
+      thread.partnerOpportunities = partnerJobs.map(lead => ({id:lead.id,summary:lead.partnerHandoff?.summary || lead.partnerLeadSummary || lead.name}))
     }
     thread.lastMessage = last?.body || ''
     thread.lastAt = last?.created_at || thread.lastAt

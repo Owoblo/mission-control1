@@ -1,5 +1,6 @@
 'use client'
 
+import { PartnerHandoffPanel } from '@/app/components/sales/partner-handoff-panel'
 import { resolveQuoteDraftPricing } from '@/lib/quote-draft-pricing'
 import { rebaseQuoteDraftUpdate } from '@/lib/quote-draft-revision'
 import { lostTransitionError } from '@/lib/lead-verification'
@@ -4392,7 +4393,7 @@ export default function SalesLeadDetailPage() {
               View only
             </span>
           ) : null}
-          {lead.leadKind === 'partner_opportunity' ? (
+          {lead.leadKind === 'partner_opportunity' && !lead.partnerHandoff ? (
             <div className="mt-3 w-full rounded-[12px] border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
               <div className="font-semibold">This is a partner event, not a normal customer intake</div>
               <p className="mt-1">{lead.partnerLeadSummary || 'Call the referring partner first, review the source conversation, and collect the referred customer details before estimating.'}</p>
@@ -4407,6 +4408,8 @@ export default function SalesLeadDetailPage() {
             </span>
           ) : null}
         </div>
+
+        {lead.partnerReferralContactId && <PartnerHandoffPanel leadId={lead.id} />}
 
         {/* Pre-visit brief — shows when consultation is booked */}
         {lead.consultationPreVisitBrief && lead.stage === 'estimate_scheduled' && (
