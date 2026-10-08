@@ -56,9 +56,6 @@ export async function POST(request: Request) {
   const partnershipNumber = normalizePhone(isOutbound ? from : to)
 
   if (!contactPhone || !isPartnershipSenderNumber(partnershipNumber) || callStatus === 'initiated' || callStatus === 'ringing') {
-    if(!isOutbound && ['no-answer','busy','failed','canceled'].includes(callStatus)) {
-      await queueMissedPartnershipCall(contactId,callSid,contactPhone).catch(error=>console.error('Missed partnership callback task failed',error))
-    }
     return twimlCompleteResponse()
   }
 
@@ -66,6 +63,9 @@ export async function POST(request: Request) {
   async function completeResponse(contactId: string | null = null) {
     if(shouldFallback){
       try{const xml=await partnershipSalesFallbackXml(contactPhone,partnershipNumber);if(xml)return new Response(xml,{headers:{'Content-Type':'text/xml; charset=utf-8'}})}catch(error){console.error('Partnership Sales fallback unavailable',error)}
+    }
+    if(!isOutbound && ['no-answer','busy','failed','canceled'].includes(callStatus)) {
+      await queueMissedPartnershipCall(contactId,callSid,contactPhone).catch(error=>console.error('Missed partnership callback task failed',error))
     }
     return twimlCompleteResponse()
   }
