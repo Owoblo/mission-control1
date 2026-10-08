@@ -1,3 +1,4 @@
+import { salesEmailConfigured } from '@/lib/server/email-provider'
 import { generateConditionTasks } from './task-generation'
 import { saveGeneratedTasks } from './task-repository'
 import { knownCustomerName, customerFirstName } from '../customer-name'
@@ -633,7 +634,7 @@ function previewText(value?: string, max = 160) {
 }
 
 function automationChannelUnavailableReason(channel: ConversationChannel) {
-  if (channel === 'email' && !readEnv('RESEND_API_KEY')) {
+  if (channel === 'email' && !salesEmailConfigured()) {
     return 'Email delivery is not configured for automation.'
   }
 
@@ -1244,7 +1245,7 @@ async function maybeCreateAutomatedQuote(lead: CRMLead, preferredChannel?: Conve
     return { sent: false, lead }
   }
 
-  const canEmail = !!(lead.email && readEnv('RESEND_API_KEY'))
+  const canEmail = !!(lead.email && salesEmailConfigured())
   const canSms = !!lead.phone
   if (!canEmail && !canSms) {
     return {

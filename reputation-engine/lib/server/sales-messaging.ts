@@ -1,3 +1,4 @@
+import { sendSalesEmail } from '@/lib/server/email-provider'
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { uid } from '@/lib/sales'
 import {
@@ -219,32 +220,13 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
   let result: Record<string, unknown> = { ok: true }
 
   if (input.channel === 'email') {
-    const resendKey = readEnv('RESEND_API_KEY')
-    if (!resendKey) {
-      throw new Error('Missing RESEND_API_KEY')
-    }
-
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Saturn Star Movers <business@starmovers.ca>',
-        to: [input.to],
-        subject: input.subject || 'Saturn Star Movers',
-        html: input.htmlBody || `<p>${input.body.replace(/\n/g, '<br>')}</p>`,
-        text: input.body,
-        reply_to: 'business@inbound.starmovers.ca',
-      }),
+    const receipt = await sendSalesEmail({
+      to: input.to,
+      subject: input.subject || 'Saturn Star Movers',
+      html: input.htmlBody || `<p>${input.body.replace(/\n/g, '<br>')}</p>`,
+      text: input.body,
     })
-
-    const resendResult = await resendRes.json().catch(() => ({})) as Record<string, unknown>
-    if (!resendRes.ok) {
-      throw new Error(String(resendResult?.message || 'Email send failed'))
-    }
-    result = { ok: true, id: resendResult.id }
+    result = { ok: true, id: receipt.messageId, provider: receipt.provider }
   } else {
     const { accountSid, authToken } = getTwilioCredentials()
     const isWhatsApp = input.channel === 'whatsapp'
