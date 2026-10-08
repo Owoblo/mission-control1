@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test:logic": "rm -rf .tmp-logic-tests && tsc -p tsconfig.logic-tests.json && node --require ./tests/helpers/register-compiled-aliases.cjs --test .tmp-logic-tests/tests/logic/*.test.js",
     "smoke:automation": "bash scripts/automation-smoke.sh",
-    "deploy": "vercel deploy --prod"
+    "deploy": "vercel deploy --prod",
+    "test:partner-handoff-db": "node tests/database/partner-sales-handoff.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1130.0",
@@ -33,6 +34,7 @@
     "stripe": "^20.4.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

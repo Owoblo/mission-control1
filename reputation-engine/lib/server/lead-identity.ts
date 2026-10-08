@@ -177,7 +177,7 @@ export function leadSharesIdentity(
   input: { phone?: string | null; email?: string | null; inboundId?: string | null }
 ) {
   // Explicit additional jobs share a customer, but must never be auto-merged.
-  if (lead.parentLeadId) return false
+  if (lead.parentLeadId || lead.id.startsWith('partner-handoff-')) return false
   if (input.inboundId && lead.inboundId && input.inboundId === lead.inboundId) {
     return true
   }

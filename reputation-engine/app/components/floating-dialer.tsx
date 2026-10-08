@@ -1,5 +1,7 @@
 'use client'
 
+import { PartnerCallContext } from '@/app/components/sales/partner-call-context'
+
 import Link from 'next/link'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { logDialerCall, matchLeadByPhone } from '@/lib/sales-api'
@@ -2527,6 +2529,7 @@ export function FloatingDialer() {
               ) : (
                 <div className="mt-5 text-2xl font-semibold tracking-wide">{incomingFrom}</div>
               )}
+              <PartnerCallContext phone={incomingFrom} />
               {activeLeadId && (
                 <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -2626,6 +2629,7 @@ export function FloatingDialer() {
                   {status === 'active' ? 'Live on' : 'Calling from'} {callerProfile.branchLabel || 'Primary'} · {callerProfile.fromNumber}
                 </div>
               )}
+              <PartnerCallContext phone={callingNumberRef.current || incomingFrom || phone.trim()} />
               {activeLeadContext && <div className="mt-3 w-full rounded-[12px] border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
                 <div className="flex flex-wrap justify-between gap-2"><span className="capitalize">{activeLeadContext.stage.replaceAll('_', ' ')}</span><span>{activeLeadContext.moveDate || 'Move date TBD'}</span><span>{activeLeadOwner}</span></div>
                 <div className="mt-1 truncate text-white/40">{activeLeadRoute || activeLeadContext.branch || 'Route not confirmed'} · Last contact {activeLeadLastContact ? new Date(activeLeadLastContact).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : 'not recorded'}</div>

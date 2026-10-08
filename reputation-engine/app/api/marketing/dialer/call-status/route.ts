@@ -1,3 +1,6 @@
+import { partnershipCallNeedsFallback } from '@/lib/partner-call-fallback'
+import { partnershipSalesFallbackXml } from '@/lib/server/partner-call-fallback'
+import { queueHandoffInbound } from '@/lib/server/partner-sales-handoff'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
@@ -40,11 +43,11 @@ export async function POST(request: Request) {
     if (rejection) return rejection
     await captureTwilioInteraction(rawBody, 'partnership_call_status', 'call')
     const formData = carrierVoiceForm(rawBody)
-  const callStatus = (formData.get('CallStatus') as string | null) ?? ''
+  const callStatus = (formData.get('DialCallStatus') || formData.get('CallStatus') || '')
   const from = (formData.get('From') as string | null) ?? ''
   const to = (formData.get('To') as string | null) ?? ''
   const callSid = (formData.get('CallSid') as string | null) ?? ''
-  const callDuration = (formData.get('CallDuration') as string | null) ?? '0'
+  const callDuration = (formData.get('DialCallDuration') || formData.get('CallDuration') || '0')
   const direction = (formData.get('Direction') as string | null) ?? ''
 
   const now = new Date().toISOString()
@@ -56,6 +59,13 @@ export async function POST(request: Request) {
     return twimlCompleteResponse()
   }
 
+  const shouldFallback = partnershipCallNeedsFallback({dialStatus:formData.get('DialCallStatus') || '',direction,alreadyFallback:new URL(request.url).searchParams.get('salesFallback')==='1'})
+  async function completeResponse() {
+    if(shouldFallback){
+      try{const xml=await partnershipSalesFallbackXml(contactPhone,partnershipNumber);if(xml)return new Response(xml,{headers:{'Content-Type':'text/xml; charset=utf-8'}})}catch(error){console.error('Partnership Sales fallback unavailable',error)}
+    }
+    return twimlCompleteResponse()
+  }
   const { url, headers } = requireSupabaseEnv()
 
   // Find the contact by phone
@@ -68,11 +78,15 @@ export async function POST(request: Request) {
   const exactMatches = contacts.filter(item => normalizePhone(item.phone) === contactPhone && contactMatchesLine(item, partnershipNumber))
   const contact = exactMatches.length === 1 ? exactMatches[0] : null
 
-  if (!contact) return twimlCompleteResponse()
+  if (!contact) return completeResponse()
 
   const durationSec = parseInt(callDuration, 10)
   const connected = callStatus === 'completed' && durationSec > 5
   const noAnswer = ['no-answer', 'busy', 'failed', 'canceled'].includes(callStatus)
+
+  if(!isOutbound && ['no-answer','busy','failed','canceled'].includes(callStatus)) {
+    await queueHandoffInbound(contact.id, `${callSid}-missed`, `Missed partnership call from ${contactPhone}. Review the opportunity and contact instructions before calling back.`).catch(error=>console.error('Missed handoff task failed',error))
+  }
 
   const notes = connected
     ? `Partnership call — ${durationSec}s · ${isOutbound ? 'Outbound' : 'Inbound'} · ${callSid}`
@@ -112,5 +126,5 @@ export async function POST(request: Request) {
   // This route is also the <Dial action>. Twilio expects valid TwiML here;
   // an empty 204 makes it announce "An application error has occurred"
   // after an otherwise successful call.
-  return twimlCompleteResponse()
+  return completeResponse()
 }

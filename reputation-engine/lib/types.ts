@@ -1107,6 +1107,7 @@ export interface CRMLead {
   name: string
   stage: SalesLeadStage
   branch?: SalesBranch   // which Saturn Star location handles this lead
+  partnerHandoff?: import('./partner-sales-handoff').PartnerSalesHandoff
   leadKind?: LeadKind
   primaryContactRole?: LeadContactRole
   inboundId?: string

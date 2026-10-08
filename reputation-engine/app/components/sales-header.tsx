@@ -47,6 +47,7 @@ const BASE_NAV = [
   { environment: 'Command', href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Command', href: '/sales/tasks', label: 'Tasks', match: (p: string) => p.startsWith('/sales/tasks'), roles: ['owner', 'manager', 'sales_rep', 'operations_lead', 'partnership_manager'] },
   { environment: 'Intake', href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Intake', href: '/sales/partner-opportunities', label: 'Partner opportunities', match: (p: string) => p.startsWith('/sales/partner-opportunities'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/sales/leads', label: 'Leads', match: (p: string) => p.startsWith('/sales/leads'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager', 'partnership_manager'] },
   { environment: 'Sales', href: '/sales/reviews', label: 'Reviews', match: (p: string) => p.startsWith('/sales/reviews'), roles: ['owner', 'manager', 'sales_rep'] },
