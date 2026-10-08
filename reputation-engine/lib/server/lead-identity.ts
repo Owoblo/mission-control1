@@ -3,6 +3,7 @@ import { digitsOnly, normalizePhone } from '../sales-phones'
 import type { CRMLead } from '../types'
 
 type LeadIdentityShape = {
+  leadKind?: CRMLead['leadKind']
   parentLeadId?: string
   id: string
   name: string
@@ -172,8 +173,8 @@ function compareLeadIdentityPriorityIncludingClosed(left: LeadIdentityShape, rig
   return compareLeadIdentityPriority(left, right)
 }
 
-export function hasSeparateLeadIdentity(lead: {id: string; parentLeadId?: string}) {
-  return Boolean(lead.parentLeadId) || lead.id.startsWith('partner-handoff-')
+export function hasSeparateLeadIdentity(lead: {id: string; parentLeadId?: string; leadKind?: CRMLead['leadKind']}) {
+  return Boolean(lead.parentLeadId) || lead.leadKind === 'partner_opportunity' || lead.id.startsWith('partner-handoff-')
 }
 
 export function leadSharesIdentity(

@@ -52,6 +52,7 @@ type LeadLifecycleSnapshot = {
   createdAt?: string
 }
 type LeadIdentityRow = {
+  leadKind?: string | null
   parentLeadId?: string | null
   id: string
   createdAt?: string | null
@@ -84,7 +85,7 @@ type LeadSearchRow = LeadIdentityRow & {
   notes?: string | null
 }
 
-export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'createdAt' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId' | 'parentLeadId'>
+export type SalesLeadIdentitySnapshot = Pick<CRMLead, 'id' | 'createdAt' | 'name' | 'stage' | 'phone' | 'email' | 'inboundId' | 'mergedIntoLeadId' | 'parentLeadId' | 'leadKind'>
 export type SalesLeadInboxSnapshot =
   SalesLeadIdentitySnapshot &
   Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity' | 'moveType' | 'totalCubicFeet' | 'callLogs' | 'inboxState' | 'assignedRep' | 'assignedRepName' | 'assignedRepUserId'>
@@ -139,6 +140,7 @@ function normalizeLeadIdentitySnapshot(row: LeadIdentityRow): SalesLeadIdentityS
     stage: (normalizeProjectedText(row.stage) || 'new') as CRMLead['stage'],
     phone: normalizeProjectedText(row.phone),
     email: normalizeProjectedText(row.email),
+    leadKind: normalizeProjectedText(row.leadKind) as CRMLead['leadKind'],
     parentLeadId: normalizeProjectedText(row.parentLeadId),
     inboundId: normalizeProjectedText(row.inboundId),
     mergedIntoLeadId: normalizeProjectedText(row.mergedIntoLeadId),
@@ -237,6 +239,7 @@ const LEAD_IDENTITY_SELECT = [
   'createdAt:data->>createdAt',
   'name:data->>name',
   'stage:data->>stage',
+  'leadKind:data->>leadKind',
   'phone:data->>phone',
   'email:data->>email',
   'parentLeadId:data->>parentLeadId',
@@ -249,6 +252,7 @@ const LEAD_INBOX_SELECT = [
   'createdAt:data->>createdAt',
   'name:data->>name',
   'stage:data->>stage',
+  'leadKind:data->>leadKind',
   'phone:data->>phone',
   'email:data->>email',
   'parentLeadId:data->>parentLeadId',
@@ -272,6 +276,7 @@ const LEAD_SEARCH_SELECT = [
   'id',
   'name:data->>name',
   'stage:data->>stage',
+  'leadKind:data->>leadKind',
   'phone:data->>phone',
   'email:data->>email',
   'parentLeadId:data->>parentLeadId',

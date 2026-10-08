@@ -204,3 +204,9 @@ test("SMS from a repeat partner presents job choices instead of choosing one arb
   assert.equal(threads[0].leadId, null);
   assert.equal(threads[0].partnerOpportunities?.length, 2);
 });
+
+test('an existing CRM ID remains a separate partner job after handoff',()=>{
+ const lead={id:'lead_existing',name:'Partner',stage:'contacted' as const,leadKind:'partner_opportunity' as const,phone:'+14165550100'}
+ assert.equal(hasSeparateLeadIdentity(lead),true)
+ assert.deepEqual(findLeadIdentityMatches([lead],{phone:lead.phone}),[])
+})
