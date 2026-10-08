@@ -62,6 +62,7 @@ const create = (l = lead, separate = false) =>
     separate,
   ]);
 await create();
+assert.equal((await db.query('select data from crm_leads')).rows[0].data.automationStatus, 'handoff');
 await create();
 assert.equal((await db.query("select * from crm_leads")).rows.length, 1);
 assert.equal((await db.query("select * from crm_tasks")).rows.length, 1);

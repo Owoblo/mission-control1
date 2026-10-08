@@ -17,6 +17,7 @@ begin
   select id::text into latest from public.market_touches where contact_id::text=p_contact order by created_at desc,id desc limit 1;
   if latest is distinct from p_lead#>>'{partnerHandoff,reviewedThroughTouchId}' then raise exception 'Conversation changed. Reload and review the latest reply'; end if;
   if not p_separate_job and exists(select 1 from public.crm_leads where not coalesce(deleted,false) and (data->>'partnerReferralContactId'=p_contact or (length(regexp_replace(coalesce(p_lead->>'phone',''),'[^0-9]','','g'))>=10 and right(regexp_replace(coalesce(data->>'phone',''),'[^0-9]','','g'),10)=right(regexp_replace(p_lead->>'phone','[^0-9]','','g'),10)))) then raise exception 'Open the existing opportunity or confirm this is a separate job'; end if;
+  p_lead := p_lead || jsonb_build_object('automationStatus','handoff','automationHandoffAt',now(),'automationHandoffReason','Reviewed partnership opportunity: assigned rep owns the conversation.');
   insert into public.crm_leads(id,data,deleted,updated_at) values(p_lead->>'id',p_lead,false,now());
   insert into public.crm_tasks(id,title,description,status,priority,category,due_at,owner_user_id,owner_name,branch,related_type,related_id,related_label,source,source_key,created_by_user_id,created_by_name)
   values(p_task->>'id',p_task->>'title',p_task->>'description','open','high','sales',(p_task->>'due_at')::timestamptz,p_task->>'owner_user_id',p_task->>'owner_name',p_lead->>'branch','lead',p_lead->>'id',p_lead->>'name','manual',p_task->>'id',p_task->>'created_by_user_id',p_task->>'created_by_name');
