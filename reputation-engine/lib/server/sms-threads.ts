@@ -390,7 +390,7 @@ export function buildSmsThreads(messages: SmsMessageRecord[], leads: CRMLead[], 
       .map(id => leadsById.get(id))
       .find(lead => leadHasThreadPhone(lead, thread.contactPhone)) || null
     const phoneMatchedLead = findLeadByPhone(thread.contactPhone, leadsByPhone)
-    const partnerJobs = leads.filter(lead => lead.id.startsWith('partner-handoff-') && lead.handoffStatus !== 'completed' && leadHasThreadPhone(lead, thread.contactPhone))
+    const partnerJobs = leads.filter(lead => (lead.leadKind === 'partner_opportunity' || lead.id.startsWith('partner-handoff-')) && lead.handoffStatus !== 'completed' && leadHasThreadPhone(lead, thread.contactPhone))
     const resolvedLead = partnerJobs.length > 1 ? null : directLead || phoneMatchedLead
     const inboundLead = inboundByPhone.get(digitsOnly(thread.contactPhone)) || null
     const leadState = resolvedLead?.inboxState?.sms
