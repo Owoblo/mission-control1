@@ -23,6 +23,7 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   Leads:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="7" cy="7" r="3"/><path d="M2 17a5 5 0 0110 0M14 6h4M16 4v4"/></svg>,
   Inbox:        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M2 13l3-7h10l3 7"/><path d="M2 13h4l1 2h6l1-2h4v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3z"/></svg>,
   Pipeline:     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="4" cy="10" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="16" cy="10" r="2"/><path d="M6 10h2M12 10h2"/></svg>,
+  'Sales Opportunities': <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/><path d="M10 1v3M16 10h3M10 16v3M1 10h3"/></svg>,
   Quotes:       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M4 4h12a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M7 8h6M7 11h4"/></svg>,
   Reviews:      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M10 2.5l2.2 4.4 4.8.7-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8L3 7.6l4.8-.7L10 2.5z"/></svg>,
   Booked:       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M6 10l3 3 5-5"/><rect x="3" y="3" width="14" height="14" rx="2"/></svg>,
@@ -47,11 +48,11 @@ const BASE_NAV = [
   { environment: 'Command', href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Command', href: '/sales/tasks', label: 'Tasks', match: (p: string) => p.startsWith('/sales/tasks'), roles: ['owner', 'manager', 'sales_rep', 'operations_lead', 'partnership_manager'] },
   { environment: 'Intake', href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
-  { environment: 'Intake', href: '/sales/partner-opportunities', label: 'Partner opportunities', match: (p: string) => p.startsWith('/sales/partner-opportunities'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/sales/leads', label: 'Leads', match: (p: string) => p.startsWith('/sales/leads'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager', 'partnership_manager'] },
   { environment: 'Sales', href: '/sales/reviews', label: 'Reviews', match: (p: string) => p.startsWith('/sales/reviews'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Sales', href: '/sales/partner-opportunities', label: 'Sales Opportunities', match: (p: string) => p.startsWith('/sales/partner-opportunities'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/follow-up', label: 'Follow-Up', match: (p: string) => p.startsWith('/sales/follow-up'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/academy', label: 'Academy', match: (p: string) => p.startsWith('/sales/academy'), roles: ['owner', 'manager', 'sales_rep'] },
@@ -365,7 +366,7 @@ export function SalesHeader() {
   const navItems = BASE_NAV
     .filter(item => item.roles.includes(role))
     .filter(item => !(role === 'sales_rep' && ['Finance', 'Live Feed', 'Analytics', 'Reps', 'Team', 'Partnerships'].includes(item.label)))
-  const primaryNavLabels = new Set(['Dashboard', 'Tasks', 'Inbox', 'Leads', 'Pipeline', 'Booked', 'Partnerships', 'Operations'])
+  const primaryNavLabels = new Set(['Dashboard', 'Tasks', 'Inbox', 'Leads', 'Pipeline', 'Sales Opportunities', 'Booked', 'Partnerships', 'Operations'])
   const primaryNavItems = navItems.filter(item => primaryNavLabels.has(item.label))
   const secondaryNavItems = navItems.filter(item => !primaryNavLabels.has(item.label))
   const activeSecondaryItem = secondaryNavItems.some(item => item.match(pathname))
