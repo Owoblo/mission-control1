@@ -28,7 +28,7 @@ function selectedProvider(): EmailProviderName {
   return value === 'ses' ? 'ses' : 'resend'
 }
 
-function requireEmailBody(payload: ProviderEmailPayload) {
+function requireEmailBody(payload: Pick<ProviderEmailPayload, 'html' | 'text'>) {
   if (!payload.html && !payload.text) {
     throw new Error('Email requires html or text body')
   }
@@ -152,5 +152,22 @@ export async function sendOutreachEmail(payload: ProviderEmailPayload): Promise<
   requireEmailBody(payload)
   const receipt = await sendWithSes(payload)
   if (!receipt.accepted || !receipt.messageId) throw new Error("SES did not return an acceptance receipt")
+  return receipt
+}
+
+/** Sales/quote delivery is configured independently from partnership outreach. */
+export function salesEmailConfigured() {
+  if (readEnv('SALES_EMAIL_PROVIDER').toLowerCase() !== 'ses') return Boolean(readEnv('RESEND_API_KEY'))
+  return Boolean(sesProductionAccessConfirmed() && readEnv('AWS_ACCESS_KEY_ID') && readEnv('AWS_SECRET_ACCESS_KEY') && readEnv('SALES_EMAIL_FROM'))
+}
+
+export async function sendSalesEmail(payload: Omit<ProviderEmailPayload, 'from' | 'replyTo'>): Promise<ProviderEmailReceipt> {
+  requireEmailBody(payload)
+  const useSes = readEnv('SALES_EMAIL_PROVIDER').toLowerCase() === 'ses'
+  const from = readEnv('SALES_EMAIL_FROM') || (useSes ? '' : 'Saturn Star Movers <business@starmovers.ca>')
+  if (!from) throw new Error('SALES_EMAIL_FROM must be a verified SES sender')
+  const message = { ...payload, from, replyTo: readEnv('SALES_EMAIL_REPLY_TO') || 'business@inbound.starmovers.ca', trackingMode: 'deliverability' as const }
+  const receipt = await (useSes ? sendWithSes(message) : sendWithResend(message))
+  if (!receipt.accepted || !receipt.messageId) throw new Error('Email provider did not confirm acceptance')
   return receipt
 }
