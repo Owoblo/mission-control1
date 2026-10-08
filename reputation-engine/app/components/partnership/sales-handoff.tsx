@@ -36,7 +36,8 @@ export function PartnerSalesHandoffButton({
     [context, setContext] = useState<Context | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [reviewed, setReviewed] = useState(false);
+    [reviewed, setReviewed] = useState(false),
+    [sent, setSent] = useState(false);
   async function load(refresh = false) {
     if (!refresh) setContext(null);
     setReviewed(false);
@@ -75,7 +76,12 @@ export function PartnerSalesHandoffButton({
       );
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      window.location.assign(`/sales/leads/${encodeURIComponent(d.id)}`);
+      if (d.canOpenSales === false) {
+        setSent(true);
+        setOpen(false);
+      } else {
+        window.location.assign(`/sales/leads/${encodeURIComponent(d.id)}`);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -88,7 +94,7 @@ export function PartnerSalesHandoffButton({
         className="rounded-lg border px-3 py-2 text-sm font-semibold"
         onClick={() => load()}
       >
-        Send to Sales
+        {sent ? "Sent to Sales — view handoff" : "Send to Sales"}
       </button>
       {open && (
         <div

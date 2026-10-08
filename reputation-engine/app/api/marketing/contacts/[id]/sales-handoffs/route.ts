@@ -1,3 +1,4 @@
+import { canAccessSalesWorkspace } from "@/lib/server/sales-permissions";
 import { normalizePhone } from "@/lib/sales-phones";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/server/session";
@@ -151,7 +152,10 @@ export async function POST(request: Request, ctx: Context) {
         p_separate_job: body.separateJob === true,
       },
     );
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...(result as Record<string, unknown>),
+      canOpenSales: canAccessSalesWorkspace(a.session),
+    });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Handoff failed" },

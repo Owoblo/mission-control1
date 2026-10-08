@@ -153,3 +153,54 @@ test("automatic identity matching cannot collapse separate partner jobs", () => 
     1,
   );
 });
+
+import { hasSeparateLeadIdentity } from "../../lib/server/lead-identity";
+import { buildSmsThreads } from "../../lib/server/sms-threads";
+import type { CRMLead } from "../../lib/types";
+test("separate opportunities are isolated for both merge and deletion decisions", () => {
+  assert.equal(hasSeparateLeadIdentity({ id: "partner-handoff-c-job" }), true);
+  assert.equal(
+    hasSeparateLeadIdentity({ id: "child", parentLeadId: "parent" }),
+    true,
+  );
+  assert.equal(hasSeparateLeadIdentity({ id: "customer" }), false);
+});
+test("SMS from a repeat partner presents job choices instead of choosing one arbitrarily", () => {
+  const leads = [
+    {
+      id: "partner-handoff-c-a",
+      name: "Realtor",
+      stage: "new",
+      phone: "+14165550100",
+      handoffStatus: "new",
+      partnerLeadSummary: "First job",
+    },
+    {
+      id: "partner-handoff-c-b",
+      name: "Realtor",
+      stage: "new",
+      phone: "+14165550100",
+      handoffStatus: "new",
+      partnerLeadSummary: "Second job",
+    },
+  ] as CRMLead[];
+  const threads = buildSmsThreads(
+    [
+      {
+        id: "m",
+        from_number: "+14165550100",
+        to_number: "+14374650584",
+        body: "About my client",
+        direction: "inbound",
+        lead_id: leads[0].id,
+        twilio_sid: "SMfixture",
+        created_at: "2026-10-08T00:00:00Z",
+      },
+    ],
+    leads,
+    [],
+    false,
+  );
+  assert.equal(threads[0].leadId, null);
+  assert.equal(threads[0].partnerOpportunities?.length, 2);
+});

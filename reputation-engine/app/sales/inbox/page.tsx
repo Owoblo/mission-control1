@@ -1732,6 +1732,7 @@ function SalesInboxPageInner() {
                           {thread.partnerOpportunity ? (
                             <div className="mt-2 max-w-2xl rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">
                               <strong>Partner-sourced opportunity.</strong> {thread.partnerLeadSummary || 'Call the referring partner first, collect the client details and scope, and do not quote until the route is confirmed.'}
+                              {thread.partnerOpportunities?.map(opportunity => <a key={opportunity.id} href={`/sales/leads/${encodeURIComponent(opportunity.id)}`} className="mt-2 block underline">{opportunity.summary}</a>)}
                               {thread.partnerHandoffStatus ? <span className="ml-2 font-semibold">Status: {thread.partnerHandoffStatus.replace(/_/g, ' ')}</span> : null}
                             </div>
                           ) : null}

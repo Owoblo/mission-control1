@@ -172,12 +172,16 @@ function compareLeadIdentityPriorityIncludingClosed(left: LeadIdentityShape, rig
   return compareLeadIdentityPriority(left, right)
 }
 
+export function hasSeparateLeadIdentity(lead: {id: string; parentLeadId?: string}) {
+  return Boolean(lead.parentLeadId) || lead.id.startsWith('partner-handoff-')
+}
+
 export function leadSharesIdentity(
   lead: LeadIdentityShape,
   input: { phone?: string | null; email?: string | null; inboundId?: string | null }
 ) {
   // Explicit additional jobs share a customer, but must never be auto-merged.
-  if (lead.parentLeadId || lead.id.startsWith('partner-handoff-')) return false
+  if (hasSeparateLeadIdentity(lead)) return false
   if (input.inboundId && lead.inboundId && input.inboundId === lead.inboundId) {
     return true
   }
