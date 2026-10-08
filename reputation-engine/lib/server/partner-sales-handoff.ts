@@ -177,3 +177,45 @@ export async function queueHandoffInbound(
     due_at: new Date(Date.now() + 30 * 60000).toISOString(),
   });
 }
+
+export async function queueMissedPartnershipCall(
+  contactId: string | null,
+  callSid: string,
+  phone: string,
+) {
+  if (!callSid) return;
+  if (contactId) {
+    const leads = (await contactHandoffLeads(contactId)).filter(
+      (l) =>
+        !l.deleted &&
+        l.data.partnerHandoff &&
+        l.data.handoffStatus !== "completed",
+    );
+    if (leads.length) {
+      await queueHandoffInbound(
+        contactId,
+        `${callSid}-missed`,
+        `Missed inbound call from ${phone}; neither the Partnership ring nor the available Sales fallback answered. Review contact instructions before a callback.`,
+      );
+      return;
+    }
+  }
+  const contact = contactId ? await handoffContact(contactId) : null;
+  const key = `partnership-missed-call-${callSid}`;
+  await handoffDb("crm_tasks", { on_conflict: "source_key" }, "POST_IGNORE", {
+    id: key,
+    source_key: key,
+    title: `Missed partnership call: ${contact?.name || phone}`,
+    description: `No available answer. Review the call log and return the call to ${phone}. Call reference: ${callSid}.`,
+    status: "open",
+    priority: "high",
+    category: "partnership",
+    source: "condition",
+    owner_user_id: contact?.assigned_manager_user_id || null,
+    owner_name: contact?.owner_name || "John",
+    related_type: contact ? "partner" : null,
+    related_id: contactId,
+    related_label: contact?.name || phone,
+    due_at: new Date(Date.now() + 30 * 60000).toISOString(),
+  });
+}
