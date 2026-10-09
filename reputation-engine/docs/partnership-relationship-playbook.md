@@ -1,3 +1,7 @@
+## October 9: shared context, ownership and pricing
+
+The [shared Partnerships and Sales rules](partnership-context-and-ownership.md) govern handoff ownership, combined conversations, response reporting, sending windows, referral outcomes and current reply wording. Use **John** only; for new pricing enquiries explain the scope factors and offer a flat binding estimate after review, rather than an hourly rate. These rules supersede conflicting older examples below.
+
 ## September 16: local coverage replies
 
 Use the partner’s confirmed service area to answer “Where are you located?” directly: e.g. “We cover Kanata, Ottawa and surrounding areas.” Never imply a local office without evidence. Physical-address requests and unknown geography need review. Current rule: [Local coverage replies](../partnership-system/current/local-coverage-replies.md). Gina already received her answer and thanked us; do not resend.

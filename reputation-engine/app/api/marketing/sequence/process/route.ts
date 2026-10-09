@@ -1,5 +1,6 @@
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { executePreparedSmsJob, PreparedSmsProviderError } from '@/lib/server/prepared-sms-worker'
+import { campaignWindow } from '@/lib/partner-context'
 import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
@@ -214,15 +215,19 @@ async function releaseFailedSequenceJob(
   headers: HeadersInit,
   job: Record<string, unknown>,
   error: unknown,
+  campaignNotes?: unknown,
 ) {
   const attempts = jobAttempts(job)
-  const failed = attempts >= jobMaxAttempts(job)
+  const retry = retryAt(attempts)
+  const coldSend = job.channel === 'sms' && !parseScheduledReplyTemplateKey(job.template_key) && !job.provider_sid
+  const retryWindow = campaignWindow(campaignNotes, String(job.scheduled_at), new Date(retry))
+  const failed = attempts >= jobMaxAttempts(job) || (coldSend && !retryWindow.allowed)
   await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${encodeURIComponent(String(job.id))}`, {
     method: 'PATCH',
     headers,
     body: JSON.stringify({
       status: failed ? 'failed' : 'pending',
-      scheduled_at: failed ? job.scheduled_at : retryAt(attempts),
+      scheduled_at: failed ? job.scheduled_at : retry,
       locked_at: null,
       error: error instanceof Error ? error.message : String(error),
       last_error: error instanceof Error ? error.message : String(error),
@@ -434,6 +439,7 @@ async function processSequence(request: Request) {
   }
 
   const { url, headers } = requireSupabaseEnv()
+  const runStarted = Date.now()
   const now = new Date().toISOString()
   await recoverStaleSequenceJobs(url, headers)
 
@@ -446,17 +452,12 @@ async function processSequence(request: Request) {
   const jobs = await jobsRes.json() as Record<string, unknown>[]
   if (jobs.length === 0) return NextResponse.json({ ok: true, processed: 0, skipped: 0 })
 
-  const claimedJobs: Record<string, unknown>[] = []
-  for (const job of jobs) {
-    if (job.sms_payload && readEnv('PREPARED_SMS_EXECUTION_ENABLED') !== 'true') continue
-    const claimed = await claimSequenceJob(url, headers, job)
-    if (claimed) claimedJobs.push(claimed)
-  }
-
-  if (claimedJobs.length === 0) return NextResponse.json({ ok: true, processed: 0, skipped: 0, raced: jobs.length })
-
-  const contactIds = Array.from(new Set(claimedJobs.map(j => j.contact_id as string)))
-  const batchIds = Array.from(new Set(claimedJobs.map(j => j.batch_id as string).filter(Boolean)))
+  // Fetch context before claiming. Jobs we cannot start within this invocation
+  // remain pending instead of being stranded as running until stale recovery.
+  const eligibleJobs = jobs.filter(job => !job.sms_payload || readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true')
+  if (!eligibleJobs.length) return NextResponse.json({ok:true,processed:0,skipped:0,disabled:jobs.length})
+  const contactIds = Array.from(new Set(eligibleJobs.map(j => j.contact_id as string)))
+  const batchIds = Array.from(new Set(eligibleJobs.map(j => j.batch_id as string).filter(Boolean)))
 
   const [contactsRes, batchesRes] = await Promise.all([
     fetch(`${url}/rest/v1/market_contacts?id=in.(${contactIds.map(id => `"${id}"`).join(',')})&select=*`, { headers, cache: 'no-store' }),
@@ -464,6 +465,8 @@ async function processSequence(request: Request) {
       ? fetch(`${url}/rest/v1/market_campaigns?id=in.(${batchIds.map(id => `"${id}"`).join(',')})&select=*`, { headers, cache: 'no-store' })
       : Promise.resolve(new Response('[]')),
   ])
+
+  if (!contactsRes.ok || !batchesRes.ok) return NextResponse.json({ error: 'Campaign context unavailable; no jobs claimed' }, { status: 503 })
 
   const contactMap = new Map<string, Record<string, unknown>>(
     (contactsRes.ok ? await contactsRes.json() : []).map((c: Record<string, unknown>) => [c.id as string, c])
@@ -485,15 +488,37 @@ async function processSequence(request: Request) {
   }
 
 
+  let claimedCount = 0
+  let raced = 0
   let processed = 0
   let skipped = 0
 
-  for (const job of claimedJobs) {
+  for (const candidate of eligibleJobs) {
+    if (Date.now() - runStarted >= 40000) break
+    const job = await claimSequenceJob(url, headers, candidate)
+    if (!job) { raced++; continue }
+    claimedCount++
     const contact = contactMap.get(job.contact_id as string)
-    const batch = batchMap.get(job.batch_id as string) ?? {}
+    const batch = batchMap.get(job.batch_id as string) ?? (job.batch_id ? { notes: "missing_campaign_context" } : {})
     const scheduledAt = typeof job.scheduled_at === 'string' ? job.scheduled_at : now
     const scheduledTime = new Date(scheduledAt).getTime()
     const scheduledReply = parseScheduledReplyTemplateKey(job.template_key)
+
+    // Enforce at execution, not just scheduling: delayed cold sends must not spill
+    // into the evening or the next day. Human-requested scheduled replies are separate.
+    if (job.channel === 'sms' && !scheduledReply && !job.provider_sid) {
+      const window = campaignWindow(batch.notes, scheduledAt, new Date());
+      if (!window.allowed) {
+        const closed = window.reason !== 'campaign_window_not_open';
+        const response = await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}&status=eq.running`, {
+          method: 'PATCH', headers,
+          body: JSON.stringify({ status: closed ? 'failed' : 'pending', locked_at: null, error: window.reason, last_error: window.reason }),
+        });
+        if (!response.ok) throw new Error('Unable to record campaign window hold');
+        skipped++;
+        continue;
+      }
+    }
 
     // Provider checks belong to the job's channel, never the shared queue.
     let accountSid = ''
@@ -505,7 +530,7 @@ async function processSequence(request: Request) {
         if (!accountSid || !authToken) throw new Error('Missing Twilio credentials')
         if (await twilioAccountIsSuspended(accountSid, authToken)) throw new Error('twilio_account_suspended')
       } catch (error) {
-        await releaseFailedSequenceJob(url, headers, job, error)
+        await releaseFailedSequenceJob(url, headers, job, error, batch.notes)
         continue
       }
     }
@@ -526,7 +551,7 @@ async function processSequence(request: Request) {
         if (result === 'processed') processed++
         else skipped++
       } catch (err) {
-        await releaseFailedSequenceJob(url, headers, job, err)
+        await releaseFailedSequenceJob(url, headers, job, err, batch.notes)
       }
       continue
     }
@@ -607,7 +632,7 @@ async function processSequence(request: Request) {
       } else if (job.channel === 'sms') {
         if (job.sms_payload) {
           try {
-            await executePreparedSmsJob({ job: job as { id: string }, contact: contact as { id: string }, url, headers, accountSid, authToken, enabled: readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true' })
+            await executePreparedSmsJob({ job: job as { id: string }, contact: contact as { id: string }, url, headers, accountSid, authToken, enabled: readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true', beforeSend: () => { const w=campaignWindow(batch.notes,scheduledAt,new Date()); if(!w.allowed)throw new Error(w.reason) } })
             processed++
           } catch (error) {
             if (error instanceof PreparedSmsProviderError && isPermanentSmsFailure(error.status, error.providerBody)) {
@@ -661,6 +686,8 @@ async function processSequence(request: Request) {
         }
 
         const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(fromNumber)
+        const sendWindow = campaignWindow(batch.notes, scheduledAt, new Date())
+        if (!sendWindow.allowed) throw new Error(sendWindow.reason)
         const twilioRes = await sendSmsProviderRequest(
           `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
           {
@@ -755,11 +782,11 @@ async function processSequence(request: Request) {
         skipped++
       }
     } catch (err) {
-      await releaseFailedSequenceJob(url, headers, job, err)
+      await releaseFailedSequenceJob(url, headers, job, err, batch.notes)
     }
   }
 
-  return NextResponse.json({ ok: true, processed, skipped, total: claimedJobs.length, raced: jobs.length - claimedJobs.length })
+  return NextResponse.json({ ok: true, processed, skipped, total: claimedCount, raced, deferred: eligibleJobs.length - claimedCount - raced })
 }
 
 export async function POST(request: Request) {

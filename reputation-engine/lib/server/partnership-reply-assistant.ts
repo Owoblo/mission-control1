@@ -693,6 +693,7 @@ async function refineWithOpenAi(input: {
   config: PackageConfig
   fallback: PartnershipAssistantResult
   canSendPackageNow: boolean
+  relationshipContext?: string
 }) {
   const apiKey = readEnv('OPENAI_API_KEY')
   if (!apiKey || ['stop_opt_out', 'wrong_number', 'not_interested'].includes(input.fallback.intent)) return input.fallback
@@ -721,6 +722,7 @@ async function refineWithOpenAi(input: {
               'You draft natural SMS replies for Saturn Star Movers partnership outreach.',
               'Write as a human rep, not as an assistant. Never mention AI, automation, prompts, or internal policy.',
               'Use only provided facts and allowed links. Do not invent prices, referral percentages, service areas, names, meetings, deliveries, or sent status.',
+              'Related client history is context only: do not treat it as messages or permission from the realtor. Keep each client job separate and do not ask for facts already supplied in the relevant job.',
               'Primary goal: answer the partner, then move toward the right next touchpoint: requested media/package, email forwarding info, delivery address/time, or meeting logistics.',
               'Use the partner first name once when it sounds natural, usually in the opening phrase. Do not force the name into every reply or repeat it more than once.',
               'If they ask for a card, flyer, photo, picture, or something to send clients, answer that directly before asking any postcard logistics question.',
@@ -741,6 +743,7 @@ async function refineWithOpenAi(input: {
               contact: input.contact,
               latestInbound: input.latestText,
               conversationHistory: history,
+              relationshipContext: input.relationshipContext,
               allowedPackageLinks: input.config,
               canSendPackageNow: input.canSendPackageNow,
               fallback: input.fallback,
@@ -762,6 +765,7 @@ export async function suggestPartnershipReply(input: {
   contact: PartnershipAssistantContact
   touches: PartnershipAssistantTouch[]
   skipAi?: boolean
+  relationshipContext?: string
 }) {
   const latest = latestInbound(input.touches)
   const latestText = cleanText(latest?.notes)
@@ -813,9 +817,9 @@ export async function suggestPartnershipReply(input: {
   // Known, high-confidence intents already have approved deterministic copy.
   // Reserve model calls for ambiguity, missing context, or risky conversations.
   const aiRequiredFlags = new Set(['short_or_ambiguous_reply', 'needs_context_review', 'mentions_automation', 'resend_previous_context', 'verified_physical_address_required', 'service_area_confirmation_required'])
-  const needsAi = fallback.confidence < 0.84 || fallback.risk_flags.some(flag => aiRequiredFlags.has(flag)) || fallback.intent === 'positive_vague'
+  const needsAi = Boolean(input.relationshipContext) || fallback.confidence < 0.84 || fallback.risk_flags.some(flag => aiRequiredFlags.has(flag)) || fallback.intent === 'positive_vague'
   if (!needsAi) return fallback
-  return refineWithOpenAi({ contact: input.contact, touches: input.touches, latestText, config, fallback, canSendPackageNow })
+  return refineWithOpenAi({ contact: input.contact, touches: input.touches, latestText, config, fallback, canSendPackageNow, relationshipContext: input.relationshipContext })
 }
 
 export function partnershipDispositionFromSuggestion(result: PartnershipAssistantResult) {

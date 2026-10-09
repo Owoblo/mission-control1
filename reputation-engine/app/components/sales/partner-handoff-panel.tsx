@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { SharedPartnerContext } from "@/app/components/partnership/shared-context";
 import {
   handoffIsOverdue,
   type PartnerSalesHandoff,
@@ -66,6 +67,7 @@ export function PartnerHandoffPanel({ leadId }: { leadId: string }) {
   return (
     <section className="m-3 rounded-xl border border-sky-200 bg-sky-50 p-4 md:mx-8">
       <h2 className="font-bold">Partnership handoff</h2>
+      {data?.lead.partnerReferralContactId && <SharedPartnerContext contactId={data.lead.partnerReferralContactId} />}
       {error && (
         <p role="alert" className="text-red-700">
           {error}

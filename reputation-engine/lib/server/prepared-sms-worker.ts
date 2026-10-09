@@ -9,7 +9,7 @@ export class PreparedSmsProviderError extends Error {
   constructor(public status: number, public providerBody: string) { super(`Twilio: ${providerBody}`) }
 }
 export async function executePreparedSmsJob(input: {
-  job: CrmRow; contact: CrmRow; url: string; headers: HeadersInit; accountSid: string; authToken: string; enabled: boolean
+  job: CrmRow; contact: CrmRow; url: string; headers: HeadersInit; accountSid: string; authToken: string; enabled: boolean; beforeSend?: () => void
 }, deps: { request?: typeof fetch; reserve?: typeof reserveAction } = {}) {
   const request = deps.request || fetch
   const reserve = deps.reserve || reserveAction
@@ -33,6 +33,7 @@ export async function executePreparedSmsJob(input: {
   if (!sid) {
     await reserve({ url, headers, contactId: contact.id, channel: 'sms', key: 'sequence:'+job.id, content: payload.body, sender: payload.from })
     const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(payload.from)
+    input.beforeSend?.()
     const response = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${input.accountSid}/Messages.json`, {
       method: 'POST', headers: { Authorization: 'Basic '+Buffer.from(input.accountSid+':'+input.authToken).toString('base64'), 'Content-Type':'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ To: payload.to, ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: payload.from }), Body: payload.body }),
