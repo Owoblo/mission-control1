@@ -13,6 +13,8 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/telnyx/voice',
   '/api/sales/telnyx/bridge',
   '/api/sales/inbox/email-inbound',
+  // AWS SNS authenticates inside the handler using its signed envelope.
+  '/api/sales/inbox/ses-inbound',
   '/api/sales/operations/sms',
   '/api/sales/operations/twiml',
   '/api/sales/emails/backfill',
