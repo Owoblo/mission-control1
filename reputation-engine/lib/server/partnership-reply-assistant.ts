@@ -453,7 +453,8 @@ function draftFromRules(input: {
   const packageConfigured = hasPackage(config)
   const digitalSent = wasSent(touches, /\b(digital package|referral program|rate card|flyer|package link)\s*:\s*https?:\/\//i)
   const referralMentioned = digitalSent || wasSent(touches, /\b(referral|commission|incentive)\b/i)
-  const canSendPackageNow = packageConfigured && packagePermissionGranted(touches, latestText, intent)
+  const priceQuestion = intent === 'asks_for_pricing' || (intent === 'partner_lead_received' && extracted.asks_pricing)
+  const canSendPackageNow = !priceQuestion && packageConfigured && packagePermissionGranted(touches, latestText, intent)
   // Directory records often store the business title in `name`. Do not turn
   // that into a fake person's first name in a reply. Ask for the decision
   // maker's name when it is genuinely unknown.
@@ -478,11 +479,9 @@ function draftFromRules(input: {
     draft = 'No problem at all, thanks for letting me know.'
     recommended_action = 'mark_not_interested'
     quick_action = 'not_interested'
-  } else if (intent === 'asks_for_pricing') {
-    draft = packageConfigured
-      ? `For sure ${name}. ${packageLine(config, extracted)} It has the general rate card and referral details in one place. ${localRepDropLine()} What address and time work best?`
-      : `For sure ${name}. I can send over the rate card and referral details once I have the package link ready. ${localRepDropLine()} What address and time work best?`
-    quick_action = 'drop_cards'
+  } else if (priceQuestion) {
+    draft = "Price depends on what needs moving, the distance, floors/access and any packing. We avoid hourly pricing and give a flat binding estimate once we've reviewed the details. What needs moving, and is it for you or a client?"
+    quick_action = 'needs_follow_up'
   } else if (intent === 'asks_referral_program') {
     draft = packageConfigured
       ? `Yes for sure${nameSuffix}. ${packageLine(config, extracted)} ${localRepDropLine()} What address and time usually work for you?`
@@ -607,11 +606,11 @@ function draftFromRules(input: {
   }
 
   const hasDeliveryLocation = Boolean(extracted.address || extracted.brokerage_location)
-  const physicalDelivery = hasDeliveryLocation && extracted.time_window
+  const physicalDelivery = priceQuestion ? 'not_needed' : hasDeliveryLocation && extracted.time_window
     ? 'ready_to_schedule'
       : hasDeliveryLocation
         ? 'need_time'
-      : ['stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'asks_context', 'confirms_identity', 'asks_for_references', 'refers_to_another_contact', 'partner_lead_received', 'lead_disposition_update'].includes(intent)
+      : ['asks_for_pricing', 'stop_opt_out', 'wrong_number', 'not_interested', 'digital_only_no_postcard', 'send_card_or_flyer_media', 'asks_contact_info', 'asks_context', 'confirms_identity', 'asks_for_references', 'refers_to_another_contact', 'partner_lead_received', 'lead_disposition_update'].includes(intent)
         ? 'not_needed'
         : 'need_address'
 
@@ -720,6 +719,8 @@ async function refineWithOpenAi(input: {
             role: 'system',
             content: [
               'You draft natural SMS replies for Saturn Star Movers partnership outreach.',
+              'If identifying the sender, use John only, never his full name. Do not repeat introductions in an established conversation.',
+              'For price questions explain inventory, distance, floors/access and packing factors. We avoid hourly pricing and offer a flat binding estimate after scope review. Ask only missing move details; never invent a rate or promise a flat price before reviewing scope. A price question does not request a card drop-off.',
               'Write as a human rep, not as an assistant. Never mention AI, automation, prompts, or internal policy.',
               'Use only provided facts and allowed links. Do not invent prices, referral percentages, service areas, names, meetings, deliveries, or sent status.',
               'Related client history is context only: do not treat it as messages or permission from the realtor. Keep each client job separate and do not ask for facts already supplied in the relevant job.',
@@ -780,7 +781,7 @@ export async function suggestPartnershipReply(input: {
     config,
     latestText,
   })
-  const canSendPackageNow = hasPackage(config) && packagePermissionGranted(input.touches, latestText, detected.intent)
+  const canSendPackageNow = !(detected.intent === 'asks_for_pricing' || (detected.intent === 'partner_lead_received' && extracted.asks_pricing)) && hasPackage(config) && packagePermissionGranted(input.touches, latestText, detected.intent)
   fallback.confidence = Math.min(fallback.confidence, detected.confidence)
   fallback.risk_flags = Array.from(new Set([...fallback.risk_flags, ...detected.risk_flags]))
   if (!latestText) {
