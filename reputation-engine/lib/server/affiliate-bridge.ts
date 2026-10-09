@@ -1,3 +1,4 @@
+import { sendProviderEmail } from '@/lib/server/email-provider'
 /**
  * Affiliate bridge — fires when a partnership contact reaches partnership_active.
  * Creates or updates their review_partners (affiliate) record, generates their
@@ -159,18 +160,15 @@ async function sendWelcomeEmail(
   portalUrl: string,
   appUrl: string
 ) {
-  const resendKey = readEnv('RESEND_API_KEY')
-  if (!resendKey || !contact.email) return
+  if (!contact.email) return
 
   const firstName = (contact.name || 'there').split(' ')[0]
   const partnershipPhone = getPartnershipPrimaryNumberForMarket(contact.city)
   const partnershipPhoneDisplay = partnershipPhone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3')
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: `Saturn Star Partnerships <${DEFAULT_PARTNERSHIP_EMAIL}>`,
+  await sendProviderEmail({
+      from: `Saturn Star Partnerships <${readEnv('PARTNERSHIP_EMAIL') || 'partnerships@saturnstarmovers.ca'}>`,
+      replyTo: 'business@starmovers.ca',
       to: [contact.email],
       subject: `Your Saturn Star referral partner portal is ready`,
       html: `
@@ -208,6 +206,5 @@ async function sendWelcomeEmail(
         </div>
       `,
       text: `Hi ${firstName},\n\nYour Saturn Star Movers partner portal is ready.\n\nYour link: ${portalUrl}\n\nBookmark it — no login needed. Submit a referral anytime. Partner rewards are credited only after a completed paid move.\n\nQuestions? Call ${partnershipPhoneDisplay}\n\nSaturn Star Partnerships`,
-    }),
-  })
+    }).catch(error => console.error('Email notification failed', error))
 }

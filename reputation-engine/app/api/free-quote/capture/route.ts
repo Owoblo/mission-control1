@@ -120,7 +120,7 @@ export async function POST(request: Request) {
 
     if (!isHealthCheck) {
       void sendInternalAlertSms(JOHN_NUMBER, smsText, BUSINESS_NUMBER)
-      void sendRepAlertEmail(
+      await sendRepAlertEmail(
         emailSubject,
         `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a"><pre style="white-space:pre-wrap;font:14px/1.6 Arial,sans-serif;margin:0">${escapeHtml(emailBody)}</pre></div>`
       )

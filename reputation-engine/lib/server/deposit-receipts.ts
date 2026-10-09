@@ -1,3 +1,4 @@
+import { sendProviderEmail } from '@/lib/server/email-provider'
 import { readEnv } from '@/lib/server/runtime'
 import type { ReceiptBrand } from '@/lib/receipt-brand'
 
@@ -205,32 +206,12 @@ export function buildDepositReceiptEmail(payload: DepositReceiptPayload) {
 }
 
 export async function sendDepositReceipt(payload: DepositReceiptPayload) {
-  const resendKey = readEnv('RESEND_API_KEY')
-  if (!resendKey) {
-    throw new Error('RESEND_API_KEY not configured')
-  }
-
   const { subject, html, plain } = buildDepositReceiptEmail(payload)
-  const resp = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${resendKey}`,
-    },
-    body: JSON.stringify({
-      from: `${payload.brand?.fullName || 'Saturn Star Movers'} <info@starmovers.ca>`,
-      to: [payload.toEmail],
-      subject,
-      text: plain,
-      html,
-      reply_to: payload.brand?.email || 'info@starmovers.ca',
-    }),
+  const receipt = await sendProviderEmail({
+    from: `${payload.brand?.fullName || 'Saturn Star Movers'} <info@starmovers.ca>`,
+    to: payload.toEmail, subject, text: plain, html,
+    replyTo: payload.brand?.email || 'info@starmovers.ca',
+    trackingMode: 'deliverability',
   })
-
-  const result = await resp.json().catch(() => ({})) as { id?: string; message?: string; error?: string }
-  if (!resp.ok) {
-    throw new Error(result.error || result.message || 'Email failed')
-  }
-
-  return { ok: true, id: result.id || null }
+  return { ok: true, id: receipt.messageId }
 }

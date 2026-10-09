@@ -29,10 +29,6 @@
       "schedule": "30 8 * * *"
     },
     {
-      "path": "/api/sales/inbox/resend-poll",
-      "schedule": "*/2 * * * *"
-    },
-    {
       "path": "/api/sales/automation/process",
       "schedule": "*/2 * * * *"
     },

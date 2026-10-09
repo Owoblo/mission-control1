@@ -176,7 +176,7 @@ export async function POST(request: Request) {
               const depositAmt = actualDepositPaid
               const quoteNum = quote?.number || ''
               const crmUrl = `${readEnv('NEXT_PUBLIC_APP_URL') || 'https://go.quote2move.com'}/sales/leads/${lead.id}`
-              void sendRepAlertEmail(
+              await sendRepAlertEmail(
                 `💳 ${customerName} paid deposit — ${quoteNum}`,
                 `<div style="font-family:sans-serif;color:#071421;max-width:520px">
                   <p><strong>${customerName}</strong> just paid their deposit of <strong>$${depositAmt.toFixed(2)}</strong> via Stripe.</p>
@@ -194,7 +194,7 @@ export async function POST(request: Request) {
                   id: uid('fu'), leadId: targetLeadId, type: 'note', date: now, createdAt: now,
                   notes: `Internal payment review: deposit was paid with ${paymentMethodLabel}${card.cardLast4 ? ` ending ${card.cardLast4}` : ''}. Booking remains accepted; verify the final-balance collection plan before move day.`,
                 }).catch(() => {})
-                void sendRepAlertEmail(
+                await sendRepAlertEmail(
                   `⚠️ Payment review — ${customerName} used ${paymentMethodLabel}`,
                   `<div style="font-family:sans-serif;color:#071421;max-width:520px"><h2 style="font-size:18px">Payment review requested</h2><p><strong>${customerName}</strong> paid the deposit successfully using <strong>${paymentMethodLabel}${card.cardLast4 ? ` ending ${card.cardLast4}` : ''}</strong>.</p><p>The booking remains accepted. Please verify the final-balance collection plan before move day.</p><p><a href="${crmUrl}">Open the lead in CRM →</a></p></div>`
                 ).catch(() => {})

@@ -1,3 +1,4 @@
+import { salesEmailConfigured } from '@/lib/server/email-provider'
 import { isTelnyxNumber } from '@/lib/telephony-providers'
 import { getAppBaseUrl, getTwilioCredentials, getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { getSaturnBranchPhoneNumbers, getSaturnBranchLabel, normalizePhone } from '@/lib/sales-phones'
@@ -404,9 +405,9 @@ export async function runLeadFlowHealthCheck(requestBaseUrl?: string): Promise<L
   const checks: LeadFlowHealthCheck[] = []
 
   checks.push(
-    readEnv('RESEND_API_KEY')
-      ? buildCheck('env_resend', 'Resend API Key', 'ok', 'Outbound email credentials are configured.')
-      : buildCheck('env_resend', 'Resend API Key', 'fail', 'RESEND_API_KEY is missing. Outbound email cannot be sent.')
+    salesEmailConfigured()
+      ? buildCheck('env_ses', 'SES sending', 'ok', 'Outbound email credentials are configured.')
+      : buildCheck('env_ses', 'SES sending', 'fail', 'SES credentials, production approval, or Sales sender are missing.')
   )
 
   checks.push(buildCheck(

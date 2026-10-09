@@ -224,7 +224,7 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
         }
         await writeSmsMessage(normalized || from, toField, messageText, messageSid, resolvedLeadId)
         if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
-        void sendRepAlertEmail(
+        await sendRepAlertEmail(
           `New SMS from ${from}`,
           smsNotificationEmail(from, messageText, resolvedLeadId)
         )

@@ -38,7 +38,7 @@ export async function sendCallerIdSms(
   ))
 }
 
-const NOTIFY_FROM = 'Saturn Star OS <notifications@saturnstarmovers.ca>'
+const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
 const NOTIFY_TO = ['business@starmovers.ca', 'thelma.ufot@starmovers.ca']
 const PARTNERSHIP_DEFAULT_NOTIFY_TO = ['business@starmovers.ca']
 const PARTNERSHIP_MARKET_NOTIFY_TO: Record<string, string[]> = {
@@ -140,7 +140,7 @@ export async function sendRepAlertEmail(subject: string, htmlBody: string, recip
     html: htmlBody,
     replyTo: 'business@starmovers.ca',
     trackingMode: 'deliverability',
-  }).catch(() => null)))
+  }).catch(error => console.error('Internal email alert failed', { subject, recipient, error: String(error) }))))
 }
 
 export function partnershipInboundNotificationEmail(options: {

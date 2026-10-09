@@ -234,7 +234,7 @@ export async function POST(request: Request) {
         paymentRecords: (updatedQuote.paymentRecords || []).map(item => item.id === depositPaymentRecord?.id ? deliveredPayment : item),
       })
       if (requiresCardFundingReview(cardFunding)) {
-        void sendRepAlertEmail(
+        await sendRepAlertEmail(
           `⚠️ Payment review — ${lead.name} used ${paymentMethodLabel}`,
           `<div style="font-family:sans-serif;color:#071421;max-width:520px"><h2 style="font-size:18px">Payment review requested</h2><p><strong>${lead.name}</strong> paid the deposit successfully using <strong>${paymentMethodLabel}${cardLast4 !== '????' ? ` ending ${cardLast4}` : ''}</strong>.</p><p>The booking remains accepted. Please verify the final-balance collection plan before move day.</p><p><a href="https://go.quote2move.com/sales/leads/${leadId}">Open the lead in CRM →</a></p></div>`
         ).catch(() => {})

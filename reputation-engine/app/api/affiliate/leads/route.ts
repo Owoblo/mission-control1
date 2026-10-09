@@ -1,3 +1,4 @@
+import { sendProviderEmail } from '@/lib/server/email-provider'
 import { NextResponse } from 'next/server'
 import { requireSupabaseEnv, getAppBaseUrl, readEnv } from '@/lib/server/runtime'
 import { getClientIp, rateLimit } from '@/lib/server/rate-limit'
@@ -30,9 +31,7 @@ async function verifyToken(token: string) {
 }
 
 async function notifyTeam(partnerName: string, customerName: string, phone: string | null, email: string | null, originCity: string | null, destCity: string | null) {
-  const resendKey = readEnv('RESEND_API_KEY')
   const appUrl = getAppBaseUrl('https://mission-control1-reputation-engine.vercel.app')
-  if (!resendKey) return
   const safePartnerName = escapeHtml(partnerName)
   const safeCustomerName = escapeHtml(customerName)
   const safePhone = escapeHtml(phone)
@@ -40,10 +39,7 @@ async function notifyTeam(partnerName: string, customerName: string, phone: stri
   const safeOriginCity = escapeHtml(originCity)
   const safeDestCity = escapeHtml(destCity)
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  await sendProviderEmail({
       from: 'Saturn Star Movers <business@starmovers.ca>',
       to: ['business@starmovers.ca'],
       subject: `New referral from ${partnerName}`,
@@ -58,8 +54,7 @@ async function notifyTeam(partnerName: string, customerName: string, phone: stri
           <p><a href="${appUrl}/sales" style="background:#0f6a53;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:8px">Open in CRM</a></p>
         </div>
       `,
-    }),
-  }).catch(() => {})
+    }).catch(error => console.error('Email notification failed', error))
 }
 
 export async function GET(request: Request) {
@@ -178,7 +173,7 @@ export async function POST(request: Request) {
   }).catch(() => {})
 
   // 3. Notify team
-  void notifyTeam(
+  await notifyTeam(
     partnerName,
     body.customer_name.trim(),
     body.customer_phone || null,

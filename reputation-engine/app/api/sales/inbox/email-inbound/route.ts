@@ -1,40 +1,16 @@
+import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
+import { createHash } from 'node:crypto'
 /**
  * POST /api/sales/inbox/email-inbound
- * Receives inbound emails from Resend (email.received webhook)
- * OR forwarded emails from the Cloudflare Email Worker (legacy, x-internal-secret).
+ * Receives authenticated SES imports or legacy internal email forwards.
  */
 import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
-import { getWorkerSharedSecret, readEnv } from '@/lib/server/runtime'
+import { getWorkerSharedSecret, requireSupabaseEnv } from '@/lib/server/runtime'
 import { saveSalesEmail, saveFollowUpLog } from '@/lib/server/sales-repository'
-
-async function verifySvixSignature(request: Request, rawBody: string): Promise<boolean> {
-  const secret = readEnv('RESEND_WEBHOOK_SECRET')
-  if (!secret) return true
-
-  const msgId = request.headers.get('svix-id') || ''
-  const msgTs = request.headers.get('svix-timestamp') || ''
-  const msgSig = request.headers.get('svix-signature') || ''
-
-  if (!msgId || !msgTs || !msgSig) return false
-
-  // Replay protection: reject if timestamp is >5 minutes old
-  const ts = parseInt(msgTs, 10)
-  if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false
-
-  // Decode the whsec_ secret
-  const secretBytes = Uint8Array.from(atob(secret.replace(/^whsec_/, '')), c => c.charCodeAt(0))
-  const toSign = new TextEncoder().encode(`${msgId}.${msgTs}.${rawBody}`)
-
-  const key = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  const sig = await crypto.subtle.sign('HMAC', key, toSign)
-  const computed = 'v1,' + btoa(String.fromCharCode(...Array.from(new Uint8Array(sig))))
-
-  return msgSig.split(' ').some(s => s === computed)
-}
 
 export async function POST(request: Request) {
   const workerSecret = request.headers.get('x-internal-secret')
@@ -44,10 +20,7 @@ export async function POST(request: Request) {
 
   const rawBody = await request.text()
 
-  if (!isWorker) {
-    const valid = await verifySvixSignature(request, rawBody)
-    if (!valid) return new Response('Unauthorized', { status: 401 })
-  }
+  if (!isWorker) return new Response('Unauthorized', { status: 401 })
 
   try {
     const raw = JSON.parse(rawBody) as Record<string, unknown>
@@ -97,8 +70,15 @@ export async function POST(request: Request) {
     }
 
     const now = receivedAt || new Date().toISOString()
+    const providerMessageId = typeof raw.providerMessageId === 'string' ? raw.providerMessageId : null
+    const emailId = providerMessageId ? 'em_ses_' + createHash('sha256').update(providerMessageId).digest('hex').slice(0, 32) : uid('em')
+    if (providerMessageId) {
+      const { url, headers } = requireSupabaseEnv()
+      const existing = await fetch(`${url}/rest/v1/crm_emails?id=eq.${emailId}&select=id&limit=1`, { headers, cache: 'no-store' })
+      if (!existing.ok) throw new Error('Inbound email deduplication lookup failed')
+      if ((await existing.json()).length) return NextResponse.json({ ok: true, duplicate: true, emailId })
+    }
     if (isHealthCheck) {
-      const emailId = uid('em')
       await saveSalesEmail({
         id: emailId,
         leadId: null,
@@ -120,7 +100,7 @@ export async function POST(request: Request) {
       channel: 'email',
       email: from,
       occurredAt: now,
-      notes: subject ? `Inbound email: ${subject}` : 'Inbound email reply received',
+      notes: `Inbound email: ${subject || '(no subject)'}\n\n${body}`,
       metadata: {
         from,
         to,
@@ -129,6 +109,7 @@ export async function POST(request: Request) {
     }).catch(() => ({ matched: false as const }))
 
     if (partnership.matched) {
+      await saveSalesEmail({ id: emailId, leadId: null, quoteId: null, from, to: to || 'business@inbound.starmovers.ca', subject: subject || '(no subject)', body, templateType: 'partnership_inbound', direction: 'inbound', status: 'sent', sentAt: now })
       return NextResponse.json({ ok: true, partnershipMatched: true, partnershipContactId: partnership.contactId })
     }
 
@@ -146,7 +127,7 @@ export async function POST(request: Request) {
     const leadId = automation.lead?.id || null
 
     await saveSalesEmail({
-      id: uid('em'),
+      id: emailId,
       leadId,
       quoteId: null,
       to: to || 'business@inbound.starmovers.ca',
@@ -171,6 +152,8 @@ export async function POST(request: Request) {
       queueLeadIntelligenceRefresh(leadId, new URL(request.url).origin)
     }
 
+    const escapedBody = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    await sendRepAlertEmail(`New customer email — ${subject || '(no subject)'}`, `<p>From: ${from.replace(/[<>&]/g, '')}</p><pre style="white-space:pre-wrap">${escapedBody}</pre>`)
     return NextResponse.json({ ok: true, matched: !!leadId, leadId })
   } catch (error) {
     return NextResponse.json(

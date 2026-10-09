@@ -375,7 +375,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     }),
   ])
 
-  void sendRepAlertEmail(
+  await sendRepAlertEmail(
     `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
     partnershipInboundNotificationEmail({
       contactId: contact.id,
@@ -445,7 +445,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       }),
     ])
 
-    void sendRepAlertEmail(
+    await sendRepAlertEmail(
       `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
       partnershipInboundNotificationEmail({
         contactId: contact.id,
