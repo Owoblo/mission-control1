@@ -53,15 +53,28 @@ export async function GET(request: Request) {
       select: "id,contact_id,direction,channel,notes,created_at",
     });
     const ids = [...new Set(touches.map((t) => t.contact_id))];
-    const contacts: Array<Record<string, any>> = [];
-    for (let i = 0; i < ids.length; i += 100)
-      contacts.push(
-        ...(await all<Record<string, any>>("market_contacts", {
-          id: `in.(${ids.slice(i, i + 100).join(",")})`,
-          select:
-            "id,name,phone,city,owner_name,owner_email,assigned_manager_user_id",
-        })),
-      );
+    async function chunks<T>(
+      ids: string[],
+      read: (chunk: string[]) => Promise<T[]>,
+    ) {
+      const rows: T[] = [];
+      // Bound DB pressure while avoiding hundreds of sequential round trips.
+      for (let i = 0; i < ids.length; i += 400) {
+        const work = Array.from(
+          { length: Math.ceil(Math.min(400, ids.length - i) / 100) },
+          (_, n) => ids.slice(i + n * 100, i + (n + 1) * 100),
+        );
+        rows.push(...(await Promise.all(work.map(read))).flat());
+      }
+      return rows;
+    }
+    const contacts = await chunks<Record<string, any>>(ids, (part) =>
+      all("market_contacts", {
+        id: `in.(${part.join(",")})`,
+        select:
+          "id,name,phone,city,owner_name,owner_email,assigned_manager_user_id",
+      }),
+    );
     const scoped = contacts.filter((c) =>
       partnershipRecordMatchesSession(session, c),
     );
@@ -83,19 +96,41 @@ export async function GET(request: Request) {
           personId: phoneKey(c.phone) || c.id,
         };
       });
-    const leads: Array<{ id: string; data: CRMLead }> = [];
-    // Outcomes describe records linked to people active in this period, not a claimed outreach conversion rate.
-    for (let i = 0; i < scoped.length; i += 100)
-      leads.push(
-        ...(await all<{ id: string; data: CRMLead }>("crm_leads", {
-          "data->>partnerReferralContactId": `in.(${scoped
-            .slice(i, i + 100)
-            .map((c) => c.id)
-            .join(",")})`,
+    const scopedIds = scoped.map((c) => String(c.id));
+    const leads = await chunks<{ id: string; data: CRMLead }>(
+      scopedIds,
+      (part) =>
+        all("crm_leads", {
+          "data->>partnerReferralContactId": `in.(${part.join(",")})`,
           deleted: "eq.false",
           select: "id,data",
-        })),
-      );
+        }),
+    );
+    const referrals = await chunks<{ crm_lead_id?: string }>(
+      scopedIds,
+      (part) =>
+        all("partner_referrals", {
+          contact_id: `in.(${part.join(",")})`,
+          select: "id,crm_lead_id",
+        }),
+    );
+    const known = new Set(leads.map((l) => l.id));
+    const missing = [
+      ...new Set(
+        referrals
+          .map((r) => r.crm_lead_id)
+          .filter((id): id is string => !!id && !known.has(id)),
+      ),
+    ];
+    leads.push(
+      ...(await chunks<{ id: string; data: CRMLead }>(missing, (part) =>
+        all("crm_leads", {
+          id: `in.(${part.join(",")})`,
+          deleted: "eq.false",
+          select: "id,data",
+        }),
+      )),
+    );
     const permitted = leads.filter((l) =>
       canHandleLeadCommunications(session, l.data),
     );
