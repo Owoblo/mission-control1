@@ -512,3 +512,15 @@ test('physical addresses and unknown service areas require evidence; opt-outs wi
   const stopped = await suggestPartnershipReply({contact: {...contact, decision: 'opted_out'}, touches: inbound('Where are you located?'), skipAi: true})
   assert.equal(stopped.intent, 'stop_opt_out')
 })
+
+test('price questions explain a flat binding estimate without triggering a card drop or package send', async () => {
+  const result = await suggestPartnershipReply({ contact, touches: inbound('What is your hourly rate for two movers?'), skipAi: true })
+  assert.match(result.draft_sms, /flat binding estimate/i)
+  assert.match(result.draft_sms, /floors\/access/i)
+  assert.match(result.draft_sms, /What needs moving/i)
+  assert.equal(result.quick_action, 'needs_follow_up')
+  assert.equal(result.goal_state.physical_delivery, 'not_needed')
+  assert.deepEqual(result.suggested_media_urls, [])
+  assert.equal(result.draft_email_body, undefined)
+  assert.doesNotMatch(result.draft_sms, /rate card|drop off|postcard/i)
+})

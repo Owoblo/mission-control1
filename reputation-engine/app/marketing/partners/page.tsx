@@ -1,5 +1,7 @@
 'use client'
 
+import {RelationshipReport} from '@/app/components/partnership/relationship-report'
+import { SharedPartnerContext } from '@/app/components/partnership/shared-context'
 import { PartnerSalesHandoffButton } from '@/app/components/partnership/sales-handoff'
 import { fetchRead } from '@/lib/resilient-read'
 import { loadContactDirectory } from '@/lib/contact-directory-loader'
@@ -57,6 +59,9 @@ interface Batch {
 }
 
 interface Contact {
+  sales_follow_up?: {owner:string;leadId:string} | null
+  ownership_complete?: boolean
+
   id: string
   name: string
   company: string | null
@@ -2908,7 +2913,7 @@ function defaultScheduledReplyTime(suggestion?: PartnershipAiSuggestion | null) 
 
 type InboxQuickAction = 'active_partner' | 'drop_cards' | 'meeting_requested' | 'needs_follow_up' | 'not_interested' | 'wrong_number'
 type InboxFilter = 'inbound' | 'recent_sales' | 'context' | 'needs_reply' | 'responded' | 'no_response' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'all'
-type InboxStatus = 'context' | 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
+type InboxStatus = 'sales_owned' | 'context' | 'needs_reply' | 'promising' | 'package_sent' | 'postcard' | 'appointment' | 'waiting' | 'follow_up' | 'active' | 'closed' | 'review'
 
 const INBOX_QUICK_ACTIONS: Array<{ key: InboxQuickAction; label: string; tone: 'green' | 'blue' | 'amber' | 'slate' | 'red' }> = [
   { key: 'active_partner', label: 'Active partner', tone: 'green' },
@@ -3267,6 +3272,8 @@ function getInboxStatus(contact: Contact): InboxStatus {
     (hasInbound && handledWorkflowAction)
 
   if (closed) return 'closed'
+  if (/customer_will_initiate|no_followup/.test(pauseReason) && !latestInboundNeedsReply(contact)) return 'waiting'
+  if (contact.sales_follow_up) return 'sales_owned'
   if (active) return 'active'
   if (hasInbound && isContextLossInbound(contact.latest_inbound_note || contact.latest_touch_note)) return 'context'
   if (hasInbound && !contact.decision && !handledWorkflowAction && latestInboundNeedsReply(contact)) return 'needs_reply'
@@ -3280,6 +3287,7 @@ function getInboxStatus(contact: Contact): InboxStatus {
 }
 
 function inboxStatusLabel(status: InboxStatus) {
+  if (status === 'sales_owned') return 'Sales nurture'
   if (status === 'context') return 'Needs context'
   if (status === 'needs_reply') return 'Needs reply'
   if (status === 'promising') return 'Positive'
@@ -3324,6 +3332,7 @@ function inboxUrgencyRank(contact: Contact) {
 
 function matchesInboxFilter(contact: Contact, filter: InboxFilter) {
   const status = getInboxStatus(contact)
+  if (filter === 'waiting' && status === 'sales_owned') return true
   if (filter === 'all') return true
   if (filter === 'inbound') return hasPartnerInbound(contact)
   if (filter === 'context') return status === 'context'
@@ -4961,6 +4970,7 @@ function PhoneTab({
               </button>
             ))}
           </div>
+          <RelationshipReport />
           {replyLoading && <div className="mt-2 text-[11px] text-slate-500">Loading replies...</div>}
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -5124,6 +5134,8 @@ function PhoneTab({
               </div>})()}
             </div>
           )}
+
+          {selected && <SharedPartnerContext contactId={selected.id} />}
 
           {(dialer.status === 'connecting' || dialer.status === 'connected') && (
             <div className="shrink-0 border-b border-emerald-200 bg-emerald-50 px-3 py-2 sm:px-5">

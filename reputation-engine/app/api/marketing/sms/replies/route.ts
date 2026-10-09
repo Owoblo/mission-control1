@@ -1,3 +1,5 @@
+import {loadSalesOwnership} from '@/lib/server/partner-ownership'
+import {responseKind} from '@/lib/partner-context'
 import { NextResponse } from 'next/server'
 import { normalizePartnershipStage } from '@/lib/marketing'
 import { getSessionUser } from '@/lib/server/session'
@@ -228,6 +230,7 @@ export async function GET(request: Request) {
     return map
   }, new Map<string, PartnershipAssistantTouch[]>())
 
+  const ownership=await loadSalesOwnership(scopedIds);
   const responses = await Promise.all(scopedIds
     .map(async id => {
       const latest = latestByContact.get(id) ?? latestInboundByContact.get(id)!
@@ -258,10 +261,11 @@ export async function GET(request: Request) {
           })
         : null
       return {
-        contact: payload,
+        contact: {...payload, sales_follow_up:ownership.owners.get(id)||null, ownership_complete:ownership.complete},
+        response_kind: responseKind(latestInbound?.notes||''),
         latest_touch: latest,
         bucket: classifyReply(latest, contact),
-        needs_response: Boolean(latest.direction === 'inbound' && contact?.sequence_paused && !contact?.decision),
+        needs_response: Boolean(!ownership.owners.has(id) && latest.direction === 'inbound' && contact?.sequence_paused && !contact?.decision),
         lead_signal: leadSignal,
         needs_sales_follow_up: leadSignal.is_lead,
         ...(playbook ? { playbook } : {}),

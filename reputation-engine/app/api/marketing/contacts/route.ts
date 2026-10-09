@@ -1,3 +1,4 @@
+import {loadSalesOwnership} from '@/lib/server/partner-ownership'
 import { fetchRead } from '@/lib/resilient-read'
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
@@ -241,6 +242,7 @@ export async function GET(request: Request) {
   }
 
   const today = new Date()
+  const {owners:salesOwners,complete:ownershipComplete}=await loadSalesOwnership(contacts.map(c=>c.id));
   const enriched = contacts.map(contact => {
     const contactTouches = [...(touchMap.get(contact.id) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
     const pending = queueMap.get(contact.id) ?? []
@@ -272,6 +274,8 @@ export async function GET(request: Request) {
       latest_touch_direction: latestTouch?.direction ?? null,
       latest_touch_note: latestTouch?.notes ?? null,
       latest_touch_metadata: latestTouch?.metadata ?? null,
+      sales_follow_up: ownershipComplete ? salesOwners.get(contact.id) || null : null,
+      ownership_complete: ownershipComplete,
       latest_inbound_at: latestInboundTouch?.created_at ?? null,
       latest_inbound_note: latestInboundTouch?.notes ?? null,
       latest_inbound_metadata: latestInboundTouch?.metadata ?? null,
