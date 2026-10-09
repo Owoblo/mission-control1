@@ -7,7 +7,6 @@ export const CRON_API_PATHS = new Set([
   '/api/ops/tentative-reservations',
   '/api/marketing/sequence/process',
   '/api/marketing/recent-sales/digest',
-  '/api/sales/inbox/resend-poll',
   '/api/sales/automation/process',
   '/api/sales/quote-send-jobs/process',
   '/api/sales/recordings/cleanup',

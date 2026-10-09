@@ -1,3 +1,4 @@
+import { sendProviderEmail } from '@/lib/server/email-provider'
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
@@ -46,11 +47,6 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         note: body.note || '',
       }),
     })
-
-    const resendKey = readEnv('RESEND_API_KEY')
-    if (!resendKey) {
-      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 })
-    }
 
     const appUrl = readEnv('NEXT_PUBLIC_APP_URL') || 'https://go.quote2move.com'
     const approveUrl = `${appUrl}/api/sales/leads/${params.id}/approve-margin?token=${token}`
@@ -102,25 +98,11 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 </body>
 </html>`
 
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Saturn Star OS <business@starmovers.ca>',
-        to: ['business@starmovers.ca'],
-        subject: `⚠️ Approval Needed — ${customerName} (${body.projectedMargin.toFixed(1)}% margin)`,
-        html,
-        reply_to: 'business@starmovers.ca',
-      }),
+    await sendProviderEmail({
+      from: 'Saturn Star OS <business@starmovers.ca>', to: 'business@starmovers.ca',
+      subject: `⚠️ Approval Needed — ${customerName} (${body.projectedMargin.toFixed(1)}% margin)`,
+      html, replyTo: 'business@starmovers.ca', trackingMode: 'deliverability',
     })
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({})) as Record<string, unknown>
-      throw new Error(String(err?.message || 'Failed to send approval email'))
-    }
 
     return NextResponse.json({ ok: true })
   } catch (error) {

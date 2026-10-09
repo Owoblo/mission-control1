@@ -80,7 +80,7 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
 
     // Notify team — customer uploaded photos
     if (lead.name && assets.length > 0) {
-      void sendRepAlertEmail(
+      await sendRepAlertEmail(
         `📸 ${lead.name} uploaded ${assets.length} photo${assets.length !== 1 ? 's' : ''} — ${room}`,
         surveyPhotosUploadedEmail(lead.name, lead.id, assets.length, room)
       ).catch(() => {})

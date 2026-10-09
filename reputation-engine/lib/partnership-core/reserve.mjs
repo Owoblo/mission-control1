@@ -21,17 +21,14 @@ export async function reserveAction({url,headers,contactId,channel,kind='cold_in
  }
  const ottawaAllowed=ottawaActionAllowed({city:contact.city,kind,channel,sender,reviewedSignal});
  // Explicit workflow provider takes precedence; legacy sender-specific routes remain unchanged.
- const provider=emailProvider||(isOttawa(contact.city)?'zoho':sender.includes('saturnstarmovers.ca')?'ses':'resend');
- if(channel==='email'&&!['ses','resend','zoho'].includes(provider))throw Error('Unknown email provider');
+ const provider=emailProvider||(isOttawa(contact.city)?'zoho':'ses');
+ if(channel==='email'&&!['ses','zoho'].includes(provider))throw Error('Unknown email provider');
  let senderHealthy=false;
  if(channel==='email'&&provider==='zoho'){
   if(ottawaAllowed){await openZohoMailbox('ottawa');senderHealthy=true;}
  }else if(channel==='email'&&provider==='ses'){
   const health=await new SESv2Client({region:process.env.AWS_REGION||process.env.AWS_DEFAULT_REGION||'ca-central-1',maxAttempts:1}).send(new GetAccountCommand({}));
   senderHealthy=health.SendingEnabled===true&&health.ProductionAccessEnabled===true&&health.EnforcementStatus==='HEALTHY';
- }else if(channel==='email'){
-  const health=await fetch('https://api.resend.com/domains',{headers:{Authorization:'Bearer '+process.env.RESEND_API_KEY},signal:AbortSignal.timeout(10000)});
-  if(health.ok){const data=await health.json();const domain=isOttawa(contact.city)?'dexamovers.ca':'starmovers.ca';senderHealthy=(data.data||[]).some(d=>d.name===domain&&d.status==='verified');}
  }else if((channel==='sms'||channel==='phone')&&['+14377823004','+14374650584'].includes(sender)){
   const key=process.env.TELNYX_API_KEY;
   if(key){const health=await fetch('https://api.telnyx.com/v2/phone_numbers?'+new URLSearchParams({'filter[phone_number]':sender}),{headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(10000)});if(health.ok)senderHealthy=((await health.json()).data||[]).some(n=>n.phone_number===sender&&n.status==='active'&&(channel==='sms'?!!n.messaging_profile_id:!!n.connection_id));}

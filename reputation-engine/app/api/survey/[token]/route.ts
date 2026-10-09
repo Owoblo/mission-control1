@@ -194,7 +194,7 @@ export async function POST(_request: Request, props: { params: Promise<{ token: 
 
     // Notify team — customer completed their survey
     if (updatedLead.name && !result.lead.surveyCompletedAt) {
-      void sendRepAlertEmail(
+      await sendRepAlertEmail(
         `📋 ${updatedLead.name} completed their photo survey`,
         surveyCompletedEmail(updatedLead.name, updatedLead.id, updatedLead.surveyPhotoCount || 0)
       ).catch(() => {})

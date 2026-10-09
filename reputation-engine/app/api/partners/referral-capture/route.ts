@@ -292,7 +292,7 @@ export async function POST(request: Request) {
     }).catch(() => {})
   })().catch(() => {})
 
-  void sendRepAlertEmail(
+  await sendRepAlertEmail(
     `New partner referral: ${customerName || customerPhone || customerEmail || 'New lead'} from ${partnerName}`,
     `
 <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#071421">

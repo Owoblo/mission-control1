@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     })
 
     const cardLabel = cardBrand && cardLast4 ? `${cardBrand} ••••${cardLast4}` : 'card on file'
-    void sendRepAlertEmail(
+    await sendRepAlertEmail(
       `💳 Balance charged — ${lead.name} — $${chargeAmount.toFixed(2)} CAD`,
       `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
         <div style="background:#071421;color:#fff;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">

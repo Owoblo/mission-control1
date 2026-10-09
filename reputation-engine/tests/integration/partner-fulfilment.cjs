@@ -20,7 +20,6 @@ function harness({allowed=true, optedOut=false, provider='ok'}={}) {
   let row={id:'11111111-1111-4111-8111-111111111111',related_id:'22222222-2222-4222-8222-222222222222',description:JSON.stringify(draft()),status:'open',updated_at:'2026-09-09T20:00:00.000Z'}; let sends=0
   const contact={id:row.related_id,name:'Partner',city:'London',do_not_contact:optedOut}
   const fetch=async (url,opts={})=>{
-    if(url.includes('api.resend.com')) {sends++; if(provider==='timeout')throw Error('timeout'); return new Response(JSON.stringify({id:'email-1'}),{status:200})}
     if(url.includes('market_touches'))return new Response('[]')
     if(url.includes('market_contacts'))return new Response(JSON.stringify([contact]))
     if(opts.method==='PATCH') {
@@ -31,10 +30,11 @@ function harness({allowed=true, optedOut=false, provider='ok'}={}) {
     return new Response(JSON.stringify([row]))
   }
   const route=moduleFrom('app/api/marketing/fulfilment/route.ts',{
+    '@/lib/server/email-provider':{salesEmailConfigured:()=>true,sendProviderEmail:async()=>{sends++;if(provider==='timeout')throw Error('timeout');return {accepted:true,messageId:'email-1',provider:'ses'}}},
     'next/server':{NextResponse:{json:(body,init)=>new Response(JSON.stringify(body),init)}},
     'node:fs/promises':{readFile:async()=>Buffer.from('%PDF-1.4 test')},
     '@/lib/server/request-session':{getRequestSessionUser:async()=>({name:'John'})},
-    '@/lib/server/runtime':{requireSupabaseEnv:()=>({url:'https://db.test',headers:{}}),readEnv:key=>key==='RESEND_API_KEY'?'fake':''},
+    '@/lib/server/runtime':{requireSupabaseEnv:()=>({url:'https://db.test',headers:{}}),readEnv:()=>''},
     '@/lib/server/partnership-access':{partnershipRecordMatchesSession:()=>allowed},
     '@/lib/server/partnership-sms':{isOptOutText:()=>false},
     '@/lib/partner-fulfilment':logic,

@@ -145,7 +145,7 @@ export async function POST(request: Request) {
         }
       }
 
-      void sendRepAlertEmail(
+      await sendRepAlertEmail(
         `Missed Call — ${from}`,
         missedCallNotificationEmail(from, branchLabel)
       )

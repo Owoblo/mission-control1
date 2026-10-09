@@ -1,17 +1,17 @@
 import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2'
-import { Resend } from 'resend'
 import { readEnv } from '@/lib/server/runtime'
 
-type EmailProviderName = 'resend' | 'ses'
+type EmailProviderName = 'ses'
 
 export interface ProviderEmailPayload {
   from: string
-  to: string
+  to: string | string[]
   subject: string
   html?: string
   text?: string
   replyTo?: string
   headers?: Record<string, string>
+  attachments?: Array<{ filename: string; content: string }>
   tags?: Record<string, string>
   trackingMode?: 'deliverability' | 'engagement'
 }
@@ -23,45 +23,10 @@ export interface ProviderEmailReceipt {
   raw?: unknown
 }
 
-function selectedProvider(): EmailProviderName {
-  const value = readEnv('PARTNERSHIP_EMAIL_PROVIDER').toLowerCase()
-  return value === 'ses' ? 'ses' : 'resend'
-}
+function selectedProvider(): EmailProviderName { return 'ses' }
 
 function requireEmailBody(payload: Pick<ProviderEmailPayload, 'html' | 'text'>) {
-  if (!payload.html && !payload.text) {
-    throw new Error('Email requires html or text body')
-  }
-}
-
-async function sendWithResend(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
-  const apiKey = readEnv('RESEND_API_KEY')
-  if (!apiKey) throw new Error('RESEND_API_KEY not configured')
-
-  const resend = new Resend(apiKey)
-  const email: Record<string, unknown> = {
-    from: payload.from,
-    to: payload.to,
-    subject: payload.subject,
-  }
-  if (payload.html) email.html = payload.html
-  if (payload.text) email.text = payload.text
-  if (payload.replyTo) email.replyTo = payload.replyTo
-  if (payload.headers) email.headers = payload.headers
-  if (payload.tags) {
-    email.tags = Object.entries(payload.tags).map(([name, value]) => ({ name, value }))
-  }
-
-  const result = await resend.emails.send(email as unknown as Parameters<typeof resend.emails.send>[0])
-
-  if (result.error) throw new Error(`Resend: ${result.error.message}`)
-
-  return {
-    provider: 'resend',
-    messageId: result.data?.id ?? null,
-    accepted: Boolean(result.data?.id),
-    raw: result.data,
-  }
+  if (!payload.html && !payload.text) throw new Error('Email requires html or text body')
 }
 
 function sesClient() {
@@ -76,6 +41,7 @@ function sesClient() {
   return new SESv2Client({
     region,
     credentials: { accessKeyId, secretAccessKey },
+    maxAttempts: 1, // SES has no send idempotency key; never blindly retry an uncertain send.
   })
 }
 
@@ -100,7 +66,7 @@ async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmail
 
   const result = await client.send(new SendEmailCommand({
     FromEmailAddress: payload.from,
-    Destination: { ToAddresses: [payload.to] },
+    Destination: { ToAddresses: Array.isArray(payload.to) ? payload.to : [payload.to] },
     ReplyToAddresses: payload.replyTo ? [payload.replyTo] : undefined,
     ConfigurationSetName: configurationSetName,
     EmailTags: payload.tags
@@ -109,6 +75,7 @@ async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmail
     Content: {
       Simple: {
         Subject: { Data: payload.subject, Charset: 'UTF-8' },
+        Attachments: payload.attachments?.map(a => ({ FileName: a.filename, RawContent: Buffer.from(a.content, 'base64'), ContentTransferEncoding: 'BASE64' as const })),
         Headers: payload.headers
           ? Object.entries(payload.headers).map(([Name, Value]) => ({ Name, Value }))
           : undefined,
@@ -130,8 +97,9 @@ async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmail
 
 export async function sendProviderEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
   requireEmailBody(payload)
-  const provider = selectedProvider()
-  return provider === 'ses' ? sendWithSes(payload) : sendWithResend(payload)
+  const receipt = await sendWithSes(payload)
+  if (!receipt.accepted || !receipt.messageId) throw new Error('SES did not confirm acceptance')
+  return receipt
 }
 
 export function getConfiguredEmailProvider(): EmailProviderName {
@@ -157,17 +125,15 @@ export async function sendOutreachEmail(payload: ProviderEmailPayload): Promise<
 
 /** Sales/quote delivery is configured independently from partnership outreach. */
 export function salesEmailConfigured() {
-  if (readEnv('SALES_EMAIL_PROVIDER').toLowerCase() !== 'ses') return Boolean(readEnv('RESEND_API_KEY'))
   return Boolean(sesProductionAccessConfirmed() && readEnv('AWS_ACCESS_KEY_ID') && readEnv('AWS_SECRET_ACCESS_KEY') && readEnv('SALES_EMAIL_FROM'))
 }
 
 export async function sendSalesEmail(payload: Omit<ProviderEmailPayload, 'from' | 'replyTo'>): Promise<ProviderEmailReceipt> {
   requireEmailBody(payload)
-  const useSes = readEnv('SALES_EMAIL_PROVIDER').toLowerCase() === 'ses'
-  const from = readEnv('SALES_EMAIL_FROM') || (useSes ? '' : 'Saturn Star Movers <business@starmovers.ca>')
+  const from = readEnv('SALES_EMAIL_FROM')
   if (!from) throw new Error('SALES_EMAIL_FROM must be a verified SES sender')
-  const message = { ...payload, from, replyTo: readEnv('SALES_EMAIL_REPLY_TO') || 'business@inbound.starmovers.ca', trackingMode: 'deliverability' as const }
-  const receipt = await (useSes ? sendWithSes(message) : sendWithResend(message))
+  const message = { ...payload, from, replyTo: readEnv('SALES_EMAIL_REPLY_TO') || 'business@starmovers.ca', trackingMode: 'deliverability' as const }
+  const receipt = await sendProviderEmail(message)
   if (!receipt.accepted || !receipt.messageId) throw new Error('Email provider did not confirm acceptance')
   return receipt
 }

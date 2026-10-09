@@ -1,3 +1,4 @@
+import { sendProviderEmail } from '@/lib/server/email-provider'
 import { NextResponse } from 'next/server'
 import { syncLeadFromQuoteStatus } from '@/lib/sales'
 import { logEvent, daysBetween } from '@/lib/server/analytics'
@@ -22,8 +23,6 @@ import { isQuoteExpired } from '@/lib/quote-expiry'
 const CURRENT_QUOTE_TERMS_VERSION = '2026-08-21-scope-confirmation'
 
 async function sendQuoteNotification(event: 'viewed' | 'viewed_again' | 'accepted' | 'declined', quote: CRMQuote, lead: CRMLead | null) {
-  const resendKey = readEnv('RESEND_API_KEY')
-  if (!resendKey) return
 
   const customerName = lead?.name || 'Customer'
   const quoteNumber = quote.number || quote.id
@@ -63,17 +62,12 @@ async function sendQuoteNotification(event: 'viewed' | 'viewed_again' | 'accepte
       </div>
     </div>`
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  await sendProviderEmail({
       from: 'Saturn Star OS <business@starmovers.ca>',
       to: ['business@starmovers.ca'],
       subject: subjects[event],
       html,
-    }),
-    signal: AbortSignal.timeout(8000),
-  }).catch(() => {})
+    }).catch(error => console.error('Email notification failed', error))
 }
 
 function isTokenValid(token: string | null, expected?: string) {
@@ -137,7 +131,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
       // Notify team — first view vs repeat view
       const isRepeatView = !!currentQuote.viewedAt
-      void sendQuoteNotification(isRepeatView ? 'viewed_again' : 'viewed', quote, lead)
+      await sendQuoteNotification(isRepeatView ? 'viewed_again' : 'viewed', quote, lead)
     }
 
     void logEvent('quote_viewed', {
@@ -368,7 +362,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     }
 
     // Notify team on accept or decline
-    void sendQuoteNotification(action === 'accept' ? 'accepted' : 'declined', nextQuote, savedLead)
+    await sendQuoteNotification(action === 'accept' ? 'accepted' : 'declined', nextQuote, savedLead)
 
     void logEvent(action === 'accept' ? 'quote_accepted' : 'quote_declined', {
       leadId: nextQuote.leadId,

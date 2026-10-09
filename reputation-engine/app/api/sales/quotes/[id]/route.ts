@@ -268,7 +268,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       void scheduleQuoteExpiryFollowup(savedQuote.leadId, savedQuote.id).catch(() => null)
       // Notify team — customer opened quote
       if (lead?.name) {
-        void sendRepAlertEmail(
+        await sendRepAlertEmail(
           `👀 ${lead.name} opened their quote`,
           quoteViewedEmail(lead.name, savedQuote.leadId, savedQuote.number)
         ).catch(() => {})
@@ -277,7 +277,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
     // Notify team — customer accepted quote
     if (savedQuote.acceptedAt && !current.acceptedAt && lead?.name) {
-      void sendRepAlertEmail(
+      await sendRepAlertEmail(
         `✅ ${lead.name} accepted their quote — collect deposit`,
         quoteAcceptedEmail(lead.name, savedQuote.leadId!, savedQuote.number, savedQuote.total)
       ).catch(() => {})

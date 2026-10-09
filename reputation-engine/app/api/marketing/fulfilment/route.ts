@@ -1,3 +1,4 @@
+import { sendProviderEmail, salesEmailConfigured } from '@/lib/server/email-provider'
 import { NextResponse } from 'next/server'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -29,7 +30,7 @@ function taskUpdate(task: EmailTask, updatedAt: string, actor: string) {
 }
 function sender(brand: string) {
   // Dexa must have its own explicitly configured, verified sender.
-  return brand === 'ssm' ? 'Saturn Star Movers <business@starmovers.ca>' : readEnv('DEXA_PARTNERSHIP_EMAIL_FROM')
+  return brand === 'ssm' ? 'Saturn Star Partnerships <partnerships@saturnstarmovers.ca>' : readEnv('DEXA_PARTNERSHIP_EMAIL_FROM')
 }
 export async function GET(request: Request) {
   const session = await getRequestSessionUser(request)
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
       if (task.status === 'waiting') throw new Error('Resolve the missing information and select Ready to send first')
       if (!input.reviewed) throw new Error('Check recent conversation and sent-mail before sending')
       if (contact.do_not_contact || ['dnc', 'closed_lost'].includes(contact.stage) || ['opted_out', 'rejected'].includes(contact.decision) || isOptOutText(contact.notes)) throw new Error('This contact is opted out or closed')
-      if (!readEnv('RESEND_API_KEY') || !sender(task.brand)) throw new Error('The company email sender is not configured')
+      if (!salesEmailConfigured() || !sender(task.brand)) throw new Error('The company email sender is not configured')
       attachments = [...(task.attachments || [])]
       if (task.region) {
         const filename = cardFilename(task.region)
@@ -98,18 +99,13 @@ export async function POST(request: Request) {
     if (action !== 'send') return NextResponse.json({ ok: true })
     // Persist the claim before contacting the provider. An uncertain result stays
     // locked for manual checking, rather than risking a duplicate email.
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST', headers: { Authorization: `Bearer ${readEnv('RESEND_API_KEY')}`, 'Content-Type': 'application/json', 'Idempotency-Key': `partner-promise-${row.id}-${task.revision}` },
-      body: JSON.stringify({ from: sender(task.brand), to: [task.to], subject: task.subject, text: task.body, ...(task.brand === 'ssm' ? { reply_to: 'business@inbound.starmovers.ca' } : {}), attachments }), signal: AbortSignal.timeout(20000),
+    // Preserve the sending claim on uncertain SES outcomes; SES has no idempotency key.
+    const receipt = await sendProviderEmail({ from: sender(task.brand), to: task.to,
+      subject: task.subject, text: task.body, attachments,
+      replyTo: task.brand === 'ssm' ? 'business@starmovers.ca' : undefined,
+      trackingMode: 'deliverability',
     })
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok || !result.id) {
-      if ([400, 401, 403, 422, 429].includes(response.status)) {
-        await db('crm_tasks', `id=eq.${row.id}&updated_at=eq.${encodeURIComponent(claimTime)}`, 'PATCH', taskUpdate({ ...task, status: 'draft' }, new Date().toISOString(), session.name || 'CRM user'))
-        throw new Error('Email provider rejected the request. Check sender and recipient before retrying.')
-      }
-      throw new Error('Email outcome is uncertain. Check sent-mail before taking further action.')
-    }
+    const result = { id: receipt.messageId! }
     task.status = 'sent'; task.providerId = result.id; task.sentAt = new Date().toISOString()
     const saved = await db('crm_tasks', `id=eq.${row.id}&updated_at=eq.${encodeURIComponent(claimTime)}`, 'PATCH', taskUpdate(task, new Date().toISOString(), session.name || 'CRM user'))
     if (!saved.length) throw new Error('Email accepted; CRM receipt needs checking. Do not resend.')
