@@ -81,11 +81,15 @@ test('city-only input never matches a street in another municipality', () => {
   assert.equal(decideListingMatch('Strathroy', [{...listing('wrong','33 Strathroy Cres'),city:'Hamilton'}]).listing,null)
 })
 test('Ridge Street resolves through explicit municipality alias and ignores Hamilton', () => {
-  const correct={...listing('ridge','22 Ridge St, Strathroy-Caradoc, ON N7G4J9'),city:'Strathroy-Caradoc',status:'sold'}
-  assert.equal(decideListingMatch('22 Ridge Street, Strathroy',[correct,{...listing('wrong','33 Strathroy Cres'),city:'Hamilton'}]).listing?.zpid,'ridge')
+  const correct={...listing('ridge','22 Ridge St, Strathroy-Caradoc, ON N7G4J9'),city:'Strathroy-Caradoc',status:'sold',region:'sarnia',country:'USA'}
+  assert.equal(decideListingMatch('22 Ridge Street, Strathroy, ON',[correct,{...listing('wrong','33 Strathroy Cres'),city:'Hamilton'}]).listing?.zpid,'ridge')
 })
 test('different house numbers, different cities and duplicate unit records require no guess', () => {
   assert.equal(decideListingMatch('22 Ridge St, Strathroy',[{...listing('wrong','122 Ridge St'),city:'Strathroy'}]).listing,null)
   assert.equal(decideListingMatch('22 Ridge St, Strathroy',[{...listing('wrong','22 Ridge St'),city:'Hamilton'}]).listing,null)
   assert.equal(decideListingMatch('601-203 Catherine St, Ottawa',[listing('a','601-203 Catherine St, Ottawa'),listing('b','601-203 Catherine St, Ottawa')]).listing,null)
+})
+
+test('an explicit different province or state cannot match an Ontario destination', () => {
+  assert.equal(decideListingMatch('22 Ridge St, Windsor, ON',[{...listing('wrong','22 Ridge St, Windsor, CT 06095'),city:'Windsor'}]).listing,null)
 })
