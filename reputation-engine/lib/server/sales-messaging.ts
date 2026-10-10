@@ -1,3 +1,4 @@
+import { assertDestinationRealtorSend } from './destination-realtor-send-guard'
 import { normalizeAutomatedCustomerText } from '@/lib/customer-message-style'
 import { sendSalesEmail } from '@/lib/server/email-provider'
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
@@ -14,6 +15,7 @@ import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import {
   getSalesLead,
+  getSalesQuote,
   listFollowUpLogsForLead,
   saveFollowUpLog,
   saveSalesEmail,
@@ -224,6 +226,8 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     }
   }
   const actor = input.actor || 'human'
+  const destinationGuardLeadId = input.leadId || (input.quoteId ? (await getSalesQuote(input.quoteId))?.leadId : undefined)
+  if (destinationGuardLeadId) await assertDestinationRealtorSend(destinationGuardLeadId, actor, input.to, input.channel)
   let result: Record<string, unknown> = { ok: true }
 
   if (input.channel === 'email') {

@@ -97,7 +97,7 @@ const baseLead: CRMLead = {
 
   assert.match(sms, /Varinder/i)
   assert.match(sms, /631 Doon South Drive/i)
-  assert.match(sms, /paired-move rate/i)
+  assert.match(sms, /better price once I know/i)
   assert.match(sms, /Jun/i)
 }
 
@@ -108,6 +108,6 @@ const baseLead: CRMLead = {
   }, 'email')
 
   assert.match(email.subject, /631 Doon South Drive/i)
-  assert.match(email.body, /Saturn Star Moving/i)
-  assert.match(email.body, /preferred paired-move rate/i)
+  assert.match(email.body, /Saturn Star Movers/i)
+  assert.match(email.body, /better price once I know/i)
 }
