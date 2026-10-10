@@ -32,10 +32,10 @@ export async function GET(request: Request) {
   const propertyKeys=[...new Set(rows.map(r=>r.property_key))]
   const propertyContext=new Map<string,Record<string,any>>()
   for(let i=0;i<propertyKeys.length;i+=50){
-    const query=new URLSearchParams({select:'property_key,status,listing',property_key:'in.('+propertyKeys.slice(i,i+50).map(k=>'"'+String(k).replaceAll('"','')+'"').join(',')+')'})
+    const query=new URLSearchParams({select:'property_key,status,postcard_skip_reason:listing->>postcard_skip_reason,is_furnished:listing->is_furnished,price:listing->unformattedprice,categories:listing->listing_categories,market_segment:listing->>market_segment,occupancy:listing->>occupancy_state,outreach_target:listing->>outreach_target,observed_at:listing->>lastseenat',property_key:'in.('+propertyKeys.slice(i,i+50).map(k=>'"'+String(k).replaceAll('"','')+'"').join(',')+')'})
     const response=await fetch(`${url}/rest/v1/partner_listing_research?${query}`,{headers,cache:'no-store'})
     if(!response.ok)return NextResponse.json({error:'Property qualification context could not be loaded'},{status:502})
-    for(const p of await response.json()){const l=p.listing||{};propertyContext.set(p.property_key,{research_status:p.status,postcard_skip_reason:l.postcard_skip_reason||null,is_furnished:l.is_furnished??null,price:l.unformattedprice??null,categories:l.listing_categories||[],market_segment:l.market_segment||null,occupancy:l.occupancy_state||null,outreach_target:l.outreach_target||null,observed_at:l.lastseenat||l._observed_at||null})}
+    for(const p of await response.json())propertyContext.set(p.property_key,{...p,research_status:p.status})
   }
   const contactMap = new Map(contacts.filter(c=>partnershipRecordMatchesSession(session,c)).map(c => [c.id,c])), batchMap=new Map(batches.map(b=>[b.batch_id,b]))
   const groups = new Map<string, Record<string, any>>()

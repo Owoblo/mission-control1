@@ -7186,7 +7186,7 @@ function PartnershipEngineInner() {
               onClick={() => router.push('/marketing/listing-activity')}
               className={`flex flex-1 items-center justify-center gap-2 rounded-[11px] ${inboxActive ? 'py-1.5 text-xs' : 'py-2.5 text-sm'} font-semibold text-[var(--app-muted)] transition hover:bg-[var(--app-bg)] hover:text-[var(--app-ink)]`}
             >
-              <span>Listing Activity</span>
+              <span>Event Desk</span>
             </button>
           )}
         </div>
