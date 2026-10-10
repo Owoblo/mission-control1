@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript')
-function load(fetch){const code=ts.transpileModule(fs.readFileSync('app/api/marketing/listing-activity/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const exports={};vm.runInNewContext(code,{exports,URL,fetch,require:n=>({
+function load(fetch){const code=ts.transpileModule(fs.readFileSync('app/api/marketing/listing-activity/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;const exports={};vm.runInNewContext(code,{exports,URL,URLSearchParams,fetch,require:n=>({
  'next/server':{NextResponse:{json:(x,init)=>new Response(JSON.stringify(x),init)}},
  '@/lib/server/session':{getSessionUser:async()=>({role:'owner'})},
  '@/lib/server/runtime':{requireSupabaseEnv:()=>({url:'https://db.test',headers:{}})},

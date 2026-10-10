@@ -1,0 +1,12 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {listingEvent,planPartnerEvents} from '../../lib/partner-event-plan';
+const base={contact:{},context:{complete:true,events:[],jobs:[],engagement:{}},touches:[],tasks:[],events:[],now:Date.parse('2026-10-09T16:00Z')};
+test('disappearance cannot become sold congratulations',()=>assert.equal(listingEvent({listing_status:'sold',status_evidence:'inferred_first_disappearance'}).kind,'listing_removed'));
+test('source reported sold without explicit confirmation remains research',()=>assert.equal(listingEvent({listing_status:'sold',status_evidence:'source_reported'}).kind,'listing_removed'));
+test('confirmed sale preserved',()=>assert.equal(listingEvent({listing_status:'sold',status_evidence:'confirmed_sale'}).kind,'sold'));
+test('suppression and Sales ownership take priority',()=>{const p=planPartnerEvents({...base,contact:{do_not_contact:true},context:{...base.context,replyStatus:'sales_owned'}});assert.equal(p.holds.length,2);assert.equal(p.sendEnabled,false)});
+test('MMS alone does not prove requested card',()=>{let p=planPartnerEvents({...base,touches:[{id:'a',direction:'outbound',metadata:{mediaUrls:['https://storage.example/partnership-library/business-cards/toronto/card.jpg']}}]});assert.equal(p.segment,'card_sent_permission_unconfirmed');assert.equal(p.cardEvidence.requested,0)});
+test('linked fulfillment establishes requested card',()=>{let p=planPartnerEvents({...base,touches:[{id:'a',direction:'outbound',metadata:{mediaUrls:['https://storage.example/partnership-library/business-cards/toronto/card.jpg']}},{direction:'inbound',metadata:{partnership_review:{fulfilled_by_touch_id:'a'}}}]});assert.equal(p.segment,'requested_card')});
+test('deduplicates alerts and retains obligations',()=>{const e=listingEvent({activity_key:'same',listing_status:'just_listed',observed_at:'2026-10-09T10:00Z'});let p=planPartnerEvents({...base,events:[e,e],tasks:[{status:'open',title:'promised visit'}]});assert.equal(p.events.length,1);assert.equal(p.openTasks.length,1);assert.ok(p.holds.length)});
+test('future and stale observations do not count as fresh motion',()=>{for(const observed_at of ['2027-01-01','2020-01-01'])assert.equal(planPartnerEvents({...base,events:[listingEvent({observed_at})]}).events[0].fresh,false)});
+
+test("arbitrary media is not a business card",()=>assert.equal(planPartnerEvents({...base,touches:[{direction:"outbound",metadata:{mediaUrls:["inventory-photo.jpg"]}}]}).cardEvidence.sent,0));
