@@ -68,7 +68,7 @@ language sql security definer set search_path=public as $$
         or ((s.data->>'stage' in ('lost','completed') or s.data->>'moveDate'<to_char(now() at time zone 'America/Toronto','YYYY-MM-DD'))
           and o.data#>>'{realtorResearch,status}' is distinct from 'stale')
       ))
-      or (o.id is null and coalesce(s.data->>'stage','new') not in ('lost','completed')
+      or ((o.id is null or o.data#>>'{realtorResearch,status}' in ('stale','failed')) and coalesce(s.data->>'stage','new') not in ('lost','completed')
         and coalesce(s.data->>'moveDate','9999-12-31')>=to_char(now() at time zone 'America/Toronto','YYYY-MM-DD')
         and coalesce(s.data->>'destinationOpportunityLastCheckedAt','')<to_char(now()-interval '1 day','YYYY-MM-DD"T"HH24:MI:SS'))
     ) order by s.updated_at desc limit 1;
