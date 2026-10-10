@@ -485,6 +485,12 @@ export interface CallLogEntry {
 export type MovePolicyCategory = 'blocked' | 'hazardous' | 'manual_review' | 'specialty_fee' | 'default_exclude'
 
 export interface InventoryItem {
+  /** Original customer wording is retained even when the display name is normalized. */
+  customerDescription?: string
+  nameNeedsConfirmation?: boolean
+  quantityNeedsConfirmation?: boolean
+  dimensionSource?: 'preset' | 'unknown'
+
   assembly?: import('./assembly-planning').AssemblyInstructions
   id?: string
   room?: string
@@ -1234,6 +1240,12 @@ export interface CRMLead {
   qualificationState?: LeadQualificationState
   inboxState?: LeadInboxState
   directMailAttributed?: boolean
+  smsInventoryReview?: {
+    requestedFingerprint?: string
+    confirmedFingerprint?: string
+    requestedAt?: string
+    confirmedAt?: string
+  }
   inventory?: InventoryItem[]
   removedInventoryItemKeys?: string[]
   mediaAssets?: LeadMediaAsset[]

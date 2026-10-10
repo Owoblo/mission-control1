@@ -15,7 +15,7 @@ test('copied inventory is a clean customer-safe scope with consolidated handling
   assert.match(copy, /\* 1 La-Z-Boy Reclining Sofa/)
   assert.match(copy, /## Additional Item/)
   assert.match(copy, /\*Customer may move these separately\.\*/)
-  assert.match(copy, /## Estimated Total[\s\S]*\*\*6 items · 116 cu\. ft\.\*\*/)
+  assert.match(copy, /## Estimated Total[\s\S]*\*\*6 items · 116 cu\. ft\. known subtotal; incomplete\*\*/)
   assert.match(copy, /### Special Handling/)
   assert.doesNotMatch(copy, /Automatically parsed|Saturn Star inventory presets|rep review required|dimensions still need enrichment/i)
 })
