@@ -80,47 +80,45 @@ export function scoreListingCandidate(query: string, listing: ListingMatch) {
   return score
 }
 
+export function normalizeListingCity(value: string) {
+  const city = value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return ({ 'strathroy caradoc': 'strathroy', 'strathroy': 'strathroy' } as Record<string, string>)[city] || city
+}
+
+export function hasListingStreet(value?: string | null) {
+  return /^\d+[a-z]?\s+\S+/i.test(stripListingUnit(value || ''))
+}
+
+export function listingAddressKey(address?: string, city?: string) {
+  return [normalizeListingAddress(address || ''), normalizeListingCity(city || (address || '').split(',')[1] || '')].join('|')
+}
+
 export function decideListingMatch(query: string, listings: ListingMatch[]): ListingMatchDecision {
   const queryUnit = extractListingUnit(query)
   const queryBase = stripListingUnit(query)
-  const related = listings
-    .filter(listing => {
-      const base = stripListingUnit(listing.address || '')
-      return base === queryBase || base.includes(queryBase) || queryBase.includes(base)
-    })
-  const exactBase = related.filter(listing => stripListingUnit(listing.address || '') === queryBase)
-  const baseCandidates = exactBase.length > 0 ? exactBase : related
-  const cityCandidates = baseCandidates.filter(listing => listing.city && query.toLowerCase().includes(listing.city.toLowerCase()))
-  const candidates = (cityCandidates.length > 0 ? cityCandidates : baseCandidates)
-    .sort((left, right) => scoreListingCandidate(query, right) - scoreListingCandidate(query, left))
-    .slice(0, 50)
-
+  const queryCity = normalizeListingCity(query.split(',')[1] || '')
+  // A city, partial street name, or neighboring house is never an exact property.
+  const candidates = hasListingStreet(query) ? listings.filter(listing => {
+    const city = normalizeListingCity(listing.city || listing.address.split(',')[1] || '')
+    const region = (listing.region || listing.address.split(',')[2] || '').trim().toUpperCase()
+    const queryRegion = (query.split(',')[2] || '').trim().toUpperCase()
+    const regionMismatch = queryRegion === 'ON' && region && !/^(ON(?:\b|$)|ONTARIO)/.test(region)
+    return !regionMismatch && stripListingUnit(listing.address) === queryBase && (!queryCity || city === queryCity)
+  }).sort((left, right) => scoreListingCandidate(query, right) - scoreListingCandidate(query, left)) : []
   let status: ListingMatchStatus = 'no_match'
   let listing: ListingMatch | null = null
-
   if (queryUnit) {
     const exact = candidates.filter(candidate => extractListingUnit(candidate.address) === queryUnit)
-    if (exact.length > 0) {
-      status = 'exact_unit'
-      listing = exact[0]
-    } else if (candidates.length > 0) {
-      status = 'unit_not_found'
-    }
+    if (exact.length === 1) { status = 'exact_unit'; listing = exact[0] }
+    else if (exact.length > 1) status = 'ambiguous_building'
+    else if (candidates.length) status = 'unit_not_found'
   } else if (candidates.length === 1 && !extractListingUnit(candidates[0].address)) {
-    status = 'exact_address'
-    listing = candidates[0]
-  } else if (candidates.length > 0) {
+    status = 'exact_address'; listing = candidates[0]
+  } else if (candidates.length) {
     status = candidates.length > 1 ? 'ambiguous_building' : 'building_only'
   }
-
-  return {
-    status,
-    listing,
-    candidates,
-    requestedAddress: query,
-    requestedUnit: queryUnit,
-    requiresSelection: !listing && candidates.length > 0,
-  }
+  return { status, listing, candidates, requestedAddress: query, requestedUnit: queryUnit,
+    requiresSelection: !listing && candidates.length > 0 }
 }
 
 export function selectListingCandidate(decision: ListingMatchDecision, zpid: string) {

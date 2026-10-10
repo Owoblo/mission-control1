@@ -120,6 +120,7 @@ function formatOpportunityMoveDate(value?: string) {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   })
 }
 
@@ -148,21 +149,14 @@ export function buildDestinationOpportunityPitch(
     ? ` on ${formattedMoveDate}`
     : ' soon'
 
-  if (channel === 'sms') {
-    return `Hi ${firstName}, this is Saturn Star Moving. We may be coordinating a move into ${address}${dateClause}. If your client at that address also needs movers, we may be able to offer a preferred paired-move rate since our trucks would already be servicing that stop. Happy to quote quickly by SMS or email.`
-  }
+  const warm = lead.realtorResearch?.relationship?.history.some(t => t.direction === 'inbound')
+  const intro = warm ? `Hi ${firstName}, John here. Following up on our earlier conversation.` : `Hi ${firstName}, John from Saturn Star Movers here.`
+  const context = `We’re coordinating a possible move into ${address}${dateClause}. Do your sellers, or any other clients, have anything they need moved around then?`
+  const offer = 'If we can coordinate it with that trip, I may be able to offer a better price once I know what’s involved.'
+  if (channel === 'sms') return `${intro} ${context} ${offer}`
+  return { subject: `Moving plans around ${buildOpportunityAddressSubject(lead)}`,
+    body: `${intro}\n\n${context}\n\n${offer}\n\nHappy to discuss or meet if useful.\n\nJohn\nSaturn Star Movers` }
 
-  return {
-    subject: `Possible move opportunity for your client at ${buildOpportunityAddressSubject(lead)}`,
-    body:
-      `Hi ${firstName},\n\n` +
-      `This is Saturn Star Moving. We may be coordinating a move into ${address}${dateClause}.\n\n` +
-      `If your client at that address also needs movers, we may be able to offer a preferred paired-move rate since our trucks would already be servicing that location. That can help us move quickly and keep the process simple for both sides.\n\n` +
-      `If helpful, feel free to reply here or share our details with your client and we can provide a quote promptly.\n\n` +
-      `Regards,\n` +
-      `John\n` +
-      `Saturn Star Moving`
-  }
 }
 
 export function applyRealtorContactToOpportunityLead(

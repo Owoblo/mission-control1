@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { applyDetectedBranch } from '@/lib/server/sales-opportunities'
+import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
 import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, uid } from '@/lib/sales'
 import { canAccessSalesWorkspace, isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 import { recordLeadCreatedAudit, recordLeadUpdateAudit } from '@/lib/server/sales-audit'
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
         await syncLeadPartnerReferral(saved, existingLead.partnerReferralContactId)
       }
       await recordLeadUpdateAudit(existingLead, saved)
-      return NextResponse.json(saved)
+      return NextResponse.json(await maybeCreateDestinationOpportunityLead({ ...saved, destAddress: undefined, destCity: undefined }, saved))
     }
 
     const detectedLead = applyDetectedBranch(normalizeLead({
@@ -234,7 +234,7 @@ export async function POST(request: Request) {
       properties: payload.intakeAnalytics || {},
     })
 
-    return NextResponse.json(saved)
+    return NextResponse.json(await maybeCreateDestinationOpportunityLead({ ...saved, destAddress: undefined, destCity: undefined }, saved))
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create lead' },

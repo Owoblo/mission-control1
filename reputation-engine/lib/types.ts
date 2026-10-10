@@ -646,6 +646,8 @@ export interface LeadMediaAsset {
 }
 
 export interface ListingMatch {
+  region?: string | null
+  country?: string | null
   zpid: string
   address: string
   city?: string
@@ -654,6 +656,7 @@ export interface ListingMatch {
   beds?: number | string | null
   baths?: number | string | null
   homeStatus?: string | null
+  listingAgentNames?: string[] | null
   brokername?: string | null
   is_furnished?: boolean | null
   furniture_scan_date?: string | null
@@ -1092,6 +1095,25 @@ export interface CrewPayoutEntry {
   updatedAt?: string
 }
 
+export interface RealtorResearch {
+  version: 2
+  propertyKey: string
+  status: 'pending' | 'review' | 'verified' | 'failed' | 'stale'
+  checkedAt: string
+  error?: string
+  provenance?: 'listing_database' | 'web_research' | 'owner_confirmed'
+  candidates: Array<{
+    name: string; phone?: string; email?: string; brokerage?: string
+    role: 'listing_agent' | 'sales_representative' | 'brokerage_office' | 'unknown'
+    evidence: string; sources: Array<{ url: string; title: string }>
+  }>
+  relationship?: {
+    contactId: string; name: string; blocked: boolean
+    history: Array<{ id: string; at: string; direction: string; text: string }>
+    nextAction: string
+  }
+}
+
 export interface CRMLead {
   linkedPlanReview?: import('./linked-move-plan').LinkedPlanReview
   linkedPlanReviewHistory?: import('./linked-move-plan').LinkedPlanReview[]
@@ -1174,6 +1196,7 @@ export interface CRMLead {
   realtorPhone?: string
   realtorBrokerage?: string
   realtorWebsite?: string
+  realtorResearch?: RealtorResearch
   realtorContactId?: string
   realtorContactKind?: RealtorContactKind
   realtorLookupStatus?: RealtorLookupStatus

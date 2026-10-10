@@ -1661,7 +1661,7 @@ function buildAddressLookupVariants(address: string) {
 async function queryListingsByAddressVariant(address: string): Promise<ListingMatch[]> {
   const { url, headers } = requireSupabase()
   const encoded = encodeURIComponent(`%${address}%`)
-  const select = 'zpid,address,city,beds,baths,area,brokername,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable,description,streetViewMetadataUrl:streetviewmetadataurl,streetViewUrl:streetviewurl,detailurl,listingMlsId:listing_mls_id,status,lastSeenAt:last_seen_at'
+  const select = 'zpid,address,city,region,country,beds,baths,area,brokername,listingAgentNames:listing_agent_names,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable,description,streetViewMetadataUrl:streetviewmetadataurl,streetViewUrl:streetviewurl,detailurl,listingMlsId:listing_mls_id,status,lastSeenAt:last_seen_at'
   const response = await fetch(
     `${url}/rest/v1/listings?address=ilike.${encoded}&select=${select}&limit=100`,
     { headers, cache: 'no-store' }
@@ -1749,7 +1749,7 @@ export async function resolveListingsByAddress(address: string): Promise<Listing
 export async function lookupListingByReference(input: string): Promise<ListingMatch | null> {
   const { url, headers } = requireSupabase()
   const reference = extractListingReference(input)
-  const select = 'zpid,address,city,beds,baths,area,brokername,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable,description,streetViewMetadataUrl:streetviewmetadataurl,streetViewUrl:streetviewurl,detailurl,listingMlsId:listing_mls_id,status,lastSeenAt:last_seen_at'
+  const select = 'zpid,address,city,region,country,beds,baths,area,brokername,listingAgentNames:listing_agent_names,is_furnished,furniture_scan_date,carouselphotos,carousel_photos_composable,description,streetViewMetadataUrl:streetviewmetadataurl,streetViewUrl:streetviewurl,detailurl,listingMlsId:listing_mls_id,status,lastSeenAt:last_seen_at'
   let filter: string | null = null
   if (reference.zpid) filter = `zpid=eq.${encodeURIComponent(reference.zpid)}`
   else if (reference.mlsId) filter = `listing_mls_id=ilike.${encodeURIComponent(reference.mlsId)}`

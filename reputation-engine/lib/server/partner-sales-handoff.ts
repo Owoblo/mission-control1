@@ -77,9 +77,9 @@ export async function contactHandoffLeads(id: string, phone?: string | null) {
   >("crm_leads", {
     ...(phone && /^\+1\d{10}$/.test(phone)
       ? {
-          or: `(data->>partnerReferralContactId.eq.${id},data->>phone.eq.${phone},data->>phone.eq.${phone.slice(1)},data->>phone.eq.${phone.slice(2)})`,
+          or: `(data->>realtorContactId.eq.${id},data->>partnerReferralContactId.eq.${id},data->>phone.eq.${phone},data->>phone.eq.${phone.slice(1)},data->>phone.eq.${phone.slice(2)})`,
         }
-      : { "data->>partnerReferralContactId": `eq.${id}` }),
+      : { or: `(data->>partnerReferralContactId.eq.${id},data->>realtorContactId.eq.${id})` }),
     select: "id,data,deleted",
     order: "updated_at.desc",
     limit: "500",

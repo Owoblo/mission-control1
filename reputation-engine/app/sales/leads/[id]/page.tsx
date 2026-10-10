@@ -4623,62 +4623,45 @@ export default function SalesLeadDetailPage() {
                     <div>Listing-side email: {lead.realtorEmail || 'Not captured yet'}</div>
                     <div>Listing-side phone: {lead.realtorPhone || 'Not captured yet'}</div>
                   </div>
-                  {/* Auto-find realtor info */}
-                  {canEditCurrentLead && !(lead.realtorName && lead.realtorPhone) && (
-                    <button
-                      onClick={() => void (async () => {
-                        setSaving(true)
-                        try {
-                          const res = await fetch(`/api/sales/leads/${lead.id}/realtor-lookup`, { method: 'POST', credentials: 'include' })
-                          const data = await res.json() as {
-                            realtorName?: string | null
-                            realtorPhone?: string | null
-                            realtorEmail?: string | null
-                            realtorBrokerage?: string | null
-                            contactKind?: string
-                            confidence?: string
-                            source?: string
-                            autoApplySafe?: boolean
-                            error?: string
-                          }
-                          if (!res.ok || data.error) throw new Error(data.error)
-                          const updates: Record<string, string> = {}
-                          if (data.realtorBrokerage && !lead.realtorBrokerage) updates.realtorBrokerage = data.realtorBrokerage
-
-                          if (data.autoApplySafe) {
-                            // High-confidence individual agent — auto-apply
-                            if (data.realtorName && !lead.realtorName) updates.realtorName = data.realtorName
-                            if (data.realtorPhone && !lead.realtorPhone) updates.realtorPhone = data.realtorPhone
-                            if (data.realtorEmail && !lead.realtorEmail) updates.realtorEmail = data.realtorEmail
-                            updates.realtorLookupStatus = 'matched'
-                          } else {
-                            // Not auto-applied — but still store what we found and let rep confirm
-                            const found: string[] = []
-                            if (data.realtorName) { updates.realtorName = data.realtorName; found.push(data.realtorName) }
-                            if (data.realtorPhone) { updates.realtorPhone = data.realtorPhone; found.push(data.realtorPhone) }
-                            if (data.realtorEmail) { updates.realtorEmail = data.realtorEmail; found.push(data.realtorEmail) }
-                            if (data.realtorBrokerage) updates.realtorBrokerage = data.realtorBrokerage
-                            updates.realtorLookupStatus = found.length > 0 ? 'partial' : 'missing'
-                            if (found.length > 0) {
-                              setOpportunityNotice(`Lookup found: ${found.join(' · ')} (${data.contactKind?.replaceAll('_', ' ') || 'contact'} · ${data.confidence || 'low'} confidence). Applied — verify before reaching out.`)
-                            } else {
-                              setOpportunityNotice(`No individual contact found for this listing. Try searching the brokerage directly.`)
-                            }
-                          }
-                          if (Object.keys(updates).length > 0) {
-                            const saved = await updateSalesLead(lead.id, updates as Parameters<typeof updateSalesLead>[1])
-                            applyLeadSnapshot(saved, { hydrateForm: true })
-                          }
-                          setError(null)
-                        } catch (err) { setError((err as Error).message) }
-                        finally { setSaving(false) }
-                      })()}
-                      disabled={saving}
-                      className="mt-3 w-full rounded-[6px] border border-amber-300 bg-amber-100 px-3 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-200 disabled:opacity-60"
-                    >
-                      {saving ? '🔍 Searching…' : '🔍 Search Listing Contact'}
-                    </button>
-                  )}
+                  <div className="mt-3 space-y-3 rounded-xl bg-white p-3 text-xs text-amber-950">
+                    <p>Research: {lead.realtorResearch?.status || 'Needs property verification'}. Review the listing evidence before contacting anyone.</p>
+                    {lead.realtorResearch?.error && <p>{lead.realtorResearch.error}</p>}
+                    {lead.realtorResearch?.relationship && <div>
+                      <strong>Existing partner: {lead.realtorResearch.relationship.name}</strong>
+                      <p>{lead.realtorResearch.relationship.nextAction}</p>
+                      <Link className="underline" href={`/marketing/partners?contactId=${lead.realtorResearch.relationship.contactId}`}>Open partnership conversation</Link>
+                      <details className="mt-2"><summary>Recent conversation, cards and meeting context</summary>
+                        {lead.realtorResearch.relationship.history.map(t => <p key={t.id} className="mt-2 whitespace-pre-wrap">{t.at.slice(0,10)} · {t.direction}: {t.text}</p>)}
+                      </details>
+                    </div>}
+                    {lead.realtorResearch?.candidates.map((candidate, index) => <div key={`${candidate.name}-${index}`} className="border-t pt-2">
+                      <strong>{candidate.name}</strong> · {candidate.role.replaceAll('_',' ')}
+                      <p>{[candidate.brokerage,candidate.phone,candidate.email].filter(Boolean).join(' · ')}</p>
+                      <p>{candidate.evidence}</p>
+                      {candidate.sources.map(source => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="mr-3 underline">{source.title}</a>)}
+                      {canEditCurrentLead && lead.realtorResearch?.status === 'review' && candidate.role === 'listing_agent' && <button disabled={saving} className="crm-button-secondary mt-2"
+                        onClick={() => void (async () => {
+                          setSaving(true)
+                          try {
+                            const res = await fetch(`/api/sales/leads/${lead.id}/realtor-lookup`, {method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'confirm',index,checkedAt:lead.realtorResearch?.checkedAt})})
+                            const data = await res.json()
+                            if (!res.ok) throw new Error(data.error || 'Could not confirm agent')
+                            applyLeadSnapshot(data.lead,{hydrateForm:true})
+                            setOpportunityNotice('Listing agent confirmed. Review the relationship before sending.')
+                          } catch(err) { setError((err as Error).message) } finally { setSaving(false) }
+                        })()}>Confirm agent and link partnership</button>}
+                    </div>)}
+                    {canEditCurrentLead && <button disabled={saving} className="crm-button-secondary" onClick={() => void (async () => {
+                      setSaving(true)
+                      try {
+                        const res = await fetch(`/api/sales/leads/${lead.id}/realtor-lookup`,{method:'POST',credentials:'include'})
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(data.error || 'Research failed')
+                        applyLeadSnapshot(data.lead,{hydrateForm:true})
+                        setOpportunityNotice('Research saved. No message was sent.')
+                      } catch(err) { setError((err as Error).message) } finally { setSaving(false) }
+                    })()}>Research listing agent / refresh relationship</button>}
+                  </div>
                   {/* Outreach status */}
                   {lead.realtorOutreachStartedAt && (
                     <div className="mt-2 flex items-center gap-2 rounded-[6px] border border-emerald-200 bg-emerald-50 px-2.5 py-2">

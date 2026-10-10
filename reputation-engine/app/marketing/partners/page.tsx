@@ -6979,6 +6979,17 @@ function PartnershipEngineInner() {
   const [relationshipSummaryLoading, setRelationshipSummaryLoading] = useState(true)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
 
+  useEffect(() => {
+    const id = searchParams.get('contactId')
+    if (!id) return
+    const controller = new AbortController()
+    void fetch(`/api/marketing/contacts?id=${encodeURIComponent(id)}`, {signal:controller.signal}).then(r => r.json()).then(data => {
+      const contact = (Array.isArray(data) ? data : data.contacts || []).find((c: Contact) => c.id === id)
+      if (contact) setSelectedContact(contact)
+    }).catch(() => {})
+    return () => controller.abort()
+  }, [searchParams])
+
   const contactsLoadedRef = useRef(false)
   const contactsRef = useRef<Contact[]>([])
   const contactsRequestRef = useRef<AbortController | null>(null)
