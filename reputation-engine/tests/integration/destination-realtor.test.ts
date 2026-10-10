@@ -103,20 +103,71 @@ test('outreach gate rejects automated introductions, stale destinations and unco
   const original=global.fetch
   process.env.SUPABASE_URL='https://destination.test';process.env.SUPABASE_KEY='test-only'
   let sourceAddress='22 Ridge Street'
+  let contactPhone='+12269276886'
+  let opportunityAddress='22 Ridge St'
+  let sourceDate='2030-11-17'
   let status='verified'
   global.fetch=async(input)=>{
     const url=new URL(String(input));assert.equal(url.hostname,'destination.test')
     if(url.pathname.endsWith('market_contacts'))return Response.json([])
     const source=url.searchParams.get('id')==='eq.source'
-    return Response.json([{id:source?'source':'opp',data:source?{id:'source',stage:'booked',destAddress:sourceAddress,destCity:'Strathroy',moveDate:'2030-11-17'}:
-      {id:'opp',sourceLeadId:'source',leadKind:'realtor_opportunity',primaryContactRole:'realtor',realtorPhone:'+12269276886',realtorResearch:{status,propertyKey:'22 ridge st|strathroy'}}}])
+    return Response.json([{id:source?'source':'opp',data:source?{id:'source',stage:'booked',destAddress:sourceAddress,destCity:'Strathroy',moveDate:sourceDate}:
+      {id:'opp',sourceLeadId:'source',sourceLeadMoveDate:'2030-11-17',leadKind:'realtor_opportunity',primaryContactRole:'realtor',realtorName:'Nicole Miller',realtorPhone:contactPhone,opportunityAddress,opportunityCity:'Strathroy',supabaseListing:{zpid:'ridge',address:'22 Ridge St, Strathroy, ON',city:'Strathroy'},realtorResearch:{status,propertyKey:'22 ridge st|strathroy',candidates:[{name:'Nicole Miller',phone:'+12269276886'}]}}}])
   }
   try {
     await assert.rejects(assertDestinationRealtorSend('opp','automation','+12269276886','sms'),/automated outreach/)
     await assertDestinationRealtorSend('opp','human','+12269276886','sms')
+    contactPhone='+15195550999'
+    await assert.rejects(assertDestinationRealtorSend('opp','human',contactPhone,'sms'),/details changed/)
+    contactPhone='+12269276886'
+    opportunityAddress='99 Other Street'
+    await assert.rejects(assertDestinationRealtorSend('opp','human',contactPhone,'sms'),/Confirm the listing agent/)
+    opportunityAddress='22 Ridge St'
+    sourceDate='2030-11-18'
+    await assert.rejects(assertDestinationRealtorSend('opp','human',contactPhone,'sms'),/no longer current/)
+    sourceDate='2030-11-17'
     sourceAddress='99 Other Street'
     await assert.rejects(assertDestinationRealtorSend('opp','human','+12269276886','sms'),/no longer current/)
     status='review'
     await assert.rejects(assertDestinationRealtorSend('opp','human','+12269276886','sms'),/Confirm the listing agent/)
   } finally {global.fetch=original}
+})
+
+test('confirmed agent reuses an existing partner and preserves card/meeting context without sending',async()=>{
+  const {confirmDestinationRealtor}=await import('../../lib/server/destination-realtor-research')
+  const original=global.fetch;const writes:any[]=[]
+  process.env.SUPABASE_URL='https://destination.test';process.env.SUPABASE_KEY='test-only'
+  const checkedAt='2026-10-10T10:00:00Z'
+  const candidate={name:'Nicole Miller',phone:'+12269276886',role:'listing_agent',evidence:'listing',sources:[]}
+  global.fetch=async(input,init)=>{
+    const url=new URL(String(input));assert.equal(url.hostname,'destination.test')
+    if(url.pathname.endsWith('market_contacts')){assert.notEqual(init?.method,'POST');return Response.json([{id:'known',name:'Nicole Miller',phone:'+12269276886'}])}
+    if(url.pathname.endsWith('market_touches'))return Response.json([{id:'invite',created_at:checkedAt,direction:'inbound',notes:'I would love some cards and to meet.'}])
+    if(init?.method==='PATCH'){const body=JSON.parse(String(init.body));writes.push(body);return Response.json([{data:body.data}])}
+    return Response.json([{data:url.searchParams.get('id')==='eq.source'?{id:'source',destAddress:'22 Ridge St',destCity:'Strathroy'}:
+      {id:'opp',leadKind:'realtor_opportunity',sourceLeadId:'source',opportunityAddress:'22 Ridge St',opportunityCity:'Strathroy',realtorResearch:{version:2,status:'review',propertyKey:'22 ridge st|strathroy',checkedAt,candidates:[candidate]}},updated_at:checkedAt}])
+  }
+  try{
+    const result=await confirmDestinationRealtor('opp',0,checkedAt)
+    assert.equal(result.realtorContactId,'known');assert.equal(result.realtorResearch?.status,'verified')
+    assert.match(result.realtorResearch!.relationship!.history[0].text,/cards and to meet/)
+    assert.equal(writes.length,1)
+  }finally{global.fetch=original}
+})
+
+test('new confirmed realtor creates a paused partnership, never an automatic sequence',async()=>{
+  const {confirmDestinationRealtor}=await import('../../lib/server/destination-realtor-research')
+  const original=global.fetch;let partner:any=null
+  process.env.SUPABASE_URL='https://destination.test';process.env.SUPABASE_KEY='test-only'
+  const checkedAt='2026-10-10T10:00:00Z'
+  const candidate={name:'New Agent',phone:'+15195550123',role:'listing_agent',evidence:'listing',sources:[]}
+  global.fetch=async(input,init)=>{
+    const url=new URL(String(input));assert.equal(url.hostname,'destination.test')
+    if(url.pathname.endsWith('market_contacts')){if(init?.method==='POST')partner=JSON.parse(String(init.body));return Response.json(partner?[partner]:[])}
+    if(url.pathname.endsWith('market_touches'))return Response.json([])
+    if(init?.method==='PATCH'){const body=JSON.parse(String(init.body));return Response.json([{data:body.data}])}
+    return Response.json([{data:url.searchParams.get('id')==='eq.source'?{id:'source',destAddress:'22 Ridge St',destCity:'Strathroy'}:
+      {id:'opp',leadKind:'realtor_opportunity',sourceLeadId:'source',opportunityAddress:'22 Ridge St',opportunityCity:'Strathroy',realtorResearch:{version:2,status:'review',propertyKey:'22 ridge st|strathroy',checkedAt,candidates:[candidate]}},updated_at:checkedAt}])
+  }
+  try{const result=await confirmDestinationRealtor('opp',0,checkedAt);assert.equal(result.realtorContactId,partner.id);assert.equal(partner.sequence_paused,true);assert.equal(partner.next_follow_up,null)}finally{global.fetch=original}
 })

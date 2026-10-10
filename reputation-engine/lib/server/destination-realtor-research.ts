@@ -100,7 +100,9 @@ export async function researchDestinationRealtor(id: string, useWeb = true) {
   const propertyKey = listingAddressKey(lead.opportunityAddress,lead.opportunityCity)
   if (!hasListingStreet(lead.opportunityAddress) || !lead.opportunityCity || !lead.supabaseListing
     || !decideListingMatch(propertyAddress(lead),[lead.supabaseListing]).listing) throw new Error('Verify the exact destination property before researching its agent.')
-  if (lead.realtorResearch?.status === 'verified' && lead.realtorResearch.propertyKey === propertyKey) {
+  if (lead.realtorResearch?.status === 'verified' && lead.realtorResearch.propertyKey === propertyKey
+    && lead.realtorName===lead.realtorResearch.candidates[0]?.name && lead.realtorPhone===lead.realtorResearch.candidates[0]?.phone
+    && lead.realtorEmail===lead.realtorResearch.candidates[0]?.email) {
     const candidate = lead.realtorResearch.candidates[0]
     const match = candidate ? await resolveRealtorRelationship(candidate,lead.realtorContactId) : null
     return saveSalesLead({...lead,realtorResearch:{...lead.realtorResearch,relationship:match?.relationship,checkedAt:new Date().toISOString()}},record.updatedAt)
@@ -140,7 +142,7 @@ export async function confirmDestinationRealtor(id: string, index: number, check
   return saveSalesLead({...lead,realtorName:candidate.name,realtorPhone:candidate.phone || match?.partner.phone,
     realtorEmail:candidate.email || match?.partner.email,realtorBrokerage:candidate.brokerage || match?.partner.company,
     realtorContactId:match?.partner.id,realtorContactKind:'listing_agent',realtorLookupStatus:'matched',
-    realtorResearch:{...research,status:'verified',provenance:'owner_confirmed',checkedAt:new Date().toISOString(),candidates:[candidate],relationship:match?.relationship},
+    realtorResearch:{...research,status:'verified',provenance:'owner_confirmed',checkedAt:new Date().toISOString(),candidates:[{...candidate,phone:candidate.phone || match?.partner.phone,email:candidate.email || match?.partner.email}],relationship:match?.relationship},
     followUpNote:match?.relationship.nextAction || 'New realtor: prepare a property-specific relationship introduction after reviewing the evidence.',
   },record.updatedAt)
 }
