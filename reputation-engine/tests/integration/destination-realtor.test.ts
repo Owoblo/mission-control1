@@ -27,6 +27,10 @@ test('atomic reconciliation prevents duplicate creation, stale writes and double
     assert.equal((await db.query<{attempts:number}>('select * from claim_destination_realtor_job()')).rows[0].attempts,2)
     const record=(await db.query<{data:any}>('select data from crm_leads where id=$1',['source'])).rows[0].data
     assert.equal(record.destinationOpportunityLeadId,'opportunity')
+    await db.query("update crm_leads set data=$1 where id='source'",[{id:'source',leadKind:'customer',stage:'booked',destAddress:'22 Ridge Street',destCity:'Strathroy',moveDate:'2099-11-17',destinationOpportunityLeadId:'opportunity',destinationOpportunityLastCheckedAt:'2020-01-01'}])
+    await db.query("update crm_leads set data=$1 where id='opportunity'",[{id:'opportunity',opportunityAddress:'22 Ridge Street',opportunityCity:'Strathroy',sourceLeadMoveDate:'2099-11-17',realtorResearch:{status:'stale'}}])
+    assert.equal((await db.query<{source:any}>('select next_destination_source() source')).rows[0].source.id,'source')
+
   } finally {await db.close()}
 })
 

@@ -100,7 +100,9 @@ export function decideListingMatch(query: string, listings: ListingMatch[]): Lis
   // A city, partial street name, or neighboring house is never an exact property.
   const candidates = hasListingStreet(query) ? listings.filter(listing => {
     const city = normalizeListingCity(listing.city || listing.address.split(',')[1] || '')
-    const region = (listing.region || listing.address.split(',')[2] || '').trim().toUpperCase()
+    // Scraper region is a crawl market (e.g. 'sarnia'), and country can be wrong.
+    // Only the explicit province/state token in the property address is evidence.
+    const region = (listing.address.split(',')[2] || '').trim().toUpperCase().match(/^[A-Z]{2}\b/)?.[0] || ''
     const queryRegion = (query.split(',')[2] || '').trim().toUpperCase()
     const regionMismatch = queryRegion === 'ON' && region && !/^(ON(?:\b|$)|ONTARIO)/.test(region)
     return !regionMismatch && stripListingUnit(listing.address) === queryBase && (!queryCity || city === queryCity)
