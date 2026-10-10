@@ -29,12 +29,20 @@ export async function GET(request: Request) {
     if(!response.ok) return NextResponse.json({error:'Print history could not be loaded'},{status:502})
     batches.push(...await response.json())
   }
+  const propertyKeys=[...new Set(rows.map(r=>r.property_key))]
+  const propertyContext=new Map<string,Record<string,any>>()
+  for(let i=0;i<propertyKeys.length;i+=50){
+    const query=new URLSearchParams({select:'property_key,status,listing',property_key:'in.('+propertyKeys.slice(i,i+50).map(k=>'"'+String(k).replaceAll('"','')+'"').join(',')+')'})
+    const response=await fetch(`${url}/rest/v1/partner_listing_research?${query}`,{headers,cache:'no-store'})
+    if(!response.ok)return NextResponse.json({error:'Property qualification context could not be loaded'},{status:502})
+    for(const p of await response.json()){const l=p.listing||{};propertyContext.set(p.property_key,{research_status:p.status,postcard_skip_reason:l.postcard_skip_reason||null,is_furnished:l.is_furnished??null,price:l.unformattedprice??null,categories:l.listing_categories||[],market_segment:l.market_segment||null,occupancy:l.occupancy_state||null,outreach_target:l.outreach_target||null,observed_at:l.lastseenat||l._observed_at||null})}
+  }
   const contactMap = new Map(contacts.filter(c=>partnershipRecordMatchesSession(session,c)).map(c => [c.id,c])), batchMap=new Map(batches.map(b=>[b.batch_id,b]))
   const groups = new Map<string, Record<string, any>>()
   for (const row of rows) {
     const key = row.contact_id || row.representative_key
     const group = groups.get(key) || { key, representative: row.representative, contact: contactMap.get(row.contact_id) || null, listings: [] }
-    group.listings.push({ ...row, postcard_status: batchMap.get(row.postcard_batch_id)?.status || row.postcard_status })
+    group.listings.push({ ...row, property_context:propertyContext.get(row.property_key)||null, postcard_status: batchMap.get(row.postcard_batch_id)?.status || row.postcard_status })
     groups.set(key,group)
   }
   const research: Record<string, Record<string, number>> = {}
@@ -73,6 +81,17 @@ export async function PATCH(request: Request) {
       const duplicateResponse=await fetch(`${url}/rest/v1/market_contacts?name=ilike.${encodeURIComponent(String(rep.name||'').trim())}&select=id&limit=1`,{headers,cache:'no-store'})
       if(!duplicateResponse.ok) return NextResponse.json({error:'Could not check for duplicate contacts'},{status:502})
       if((await duplicateResponse.json()).length) return NextResponse.json({error:'A contact with this name already exists. Search and review that record before creating another.'},{status:409})
+      if (!rep?.name || !row.source_url || !/^https?:\/\//i.test(row.source_url)) return NextResponse.json({error:'A named representative and property source are required before creating a contact.'},{status:409})
+      for (const [field,value] of [['phone',rep.phone],['email',rep.email]] as const) {
+        if (!value) continue
+        const normalized = field === 'phone' ? String(value).replace(/\D/g,'').slice(-10) : String(value).trim().toLowerCase()
+        if (field === 'phone' && normalized.length !== 10) continue
+        const pattern = field === 'phone' ? '*' + normalized.slice(-4) + '*' : normalized
+        const check = await fetch(`${url}/rest/v1/market_contacts?${field}=ilike.${encodeURIComponent(pattern)}&select=id,phone,email&limit=1000`,{headers,cache:'no-store'})
+        if (!check.ok) return NextResponse.json({error:'Identity check unavailable'},{status:503})
+        const peers = await check.json()
+        if (peers.length === 1000 || peers.some((c:any)=>field === 'phone' ? String(c.phone||'').replace(/\D/g,'').slice(-10)===normalized : String(c.email||'').trim().toLowerCase()===normalized)) return NextResponse.json({error:'This phone or email already belongs to a CRM record. Review and link the existing person.'},{status:409})
+      }
       const created=await fetch(`${url}/rest/v1/market_contacts`,{method:'POST',headers:{...headers,Prefer:'return=representation'},body:JSON.stringify({
         name:rep.name,company:rep.brokerage||'',title:rep.role||'',phone:rep.phone||null,email:rep.email||null,city:row.city,
         stage:'target',industry:'Real Estate',listing_discovery_key:row.representative_key,tags:['listing-discovery',row.lane],
@@ -88,6 +107,6 @@ export async function PATCH(request: Request) {
   if(!contactResponse.ok) return NextResponse.json({error:'Contact lookup failed'},{status:502})
   const [contact]=await contactResponse.json()
   if(!contact||!partnershipRecordMatchesSession(session,contact)) return NextResponse.json({error:'Contact unavailable'},{status:404})
-  const updated=await fetch(`${url}/rest/v1/partner_listing_activity?representative_key=eq.${row.representative_key}${partnershipScopeFilter(session)}`,{method:'PATCH',headers,body:JSON.stringify({contact_id:contactId,match_status:'reviewed'})})
+  const updated=await fetch(`${url}/rest/v1/partner_listing_activity?activity_key=eq.${encodeURIComponent(row.activity_key)}${partnershipScopeFilter(session)}`,{method:'PATCH',headers,body:JSON.stringify({contact_id:contactId,match_status:'reviewed'})})
   return updated.ok ? NextResponse.json({ok:true,contact_id:contactId}) : NextResponse.json({error:'Could not link contact'},{status:502})
 }
