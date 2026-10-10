@@ -1,3 +1,4 @@
+import { inventoryMeasurementIssues } from './customer-inventory-review'
 import type { CRMLead, LeadQualificationState } from '@/lib/types'
 
 export function hasStreetNumber(value?: string) {
@@ -17,7 +18,7 @@ export function hasUnitMarker(value?: string) {
 }
 
 export function hasStreetType(value?: string) {
-  return /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway)\b/i.test(value || '')
+  return /\b(st|street|ave|avenue|rd|road|dr|drive|blvd|boulevard|cres|crescent|ct|crt|court|ln|lane|way|pkwy|parkway|pl|place|terrace|trail|circle|cir|sq|square|hwy|highway)\b/i.test(value || '')
 }
 
 export function hasCompleteMoveAddress(value?: string) {
@@ -109,6 +110,7 @@ export function getAutomationMissingFields(lead: CRMLead) {
   else if (!hasCompleteMoveAddress(lead.destAddress)) missing.push('destination_address')
   if (hasMlsDraftInventoryNeedingConfirmation(lead)) missing.push('inventory_confirmation')
   else if (!lead.totalItems && !lead.totalCubicFeet && !(lead.inventory || []).length && !lead.surveyCompletedAt) missing.push('inventory')
+  if (inventoryMeasurementIssues(lead.inventory).length) missing.push('inventory_measurements')
   if (!lead.email && moveDateKnown && routeKnown && inventoryKnown) missing.push('customer_email')
   if (!accessKnown) missing.push('access')
   return missing

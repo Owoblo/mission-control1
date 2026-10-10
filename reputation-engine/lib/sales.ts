@@ -1,3 +1,4 @@
+import { inventoryMeasurementIssues } from './customer-inventory-review'
 import gtaCities from './data/gta-service-cities.json'
 import { countsAsCommercialLead } from './interaction-classification'
 import { bookingDecision } from './booking-policy'
@@ -2496,6 +2497,8 @@ export function deriveInventoryMetrics(inventory: InventoryItem[]) {
   return {
     inventory: normalized,
     includedInventory,
+    measurementIssues: inventoryMeasurementIssues(includedInventory),
+    measurementsComplete: inventoryMeasurementIssues(includedInventory).length === 0,
     totalItems,
     totalCubicFeet: Math.round(totalCubicFeet),
     totalWeightLbs: Math.round(totalWeightLbs),

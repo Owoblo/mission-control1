@@ -1,3 +1,4 @@
+import { normalizeAutomatedCustomerText } from '@/lib/customer-message-style'
 import { sendSalesEmail } from '@/lib/server/email-provider'
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { uid } from '@/lib/sales'
@@ -216,6 +217,12 @@ async function syncLeadMessagingState(leadId: string, actor: 'human' | 'automati
 }
 
 export async function sendSalesMessage(input: SendSalesMessageInput): Promise<SendSalesMessageResult> {
+  if (input.actor === 'automation') {
+    input = { ...input, body: normalizeAutomatedCustomerText(input.body),
+      ...(input.subject ? { subject: normalizeAutomatedCustomerText(input.subject) } : {}),
+      ...(input.htmlBody ? { htmlBody: normalizeAutomatedCustomerText(input.htmlBody) } : {}),
+    }
+  }
   const actor = input.actor || 'human'
   let result: Record<string, unknown> = { ok: true }
 

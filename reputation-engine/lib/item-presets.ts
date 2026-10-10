@@ -428,6 +428,15 @@ export function matchInventoryPreset(name?: string) {
     return INVENTORY_PRESETS.find(preset => preset.id === 'dining-chair') || null
   }
 
+  // Preserve furniture subtype before generic substring matching. The catalogue
+  // has several labels whose base name is "Sofa"; array order is not evidence.
+  const sofaId = /\b(?:sofa|couch) bed\b|\bsleeper (?:sofa|couch)\b/.test(normalized) ? 'sofa-bed'
+    : /\blove\s?seats?\b/.test(normalized) ? 'sofa-loveseat'
+    : /\bsofa chair\b|\barmchair\b/.test(normalized) ? 'armchair-standard'
+    : /\b(?:sofa|couch)\b/.test(normalized) && !/\b(?:outdoor|sectional|recliner|reclining)\b/.test(normalized)
+      ? (/\b4 (?:seat|seater)\b/.test(normalized) ? 'sofa-large' : 'sofa-standard') : null
+  if (sofaId) return INVENTORY_PRESETS.find(preset => preset.id === sofaId) || null
+
   // These are accessories, not pianos. A broad substring match on "piano"
   // previously assigned a collapsible keyboard stand 55 cu ft / 450 lb.
   if (/\b(?:piano|keyboard)\s+(?:stand|rack)\b/.test(normalized)) return null

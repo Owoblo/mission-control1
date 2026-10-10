@@ -13,6 +13,7 @@ import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/m
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
+import { buildCustomerInventoryList, inventoryMeasurementIssues } from '@/lib/customer-inventory-review'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
 import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
 import { estimateAdjustmentAmount } from '@/lib/estimate-adjustment'
@@ -2123,8 +2124,8 @@ export function EstimateDraftModal({
     setConjointMlsNotice(`${label} note added.`)
   }
 
-  async function copyInventorySnapshot() {
-    const text = buildInventorySnapshotCopyText(inventory)
+  async function copyInventorySnapshot(forImport = false) {
+    const text = forImport ? buildCustomerInventoryList(inventory) : buildInventorySnapshotCopyText(inventory)
     if (!text.trim()) {
       setInventoryCopyNotice('Nothing to copy yet')
       window.setTimeout(() => setInventoryCopyNotice(null), 1800)
@@ -4188,7 +4189,16 @@ export function EstimateDraftModal({
                   >
                     {inventoryCopyNotice || 'Copy list'}
                   </button>
+                  <button type="button" onClick={() => void copyInventorySnapshot(true)}
+                    className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)]">
+                    Copy for inventory software
+                  </button>
                 </div>
+                {inventoryMeasurementIssues(inventory).length > 0 ? (
+                  <p role="status" className="mt-3 text-sm text-amber-800">
+                    Size and weight totals are incomplete. {inventoryMeasurementIssues(inventory).length} inventory entries need names, quantities or measurements confirmed. The values below are known subtotals, not the full load.
+                  </p>
+                ) : null}
                 {textParsedInventoryItems.length > 0 ? (
                   <div className="mt-3 border-l-2 border-[#C99700] bg-white px-3 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a6800]">Inventory parsed from customer text · review required</div>

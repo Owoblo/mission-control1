@@ -1,3 +1,4 @@
+import { inventoryMeasurementIssues, buildCustomerInventoryList, planCustomerInventoryReply } from '@/lib/customer-inventory-review'
 import { salesEmailConfigured } from '@/lib/server/email-provider'
 import { generateConditionTasks } from './task-generation'
 import { saveGeneratedTasks } from './task-repository'
@@ -1079,6 +1080,7 @@ function buildEstimateMissingReasons(lead: CRMLead) {
   else if (!hasCompleteMoveAddress(lead.destAddress)) reasons.push('destination_address')
   if (hasMlsDraftInventoryNeedingConfirmation(lead)) reasons.push('inventory_confirmation')
   if (!lead.totalCubicFeet && !(lead.inventory || []).length) reasons.push('inventory')
+  if (inventoryMeasurementIssues(lead.inventory).length) reasons.push('inventory_measurements')
   if (leadNeedsAccessBeforeAutomatedQuote(lead)) reasons.push('access')
   return reasons
 }
@@ -1113,7 +1115,7 @@ function buildEstimateScopeConfirmation(lead: CRMLead, channel: ConversationChan
   const moveDate = lead.moveDate
     ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'flexible date'
-  const inventory = describeInventorySnapshot(lead)
+  const inventory = `items listed below:\n${buildCustomerInventoryList(lead.inventory)}`
   const question = knownCustomerName(lead.name) ? 'Does that cover everything you want moved?' : 'What name should we put on your estimate?'
   if (channel === 'sms') {
     return `Thanks, ${firstName} — that helps. I have ${moveDate}, ${route}, and ${inventory}. ${question}`
@@ -1643,8 +1645,12 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
     receivedAt: now,
   }).catch(() => null)
 
-  let enrichedLead = mergeExtractedSignals(lead, extractedSignals, message || lead.inboundMessage)
-  enrichedLead = resolveInboundSalesContext(enrichedLead, message || lead.inboundMessage)
+  // Resolve single-address replies against the prior route before AI extraction
+  // can assign the same destination to both ends of the move.
+  const contextualLead = resolveInboundSalesContext(lead, message || lead.inboundMessage)
+  let enrichedLead = mergeExtractedSignals(contextualLead, extractedSignals, message || lead.inboundMessage)
+  enrichedLead.originAddress = contextualLead.originAddress
+  enrichedLead.destAddress = contextualLead.destAddress
   enrichedLead = await hydrateLeadFromAddressAndInventory(enrichedLead).catch(() => enrichedLead)
 
   const explicitHumanRequest =
@@ -3461,6 +3467,48 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     }
   }
 
+  const customerInventoryReply = job.kind === 'lead_response'
+    ? planCustomerInventoryReply(addressCheckedLead, inboundMessage || '', new Date().toISOString())
+    : null
+  if (customerInventoryReply) {
+    let reviewedLead = addressCheckedLead
+    if (customerInventoryReply.handoff) {
+      reviewedLead = await handoffLeadForManualReview(
+        reviewedLead,
+        'Customer inventory is ready for coordinator review and pricing.',
+        `Review customer item names, quantities, measurements and access before quoting.\n${buildCustomerInventoryList(reviewedLead.inventory)}`,
+      )
+      await createSalesSystemAlert({
+        title: 'Customer inventory ready for quote review',
+        leadId: reviewedLead.id,
+        severity: 'warning',
+        details: 'Customer confirmed the inventory list or requested a quote. Review unresolved items and measurements before pricing.',
+      })
+    }
+    const sendResult = await sendSalesMessage({
+      actor: 'automation', channel: contact.channel, to: contact.to,
+      subject: contact.channel === 'email' ? 'Your moving inventory' : undefined,
+      body: customerInventoryReply.body, leadId: reviewedLead.id,
+      notes: customerInventoryReply.handoff
+        ? 'Customer inventory handed to coordinator for pricing; no automated quote sent.'
+        : 'Sent the full named inventory list for customer corrections and missing items.',
+    })
+    if (!wasSalesMessageDelivered(sendResult)) {
+      return { status: 'completed' as const, sent: false, lead: reviewedLead,
+        message: 'Inventory reply was not sent; pending review state was not advanced.' }
+    }
+    reviewedLead = await saveSalesLead({
+      ...(sendResult.lead || reviewedLead), smsInventoryReview: customerInventoryReply.review,
+    })
+    const thread = await saveAutomationThreadAfterOutbound({
+      lead: reviewedLead, existingThread, channel: contact.channel,
+      contactValue: contact.to, preview: customerInventoryReply.body, jobKind: job.kind,
+      intent: customerInventoryReply.handoff ? 'handoff' : 'inventory_list_confirmation', inboundMessage,
+    })
+    return { status: 'completed' as const, sent: true, lead: reviewedLead, thread,
+      message: customerInventoryReply.body }
+  }
+
   const inventorySmsResult = await maybeHandleMlsInventorySms({
     job,
     lead: addressCheckedLead,
@@ -4077,7 +4125,7 @@ export async function processInboundAutomationEvent(event: InboundAutomationEven
     }, {
       ...withoutMissingFields(lead.qualificationState),
       capturedSummary: previewText(event.message || lead.inboundMessage, 180),
-      lastIntent: channel === 'sms' ? 'inbound_sms' : 'inbound_email',
+      lastIntent: lead.qualificationState?.lastIntent || (channel === 'sms' ? 'inbound_sms' : 'inbound_email'),
     }),
   })
 
