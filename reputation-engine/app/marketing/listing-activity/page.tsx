@@ -29,6 +29,7 @@ export default function ListingActivityPage() {
    <select aria-label="Relationship filter" value={filter} onChange={e=>setFilter(e.target.value)} className="rounded-lg border p-2"><option value="">All people</option><option value="new">No recorded outreach</option><option value="missing_phone">Missing phone</option><option value="review">Needs review</option></select>
    <select aria-label="Sort activity" value={sort} onChange={e=>setSort(e.target.value)} className="rounded-lg border p-2"><option value="motion">Most observed properties</option><option value="recent">Latest observed</option></select>
    <Link href="/marketing/listing-activity/assessments" className="rounded-lg border p-2">Pipeline assessments</Link>
+   <Link href="/marketing/market-coverage" className="rounded-lg border p-2">Market coverage</Link>
   </div>
   {Object.entries(research).filter(([key])=>!lane||key===lane).map(([key,counts])=><p key={key} className="mb-2 text-xs text-slate-600">{key} property research: {Object.entries(counts).map(([status,n])=>`${n} ${status.replaceAll('_',' ')}`).join(' · ')}</p>)}
   {error&&<div role="alert" className="mb-4 text-red-700">{error} <button className="underline" onClick={()=>void load()}>Retry</button></div>}
