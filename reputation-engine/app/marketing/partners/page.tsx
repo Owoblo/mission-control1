@@ -12,6 +12,7 @@ import { RelationshipRecord } from '@/app/components/partnership/RelationshipRec
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { MessageText } from '@/app/components/partnership/message-text'
 import { partnershipMediaKind } from '@/lib/partnership-media'
+import { VideoAttachment } from '@/app/components/partnership/video-attachment'
 import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
 import { businessCardFirstName, appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
 import { sendSalesMessage } from '@/lib/sales-api'
@@ -5237,11 +5238,11 @@ function PhoneTab({
                           return (
                             <div key={url} className="min-w-0">
                               {kind === 'audio' && <audio src={src} controls preload="none" aria-label="Audio MMS" className="max-w-full" />}
-                              {kind === 'video' && <video src={src} controls preload="metadata" className="max-h-64 rounded-[12px] bg-black" />}
+                              {kind === 'video' && <VideoAttachment key={url} touchId={touch.id} source={src} original={url} />}
                               {kind === 'image' && <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="MMS attachment" className="max-h-64 rounded-[12px] object-cover" /></a>}
-                              <a href={src} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm underline">
+                              {kind !== 'video' && <a href={src} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm underline">
                                 Open {kind === 'file' ? 'attachment' : `${kind} attachment`}
-                              </a>
+                              </a>}
                               {kind === 'audio' && /\.amr(?:[?#]|$)/i.test(url) && <p className="mt-1 text-xs">If playback is unavailable, open the audio file in a compatible player.</p>}
                             </div>
                           )
