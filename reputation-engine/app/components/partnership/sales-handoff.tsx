@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { emptyHandoffDraft, mergeHandoffDraft, type HandoffDraft, type HandoffDraftField } from "@/lib/handoff-draft";
 import type {
   HandoffTouch,
   PartnerSalesHandoff,
@@ -38,7 +39,71 @@ export function PartnerSalesHandoffButton({
     [busy, setBusy] = useState(false),
     [reviewed, setReviewed] = useState(false),
     [sent, setSent] = useState(false);
+  const [draft, setDraft] = useState(emptyHandoffDraft);
+  const [drafting, setDrafting] = useState(false);
+  const [draftNotice, setDraftNotice] = useState("");
+  const [sourceTouchId, setSourceTouchId] = useState("");
+  const edited = useRef(new Set<string>());
+  const generation = useRef(0);
+  const loadGeneration = useRef(0);
+  const draftController = useRef<AbortController | null>(null);
+  function cancelDraft() {
+    generation.current++;
+    draftController.current?.abort();
+    setDrafting(false);
+  }
+  useEffect(() => {
+    loadGeneration.current++;
+    generation.current++;
+    draftController.current?.abort();
+    setOpen(false);
+    setContext(null);
+    setDraft(emptyHandoffDraft());
+    edited.current.clear();
+    setSourceTouchId("");
+    setDraftNotice("");
+    setDrafting(false);
+    return () => { generation.current++; loadGeneration.current++; draftController.current?.abort(); };
+  }, [contactId]);
+  async function prepareDraft(source = sourceTouchId) {
+    draftController.current?.abort();
+    const controller = new AbortController();
+    draftController.current = controller;
+    const version = ++generation.current;
+    setDrafting(true);
+    setReviewed(false);
+    setDraftNotice("");
+    try {
+      const response = await fetch(`/api/marketing/contacts/${encodeURIComponent(contactId)}/sales-handoffs/draft`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceTouchId: source }), signal: controller.signal,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to prepare draft");
+      if (generation.current !== version) return;
+      setDraft(current => mergeHandoffDraft(current, data.draft as HandoffDraft, edited.current));
+      setDraftNotice("AI draft ready. Review the details; anything you edited has been kept.");
+    } catch (e) {
+      if (generation.current === version && !controller.signal.aborted)
+        setDraftNotice(e instanceof Error ? e.message : "AI drafting failed. You can still type in the fields.");
+    } finally {
+      if (generation.current === version) setDrafting(false);
+    }
+  }
+  function editDraft(key: HandoffDraftField, value: string) {
+    edited.current.add(key);
+    setDraft(current => ({ ...current, [key]: value }));
+    setReviewed(false);
+  }
   async function load(refresh = false) {
+    const version = ++loadGeneration.current;
+    cancelDraft();
+    if (!refresh) {
+      setDraft(emptyHandoffDraft());
+      edited.current.clear();
+      setSourceTouchId("");
+      setDraftNotice("");
+    }
     if (!refresh) setContext(null);
     setReviewed(false);
     setError("");
@@ -49,9 +114,11 @@ export function PartnerSalesHandoffButton({
       );
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
+      if (loadGeneration.current !== version) return;
       setContext(d);
+      void prepareDraft(refresh ? sourceTouchId : "");
     } catch (e) {
-      setError(String(e));
+      if (loadGeneration.current === version) setError(String(e));
     }
   }
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -106,7 +173,7 @@ export function PartnerSalesHandoffButton({
           <div className="mx-auto max-w-4xl rounded-xl bg-white p-5 text-slate-900">
             <div className="flex justify-between">
               <h2 className="text-lg font-bold">Review Sales handoff</h2>
-              <button onClick={() => setOpen(false)}>Close</button>
+              <button onClick={() => { cancelDraft(); loadGeneration.current++; setOpen(false); }}>Close</button>
             </div>
             <p className="my-2 text-sm">
               Create one opportunity per job. Confirm who Sales should contact
@@ -165,6 +232,12 @@ export function PartnerSalesHandoffButton({
                     ))}
                   </div>
                 </details>
+                <div className="my-3 rounded border border-blue-200 bg-blue-50 p-3 text-sm">
+                  <p role="status">{drafting ? "AI is filling in the handoff from the conversation and existing job details…" : draftNotice}</p>
+                  <button type="button" disabled={drafting} onClick={() => prepareDraft()} className="mt-2 text-blue-700 underline disabled:opacity-50">
+                    Refresh AI draft (keeps your edits)
+                  </button>
+                </div>
                 <form onSubmit={submit} className="space-y-3">
                   <label className="block text-sm">
                     Message or call that establishes this job
@@ -172,7 +245,8 @@ export function PartnerSalesHandoffButton({
                       required
                       name="sourceTouchId"
                       className="block w-full rounded border p-2"
-                      defaultValue=""
+                      value={sourceTouchId}
+                      onChange={e => { setSourceTouchId(e.target.value); void prepareDraft(e.target.value); }}
                     >
                       <option value="">Select the source</option>
                       {context.history
@@ -195,6 +269,8 @@ export function PartnerSalesHandoffButton({
                       {label}
                       <textarea
                         name={key}
+                        value={draft[key]}
+                        onChange={e => editDraft(key, e.target.value)}
                         required
                         maxLength={
                           [
@@ -267,7 +343,7 @@ export function PartnerSalesHandoffButton({
                     I reviewed the conversation and contact instructions.
                   </label>
                   <button
-                    disabled={busy}
+                    disabled={busy || drafting}
                     className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
                   >
                     {busy
