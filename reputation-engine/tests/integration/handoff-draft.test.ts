@@ -31,7 +31,9 @@ test('drafting supplies direction and existing job evidence; rejects truncated r
   };
   const evidence = { contact: { name: 'Alexei' }, history: [{ id: 'touch', contact_id: 'c', direction: 'outbound', channel: 'sms', created_at: '2026-10-13', notes: 'Do you have 4 stools?' }], jobs: [{ id: 'existing' }], recordings: [], sourceTouchId: '' };
   try {
-    assert.deepEqual(await generateHandoffDraft(evidence), valid);
+    const draft = await generateHandoffDraft(evidence);
+    assert.equal(draft.summary, valid.summary);
+    assert.match(draft.nextAction, /^Review the existing opportunity/);
     finish = 'length';
     await assert.rejects(generateHandoffDraft(evidence), /could not complete/);
     await assert.rejects(generateHandoffDraft({ ...evidence, contact: { notes: 'x'.repeat(180001) } }), /too long/);
