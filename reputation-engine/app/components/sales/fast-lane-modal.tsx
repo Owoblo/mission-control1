@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { FAST_QUOTE_TRUCK_SIZES, fastQuoteTruckConfiguration, fastQuoteCrewLabel, type FastQuoteTruckSize } from '@/lib/fast-quote-configuration'
 import type { CRMLead } from '@/lib/types'
 import {
   FAST_LANE_ISSUE_LABELS,
@@ -36,6 +37,8 @@ interface Props {
 export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
   const [moveType, setMoveType] = useState<'truck' | 'labor'>('truck')
   const [crew, setCrew] = useState<2 | 3 | 4>(2)
+  const [truckSize, setTruckSize] = useState<FastQuoteTruckSize | undefined>(undefined)
+  const [truckCount, setTruckCount] = useState(1)
   const [rangeIdx, setRangeIdx] = useState(1) // default 3–5 hrs
   const [specialtyItems, setSpecialtyItems] = useState<string[]>([])
   const [surcharge, setSurcharge] = useState(0)
@@ -54,6 +57,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
     recipient: string
   } | null>(null)
 
+  const equipment = fastQuoteTruckConfiguration(moveType, crew, { truckSize, truckCount })
+  const crewLabel = fastQuoteCrewLabel(crew, equipment.truckSize, equipment.truckCount)
   const rate = RATES[moveType]?.[crew] ?? RATES.truck[3]
   const range = HOUR_RANGES[rangeIdx]
   const minTotal = Math.round(rate * range.min * 1.13) + surcharge + specialtyCharge
@@ -79,6 +84,8 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
           leadId: lead.id,
           moveType,
           crew,
+          truckSize: equipment.truckSize,
+          truckCount: equipment.truckCount,
           minHours: range.min,
           maxHours: range.max,
           specialtyItems,
@@ -243,6 +250,24 @@ export function FastLaneModal({ open, lead, onClose, onBooked }: Props) {
                 ))}
               </div>
             </div>
+
+            {moveType === 'truck' && (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs font-semibold text-[var(--app-muted)]">
+                  Truck size
+                  <select aria-label="Truck size" value={equipment.truckSize} onChange={e => setTruckSize(e.target.value as FastQuoteTruckSize)} className="mt-2 block w-full rounded-[10px] border p-3 text-sm text-[var(--app-ink)]">
+                    {FAST_QUOTE_TRUCK_SIZES.map(size => <option key={size} value={size}>{size}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs font-semibold text-[var(--app-muted)]">
+                  Number of trucks
+                  <select aria-label="Number of trucks" value={truckCount} onChange={e => setTruckCount(Number(e.target.value))} className="mt-2 block w-full rounded-[10px] border p-3 text-sm text-[var(--app-ink)]">
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map(count => <option key={count} value={count}>{count}</option>)}
+                  </select>
+                </label>
+                <p className="col-span-2 text-xs text-[var(--app-muted)]">{crewLabel}. Truck selections do not change the hourly rate.</p>
+              </div>
+            )}
 
             {/* Hour Range */}
             <div>

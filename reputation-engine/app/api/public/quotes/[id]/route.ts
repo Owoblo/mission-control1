@@ -162,7 +162,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         crewSize: quote.crewSize,
         estimatedHours: quote.estimatedHours,
         truckCount: quote.truckCount,
-        truckSize: lead?.truckSize || quote.truckSize,
+        truckSize: quote.truckSize || lead?.truckSize,
         estimatedWeightLbs: quote.estimatedWeightLbs,
         billingModel: quote.billingModel,
         paymentTerms: quote.paymentTerms || getDefaultPaymentTerms(quote.moveType),
