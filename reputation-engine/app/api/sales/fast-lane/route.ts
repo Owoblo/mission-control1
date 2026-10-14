@@ -1,3 +1,4 @@
+import { fastQuoteTruckConfiguration, fastQuoteCrewLabel } from '@/lib/fast-quote-configuration'
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace, canEditLead } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
@@ -22,7 +23,6 @@ import {
 import {
   FAST_LANE_ISSUE_LABELS,
   getFastLaneBlockingIssues,
-  getFastLaneTruckSize,
 } from '@/lib/sales-automation-qualification'
 
 const HST = 0.13
@@ -64,6 +64,8 @@ export async function POST(request: Request) {
       leadId: string
       moveType: 'truck' | 'labor'
       crew: 2 | 3 | 4
+      truckSize?: string
+      truckCount?: number
       minHours: number
       maxHours: number
       specialtyItems?: string[]
@@ -72,6 +74,12 @@ export async function POST(request: Request) {
     }
 
     const { leadId, moveType = 'truck', crew = 2, minHours = 3, maxHours = 5, specialtyItems = [], surchargeAmount, specialtyChargeAmount } = body
+    let equipment: ReturnType<typeof fastQuoteTruckConfiguration>
+    try {
+      equipment = fastQuoteTruckConfiguration(moveType, crew, body)
+    } catch (error) {
+      return NextResponse.json({ error: (error as Error).message }, { status: 400 })
+    }
     const surcharge = Math.max(0, Math.round(Number(surchargeAmount || 0) * 100) / 100)
     const specialtyCharge = Math.max(0, Math.round(Number(specialtyChargeAmount || 0) * 100) / 100)
 
@@ -100,10 +108,8 @@ export async function POST(request: Request) {
     const total = Math.round((subtotal + hst + surcharge + specialtyCharge) * 100) / 100
     const balance = Math.round((total - DEPOSIT) * 100) / 100
 
-    const truckSize = moveType === 'truck' ? getFastLaneTruckSize(crew) : undefined
-    const crewLabel = moveType === 'truck'
-      ? `${crew} movers + ${truckSize} truck`
-      : `${crew} movers (labour only)`
+    const { truckSize, truckCount } = equipment
+    const crewLabel = fastQuoteCrewLabel(crew, truckSize, truckCount)
 
     const fastLaneTerms = buildFastLaneTerms(minHours, maxHours)
     const rangeLabel = fastLaneTerms.rangeLabel
@@ -185,7 +191,8 @@ export async function POST(request: Request) {
       destCity: lead.destCity,
       crewSize: crew,
       estimatedHours: quotedHours,
-      truckCount: moveType === 'truck' ? 1 : 0,
+      truckCount,
+      truckSize,
       billingModel: 'hourly_minimum',
       minimumBillableHours: minHours,
       maximumEstimatedHours: maxHours,
