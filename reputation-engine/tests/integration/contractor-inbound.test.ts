@@ -50,7 +50,7 @@ test('replayed webhook creates one contractor task and one email, never a custom
   globalThis.fetch = async (input, init) => {
     assert.match(String(input), /crm_tasks\?on_conflict=source_key/)
     const body = JSON.parse(String(init?.body))
-    assert.equal(body.related_type, 'subcontractor')
+    assert.equal(body.related_type, null) // crm_tasks enum has no subcontractor member
     assert.equal(body.related_id, contractor.id)
     assert.equal(body.category, 'operations')
     assert.match(String((init?.headers as Record<string, string>).Prefer), /ignore-duplicates/)
@@ -72,3 +72,8 @@ test('replayed webhook creates one contractor task and one email, never a custom
     assert.equal(emails, 1)
   } finally { globalThis.fetch = original }
 })
+
+ test('contractor task links to its conversation without requiring a new database enum', async () => {
+ const {taskHref}=await import('../../lib/tasks')
+ assert.equal(taskHref({sourceKey:'contractor-sms:SMabc',relatedId:'crew1'} as any), '/sales/contractors/crew1?tab=messages')
+ })

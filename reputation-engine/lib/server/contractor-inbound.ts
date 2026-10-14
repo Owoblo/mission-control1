@@ -43,7 +43,7 @@ export async function notifyContractorInbound(contractor: Contractor, input: Inb
   const { url, headers } = requireSupabaseEnv()
   const response = await fetch(`${url}/rest/v1/crm_tasks?on_conflict=source_key`, {
     method: 'POST', headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=representation' },
-    body: JSON.stringify({ id: `contractor-sms-${input.sid}`, source_key: `contractor-sms:${input.sid}`, title: `Contractor SMS: ${contractor.company_name}`, description: `From: ${input.from}\nTo: ${input.to}\nReceived: ${input.at}\nProvider ID: ${input.sid}\n\n${input.body}`, category: 'operations', status: 'open', priority: 'normal', owner_name: 'John', related_type: 'subcontractor', related_id: contractor.id, related_label: contractor.company_name, source: 'condition', created_by_name: 'Contractor inbound SMS' }),
+    body: JSON.stringify({ id: `contractor-sms-${input.sid}`, source_key: `contractor-sms:${input.sid}`, title: `Contractor SMS: ${contractor.company_name}`, description: `From: ${input.from}\nTo: ${input.to}\nReceived: ${input.at}\nProvider ID: ${input.sid}\n\n${input.body}`, category: 'operations', status: 'open', priority: 'normal', owner_name: 'John', related_type: null, related_id: contractor.id, related_label: contractor.company_name, source: 'condition', created_by_name: 'Contractor inbound SMS' }),
   })
   if (!response.ok) throw new Error('Could not preserve contractor inbound SMS task')
   if (!(await response.json()).length) return false
