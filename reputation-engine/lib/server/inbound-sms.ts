@@ -1,3 +1,4 @@
+import { findInboundContractor, notifyContractorInbound } from '@/lib/server/contractor-inbound'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { isAutomatedLeasingNotice, needsPartnershipRoutingReview, savePartnershipRoutingReview } from '@/lib/server/partnership-routing-review'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
@@ -136,6 +137,15 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
         return new Response('Unable to resolve message ownership', { status: 503 })
       }
       const salesReply = Boolean(replyLeadId)
+      const contractor = !salesReply && !isAutomatedLeasingNotice(body)
+        ? await findInboundContractor(normalized || from, toField)
+        : null
+      if (contractor) {
+        await writeSmsMessage(normalized || from, toField, messageText, messageSid)
+        await notifyContractorInbound(contractor, { from: normalized || from, to: toField, body: messageText, sid: messageSid, at: receivedAt })
+        return new Response('<Response/>', { headers: { 'Content-Type': 'text/xml' } })
+      }
+
       if (salesReply && !isAutomatedLeasingNotice(body)) await notifyPartnershipCustomerContact({ channel: 'sms', phone: normalized || from, occurredAt: receivedAt, metadata: { to: toField } }).catch(error => console.error('Partner recognition notification failed', error))
       const partnership = !salesReply && !isAutomatedLeasingNotice(body)
         ? await pausePartnershipSequenceForInbound({
