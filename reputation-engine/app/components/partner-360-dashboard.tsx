@@ -1,18 +1,21 @@
 'use client'
 import Link from 'next/link'
+import ContractorMessages from './contractor-messages'
 import { useEffect, useState } from 'react'
 
 export default function Partner360Dashboard({ endpoint, backHref }: { endpoint: string; backHref?: string }) {
   const [data, setData] = useState<any>(null); const [error, setError] = useState(''); const [tab, setTab] = useState('overview')
   async function load() { const response = await fetch(endpoint, { cache: 'no-store' }); const body = await response.json(); if (!response.ok) throw new Error(body.error); setData(body) }
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('tab') === 'messages' && endpoint.startsWith('/api/sales/subcontractors/')) setTab('messages') }, [endpoint])
   useEffect(() => { load().catch(e => setError(e.message)) }, [endpoint])
   async function add(resource: string, input: any) { const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resource, input }) }); const body = await response.json(); if (!response.ok) return setError(body.error); await load() }
   if (error) return <main className="crm-shell"><div className="rounded-xl bg-rose-50 p-4 text-rose-700">{error}</div></main>
   if (!data) return <main className="crm-shell text-sm text-slate-500">Loading Partner 360…</main>
   const p = data.partner; const openClaims = data.claims.filter((x:any) => x.status !== 'closed'); const openActions = data.correctiveActions.filter((x:any) => x.status !== 'resolved')
-  const tabs = ['overview','jobs','team','vehicles','compliance','claims','earnings','performance','audit']
+  const tabs = ['overview', ...(endpoint.startsWith('/api/sales/subcontractors/') ? ['messages'] : []),'jobs','team','vehicles','compliance','claims','earnings','performance','audit']
   return <main className="crm-shell space-y-5"><header className="flex flex-wrap justify-between gap-3"><div>{backHref && <Link href={backHref} className="text-xs font-bold text-slate-500">← Partner network</Link>}<p className="mt-2 text-xs font-bold uppercase tracking-[.18em] text-[var(--app-warm)]">Partner 360</p><h1 className="font-display text-2xl font-bold text-[#071421]">{p.company_name}</h1><p className="text-sm text-slate-500">{p.partner_code || 'Partner ID pending'} · {p.lifecycle_status} · {data.performance.tier}</p></div><div className="rounded-2xl bg-[#071421] px-6 py-4 text-white"><p className="text-xs uppercase opacity-60">Partner score</p><p className="text-3xl font-black">{data.performance.score}<span className="text-base opacity-60">/100</span></p></div></header>
     <nav className="flex gap-2 overflow-x-auto pb-1">{tabs.map(item => <button key={item} onClick={() => setTab(item)} className={`whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold capitalize ${tab === item ? 'bg-[#071421] text-white' : 'border bg-white'}`}>{item}</button>)}</nav>
+    {tab === 'messages' && endpoint.startsWith('/api/sales/subcontractors/') && <ContractorMessages endpoint={endpoint}/>}
     {tab === 'overview' && <div className="grid gap-4 md:grid-cols-4">{[['Upcoming jobs',data.assignments.filter((x:any)=>!['completed','cancelled'].includes(x.status)).length],['Open claims',openClaims.length],['Compliance alerts',data.compliance.filter((x:any)=>x.state!=='compliant').length],['Pending earnings',data.balances ? `$${Number(data.balances.pending).toFixed(2)}` : 'Restricted']].map(([label,value])=><div key={String(label)} className="rounded-2xl border bg-white p-5"><p className="text-xs font-bold uppercase text-slate-500">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></div>)}</div>}
     {tab === 'jobs' && <Table rows={data.assignments} columns={['lead_id','role','status','expected_start','version','acknowledged_version']} empty="No partner assignments yet."/>}
     {tab === 'team' && <><div className="flex flex-wrap gap-2"><QuickAdd label="Add crew member" fields={['name','email','phone','role']} defaults={{role:'mover',status:'active'}} onAdd={input=>add('member',input)}/>{backHref && <QuickAdd label="Provision portal login" fields={['name','email','password','role']} defaults={{role:'partner_admin'}} onAdd={input=>add('portal_user',input)}/>}</div><Table rows={data.members} columns={['name','role','status','phone','approved_for_jobs']}/></>}
