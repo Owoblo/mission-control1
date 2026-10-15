@@ -8,7 +8,7 @@ import {
   getSaturnTrackingSource,
 } from '@/lib/sales-phones'
 import { getSalesSmsReplyLeadId } from '@/lib/server/partnership-message-context'
-import { notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
+import { archiveOwnerIgnoredPartnershipInbound, notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
@@ -129,6 +129,16 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
     }
 
     if (from) {
+      // Explicit owner ignores precede leasing-bot routing and Sales recognition.
+      const ignored = await archiveOwnerIgnoredPartnershipInbound({
+        channel: 'sms', phone: normalized || from, occurredAt: receivedAt,
+        notes: body ? `Inbound SMS: ${messageText}` : messageText,
+        metadata: { from, to: toField, messageSid, numMedia: media.length, media, mediaUrls },
+      })
+      if (ignored) {
+        await writeSmsMessage(normalized || from, toField, messageText, messageSid)
+        return new Response('<Response/>', { headers: { 'Content-Type': 'text/xml' } })
+      }
       let replyLeadId: string | null
       try {
         replyLeadId = await getSalesSmsReplyLeadId(normalized || from, toField)
