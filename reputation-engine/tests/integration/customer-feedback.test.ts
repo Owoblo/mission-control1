@@ -90,7 +90,7 @@ test('queued lost feedback cancels before delivery even when the lead is reopene
 test('weekly report is manager-only, branch-scoped and fails instead of showing incomplete data', async () => {
   let session: any = { role: 'manager', branch: 'london' }
   let fail = false
-  const rows = [{ id: 'london', branch: 'london', name: 'London', feedback: valid() }, { id: 'toronto', branch: 'toronto', name: 'Toronto', feedback: valid() }]
+  const rows = [{ id: 'london', branch: 'london', originCity: 'Kitchener', name: 'London', feedback: valid() }, { id: 'toronto', branch: 'toronto', name: 'Toronto', feedback: valid() }]
   const originalFetch = globalThis.fetch
   globalThis.fetch = async () => fail ? new Response('unavailable', { status: 503 }) : Response.json(rows)
   try {
@@ -101,7 +101,7 @@ test('weekly report is manager-only, branch-scoped and fails instead of showing 
     })
     const request = new Request('https://example.test/api/sales/feedback?start=2026-10-12')
     const result = await (await route.GET(request)).json()
-    assert.equal(result.records.length, 1); assert.equal(result.records[0].id, 'london')
+    assert.equal(result.records.length, 1); assert.equal(result.records[0].id, 'london'); assert.equal(result.records[0].market, 'Kitchener')
     assert.equal((await route.GET(new Request('https://example.test?start=2026-02-30'))).status, 400)
     fail = true; assert.equal((await route.GET(request)).status, 503)
     session = { role: 'sales_rep' }; assert.equal((await route.GET(request)).status, 403)

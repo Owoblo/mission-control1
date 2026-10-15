@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       if (batch.length < 500) break
       if (offset >= 10000) throw new Error('Report is too large to load safely.')
     }
-    const records = rows.map(row => ({ id: row.id, name: row.name, market: row.branch || row.originCity || 'Unknown', source: row.source || 'Unknown', feedback: row.feedback }))
+    const records = rows.map(row => ({ id: row.id, name: row.name, market: row.originCity || row.branch || 'Unknown', source: row.source || 'Unknown', feedback: row.feedback }))
     return NextResponse.json({ start, end, summary: summarizeFeedback(records), records })
   } catch { return NextResponse.json({ error: 'Report could not load completely. Please retry.' }, { status: 503 }) }
 }
