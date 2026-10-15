@@ -73,6 +73,7 @@ export function generateConditionTasks(leads: CRMLead[], quotes: CRMQuote[], now
 
 export function isLeadTaskCurrent(task: CRMTask, lead?: CRMLead) {
   if (task.relatedType !== 'lead' || !lead || !['open', 'in_progress'].includes(task.status)) return true
+  if (task.category === 'customer_feedback') return lead.stage === 'lost' && !['received', 'declined'].includes(lead.customerFeedback?.status || '')
   if (lead.stage === 'lost') return false
   if (task.sourceKey?.startsWith('lead-follow-up:')) return lead.stage !== 'nurture' && task.sourceKey === `lead-follow-up:${lead.id}:${lead.followUpDate}`
   if (task.sourceKey?.startsWith('lead-nurture-check-in:')) return lead.stage === 'nurture' && task.sourceKey === `lead-nurture-check-in:${lead.id}:${lead.followUpDate}`

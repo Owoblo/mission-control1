@@ -2382,8 +2382,7 @@ function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
   if (lead.automationStatus === 'do_not_contact') return 'Lead is marked do-not-contact.'
   // A lost-feedback job can remain queued while a rep reopens the lead to
   // Nurture. Re-check current stage and ownership before delivery.
-  if (job.kind === 'lost_feedback' && lead.stage !== 'lost') return 'Lead was reopened; cancel stale lost feedback.'
-  if (job.kind === 'lost_feedback' && (lead.automationStatus === 'paused' || lead.automationStatus === 'handoff')) return 'Lost feedback is paused for representative follow-up.'
+  if (job.kind === 'lost_feedback') return 'Customer feedback requires representative review; automatic delivery is disabled.'
   const settingsReason = disabledNudgeReason(lead, job.kind)
   if (settingsReason) return settingsReason
   const repWorkflowReason = humanConversationOwnershipReason(lead)
@@ -2393,7 +2392,7 @@ function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
   if (repWorkflowReason && job.kind !== 'lead_response' && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return repWorkflowReason
   if (lead.automationPausedUntil && new Date(lead.automationPausedUntil).getTime() > Date.now() && job.kind !== 'lead_response') return 'Automation is paused by recent human follow-up.'
   if (lead.automationStatus === 'handoff' && job.kind !== 'lead_response' && job.kind !== 'consultation_reminder' && job.kind !== 'move_reminder') return 'Lead is in human handoff mode.'
-  if (lead.stage === 'lost' && job.kind !== 'lead_response' && job.kind !== 'lost_feedback') return 'Lead is already lost.'
+  if (lead.stage === 'lost' && job.kind !== 'lead_response') return 'Lead is already lost.'
   if (job.kind === 'move_reminder' && isMoveDateOver(lead)) return 'Move date has already passed.'
   if (isBookedOrPaidLead(lead) && job.kind !== 'lead_response' && job.kind !== 'move_reminder') return 'Lead is already booked.'
   if (isNudgeJob(job.kind) && job.kind !== 'consultation_reminder' && hasRecentRepTouch(lead)) return 'Rep contacted this lead within the last 2 hours.'
@@ -3282,57 +3281,11 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: body }
   }
 
-  if (job.kind === 'lead_response' && lead.stage === 'lost' && inboundMessage && detectLostFeedbackDetail(inboundMessage)) {
-    const nowIso = new Date().toISOString()
-    const feedbackLead = await saveSalesLead({
-      ...lead,
-      qualificationState: buildQualificationState(lead, {
-        ...withoutMissingFields(lead.qualificationState),
-        capturedSummary: `Lost-lead feedback received: ${inboundMessage}`,
-        lastIntent: 'lost_feedback_received',
-        nextBestAction: 'review_lost_reason',
-        missingFields: [],
-      }),
-      notes: [
-        lead.notes,
-        `Lost feedback received ${nowIso}: ${inboundMessage}`,
-      ].filter(Boolean).join('\n\n'),
-    }).catch(() => lead)
-
-    await saveFollowUpLog({
-      id: uid('fu'),
-      leadId: feedbackLead.id,
-      type: 'note',
-      date: nowIso,
-      createdAt: nowIso,
-      notes: `Lost-lead feedback received: ${inboundMessage}`,
-    }).catch(() => {})
-
-    const copy = fallbackCopy(job.kind, feedbackLead, contact.channel, inboundMessage)
-    const sendResult = await sendSalesMessage({
-      actor: 'automation',
-      channel: contact.channel,
-      to: contact.to,
-      subject: contact.channel === 'email' ? copy.subject || inboundSubject || 'Thank You for the Feedback' : undefined,
-      body: copy.reply || '',
-      leadId: feedbackLead.id,
-      notes: `Automation thanked lost lead for feedback at ${contact.to}`,
-    })
-
-    const updatedLead = await updateLeadAfterAutomation(sendResult.lead || feedbackLead, copy)
-    const thread = await saveAutomationThreadAfterOutbound({
-      lead: updatedLead,
-      existingThread,
-      channel: contact.channel,
-      contactValue: contact.to,
-      preview: copy.reply || '',
-      jobKind: job.kind,
-      intent: copy.intent,
-      inboundMessage,
-    })
-
-    return { status: 'completed' as const, sent: true, lead: updatedLead, thread, message: copy.reply }
+  if (job.kind === 'lead_response' && lead.stage === 'lost') {
+    await scheduleLostFeedback(lead.id)
+    return { status: 'completed' as const, sent: false, lead, message: 'Customer feedback is available for representative review; no automatic response sent.' }
   }
+
 
   if (job.kind === 'lead_response' && inboundMessage && detectMovedOnIntent(inboundMessage) && !isBookedOrPaidLead(lead)) {
     const nowIso = new Date().toISOString()
@@ -4001,6 +3954,7 @@ export async function processAutomationJob(job: CRMAutomationJob) {
 
     const skipReason = shouldSkipAutomation(lead, activeJob)
     if (skipReason) {
+      if (activeJob.kind === 'lost_feedback') await scheduleLostFeedback(lead.id)
       const cancelled = await patchAutomationJob(activeJob.id, {
         status: 'cancelled',
         result: { reason: skipReason },
@@ -4210,20 +4164,16 @@ export async function scheduleLostFeedback(leadId: string) {
   if (isBookedOrPaidLead(lead)) return null
   if (lead.automationStatus === 'do_not_contact') return null
 
-  const channel = lead.phone ? 'sms' : lead.email ? 'email' : null
-  if (!channel) return null
-
-  return queueAutomationJob({
-    leadId: lead.id,
-    kind: 'lost_feedback',
-    channel,
-    dueAt: new Date().toISOString(),
-    dedupeKey: `lost_feedback:${lead.id}`,
-    payload: {
-      lostAt: lead.lostAt || new Date().toISOString(),
-      lostReason: lead.lostReason || null,
-    },
-  })
+  const now = new Date().toISOString()
+  await saveGeneratedTasks([{
+    id: `task_${crypto.randomUUID()}`, title: 'Review customer feedback',
+    description: 'Open Customer feedback & service context on this lead. Review existing customer words before deciding whether to ask one neutral question. Do not chase unanswered requests.',
+    status: 'open', priority: 'normal', category: 'customer_feedback', dueAt: now,
+    ownerUserId: lead.assignedRepUserId, ownerName: lead.assignedRepName || lead.assignedRep,
+    branch: lead.branch, relatedType: 'lead', relatedId: lead.id, relatedLabel: lead.name,
+    source: 'stage', sourceKey: `customer-feedback:${lead.id}`, createdAt: now, updatedAt: now,
+  }])
+  return null
 }
 
 export async function scheduleQuoteViewedFollowup(leadId: string, quoteId?: string) {
