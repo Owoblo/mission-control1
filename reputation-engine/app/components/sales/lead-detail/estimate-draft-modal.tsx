@@ -1,5 +1,7 @@
 'use client'
 
+type QuickItemDimensions = { cubicFeet?: number; weightLbs?: number; notes?: string; confidence?: string; source?: string }
+
 import { bundledPriceItems } from '@/lib/quote-bundled-price'
 import Link from 'next/link'
 import { type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from 'react'
@@ -1204,8 +1206,19 @@ export function EstimateDraftModal({
   const [quickWeightLbs, setQuickWeightLbs] = useState('')
   const [quickLookupLoading, setQuickLookupLoading] = useState(false)
   const quickAddInFlight = useRef(false)
+  const quickLookupVersion = useRef(0)
+  const quickLookupRequest = useRef<{ name: string; controller: AbortController; promise: Promise<QuickItemDimensions | undefined> } | null>(null)
   const [quickLookupNote, setQuickLookupNote] = useState<string | null>(null)
   const [quickLookupError, setQuickLookupError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!open) { cancelQuickLookup(); return }
+    if (!quickItem.trim() || quickCuFt) return
+    const timer = window.setTimeout(() => { void lookupItemDimensions(quickItem) }, 500)
+    return () => window.clearTimeout(timer)
+    // Manual volume edits cancel pending work; do not replace a supplied value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickItem, quickCuFt, open])
+  useEffect(() => () => { quickLookupVersion.current++; quickLookupRequest.current?.controller.abort() }, [])
   // Paste-list import
   const [inventoryTab, setInventoryTab] = useState<'quick' | 'paste'>('quick')
   const [pasteText, setPasteText] = useState('')
@@ -2031,39 +2044,65 @@ export function EstimateDraftModal({
     setInventoryTab('quick')
   }
 
-  async function lookupItemDimensions(name: string) {
-    if (!name.trim() || quickCuFt) return
+  function cancelQuickLookup() {
+    quickLookupVersion.current++
+    quickLookupRequest.current?.controller.abort()
+    quickLookupRequest.current = null
+    setQuickLookupLoading(false)
+  }
+
+  async function lookupItemDimensions(name: string): Promise<QuickItemDimensions | undefined> {
+    const itemName = name.trim()
+    if (!itemName || quickCuFt) return
+    const pending = quickLookupRequest.current
+    if (pending?.name === itemName) return pending.promise
+    const version = quickLookupVersion.current
+    const controller = new AbortController()
     setQuickLookupLoading(true)
     setQuickLookupNote(null)
     setQuickLookupError(null)
-    try {
-      const res = await fetch(`/api/sales/items/lookup?item=${encodeURIComponent(name.trim())}`, { credentials: 'include' })
-      if (!res.ok) {
-        setQuickLookupError(res.status === 401 ? 'Your session expired. Refresh the CRM and try again.' : 'No size estimate found — enter cu ft manually.')
-        return
+    const promise = (async () => {
+      try {
+        const res = await fetch(`/api/sales/items/lookup?item=${encodeURIComponent(itemName)}`, { credentials: 'include', signal: controller.signal })
+        if (version !== quickLookupVersion.current) return
+        if (!res.ok) {
+          setQuickLookupError(res.status === 401 ? 'Your session expired. Refresh the CRM and try again.' : 'No size estimate found — enter cu ft manually.')
+          return
+        }
+        const data = await res.json() as QuickItemDimensions
+        if (version !== quickLookupVersion.current) return
+        if (Number.isFinite(Number(data.cubicFeet)) && Number(data.cubicFeet) > 0) {
+          setQuickCuFt(String(data.cubicFeet))
+          if (Number(data.weightLbs) > 0) setQuickWeightLbs(String(data.weightLbs))
+          const src = data.source === 'preset' ? 'preset' : `AI · ${data.confidence || 'medium'} confidence`
+          setQuickLookupNote(`${data.cubicFeet} cu ft each${data.weightLbs ? ` · ${data.weightLbs} lbs` : ''} (${src})${data.notes ? ` — ${data.notes}` : ''}`)
+          return data
+        }
+        setQuickLookupError('No size estimate found — enter cu ft manually.')
+      } catch {
+        if (version === quickLookupVersion.current && !controller.signal.aborted) setQuickLookupError('Size lookup is unavailable — enter cu ft manually.')
+      } finally {
+        if (version === quickLookupVersion.current) {
+          quickLookupRequest.current = null
+          setQuickLookupLoading(false)
+        }
       }
-      const data = await res.json() as { cubicFeet?: number; weightLbs?: number; notes?: string; confidence?: string; source?: string }
-      if (Number.isFinite(data.cubicFeet) && Number(data.cubicFeet) > 0 && !quickCuFt) {
-        setQuickCuFt(String(data.cubicFeet))
-        if (data.weightLbs) setQuickWeightLbs(String(data.weightLbs))
-        const src = data.source === 'preset' ? 'preset' : `AI · ${data.confidence || 'medium'} confidence`
-        setQuickLookupNote(`${data.cubicFeet} cu ft · ${data.weightLbs ? `${data.weightLbs} lbs` : ''} (${src})${data.notes ? ` — ${data.notes}` : ''}`)
-        return data
-      }
-      setQuickLookupError('No size estimate found — enter cu ft manually.')
-    } catch { setQuickLookupError('Size lookup is unavailable — enter cu ft manually.') }
-    finally { setQuickLookupLoading(false) }
+    })()
+    quickLookupRequest.current = { name: itemName, controller, promise }
+    return promise
   }
 
   async function addQuickItem() {
     if (!quickItem.trim() || quickAddInFlight.current) return
     quickAddInFlight.current = true
+    const version = quickLookupVersion.current
     try {
       // Use the response directly: state setters do not update this async closure.
       const dimensions = !quickCuFt ? await lookupItemDimensions(quickItem) : undefined
-      if (!quickCuFt && !dimensions) return
+      if (version !== quickLookupVersion.current || (!quickCuFt && !dimensions)) return
       const qty = Math.max(1, Number(quickQty) || 1)
       const cf = Number(quickCuFt) || Number(dimensions?.cubicFeet) || 0
+      if (!Number.isFinite(cf) || cf <= 0) { setQuickLookupError('Enter cubic feet greater than zero.'); return }
       const weightLbs = Number(quickWeightLbs) || Number(dimensions?.weightLbs) || Math.round(cf * 4)
       onAddInventoryItems([{
         id: `manual-${Date.now()}`,
@@ -2075,6 +2114,7 @@ export function EstimateDraftModal({
         weightLbs,
         included: true,
       }])
+      cancelQuickLookup()
       setQuickItem('')
       setQuickQty('1')
       setQuickCuFt('')
@@ -4940,8 +4980,9 @@ export function EstimateDraftModal({
                         </div>
                         <div className="grid grid-cols-[1fr_80px_auto] gap-2">
                           <input
+                            aria-label="Quick Add item name"
                             value={quickItem}
-                            onChange={e => { setQuickItem(e.target.value); setQuickLookupNote(null) }}
+                            onChange={e => { cancelQuickLookup(); setQuickItem(e.target.value); setQuickCuFt(''); setQuickWeightLbs(''); setQuickLookupNote(null); setQuickLookupError(null) }}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addQuickItem() } }}
                             className="crm-input py-1 text-xs"
                             placeholder="Item name (e.g. Pet Étagère)"
@@ -4949,8 +4990,10 @@ export function EstimateDraftModal({
                           <input
                             type="number"
                             min={0}
+                            aria-label="Cubic feet per item"
+                            step="any"
                             value={quickCuFt}
-                            onChange={e => setQuickCuFt(e.target.value)}
+                            onChange={e => { cancelQuickLookup(); setQuickCuFt(e.target.value); setQuickWeightLbs(''); setQuickLookupNote(null); setQuickLookupError(null) }}
                             className="crm-input py-1 text-right text-xs"
                             placeholder={quickLookupLoading ? '…' : 'cu ft'}
                           />
@@ -4960,7 +5003,7 @@ export function EstimateDraftModal({
                             disabled={!quickItem.trim() || quickLookupLoading}
                             className="crm-button-dark text-xs px-3 disabled:opacity-40"
                           >
-                            Add
+                            {quickLookupLoading ? 'Looking up…' : 'Add'}
                           </button>
                         </div>
                         {quickLookupNote ? (
@@ -4968,7 +5011,7 @@ export function EstimateDraftModal({
                         ) : quickLookupError ? (
                           <p className="text-[11px] text-amber-700">{quickLookupError}</p>
                         ) : (
-                          <p className="text-[11px] text-[var(--app-muted)]">{quickLookupLoading ? '🔍 Looking up dimensions…' : 'Type any item — AI will estimate cu ft if not in our library.'}</p>
+                          <p className="text-[11px] text-[var(--app-muted)]">{quickLookupLoading ? '🔍 Looking up dimensions…' : 'Cubic feet per item. Type an item to look up its size, or enter cu ft manually.'}</p>
                         )}
                       </div>
                     </div>
