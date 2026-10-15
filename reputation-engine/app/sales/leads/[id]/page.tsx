@@ -1,5 +1,6 @@
 'use client'
 
+import { CustomerFeedbackPanel } from '@/app/components/sales/customer-feedback-panel'
 import { PartnerHandoffPanel } from '@/app/components/sales/partner-handoff-panel'
 import { resolveQuoteDraftPricing } from '@/lib/quote-draft-pricing'
 import { rebaseQuoteDraftUpdate } from '@/lib/quote-draft-revision'
@@ -4417,6 +4418,7 @@ export default function SalesLeadDetailPage() {
         </div>
 
         {lead.partnerReferralContactId && <PartnerHandoffPanel leadId={lead.id} />}
+        {canEditCurrentLead && <CustomerFeedbackPanel key={lead.id} leadId={lead.id} onDraft={text => { setComposerChannel(lead.phone ? 'sms' : 'email'); setComposerSubject('Your feedback'); setComposerBody(text); setComposerOpen(true) }} />}
 
         {/* Pre-visit brief — shows when consultation is booked */}
         {lead.consultationPreVisitBrief && lead.stage === 'estimate_scheduled' && (

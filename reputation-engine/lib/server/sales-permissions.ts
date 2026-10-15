@@ -53,7 +53,7 @@ export function isLeadOwnedBySession(lead: CRMLead, session: SessionPayload | nu
   if (!session?.userId && !session?.name) return false
   const ownerKey = getLeadAssignedRepKey(lead)
   if (!ownerKey) return false
-  return ownerKey === session.userId || ownerKey === session.name || getLeadAssignedRepName(lead) === session.name
+  return Boolean((session.userId && ownerKey === session.userId) || (session.name && (ownerKey === session.name || getLeadAssignedRepName(lead) === session.name)))
 }
 
 export function canEditLead(session: SessionPayload | null | undefined, lead: CRMLead) {

@@ -1115,6 +1115,7 @@ export interface RealtorResearch {
 }
 
 export interface CRMLead {
+  customerFeedback?: import("./customer-feedback").CustomerFeedback
   linkedPlanReview?: import('./linked-move-plan').LinkedPlanReview
   linkedPlanReviewHistory?: import('./linked-move-plan').LinkedPlanReview[]
   parentLeadId?: string

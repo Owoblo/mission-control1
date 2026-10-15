@@ -64,6 +64,7 @@ const BASE_NAV = [
   { environment: 'Live', href: '/sales/operations/sms', label: 'Ops SMS', match: (p: string) => p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Care', href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
+  { environment: 'Management', href: '/sales/feedback', label: 'Customer Feedback', match: (p: string) => p.startsWith('/sales/feedback'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/analytics', label: 'Analytics', match: (p: string) => p.startsWith('/sales/analytics'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/economic-truth', label: 'Economic review', match: (p: string) => p.startsWith('/sales/economic-truth'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/reps', label: 'Reps', match: (p: string) => p.startsWith('/sales/reps'), roles: ['owner', 'manager'] },
