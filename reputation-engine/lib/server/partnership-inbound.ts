@@ -1,3 +1,4 @@
+import { ignoresPartnershipInbound, archiveIgnoredPartnershipInbound } from './ignored-partnership-inbound'
 import { queueHandoffInbound } from './partner-sales-handoff'
 import { persistPartnershipInboundPause } from '@/lib/server/partnership-inbound-pause'
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
@@ -37,6 +38,7 @@ interface MarketContactMatch {
   affiliate_partner_id?: string | null
   tracking_code?: string | null
   notes?: string | null
+  tags?: string[] | null
 }
 
 function normalizeEmail(value?: string | null) {
@@ -54,7 +56,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
   if (normalizedEmail) {
     const emailRes = await fetch(
-      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code,notes&order=created_at.desc&limit=20`,
+      `${url}/rest/v1/market_contacts?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code,notes,tags&order=created_at.desc&limit=20`,
       { headers, cache: 'no-store' }
     )
     if (emailRes.ok) {
@@ -73,7 +75,7 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
       const matches: MarketContactMatch[] = []
       for (let offset = 0; ; offset += 200) {
         const response = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code,notes&order=id.asc&limit=200&offset=${offset}`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code,notes,tags&order=id.asc&limit=200&offset=${offset}`,
           { headers, cache: 'no-store' }
         )
         if (!response.ok) return null
@@ -199,11 +201,22 @@ function classifyInboundWorkflow(
   }
 }
 
+export async function archiveOwnerIgnoredPartnershipInbound(input: PausePartnershipSequenceInput) {
+  const contact = await findPartnershipContactMatch(input)
+  if (!contact || !ignoresPartnershipInbound(contact)) return false
+  await archiveIgnoredPartnershipInbound({ ...requireSupabaseEnv(), contactId: contact.id, channel: input.channel, occurredAt: input.occurredAt || new Date().toISOString(), notes: input.notes, metadata: input.metadata })
+  return true
+}
+
 export async function pausePartnershipSequenceForInbound(input: PausePartnershipSequenceInput) {
   const contact = await findPartnershipContactMatch(input)
   if (!contact) return { matched: false as const }
 
   const occurredAt = input.occurredAt || new Date().toISOString()
+  if (ignoresPartnershipInbound(contact)) {
+    await archiveIgnoredPartnershipInbound({ ...requireSupabaseEnv(), contactId: contact.id, channel: input.channel, occurredAt, notes: input.notes, metadata: input.metadata })
+    return { matched: true as const, contactId: contact.id, contactName: contact.name, ignoredAutomatedSender: true as const }
+  }
   await persistPartnershipInboundPause({ ...requireSupabaseEnv(), contactId: contact.id, channel: input.channel })
   try {
   const { url, headers } = requireSupabaseEnv()
