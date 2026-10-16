@@ -1,3 +1,5 @@
+import gtaCities from './data/gta-service-cities.json'
+
 const CANADIAN_CONTEXT_RE =
   /\b(?:canada|ontario|quebec|québec|british columbia|alberta|manitoba|saskatchewan|nova scotia|new brunswick|newfoundland(?: and labrador)?|prince edward island|yukon|northwest territories|nunavut|on|qc|bc|ab|mb|sk|ns|nb|nl|pe|yt|nt|nu)\b/i
 
@@ -31,7 +33,7 @@ export function qualifyMoveAddress(address?: string, city?: string) {
 
   const combined = parts.filter(Boolean).join(', ')
   if (!inferAddressCountryContext(combined)) {
-    if (!cityText || ESTABLISHED_ONTARIO_MARKET_RE.test(cityText)) parts.push('Ontario')
+    if (!cityText || ESTABLISHED_ONTARIO_MARKET_RE.test(cityText) || gtaCities.some(city => city.toLowerCase() === cityText.toLowerCase()) || /^(gta|greater toronto area)$/i.test(cityText)) parts.push('Ontario')
     parts.push('Canada')
   }
   return parts.filter(Boolean).join(', ')

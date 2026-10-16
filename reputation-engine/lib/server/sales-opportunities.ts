@@ -1,13 +1,12 @@
 import { createHash } from 'node:crypto'
-import { dateStamp, detectSalesBranchFromLocation, isLocationWithinBranchServiceArea, normalizeLead } from '@/lib/sales'
+import { dateStamp, detectSalesBranchFromOrigin, detectSalesBranchFromLocation, isLocationWithinBranchServiceArea, normalizeLead } from '@/lib/sales'
 import { hasListingStreet, listingAddressKey, decideListingMatch } from '@/lib/listing-match'
 import type { CRMLead } from '@/lib/types'
 import { getSalesLeadForUpdate, getListingInventoryScan, resolveListingsByAddress, listSalesOpportunityLeadsBySourceLeadId } from './sales-repository'
 import { destinationDb } from './destination-db'
 
 export function applyDetectedBranch(lead: CRMLead) {
-  return normalizeLead({ ...lead, branch: lead.branch || detectSalesBranchFromLocation(lead.originCity, lead.originAddress)
-    || detectSalesBranchFromLocation(lead.destCity, lead.destAddress) })
+  return normalizeLead({ ...lead, branch: lead.branch || detectSalesBranchFromOrigin(lead.originCity, lead.originAddress) })
 }
 
 /** Discovery is persisted atomically with its source link and research job. Never sends. */
