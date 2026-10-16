@@ -63,6 +63,16 @@ export async function getSalesSmsReplyLeadId(phone: string, businessPhone: strin
   const response = await fetch(`${url}/rest/v1/sms_messages?${query}`, { headers, cache: 'no-store' })
   if (!response.ok) throw new Error('Unable to resolve SMS reply context')
   const rows = await response.json() as Message[]
+  // A manually sent Sales follow-up may lack lead_id. On a dedicated Sales
+  // line, retain the last explicitly linked conversation for this exact pair.
+  // Do not reach back across a newer partnership message on shared lines.
+  if (rows.length && !rows[0].lead_id && ['google_online_search', 'direct_mail'].includes(getSaturnTrackingSource(business) || '')) {
+    query.set('lead_id', 'not.is.null')
+    const linkedResponse = await fetch(`${url}/rest/v1/sms_messages?${query}`, { headers, cache: 'no-store' })
+    if (!linkedResponse.ok) throw new Error('Unable to resolve SMS reply context')
+    const linked = await linkedResponse.json() as Message[]
+    return (await excludePartnershipMessages(linked))[0]?.lead_id || null
+  }
   if (!rows[0]?.lead_id) return null
   return (await excludePartnershipMessages(rows)).length === 1 ? rows[0].lead_id : null
 }
