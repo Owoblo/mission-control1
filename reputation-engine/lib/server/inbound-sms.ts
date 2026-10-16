@@ -1,3 +1,4 @@
+import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { findInboundContractor, notifyContractorInbound } from '@/lib/server/contractor-inbound'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { isAutomatedLeasingNotice, needsPartnershipRoutingReview, savePartnershipRoutingReview } from '@/lib/server/partnership-routing-review'
@@ -127,6 +128,8 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
       await writeSmsMessage(normalized || from || '+15550001111', toField, messageText, messageSid || `HC_SMS_${Date.now()}`)
       return Response.json({ ok: true, healthCheck: true, twilioSid: messageSid || null })
     }
+
+    if (findBlockedCaller(await getDialerSettings(), normalized || from)) return new Response('<Response></Response>', { headers: { 'Content-Type': 'text/xml' } })
 
     if (from) {
       // Explicit owner ignores precede leasing-bot routing and Sales recognition.

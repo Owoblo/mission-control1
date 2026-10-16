@@ -1115,6 +1115,8 @@ export interface RealtorResearch {
 }
 
 export interface CRMLead {
+  commercialDisposition?: import('./interaction-classification').InteractionDisposition
+  commercialClassificationId?: number
   customerFeedback?: import("./customer-feedback").CustomerFeedback
   linkedPlanReview?: import('./linked-move-plan').LinkedPlanReview
   linkedPlanReviewHistory?: import('./linked-move-plan').LinkedPlanReview[]

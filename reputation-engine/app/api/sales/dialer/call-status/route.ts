@@ -1,3 +1,4 @@
+import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { isSmsProviderReceipt } from '@/lib/telephony-providers'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     const form = carrierVoiceForm(rawBody)
     const callStatus = (form.get('CallStatus') as string || '').toLowerCase()
     const from = (form.get('From') as string || '').trim()
+    if (findBlockedCaller(await getDialerSettings(), from)) return new Response(null, { status: 204 })
     const callDuration = Number(form.get('CallDuration') || 0)
     const branchNumber = pickSaturnBranchPhoneNumber(
       searchParams.get('branchNumber'),

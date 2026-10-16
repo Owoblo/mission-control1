@@ -7,6 +7,7 @@ import {
   SALES_READ_FIRST_NON_NEGOTIABLES,
   SALES_READ_FIRST_PROMISES,
   SALES_READ_FIRST_SERVICE_STANDARD,
+  SALES_READ_FIRST_RESPONSE_STANDARD,
 } from '@/lib/sales-read-first'
 
 export default function SalesReadFirstPage() {
@@ -46,6 +47,13 @@ export default function SalesReadFirstPage() {
             <div className="mt-3 text-sm leading-6 text-[var(--app-ink)]">{card.body}</div>
           </div>
         ))}
+      </section>
+
+      <section className="crm-panel p-5">
+        <h2 className="text-lg font-semibold">{SALES_READ_FIRST_RESPONSE_STANDARD.title}</h2>
+        <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-6">
+          {SALES_READ_FIRST_RESPONSE_STANDARD.items.map(item => <li key={item}>{item}</li>)}
+        </ol>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr,0.9fr]">

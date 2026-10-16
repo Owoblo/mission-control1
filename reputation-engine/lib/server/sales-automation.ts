@@ -1,4 +1,5 @@
 import { inventoryMeasurementIssues, buildCustomerInventoryList, planCustomerInventoryReply } from '@/lib/customer-inventory-review'
+import { salesAutomationExclusion } from '../sales-work-queue'
 import { salesEmailConfigured } from '@/lib/server/email-provider'
 import { generateConditionTasks } from './task-generation'
 import { saveGeneratedTasks } from './task-repository'
@@ -2378,6 +2379,8 @@ async function resolveCanonicalLeadForAutomationJob(job: CRMAutomationJob, lead:
 }
 
 function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
+  const queueExclusion = salesAutomationExclusion(lead)
+  if (queueExclusion) return queueExclusion
   if (lead.stage === 'nurture' && job.kind !== 'lead_response') return 'Nurture check-ins are handled by the assigned representative.'
   if (lead.automationStatus === 'do_not_contact') return 'Lead is marked do-not-contact.'
   // A lost-feedback job can remain queued while a rep reopens the lead to

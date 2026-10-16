@@ -1,3 +1,4 @@
+import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
     await captureTwilioInteraction(rawBody, 'twilio_missed_call', 'call')
     const formData = carrierVoiceForm(rawBody)
     const from    = (formData.get('From') as string | null)?.trim() || ''
+    if (findBlockedCaller(await getDialerSettings(), from)) return xmlResponse('<Response></Response>')
     const to      = (formData.get('To') as string | null)?.trim() || ''
     const callSid = (formData.get('CallSid') as string | null)?.trim() || ''
     const dialCallStatus   = (formData.get('DialCallStatus') as string | null)?.trim() || ''
