@@ -9,7 +9,7 @@ import {
   getSaturnTrackingSource,
 } from '@/lib/sales-phones'
 import { getSalesSmsReplyLeadId } from '@/lib/server/partnership-message-context'
-import { archiveOwnerIgnoredPartnershipInbound, notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
+import { archiveOwnerIgnoredPartnershipInbound, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { appendSmsToInboundLead, getInboundLeadByPhone, saveInboundLead } from '@/lib/server/sales-repository'
 import { getAppBaseUrl, getWorkerSharedSecret, readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
@@ -159,8 +159,8 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
         return new Response('<Response/>', { headers: { 'Content-Type': 'text/xml' } })
       }
 
-      if (salesReply && !isAutomatedLeasingNotice(body)) await notifyPartnershipCustomerContact({ channel: 'sms', phone: normalized || from, occurredAt: receivedAt, metadata: { to: toField } }).catch(error => console.error('Partner recognition notification failed', error))
-      const partnership = !salesReply && !isAutomatedLeasingNotice(body)
+      const salesLine = ['google_online_search', 'direct_mail'].includes(getSaturnTrackingSource(toField) || '')
+      const partnership = !salesLine && !salesReply && !isAutomatedLeasingNotice(body)
         ? await pausePartnershipSequenceForInbound({
             channel: 'sms',
             phone: normalized || from,
@@ -237,7 +237,7 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
           raw: { messageSid, from, to: toField, body, numMedia: media.length, media },
         }).catch(() => null)
 
-        const resolvedLeadId = automation?.lead?.id || replyLeadId || undefined
+        const resolvedLeadId = replyLeadId || automation?.lead?.id || undefined
         if (resolvedLeadId && media.length > 0 && automation?.lead) {
           void persistInboundMmsToLead({
             lead: automation.lead,
@@ -248,7 +248,7 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
         await writeSmsMessage(normalized || from, toField, messageText, messageSid, resolvedLeadId)
         if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
         await sendRepAlertEmail(
-          `New SMS from ${from}`,
+          `Sales inbound SMS — ${automation?.lead?.name || from}`,
           smsNotificationEmail(from, messageText, resolvedLeadId)
         )
       }
