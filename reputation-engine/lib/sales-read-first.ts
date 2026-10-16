@@ -15,7 +15,7 @@ export const SALES_READ_FIRST_HIGHLIGHTS: ReadFirstCard[] = [
   },
   {
     title: 'We sell with calm authority',
-    body: 'Saturn Star reps do not mumble, chase, or argue. We lead the conversation, listen properly, explain clearly, and make the next step feel natural.',
+    body: 'Saturn Star reps follow up consistently, listen properly and explain clearly. We lead the conversation and agree on the next step without arguing or ignoring the customer’s timing.',
   },
   {
     title: 'We protect operations',
@@ -27,7 +27,7 @@ export const SALES_READ_FIRST_IDENTITY: ReadFirstSection[] = [
   {
     title: 'What Saturn Star is',
     items: [
-      'A residential moving company built around clear process, strong communication, and smooth execution.',
+      'A residential and commercial moving company built around clear process, strong communication, and smooth execution.',
       'A service brand that uses technology to quote faster, confirm details better, and reduce customer stress.',
       'A team that aims to make customers feel taken care of, not rushed through a transaction.',
     ],
@@ -37,7 +37,7 @@ export const SALES_READ_FIRST_IDENTITY: ReadFirstSection[] = [
     items: [
       'We are not a pressure-heavy call center that talks over people.',
       'We are not a company that guesses on scope, hides policies, or sells jobs ops cannot support.',
-      'We are not a commercial catch-all. We stay disciplined about what fits the residential lane and what needs review.',
+      'Confirm scope and operating capability for commercial, specialty and cross-border jobs; involve the manager when review is needed.',
     ],
   },
 ]
@@ -77,6 +77,22 @@ export const SALES_READ_FIRST_SERVICE_STANDARD: ReadFirstSection = {
     'The estimate feels informed and defensible, not random.',
     'The customer understands the next step and why it matters.',
     'The handoff into operations stays clean because sales captured the right details.',
+  ],
+}
+
+export const SALES_READ_FIRST_RESPONSE_STANDARD: ReadFirstSection = {
+  title: 'Response, follow-up and shift handoff',
+  items: [
+    'Every genuine opportunity needs one responsible owner, a specific next action and a deadline. A stage change or automated text does not complete a callback.',
+    'During covered hours, aim to personally respond or return a missed customer call within 5 minutes. Ask the backup for help at 5 minutes; escalate to John at 10 minutes without action. These are operating expectations; verify actual alert coverage rather than assuming an automatic escalation exists.',
+    'At 4:45 p.m., hand over unanswered enquiries, promised callbacks, urgent moves and quotes due. John or the scheduled backup must accept responsibility by 5 p.m. Never promise an immediate callback from a rep who has finished their shift.',
+    'For an unreached enquiry: initial call and useful SMS, a later same-day attempt, then days 1, 3 and 7 when appropriate. Read the conversation before every attempt; customer timing and contact preferences override the default cadence.',
+    'After a quote, confirm receipt, resolve questions and agree a decision checkpoint. Do not let a quote sit silently for weeks. Missing photos are a reason to offer phone or virtual inventory help.',
+    'Log the actual outcome and next action within 10 minutes of a conversation. If the customer says next Wednesday, schedule next Wednesday. If the stored move date has passed, check the outcome before asking for a deposit.',
+    'Keep vendors, contractors, service issues and unrelated callers out of the customer conversion funnel. Unknown names and phone-only enquiries still need review; they are not automatically junk.',
+    'Track human response time, promises kept and completed follow-ups—not message volume. Review every missed promise and use the customer context when coaching.',
+    'For a genuine lost opportunity, capture the customer’s stated reason and supporting message/call. If the underlying reason is missing, request feedback once when contact is welcome. Log asked, answered, declined or no response. Do not repeatedly ask someone who already explained their decision.',
+    'Scam calls and unwanted vendor pitches are not lost customers. After verifying the actual external caller number, block it and remove the CRM record from active Sales. Keep the block entry and audit history; never block a business line because an old transcript was attached to the wrong record.',
   ],
 }
 

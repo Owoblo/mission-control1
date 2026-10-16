@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
+import { getSaturnBranchLabel } from '@/lib/sales-phones'
 import {
   getDialerSettings,
   normalizeBlockedCallerPhone,
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   const body = await request.json() as { phone?: string; tag?: string; displayName?: string; note?: string }
   const phone = normalizeBlockedCallerPhone(body.phone)
   if (!phone) return NextResponse.json({ error: 'Enter a valid phone number.' }, { status: 400 })
+  if (getSaturnBranchLabel(phone)) return NextResponse.json({ error: 'A company phone number cannot be added to the caller block list.' }, { status: 400 })
 
   const settings = await getDialerSettings()
   const existing = (settings.blockedCallers || []).filter(entry => normalizeBlockedCallerPhone(entry.phone) !== phone)

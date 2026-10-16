@@ -1,3 +1,4 @@
+import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { assertDestinationRealtorSend } from './destination-realtor-send-guard'
 import { normalizeAutomatedCustomerText } from '@/lib/customer-message-style'
 import { sendSalesEmail } from '@/lib/server/email-provider'
@@ -245,7 +246,10 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     const rawTo = normalizePhone(input.to) || input.to
 
     // ── Safety guard: block shortcodes, OTP numbers, non-NANP automation ──
-    const blockCheck = shouldBlockSmsTo(rawTo, actor)
+    const savedBlock = findBlockedCaller(await getDialerSettings(), rawTo)
+    const blockCheck = savedBlock
+      ? { blocked: true, reason: 'Recipient is on the persistent blocked-callers list.' }
+      : shouldBlockSmsTo(rawTo, actor)
     if (blockCheck.blocked) {
       const blockLog: FollowUpLog = {
         id: uid('fu'),

@@ -7,6 +7,7 @@ import {
   isClosedLeadStage,
 } from './sales'
 import type { CRMLead, CRMQuote, FollowUpLog, LeadPersonaBadge } from './types'
+import { salesAutomationExclusion, torontoDate } from './sales-work-queue'
 
 export type LeadHeatLabel = 'Hot' | 'Warm' | 'Cold' | 'Dormant' | 'At Risk'
 export type LeadHeatTone = 'hot' | 'warm' | 'cold' | 'dormant' | 'risk'
@@ -27,6 +28,8 @@ export type LeadQueueCategory =
   | 'finalize_flexible_date'
   | 'finalize_destination'
   | 'dormant'
+  | 'outcome_review'
+  | 'non_sales_review'
 
 export type LeadCtaKey =
   | 'call_now'
@@ -510,6 +513,19 @@ export function getLeadHeatSummary(lead: CRMLead, quote: CRMQuote | null, follow
 }
 
 export function getLeadActionSummary(lead: CRMLead, quote: CRMQuote | null, followUps: FollowUpLog[] = []): LeadActionSummary {
+  const excluded = salesAutomationExclusion(lead)
+  if (excluded) return {
+    category: 'non_sales_review', priority: 0, reason: excluded,
+    nextAction: 'Review the recorded context and responsible owner; do not send a sales chase.',
+    primaryCta: { key: 'open_lead', label: 'Review Context' }, secondaryCtas: [], supportingSignals: [],
+  }
+  // A past move date is an unresolved outcome, not a slot to sell today.
+  if (lead.moveDate && /^\d{4}-\d{2}-\d{2}$/.test(lead.moveDate) && lead.moveDate < torontoDate() && !isBookedLikeStage(lead.stage) && !isClosedLeadStage(lead.stage)) return {
+    category: 'outcome_review', priority: 94, reason: 'Stored move date has passed; verify the outcome',
+    nextAction: 'Read the latest conversation, confirm whether the move happened or changed, and record the actual outcome.',
+    dueAt: lead.moveDate, primaryCta: { key: 'open_lead', label: 'Check Outcome' },
+    secondaryCtas: [], supportingSignals: [`Stored move date ${formatDate(lead.moveDate)}`],
+  }
   const context = buildSignalContext(lead, quote, followUps)
   const candidates: LeadActionSummary[] = []
 
@@ -581,7 +597,7 @@ export function getLeadActionSummary(lead: CRMLead, quote: CRMQuote | null, foll
     })
   }
 
-  if (context.moveHoursUntil !== null && context.moveHoursUntil <= 72 && !context.hasDeposit && !isBookedLikeStage(lead.stage)) {
+  if (context.moveHoursUntil !== null && context.moveHoursUntil >= 0 && context.moveHoursUntil <= 72 && !context.hasDeposit && !isBookedLikeStage(lead.stage)) {
     add({
       category: 'move_date_soon',
       priority: 95,

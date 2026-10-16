@@ -135,11 +135,12 @@ export async function getDialerSettings(): Promise<DialerSettings> {
 
 export async function saveDialerSettings(settings: DialerSettings): Promise<void> {
   const { url, headers } = requireSupabaseEnv()
-  await fetch(`${url}/rest/v1/saturn_config`, {
+  const response = await fetch(`${url}/rest/v1/saturn_config`, {
     method: 'POST',
     headers: { ...headers, Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({ key: 'dialer', value: settings, updated_at: new Date().toISOString() }),
   })
+  if (!response.ok) throw new Error(`Unable to save dialer settings (${response.status}).`)
   _cached = settings
   _cacheExp = Date.now() + 30_000
 }
