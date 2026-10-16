@@ -1,4 +1,4 @@
-import { inferSalesBranchFromCity } from '../sales-phones'
+import { detectSalesBranchFromOrigin } from '../sales'
 import type { EstimateRouteContext } from '@/lib/types'
 import { inferAddressCountryContext } from '../route-address'
 import { getGoogleMapsApiKey } from './runtime'
@@ -124,7 +124,8 @@ function inferRouteBranchForEstimate(input: {
   const explicitBranch = normalizeRouteBranch(input.branch)
   if (explicitBranch) return explicitBranch
 
-  if (inferSalesBranchFromCity(input.originDisplayName || input.origin) === 'toronto') return 'toronto'
+  const pickupBranch = detectSalesBranchFromOrigin(undefined, input.originDisplayName || input.origin)
+  if (pickupBranch) return pickupBranch
   const haystack = normalizeRouteLocationText([
     input.origin,
     input.destination,
@@ -148,7 +149,8 @@ function inferOriginBranchForEstimate(input: {
 }): keyof typeof BRANCH_YARDS | undefined {
   const explicitBranch = normalizeRouteBranch(input.branch)
   if (explicitBranch) return explicitBranch
-  if (inferSalesBranchFromCity(input.originDisplayName || input.origin) === 'toronto') return 'toronto'
+  const pickupBranch = detectSalesBranchFromOrigin(undefined, input.originDisplayName || input.origin)
+  if (pickupBranch) return pickupBranch
   const originText = normalizeRouteLocationText([input.origin, input.originDisplayName].filter(Boolean).join(' '))
   for (const branch of ['waterloo', 'london', 'ottawa', 'windsor'] as Array<keyof typeof BRANCH_YARDS>) {
     if (ROUTE_BRANCH_ALIASES[branch].some(alias => originText.includes(normalizeRouteLocationText(alias)))) return branch

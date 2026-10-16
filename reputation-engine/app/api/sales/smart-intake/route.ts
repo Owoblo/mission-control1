@@ -1,3 +1,5 @@
+import { detectSalesBranchFromOrigin } from '@/lib/sales'
+import type { SalesBranch } from '@/lib/types'
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
@@ -38,7 +40,7 @@ export interface SmartIntakeResult {
     nextBestActions?: string[]
   }
   quoteType?: 'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'
-  branch?: 'windsor' | 'waterloo' | 'london' | 'ottawa'
+  branch?: SalesBranch
   moveTime?: string
   legsEnabled?: boolean
   legs?: Array<{
@@ -122,11 +124,11 @@ export async function POST(request: Request) {
     ? `\nEXISTING LEAD CONTEXT:\n${JSON.stringify(leadContext, null, 2)}\n`
     : ''
 
-  const systemPrompt = `You are an expert moving company operations AI for Saturn Star Moving (Windsor, Waterloo, London, Ottawa Ontario Canada).
+  const systemPrompt = `You are an expert moving company operations AI for Saturn Star Moving (Toronto / GTA, Windsor, Waterloo, London, Ottawa Ontario Canada).
 Parse move descriptions into structured quote data and an operations plan. Be practical and specific to the moving industry.
 
 RULES:
-- branch: detect from city mentions (Windsor=windsor, Kitchener/Waterloo/Cambridge=waterloo, London ON=london, Ottawa/Greeley/Brockville/area=ottawa)
+- branch: use the PICKUP city, never the destination. Toronto/GTA, Mississauga, Brampton, Vaughan, Markham, Richmond Hill, Oakville, Burlington, Ajax, Pickering, Whitby, Oshawa, Scarborough, Etobicoke and North York = toronto; Windsor=windsor, Kitchener/Waterloo/Cambridge=waterloo, London ON=london, Ottawa/area=ottawa. Leave branch absent when the pickup market is unknown. Never infer Toronto from a street named King or Brock.
 - moveTime/startTime: choose the best crew start time. If keys are late, back-schedule so arrival/unload aligns with key time. Afternoon keys usually mean "13:00" only if loading cannot productively start earlier.
 - legs: use ONLY when multiple destinations/phases mentioned. Storage = house→storage leg. Second leg = storage_delivery for storage→house, or delivery for another address from the same load.
 - conjoint: if two or more people/households/business areas are picked up and delivered to one final destination, set scenarioType="conjoint", jobFactors.conjointMove=true, parties, and legs for each pickup/delivery phase.
@@ -179,7 +181,7 @@ Return JSON matching this exact structure (omit fields you don't know):
     "nextBestActions": ["action 1", "action 2"]
   },
   "quoteType": "standard|labor_only|packing_only|long_distance|storage",
-  "branch": "windsor|waterloo|london|ottawa",
+  "branch": "toronto|windsor|waterloo|london|ottawa",
   "moveTime": "HH:MM",
   "legsEnabled": false,
   "legs": [],
@@ -235,6 +237,12 @@ Return JSON matching this exact structure (omit fields you don't know):
 
   try {
     const parsed = JSON.parse(content) as SmartIntakeResult
+    const originChanged = Boolean(parsed.originAddress?.trim() || parsed.originCity?.trim())
+    const pickupCity = originChanged ? parsed.originCity : leadContext?.originCity
+    const pickupAddress = originChanged ? parsed.originAddress : leadContext?.originAddress
+    // City/address evidence takes precedence over the model's branch guess.
+    const detected = detectSalesBranchFromOrigin(pickupCity, pickupAddress)
+    parsed.branch = detected
     return NextResponse.json({ ok: true, result: parsed })
   } catch {
     return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 })

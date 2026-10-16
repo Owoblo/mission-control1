@@ -9,7 +9,7 @@ import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { formatListingContextSummary, getListingDescription, getListingOperationalHighlights } from '@/lib/listing'
 import { getQuotedTruckCount } from '@/lib/operations'
 import { fetchSalesOverview, requestPriceOverrideApproval, verifyPriceOverrideApproval } from '@/lib/sales-api'
-import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, detectSalesBranchFromLocation } from '@/lib/sales'
+import { estimateLeadQuote, deriveInventoryMetrics, formatMoney, getSalesBranchLabel, isBookedLikeStage, suggestTruckCount, SALES_BRANCHES, detectSalesBranchFromOrigin } from '@/lib/sales'
 import { INVENTORY_PRESETS, createInventoryItemFromPreset, matchInventoryPreset } from '@/lib/item-presets'
 import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/move-scope'
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
@@ -224,7 +224,7 @@ const BRANCH_CAPACITY_ESTIMATES: Record<NonNullable<CRMLead['branch']>, { crew: 
   waterloo: { crew: 12, trucks: 4 },
   london: { crew: 10, trucks: 3 },
   ottawa: { crew: 10, trucks: 3 },
-  toronto: { crew: 0, trucks: 0 }, // Pilot market: operations must configure actual capacity.
+  toronto: { crew: 0, trucks: 0 }, // Actual dispatch capacity must be configured by operations.
 }
 
 function daysUntilDate(value?: string) {
@@ -481,7 +481,7 @@ export function EstimateDraftModal({
     lead.quoteType || 'standard'
   )
   const [localBranch, setLocalBranch] = useState<NonNullable<CRMLead['branch']>>(
-    detectSalesBranchFromLocation(lead.originAddress, lead.originCity) || lead.branch || 'windsor'
+    detectSalesBranchFromOrigin(lead.originCity, lead.originAddress) || lead.branch || 'windsor'
   )
   const [distanceKm, setDistanceKm] = useState<number>(0)
   const [bookTodayActive, setBookTodayActive] = useState(false)
@@ -1333,9 +1333,9 @@ export function EstimateDraftModal({
     }
     // Address evidence corrects stale/default branch data. A rep's selection
     // during the current workspace session remains authoritative.
-    const detected = detectSalesBranchFromLocation(
-      originAddress || lead.originAddress,
-      originCity || lead.originCity
+    const detected = detectSalesBranchFromOrigin(
+      originCity || lead.originCity,
+      originAddress || lead.originAddress
     )
     const resolved = (
       branchManuallySelectedRef.current
@@ -1467,7 +1467,7 @@ export function EstimateDraftModal({
         if (data.error) { setRouteError(data.error); setRoute(null) }
         else {
           setRoute(data)
-          const originBranch = detectSalesBranchFromLocation(originFull, lead.originCity)
+          const originBranch = detectSalesBranchFromOrigin(originCity || lead.originCity, originFull)
           if (!branchManuallySelectedRef.current && !originBranch && data.branch && data.branch !== selectedBranch) {
             setLocalBranch(data.branch)
             onBranchChange?.(data.branch)
@@ -4120,16 +4120,10 @@ export function EstimateDraftModal({
 
             {/* Branch Selector */}
             <div data-estimate-stage="plan">
-              <div className="crm-label mb-2">Branch / Yard Origin</div>
+              <div className="crm-label mb-2">Pickup Market / Dispatch Origin</div>
               {selectedBranch === 'toronto' && <p className="mb-2 text-xs text-amber-800">Toronto / GTA: confirm the dispatch depot and crew availability. Until a depot is selected, routing starts at the customer’s origin.</p>}
               <div className="flex flex-wrap gap-2">
-                {([
-                  { id: 'windsor', label: 'Windsor' },
-                  { id: 'waterloo', label: 'Waterloo / KW' },
-                  { id: 'london', label: 'London' },
-                  { id: 'ottawa', label: 'Ottawa' },
-                  { id: 'toronto', label: 'Toronto / GTA' },
-                ] as const).map(opt => (
+                {SALES_BRANCHES.map(opt => (
                   <button
                     key={opt.id}
                     type="button"
@@ -4143,7 +4137,7 @@ export function EstimateDraftModal({
                 ))}
               </div>
               <div className="mt-1.5 text-xs text-[var(--app-muted)]">
-                Sets which Saturn Star yard is used as the drive origin. Drive time and billable distance update automatically.
+                Detected from the pickup location. Select another market for an intentional dispatch override; depot routing uses the confirmed dispatch origin.
               </div>
               <div className="mt-3">
                 <label className="crm-label">Manual Billable KM Override <span className="font-normal normal-case text-[var(--app-muted)]">— optional correction</span></label>

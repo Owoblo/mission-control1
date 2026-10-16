@@ -92,11 +92,11 @@ export const LEAD_CONTEXT_FLAGS: Array<{ id: string; label: string }> = [
 export const DEPOSIT_METHODS = ['E-Transfer', 'Credit Card', 'Cash', 'Cheque', 'Other']
 
 export const SALES_BRANCHES: Array<{ id: SalesBranch; label: string }> = [
+  { id: 'toronto', label: 'Toronto / GTA' },
   { id: 'windsor', label: 'Windsor' },
   { id: 'waterloo', label: 'Waterloo / KW' },
   { id: 'london', label: 'London' },
   { id: 'ottawa', label: 'Ottawa' },
-  { id: 'toronto', label: 'Toronto / GTA' },
 ]
 
 export const CRM_LEAD_SOURCES: Array<{ id: string; label: string }> = [
@@ -180,6 +180,24 @@ export function detectSalesBranchFromLocation(...values: Array<string | null | u
     }
   }
 
+  return undefined
+}
+
+/** Resolve the pickup market without letting a destination or street name override its city. */
+export function detectSalesBranchFromOrigin(city?: string | null, address?: string | null): SalesBranch | undefined {
+  if (city?.trim()) return detectSalesBranchFromLocation(city)
+  let addressText = (address || '').trim()
+  if (!addressText.includes(',') && /^\d/.test(addressText)) {
+    addressText = addressText.replace(/^\d+.*?\b(?:street|st|road|rd|avenue|ave|drive|dr|court|ct|crescent|cres|boulevard|blvd|lane|ln|way)\b\.?\s*/i, '')
+  }
+  const parts = addressText.split(',').map(part => part.trim()).filter(Boolean)
+  // In a comma-delimited address, the first numeric component is the street.
+  const localities = parts.length > 1 && /^\d/.test(parts[0]) ? parts.slice(1) : parts
+  for (const locality of localities) {
+    if (/^\d/.test(locality)) continue
+    const branch = detectSalesBranchFromLocation(locality)
+    if (branch) return branch
+  }
   return undefined
 }
 
