@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const uploaded = await fetch(`${url}/storage/v1/object/partner-onboarding/${path}`, { method: 'POST', headers: { ...headers, 'Content-Type': format.type, 'x-upsert': 'false' }, body: bytes })
     if (!uploaded.ok) throw new Error('Upload unavailable')
     try {
-      await saveOnboardingVersion(invite, { checklist: { ...invite.checklist, application: false, onboardingDocuments: [{ id: randomUUID(), invite_id: invite.id, kind, filename: file.name.slice(0, 180), object_path: path, created_at: new Date().toISOString() }, ...existing] } })
+      await saveOnboardingVersion(invite, { checklist: { ...invite.checklist, onboardingDocuments: [{ id: randomUUID(), invite_id: invite.id, kind, filename: file.name.slice(0, 180), object_path: path, created_at: new Date().toISOString() }, ...existing] } })
     } catch (error) {
       await fetch(`${url}/storage/v1/object/partner-onboarding`, { method: 'DELETE', headers, body: JSON.stringify({ prefixes: [path] }) }).catch(() => null)
       throw error

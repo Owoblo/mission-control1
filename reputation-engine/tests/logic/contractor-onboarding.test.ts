@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applicationErrors, detectDocumentType, EMPTY_APPLICATION, inviteIsOpen, parseApplication } from '../../lib/contractor-onboarding'
+import { applicationErrors, detectDocumentType, EMPTY_APPLICATION, inviteIsOpen, onboardingProgress, parseApplication } from '../../lib/contractor-onboarding'
 
 const complete = { ...EMPTY_APPLICATION, legalBusinessName: 'Example Movers', contactName: 'Alex', contactRole: 'Owner', phone: '4165550100', email: 'alex@example.com', homeMarket: 'Toronto', serviceAreas: 'GTA', phoneAnsweredBy: 'Sales representative', dispatchName: 'Sam', dispatchRole: 'Dispatcher / operations', dispatchPhone: '4165550101', preferredContact: 'Phone call', serviceModel: 'Truck and moving crew', crewSize: '2–4', pricingModel: 'Hourly', additionalInsured: 'Need Saturn’s legal details first', branding: 'Yes, happy to discuss the details', truckAccess: ['Own', 'Rent'], truckSizes: '26 ft', specialties: ['Residential moves'], confirmed: true }
 
@@ -38,4 +38,11 @@ test('document content is checked rather than trusting an extension or MIME labe
   assert.equal(detectDocumentType(new TextEncoder().encode('%PDF-1.7'))?.type, 'application/pdf')
   assert.equal(detectDocumentType(new Uint8Array([137,80,78,71,13,10,26,10]))?.type, 'image/png')
   assert.equal(detectDocumentType(new Uint8Array([255,216,255,224]))?.type, 'image/jpeg')
+})
+
+test('details can be submitted before insurance and branding are discussed', () => {
+  assert.deepEqual(applicationErrors(parseApplication({ ...complete, additionalInsured: '', branding: '' })), [])
+  assert.equal(onboardingProgress('verification', true, []), 'Details received · Documents pending')
+  assert.equal(onboardingProgress('verification', true, ['registration','insurance','identity','additional_insured'].map(kind => ({kind}))), 'Documents received · Review pending')
+  assert.equal(onboardingProgress('agreement', true, []), 'Agreement & standards')
 })
