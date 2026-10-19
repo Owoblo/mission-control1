@@ -200,7 +200,9 @@ function ContractorsContent() {
             tracking.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/sales/contractors/playbook" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Playbook</Link>
+          <Link href="/work-with-us" target="_blank" rel="noopener noreferrer" className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold">Public overview ↗</Link>
           <Link
             href="/sales/operations"
             className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold"
