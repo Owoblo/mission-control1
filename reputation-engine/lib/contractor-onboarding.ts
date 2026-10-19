@@ -26,7 +26,7 @@ export function parseApplication(input: unknown): ContractorApplication {
   return result
 }
 export function applicationErrors(a: ContractorApplication): string[] {
-  const required: (keyof ContractorApplication)[] = ['legalBusinessName', 'contactName', 'contactRole', 'phone', 'email', 'homeMarket', 'serviceAreas', 'phoneAnsweredBy', 'dispatchName', 'dispatchRole', 'dispatchPhone', 'preferredContact', 'serviceModel', 'crewSize', 'pricingModel', 'additionalInsured', 'branding']
+  const required: (keyof ContractorApplication)[] = ['legalBusinessName', 'contactName', 'contactRole', 'phone', 'email', 'homeMarket', 'serviceAreas', 'phoneAnsweredBy', 'dispatchName', 'dispatchRole', 'dispatchPhone', 'preferredContact', 'serviceModel', 'crewSize', 'pricingModel']
   const errors = required.filter(key => !a[key]).map(key => `Complete ${key.replace(/([A-Z])/g, ' $1').toLowerCase()}.`)
   if (!/^\S+@\S+\.\S+$/.test(a.email)) errors.push('Enter a valid email address.')
   for (const phone of [a.phone, a.dispatchPhone]) if (phone.replace(/\D/g, '').length < 10) errors.push('Enter a complete business and dispatch phone number.')
@@ -45,4 +45,9 @@ export function detectDocumentType(bytes: Uint8Array): { type: string; extension
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return { type: 'image/jpeg', extension: 'jpg' }
   if ([137,80,78,71,13,10,26,10].every((n,i) => bytes[i] === n)) return { type: 'image/png', extension: 'png' }
   return null
+}
+
+export function onboardingProgress(stage: string, submitted: boolean, documents: { kind: string }[]) {
+  if (stage !== 'verification' || !submitted) return STAGE_LABELS[stage] || stage
+  return Object.keys(DOCUMENT_TYPES).some(kind => !documents.some(d => d.kind === kind)) ? 'Details received · Documents pending' : 'Documents received · Review pending'
 }
