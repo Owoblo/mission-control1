@@ -22,4 +22,8 @@ export function buildContractorScope(lead: CRMLead, quote: CRMQuote | null, cont
     })),
   }
 }
-export type ContractorScope = ReturnType<typeof buildContractorScope>
+export type ContractorScope = ReturnType<typeof buildContractorScope> & {
+  routeEstimate?: { miles: number; kilometers: number }
+  accessConfirmed?: boolean
+  referencePhotos?: { url: string; caption: string }[]
+}
