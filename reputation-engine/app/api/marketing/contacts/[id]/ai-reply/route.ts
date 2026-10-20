@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { latestPartnerMessage } from "@/lib/partner-context";
 import { loadPartnerContext } from "@/lib/server/partner-context";
 import { NextResponse } from "next/server";
@@ -5,6 +6,7 @@ import { getSessionUser } from "@/lib/server/session";
 import { requireSupabaseEnv } from "@/lib/server/runtime";
 import {
   suggestPartnershipReply,
+  PARTNERSHIP_REPLY_POLICY_VERSION,
   type PartnershipAssistantContact,
   type PartnershipAssistantTouch,
 } from "@/lib/server/partnership-reply-assistant";
@@ -98,9 +100,26 @@ export async function POST(
     }),
   });
 
-  return NextResponse.json({
-    ok: true,
-    contact_id: id,
-    suggestion,
-  });
+  const decisionId = randomUUID();
+  const inputEvidence = {
+    actorId: session.userId || null, actorName: session.name || null,
+    contextComplete: shared.complete, ownership: shared.responsibility,
+    sources: shared.events.map(e => ({ id: e.id, at: e.at, source: e.source })),
+    contextHash: createHash('sha256').update(JSON.stringify(shared.events)).digest('hex'),
+    generatedAt: new Date().toISOString(),
+  };
+  let stored: Response;
+  try {
+    stored = await fetch(`${url}/rest/v1/saturn_ai_decisions`, {
+      method: 'POST', headers: { ...headers, Prefer: 'return=minimal' },
+      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify({ id: decisionId, contact_id: id, input: inputEvidence,
+        prediction: suggestion, policy_version: PARTNERSHIP_REPLY_POLICY_VERSION,
+        model_version: suggestion.modelUsed || 'deterministic-rules' }),
+    });
+  } catch {
+    return NextResponse.json({ error: 'Decision audit unavailable. No reply sent; retry after recovery.' }, { status: 503 });
+  }
+  if (!stored.ok) return NextResponse.json({ error: 'Decision audit could not be saved. No reply sent.' }, { status: 503 });
+  return NextResponse.json({ ok: true, contact_id: id, decision_id: decisionId, suggestion });
 }

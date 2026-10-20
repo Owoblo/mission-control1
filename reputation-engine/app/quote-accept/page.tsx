@@ -1058,7 +1058,7 @@ function QuoteAcceptPageInner() {
       const payload = await r.json()
       if (payload?.expired) { setQuoteExpired(true); return }
       if (!r.ok) throw new Error(payload?.error || 'Failed to accept quote')
-      setQuote(payload.quote)
+      setQuote(current => current ? { ...current, ...payload.quote } : current)
       setAccepted(true)
       setDeclined(false)
     } catch (err) {
@@ -1080,7 +1080,7 @@ function QuoteAcceptPageInner() {
       const payload = await r.json()
       if (payload?.expired) { setQuoteExpired(true); return }
       if (!r.ok) throw new Error(payload?.error || 'Failed to decline quote')
-      setQuote(payload.quote)
+      setQuote(current => current ? { ...current, ...payload.quote } : current)
       setAccepted(false)
       setDeclined(true)
     } catch (err) {

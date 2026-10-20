@@ -120,8 +120,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Role defaults to 'owner' for legacy tokens without role
-  const role = payload.role ?? 'owner'
+  // Tokens without an explicit recognized role are rejected by session verification.
+  const role = payload.role
 
   if (pathname.startsWith('/partner-portal') || pathname.startsWith('/api/partner-portal')) {
     const canAccessPartner = role === 'partner_admin' || role === 'partner_dispatcher' || role === 'partner_crew'
