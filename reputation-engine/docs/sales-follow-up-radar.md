@@ -40,3 +40,5 @@ The initial October 20 review used 60 days of communications. It is a starting r
 A documented closure ends the follow-up plan in the same save. Representatives can choose **Contact Attempts Exhausted — End Outreach** and record the attempted contacts. This is an operational closure, not a claim that the customer chose another mover. Ordinary timing uncertainty or a still-expected reply remains in Nurture.
 
 Closed plans do not return just because time passes, a representative attempts another outbound call, or an old record is updated. New inbound messages or completed inbound calls can surface an internal review without changing the sales stage or authorizing an automatic chase. A newer recorded loss supersedes an older active follow-up plan. Missing transcripts do not prove a rep failed to follow up: reconcile rep notes and the actual communication history before creating work.
+
+An active plan on a still-lost record is an internal reconciliation item, not permission to contact. Review the outcome and explicitly reopen the sales record before treating it as an outreach candidate.

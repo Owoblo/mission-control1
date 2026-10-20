@@ -78,7 +78,7 @@ export function radarState(lead: RadarLead, now = new Date()) {
   if (p && lead.stage === 'lost' && p.reason !== 'closed') flags.push('Stage conflicts with follow-up plan')
   if (p && confirmedClosed && p.reason !== 'closed') flags.push('Booked or completed — reconcile the old follow-up plan')
   if (lead.followUpIdentityReview) flags.push('Hidden by normal lead list — verify linked records and lifecycle before contact')
-  const waiting = lossSupersedesPlan || !!lead.followUpIdentityReview || confirmedClosed || p?.policy === 'customer_led' || p?.policy === 'internal_only'
+  const waiting = lead.stage === 'lost' || lossSupersedesPlan || !!lead.followUpIdentityReview || confirmedClosed || p?.policy === 'customer_led' || p?.policy === 'internal_only'
   return { visible: Boolean(visible), reason: p?.reason || 'needs_review' as FollowUpReason,
     ownerName: p?.ownerName || lead.assignedRepName || 'Unassigned', reviewOn, lastActivity,
     due: Boolean(visible && (newActivity || reviewOn <= today)), flags,

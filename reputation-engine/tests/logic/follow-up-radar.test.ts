@@ -7,6 +7,7 @@ const plan: FollowUpPlan = { reason: 'house_sale', policy: 'proactive', ownerNam
 test('lost records need explicit reviewed plans rather than automatic age-based revival', () => {
  assert.equal(radarState(lead, now).visible, false)
  assert.equal(radarState({ ...lead, followUpPlan: plan }, now).due, true)
+ assert.equal(radarState({ ...lead, followUpPlan: plan }, now).contactAllowed, false)
  assert.ok(radarState({ ...lead, followUpPlan: plan }, now).flags.includes('Stage conflicts with follow-up plan'))
 })
 test('customer-led review never becomes permission to chase', () => {

@@ -42,7 +42,7 @@ export default function FollowUpRadarPage() {
     <div className="grid gap-3 md:grid-cols-2">{filtered.map(r => <article key={r.id} className="rounded-xl border bg-white p-4 space-y-2">
       <Link className="font-semibold underline" href={`/sales/leads/${r.id}`}>{r.name || r.phone || 'Unnamed enquiry'}</Link><p className="text-sm">{r.phone} · {r.state.ownerName}</p>
       <p className="font-medium">{FOLLOW_UP_REASONS[r.state.reason]}</p><p className="text-sm">Review: {r.state.reviewOn} · {r.followUpPlan?.policy?.replaceAll('_',' ') || 'Internal triage'}</p>
-      <p>{r.followUpPlan?.nextAction || r.state.instruction}</p>{r.followUpPlan && <p className="text-sm text-gray-600">Context: {r.followUpPlan.evidence}</p>}
+      <p>{r.state.instruction}</p>{r.followUpPlan && r.state.instruction !== r.followUpPlan.nextAction && <p className="text-sm">Recorded next step: {r.followUpPlan.nextAction}</p>}{r.followUpPlan && <p className="text-sm text-gray-600">Context: {r.followUpPlan.evidence}</p>}
       <p className="text-sm font-medium text-amber-800">{r.state.flags.join(' · ')}</p>
       {(r.followUpPlan?.policy === 'customer_led' || r.followUpPlan?.policy === 'internal_only') && <p className="text-sm font-semibold">Internal review only — do not chase automatically.</p>}
       <button disabled={!r.canEdit} onClick={() => edit(r)} className="rounded border px-3 py-2 disabled:opacity-50">Record next action</button>
