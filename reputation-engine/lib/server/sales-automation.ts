@@ -1,3 +1,4 @@
+import { blocksAutomatedFollowUp } from '../follow-up-radar'
 import { inventoryMeasurementIssues, buildCustomerInventoryList, planCustomerInventoryReply } from '@/lib/customer-inventory-review'
 import { salesAutomationExclusion } from '../sales-work-queue'
 import { salesEmailConfigured } from '@/lib/server/email-provider'
@@ -3087,6 +3088,9 @@ async function handleListingInventoryScanJob(job: CRMAutomationJob, lead: CRMLea
 }
 
 async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
+  if (blocksAutomatedFollowUp(lead, job.kind)) {
+    return { status: 'cancelled' as const, reason: 'A reviewed follow-up plan owns the next contact. Review the radar task.' }
+  }
   const preferredChannel = (job.channel || chooseContactChannel(lead)?.channel || 'sms') as ConversationChannel
   const contact = chooseContactChannel(lead, preferredChannel)
   if (!contact) {
