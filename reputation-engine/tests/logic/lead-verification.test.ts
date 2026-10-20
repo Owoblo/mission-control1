@@ -43,3 +43,9 @@ test('inventory, destination and timing have separate verification scopes', () =
   assert.notEqual(verificationScope(value, 'inventory'), verificationScope({ ...value, inventory: [{name:'Sofa'}] }, 'inventory'))
   assert.equal(verificationScope(value, 'origin'), verificationScope({ ...value, inventory: [{name:'Sofa'}] }, 'origin'))
 })
+
+test('exhausted outreach requires evidence without claiming a competitor loss', () => {
+ const value=lead({stage:'quoted'})
+ assert.ok(lostTransitionError(value,{...value,stage:'lost',lostReason:'contact_exhausted',lostNotes:''}))
+ assert.equal(lostTransitionError(value,{...value,stage:'lost',lostReason:'contact_exhausted',lostNotes:'Repeated calls and texts unanswered; last attempt October 19.'}),null)
+})

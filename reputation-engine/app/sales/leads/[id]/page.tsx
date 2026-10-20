@@ -5982,7 +5982,7 @@ export default function SalesLeadDetailPage() {
               {!aiLossLoading && aiLossSuggested && <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet-600">AI pre-filled</span>}
             </div>
             <p className="mt-1 text-xs text-[var(--app-muted)]">Select a reason below — the lead won&apos;t be moved until you click &quot;Mark as Lost&quot;.</p>
-            <p className="mt-1 text-sm text-[var(--app-muted)]">Waiting for a house sale, move date or response stays active in Nurture. For a confirmed loss, record the evidence below.</p>
+            <p className="mt-1 text-sm text-[var(--app-muted)]">Waiting for a house sale or an expected response stays in Nurture. If repeated contact attempts are exhausted, choose “Contact Attempts Exhausted” and record the attempts. This ends outreach without claiming the customer chose another mover.</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               {LOST_REASONS.map(reason => (
                 <button
