@@ -110,6 +110,7 @@ export async function getSessionPayload(token?: string | null): Promise<SessionP
       new TextDecoder().decode(fromBase64Url(encodedPayload))
     ) as SessionPayload
     if (typeof payload.exp !== 'number' || payload.exp <= Date.now()) return null
+    if (!['owner','manager','sales_rep','operations_lead','crew','partnership_manager','partner_admin','partner_dispatcher','partner_crew'].includes(payload.role || '')) return null
     return payload
   } catch {
     return null

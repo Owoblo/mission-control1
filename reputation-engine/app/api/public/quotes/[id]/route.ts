@@ -40,7 +40,7 @@ async function sendQuoteNotification(event: 'viewed' | 'viewed_again' | 'accepte
   const intros: Record<typeof event, string> = {
     viewed:       `<b>${customerName}</b> opened their quote for the first time.`,
     viewed_again: `<b>${customerName}</b> viewed their quote again — they may be deciding.`,
-    accepted:     `<b>${customerName}</b> accepted the quote and the move is now booked.`,
+    accepted:     `<b>${customerName}</b> accepted the quote. Confirm the deposit and booking requirements in the CRM.`,
     declined:     `<b>${customerName}</b> declined the quote.`,
   }
 
@@ -375,7 +375,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       },
     })
 
-    return NextResponse.json({ ok: true, quote: nextQuote, lead: savedLead })
+    return NextResponse.json({ ok: true, quote: { id: nextQuote.id, status: nextQuote.status, acceptedAt: nextQuote.acceptedAt }, lead: savedLead ? { id: savedLead.id, stage: savedLead.stage } : null })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to accept quote' },
