@@ -347,6 +347,12 @@ export async function saveAutomationJob(job: CRMAutomationJob): Promise<CRMAutom
   if (!response.ok) {
     const detail = await readError(response)
     if (isMissingRelationError(detail)) return null
+    // Another worker may reserve the same semantic job after our lookup.
+    // Return its receipt without resetting its state or submitting new work.
+    if (response.status === 409 && detail.includes('23505') && job.dedupeKey) {
+      const existing = await getAutomationJobByDedupeKey(job.dedupeKey)
+      if (existing && existing.leadId === job.leadId && existing.kind === job.kind) return existing
+    }
     throw new Error(`Failed to save crm_automation_jobs: ${detail}`)
   }
 
@@ -438,7 +444,8 @@ export async function queueAutomationJob(input: {
 }): Promise<CRMAutomationJob | null> {
   if (input.dedupeKey) {
     const existing = await getAutomationJobByDedupeKey(input.dedupeKey)
-    if (existing && existing.status !== 'cancelled' && existing.status !== 'failed') {
+    // A retry of intake is not authority to revive failed/cancelled customer work.
+    if (existing) {
       return existing
     }
   }
