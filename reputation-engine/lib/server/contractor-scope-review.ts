@@ -1,8 +1,9 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { requireSupabaseEnv } from './runtime'
 import { buildContractorScope, type ContractorScope } from '../contractor-scope-review'
+import { initialScopePricing, type ScopePricing } from '../contractor-scope-pricing'
 import type { CRMLead, CRMQuote } from '../types'
-export type ScopeReview = { id: string; token: string; tokenHash: string; contractorId: string; createdAt: string; expiresAt: string; revoked?: boolean; scope: ContractorScope }
+export type ScopeReview = { id: string; token: string; tokenHash: string; contractorId: string; createdAt: string; expiresAt: string; revoked?: boolean; scope: ContractorScope; pricing?: ScopePricing }
 type ScopeLead = CRMLead & { contractorScopeReviews?: ScopeReview[] }
 export async function scopeLead(id: string) {
   const { url, headers } = requireSupabaseEnv()
@@ -19,16 +20,22 @@ export function newScopeReview(lead: CRMLead, quote: CRMQuote | null, contractor
   const token = randomBytes(32).toString('hex')
   return { id: randomUUID(), token, tokenHash: createHash('sha256').update(token).digest('hex'), contractorId, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 14 * 86400000).toISOString(), scope: buildContractorScope(lead, quote, contactName) }
 }
-export async function readScopeReview(token: string) {
+export async function scopeReviewByToken(token: string) {
   if (!/^[a-f0-9]{64}$/.test(token)) return null
   const tokenHash = createHash('sha256').update(token).digest('hex')
   const { url, headers } = requireSupabaseEnv()
-  const params = new URLSearchParams({ deleted: 'eq.false', 'data->contractorScopeReviews': `cs.${JSON.stringify([{ tokenHash }])}`, select: 'data', limit: '2' })
+  const params = new URLSearchParams({ deleted: 'eq.false', 'data->contractorScopeReviews': `cs.${JSON.stringify([{ tokenHash }])}`, select: 'id,data,updated_at', limit: '2' })
   const response = await fetch(`${url}/rest/v1/crm_leads?${params}`, { headers, cache: 'no-store' })
   if (!response.ok) throw Error('Could not load scope')
-  const rows = await response.json() as { data: ScopeLead }[]
+  const rows = await response.json() as { id: string; data: ScopeLead; updated_at: string }[]
   if (rows.length !== 1) return null
   const review = rows[0].data.contractorScopeReviews?.find(item => item.tokenHash === tokenHash)
   if (!review || review.revoked || !Number.isFinite(Date.parse(review.expiresAt)) || Date.parse(review.expiresAt) <= Date.now()) return null
-  return { scope: review.scope, createdAt: review.createdAt, expiresAt: review.expiresAt }
+  return { row: rows[0], review }
+}
+export async function readScopeReview(token: string) {
+  const found = await scopeReviewByToken(token)
+  if (!found) return null
+  const { review } = found
+  return { scope: review.scope, createdAt: review.createdAt, expiresAt: review.expiresAt, pricing: review.pricing || initialScopePricing() }
 }

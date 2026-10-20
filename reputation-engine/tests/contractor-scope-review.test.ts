@@ -24,7 +24,7 @@ test('private reads reject malformed, expired, revoked and ambiguous links and r
   try {
     assert.equal(await readScopeReview('invalid'), null); assert.equal(calls, 0)
     const visible = await readScopeReview(review.token)
-    assert.equal(visible?.scope.contactName, 'Abhi'); assert.deepEqual(Object.keys(visible!).sort(), ['createdAt', 'expiresAt', 'scope'])
+    assert.equal(visible?.scope.contactName, 'Abhi'); assert.deepEqual(Object.keys(visible!).sort(), ['createdAt', 'expiresAt', 'pricing', 'scope'])
     rows = [{ data: { contractorScopeReviews: [{ ...review, revoked: true }] } }]; assert.equal(await readScopeReview(review.token), null)
     rows = [{ data: { contractorScopeReviews: [{ ...review, expiresAt: '2000-01-01' }] } }]; assert.equal(await readScopeReview(review.token), null)
     rows = [{ data: { contractorScopeReviews: [review] } }, { data: { contractorScopeReviews: [review] } }]; assert.equal(await readScopeReview(review.token), null)
