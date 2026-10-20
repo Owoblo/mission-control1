@@ -52,7 +52,7 @@ export async function getPerformanceHealth() {
   const generatedAt = new Date().toISOString()
   const staleBefore = new Date(Date.now() - AUTOMATION_JOB_LOCK_TIMEOUT_MS).toISOString()
   const recentFailureCutoff = new Date(Date.now() - 24 * 60 * 60_000).toISOString()
-  const [pending, overdue, running, staleRunning, retryableFailed, recentDeadLetters, historicalDeadLetters, leads, messages, oldest, deadLetterClassification] = await Promise.all([
+  const [pending, overdue, running, staleRunning, retryableFailed, recentDeadLetters, historicalDeadLetters, leads, messages, oldest, deadLetterClassification, manualRecovery] = await Promise.all([
     countRows('pending_jobs', 'crm_automation_jobs?select=id&status=eq.pending'),
     countRows('overdue_jobs', `crm_automation_jobs?select=id&status=eq.pending&due_at=lte.${encodeURIComponent(generatedAt)}`),
     countRows('running_jobs', 'crm_automation_jobs?select=id&status=eq.running'),
@@ -64,6 +64,7 @@ export async function getPerformanceHealth() {
     countRows('sms_messages', 'sms_messages?select=id'),
     oldestDueJob(generatedAt),
     classifyRecentDeadLetters(recentFailureCutoff),
+    countRows('manual_recovery_tasks', 'crm_tasks?select=id&id=like.automation-recovery-*&status=in.(open,in_progress)'),
   ])
 
   const oldestOverdueAgeMs = oldest.job
@@ -71,7 +72,7 @@ export async function getPerformanceHealth() {
     : 0
   const status = staleRunning.count > 0 || retryableFailed.count > 0 || oldestOverdueAgeMs > 10 * 60_000
     ? 'fail'
-    : overdue.count > 0 || deadLetterClassification.actionable > 0
+    : overdue.count > 0 || deadLetterClassification.actionable > 0 || manualRecovery.count > 0
       ? 'warn'
       : 'ok'
 
@@ -80,6 +81,7 @@ export async function getPerformanceHealth() {
     generatedAt,
     queue: {
       pending: pending.count,
+      manualRecoveryTasks: manualRecovery.count,
       overdue: overdue.count,
       running: running.count,
       staleRunning: staleRunning.count,

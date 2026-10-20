@@ -11,3 +11,9 @@ Remaining audit work is not represented as completed: private-media migration (o
 Media inventory on October 20: survey-photos has 380 root entries, ops-media 12 (including partnership-library, partnership-chat and video-playback), property-uploads 2. These are root entries, not total object counts. No objects or visibility settings changed in this release.
 
 Rollback: revert this release commit and deploy the resulting tested commit. Audit schema is additive and can remain. Do not revert prior closed-lead, shared-context or payment protections. Validate /api/jobs denials and /api/ops/performance-health against the deployed release.
+
+## Live recovery follow-through
+
+Production verification exposed four historical failed automation jobs. Reviewed their current context before cancelling the stale jobs: one verification-code/non-sales message, one customer-confirmed competitor loss, one invalid masked destination, one historical email credential failure. Created internal recovery tasks for the latter two, due October 21 at 9am Toronto; no messages replayed. Preserve the original errors and reconciliation reasons.
+
+Queue deduplication now returns the existing failed/cancelled receipt rather than inventing a new job ID for the same key; a concurrent unique-key conflict reads the winner without resetting it. Health reports unresolved manual recovery tasks as warning so moving a failed job into human review does not hide the work. Validation: 665 logic tests pass, including failed/cancelled retry and concurrent deduplication cases.
