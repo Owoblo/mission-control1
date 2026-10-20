@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ContractorScopeLink from "@/app/components/contractor-scope-link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -222,6 +223,7 @@ function ContractorsContent() {
           {message}
         </div>
       )}
+      {job && <ContractorScopeLink leadId={job.leadId} contractors={contractors} />}
       {job?.partnerReadiness && (
         <section
           className={`rounded-2xl border p-4 text-sm ${job.partnerReadiness.ready ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"}`}
