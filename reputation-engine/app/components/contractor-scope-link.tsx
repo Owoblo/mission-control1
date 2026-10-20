@@ -1,15 +1,15 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import type { Subcontractor } from '@/lib/subcontractors'
-import { priceLabel, pricingStatusLabels, taxLabels, type ScopePricing, type TaxTreatment } from '@/lib/contractor-scope-pricing'
+import { priceLabel, pricingStatusLabels, type ScopePricing } from '@/lib/contractor-scope-pricing'
 type Review = { id: string; contractorId: string; contactName: string; url: string; expiresAt: string; revoked: boolean; pricing: ScopePricing }
 function PricingControls({ review, leadId, reload }: { review: Review; leadId: string; reload: () => Promise<void> }) {
-  const [amount, setAmount] = useState(''), [tax, setTax] = useState<TaxTreatment | ''>(''), [notes, setNotes] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const [amount, setAmount] = useState(''), [notes, setNotes] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const retry = useRef<{ key: string; id: string } | null>(null)
   const p = review.pricing, closed = review.revoked || Date.parse(review.expiresAt) <= Date.now()
   async function act(action: string) {
     setBusy(true); setError('')
-    const payload = { leadId, contractorId: review.contractorId, reviewId: review.id, action, revision: p.revision, amount: Number(amount), tax, notes }
+    const payload = { leadId, contractorId: review.contractorId, reviewId: review.id, action, revision: p.revision, amount: Number(amount), notes }
     const key = JSON.stringify(payload)
     if (retry.current?.key !== key) retry.current = { key, id: crypto.randomUUID() }
     try {
@@ -26,9 +26,9 @@ function PricingControls({ review, leadId, reload }: { review: Review; leadId: s
     {p.agreed && <p className="mt-3 text-sm font-bold text-green-800">Agreed: {priceLabel(p.agreed)}. Assignment and dispatch clearance are still required.</p>}
     {!closed && <div className="mt-4 space-y-3">
       {['submitted', 'countered'].includes(p.status) && <div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => act('accept_price')} className="rounded-lg bg-green-800 px-3 py-2 text-sm text-white">Accept contractor price</button><button disabled={busy} onClick={() => act('decline')} className="rounded-lg border px-3 py-2 text-sm">Decline proposal</button></div>}
-      <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Your flat-price offer (CAD)<input type="number" min="0.01" max="100000" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label><label className="text-sm">Tax treatment<select value={tax} onChange={e => setTax(e.target.value as TaxTreatment)} className="mt-1 w-full rounded-lg border p-2"><option value="">Choose tax treatment</option>{Object.entries(taxLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div>
+      <div className="grid gap-3"><label className="text-sm">Your flat-price offer (CAD)<input type="number" min="0.01" max="100000" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label></div>
       <label className="block text-sm">Offer terms / note visible to contractor<textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} maxLength={2000} className="mt-1 w-full rounded-lg border p-2" /></label>
-      <div className="flex flex-wrap gap-2"><button onClick={() => act('offer')} disabled={busy || !amount || !tax} className="rounded-lg bg-[#071421] px-3 py-2 text-sm text-white disabled:opacity-40">Set / counter with this offer</button><button onClick={() => act('request_price')} disabled={busy} className="rounded-lg border px-3 py-2 text-sm">Request contractor’s price</button></div>
+      <div className="flex flex-wrap gap-2"><button onClick={() => act('offer')} disabled={busy || !amount} className="rounded-lg bg-[#071421] px-3 py-2 text-sm text-white disabled:opacity-40">Set / counter with this offer</button><button onClick={() => act('request_price')} disabled={busy} className="rounded-lg border px-3 py-2 text-sm">Request contractor’s price</button></div>
       <p className="text-xs text-slate-500">Updates appear on the same link. A new offer or price request reopens negotiation and replaces the current agreement. No SMS or email is sent automatically.</p>
     </div>}
     {!!p.events.length && <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold">Response history ({p.events.length})</summary><ol className="mt-2 space-y-3">{[...p.events].reverse().map(e => <li key={e.id} className="border-t pt-2"><p>{e.actor === 'staff' ? 'Saturn' : review.contactName} · {e.action.replace(/_/g, ' ')} · {new Date(e.at).toLocaleString()}</p>{e.price && <p className="font-semibold">{priceLabel(e.price)}</p>}{e.notes && <p className="whitespace-pre-wrap">{e.notes}</p>}</li>)}</ol></details>}
