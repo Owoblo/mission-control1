@@ -23,7 +23,7 @@ function daysUntil(iso?: string | null): number {
 function lastContactDate(lead: CRMLead): string | null {
   const candidates: string[] = []
   if (lead.lastInboundAt) candidates.push(lead.lastInboundAt)
-  if (lead.followUpDate) candidates.push(lead.followUpDate)
+  if (lead.lastHumanOutboundAt) candidates.push(lead.lastHumanOutboundAt)
   const lastCall = lead.callLogs?.[0]?.date
   if (lastCall) candidates.push(lastCall)
   if (!candidates.length) return lead.createdAt || null
@@ -302,7 +302,7 @@ function buildStaticBrief(lead: CRMLead, quote?: CRMQuote | null): string[] {
     points.push(`Route: ${lead.originCity || '?'} → ${lead.destCity || '?'}${lead.moveDate ? ` on ${formatDate(lead.moveDate)}` : ''}`)
   }
   if (quote) {
-    if (quote.status === 'accepted') points.push(`Quote accepted — ${quote.total ? formatMoney(quote.total) : ''} — job booked`)
+    if (quote.status === 'accepted') points.push(`Quote accepted — ${quote.total ? formatMoney(quote.total) : ''} — verify deposit and booking`)
     else if (quote.viewedAt) points.push(`Quote viewed${quote.total ? ` (${formatMoney(quote.total)})` : ''} — no reply since ${quote.viewedAt.slice(0, 10)}`)
     else if (quote.sentAt) points.push(`Quote sent${quote.total ? ` ${formatMoney(quote.total)}` : ''} on ${quote.sentAt.slice(0, 10)} — not opened yet`)
     else points.push('Quote drafted but not sent')
@@ -608,6 +608,7 @@ export default function FollowUpWallPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-semibold text-[var(--app-ink)]">Follow-Up Wall</h1>
+            <Link href="/sales/follow-up-radar" className="text-sm underline">Open follow-up radar: categories, owners and missed commitments</Link>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${
                 urgentCount > 0

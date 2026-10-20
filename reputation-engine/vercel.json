@@ -59,6 +59,10 @@
     {
       "path": "/api/sales/destination-realtors/process",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/sales/follow-up-radar/process",
+      "schedule": "*/15 * * * *"
     }
   ],
   "regions": [
