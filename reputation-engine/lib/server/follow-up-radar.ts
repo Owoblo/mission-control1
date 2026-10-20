@@ -1,4 +1,5 @@
 import { requireSupabaseEnv } from './runtime'
+import { normalizeLead } from '../sales'
 import { listSalesLeads } from './sales-repository'
 import { radarState, torontoDay, torontoReviewTime, type RadarLead } from '../follow-up-radar'
 
@@ -13,6 +14,13 @@ export async function radarDb(table: string, query: Record<string, string> = {},
 }
 export async function readRadar() {
   const leads = await listSalesLeads() as RadarLead[]
+  // Display deduplication or archival must not silently erase an explicit reviewed plan.
+  // Surface these as internal identity/lifecycle reviews, never another automatic chase.
+  for (let offset = 0; ; offset += 1000) {
+    const planned = await radarDb('crm_leads', { deleted: 'eq.false', 'data->followUpPlan': 'not.is.null', select: 'id,data', order: 'id.asc', limit: '1000', offset: String(offset) })
+    for (const row of planned) if (!leads.some(l => l.id === row.id) && !row.data.mergedIntoLeadId) leads.push({ ...normalizeLead(row.data), followUpIdentityReview: true } as RadarLead)
+    if (planned.length < 1000) break
+  }
   const opportunities = []
   for (let offset = 0; ; offset += 1000) {
     const batch = await radarDb('partner_opportunities', { select: 'id,contact_id,name,city,stage,assigned_manager_name,next_action,next_action_due,updated_at', order: 'id.asc', limit: '1000', offset: String(offset) })

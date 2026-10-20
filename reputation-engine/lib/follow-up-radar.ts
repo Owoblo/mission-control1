@@ -25,7 +25,7 @@ export type FollowUpPlan = {
   reviewedAt: string
   reviewedBy: string
 }
-export type RadarLead = CRMLead & { followUpPlan?: FollowUpPlan }
+export type RadarLead = CRMLead & { followUpPlan?: FollowUpPlan; followUpIdentityReview?: boolean }
 export function torontoDay(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
@@ -67,7 +67,8 @@ export function radarState(lead: RadarLead, now = new Date()) {
   if (p && p.reason !== 'closed' && reviewOn < today) flags.push('Overdue review')
   if (p && lead.stage === 'lost' && p.reason !== 'closed') flags.push('Stage conflicts with follow-up plan')
   if (p && confirmedClosed && p.reason !== 'closed') flags.push('Booked or completed — reconcile the old follow-up plan')
-  const waiting = confirmedClosed || p?.policy === 'customer_led' || p?.policy === 'internal_only'
+  if (lead.followUpIdentityReview) flags.push('Hidden by normal lead list — verify linked records and lifecycle before contact')
+  const waiting = !!lead.followUpIdentityReview || confirmedClosed || p?.policy === 'customer_led' || p?.policy === 'internal_only'
   return { visible: Boolean(visible), reason: p?.reason || 'needs_review' as FollowUpReason,
     ownerName: p?.ownerName || lead.assignedRepName || 'Unassigned', reviewOn, lastActivity,
     due: Boolean(visible && (newActivity || reviewOn <= today)), flags,

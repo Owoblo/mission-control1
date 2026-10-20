@@ -56,3 +56,9 @@ test('reviewed plans stop generic chases without blocking inbound replies or boo
  assert.equal(blocksAutomatedFollowUp(lead, 'quote_followup'), false)
  assert.equal(radarState({ ...l, stage: 'booked' }, now).contactAllowed, false)
 })
+
+test('identity-hidden reviewed leads remain on radar for internal verification only', () => {
+ const s = radarState({ ...lead, followUpPlan: plan, followUpIdentityReview: true }, now)
+ assert.equal(s.visible, true); assert.equal(s.due, true); assert.equal(s.contactAllowed, false)
+ assert.ok(s.flags.some(f => f.includes('verify linked records')))
+})
