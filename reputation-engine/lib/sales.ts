@@ -75,6 +75,7 @@ export const LOST_REASONS: Array<{ id: string; label: string }> = [
   { id: 'customer_experience', label: 'Communication / Experience Concern' },
   { id: 'trust', label: 'Trust / Confidence Concern' },
   { id: 'no_response', label: 'No Response / Ghost' },
+  { id: 'contact_exhausted', label: 'Contact Attempts Exhausted — End Outreach' },
   { id: 'not_a_fit', label: 'Not a Fit' },
   { id: 'cancelled_move', label: 'Cancelled Move' },
   { id: 'diy', label: 'Moving Themselves — DIY' },

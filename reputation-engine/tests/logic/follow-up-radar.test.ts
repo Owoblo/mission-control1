@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { radarState, blocksAutomatedFollowUp, torontoReviewTime, validateFollowUpPlan, torontoDay, type FollowUpPlan, type RadarLead } from '../../lib/follow-up-radar'
+import { radarState, closeFollowUpOnRecordedLoss, blocksAutomatedFollowUp, torontoReviewTime, validateFollowUpPlan, torontoDay, type FollowUpPlan, type RadarLead } from '../../lib/follow-up-radar'
 const now = new Date('2026-10-20T15:00:00Z')
 const lead = { id: 'guy', name: 'Guy', stage: 'lost', createdAt: '2026-10-01', lostReason: 'no_response' } as RadarLead
 const plan: FollowUpPlan = { reason: 'house_sale', policy: 'proactive', ownerName: 'Thelma', nextAction: 'Check sale conditions', reviewOn: '2026-10-20', evidence: 'October 5 call: waiting on buyer conditions', reviewedAt: '2026-10-19T18:00:00Z', reviewedBy: 'John' }
-test('no-response loss remains reviewable; stage does not erase evidenced plan', () => {
- assert.equal(radarState(lead, now).visible, true)
+test('lost records need explicit reviewed plans rather than automatic age-based revival', () => {
+ assert.equal(radarState(lead, now).visible, false)
  assert.equal(radarState({ ...lead, followUpPlan: plan }, now).due, true)
  assert.ok(radarState({ ...lead, followUpPlan: plan }, now).flags.includes('Stage conflicts with follow-up plan'))
 })
@@ -61,4 +61,23 @@ test('identity-hidden reviewed leads remain on radar for internal verification o
  const s = radarState({ ...lead, followUpPlan: plan, followUpIdentityReview: true }, now)
  assert.equal(s.visible, true); assert.equal(s.due, true); assert.equal(s.contactAllowed, false)
  assert.ok(s.flags.some(f => f.includes('verify linked records')))
+})
+
+test('outbound attempts and mere age do not reopen a closed plan', () => {
+ const closed = { ...lead, followUpPlan: { ...plan, reason: 'closed' as const, reviewOn: '' }, callLogs: [{date: '2026-10-20T14:00:00Z',direction:'outbound',callOutcome:'no_answer'}] } as RadarLead
+ assert.equal(radarState(closed, now).visible, false)
+ assert.equal(radarState(closed, new Date('2027-01-01')).visible, false)
+})
+test('recorded loss closes an existing plan and preserves its history', () => {
+ const previous = { ...lead, stage:'quoted', followUpPlan:plan } as RadarLead
+ const next = closeFollowUpOnRecordedLoss(previous, {...previous,stage:'lost',lostReason:'contact_exhausted',lostNotes:'Five unanswered attempts, last attempted October 19.'}, 'Thelma', now.toISOString())
+ assert.equal(next.followUpPlan?.reason,'closed'); assert.equal(next.followUpPlanHistory?.length,1)
+ assert.equal(radarState(next, now).visible,false)
+ assert.equal(blocksAutomatedFollowUp(next,'lost_feedback'),true)
+})
+test('a newer rep closure supersedes a stale active plan', () => {
+ const l={...lead,followUpPlan:plan,lostAt:'2026-10-20T13:00:00Z'}
+ assert.equal(radarState(l,now).visible,false)
+ const reopened=radarState({...l,lastInboundAt:'2026-10-20T14:00:00Z'},now)
+ assert.equal(reopened.visible,true);assert.equal(reopened.contactAllowed,false)
 })

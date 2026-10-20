@@ -1,3 +1,4 @@
+import { closeFollowUpOnRecordedLoss } from '@/lib/follow-up-radar'
 import { loadLinkedMovePlan } from '@/lib/server/linked-move-plan'
 import { listTasks } from '@/lib/server/task-repository'
 import { applyNurtureTransition, recordNurtureCheckIn } from '@/lib/nurture-policy'
@@ -484,6 +485,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       }]
       if (nextLead.stage === 'lost') nextLead.lostAt = at
     }
+    nextLead = closeFollowUpOnRecordedLoss(current, nextLead, session?.name || 'Sales')
     nextLead.nurtureCheckIns = current.nurtureCheckIns
     nextLead = applyNurtureTransition(current, nextLead)
     if (nurtureCheckInNote !== undefined) {

@@ -34,3 +34,9 @@ The radar reads current sales leads and partner opportunities. New eligible sale
 Reviewed plans suppress generic automated quote, survey, reactivation and lost-feedback chases. Inbound responses and booked appointment/move reminders retain their existing controls. The radar does not invent conversation summaries or replace checking the full conversation. Email activity depends on the CRM recording it; the radar is not an independent mailbox monitor. Categories do not rewrite stage, booking, owner assignment or historical conversations.
 
 The initial October 20 review used 60 days of communications. It is a starting review, not a claim that every historical CRM record has been qualified. Unclassified records remain visible for triage.
+
+## Recorded closures and exhausted contact attempts
+
+A documented closure ends the follow-up plan in the same save. Representatives can choose **Contact Attempts Exhausted — End Outreach** and record the attempted contacts. This is an operational closure, not a claim that the customer chose another mover. Ordinary timing uncertainty or a still-expected reply remains in Nurture.
+
+Closed plans do not return just because time passes, a representative attempts another outbound call, or an old record is updated. New inbound messages or completed inbound calls can surface an internal review without changing the sales stage or authorizing an automatic chase. A newer recorded loss supersedes an older active follow-up plan. Missing transcripts do not prove a rep failed to follow up: reconcile rep notes and the actual communication history before creating work.
