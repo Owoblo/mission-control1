@@ -29,6 +29,8 @@ test('contractor counter requires staff approval and can be accepted or declined
 })
 test('stale offers, duplicate requests, spoofed actions and invalid prices are handled safely', () => {
   const initial = initialScopePricing(), offer = input(initial, 'offer', price)
+  const simple = change(initial, 'contractor', input(initial, 'submit', { amount: 900, confirm: true }))
+  assert.equal(simple.response?.tax, 'unspecified')
   const p = change(initial, 'staff', offer)
   assert.equal(change(p, 'staff', offer), p)
   assert.throws(() => change(p, 'contractor', input(initial, 'accept', { confirm: true })), /changed/)
