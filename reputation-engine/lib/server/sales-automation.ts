@@ -1,4 +1,5 @@
 import { blocksAutomatedFollowUp } from '../follow-up-radar'
+import { detectLostFeedbackDetail, detectMovedOnIntent, shouldRequestMovedOnFeedback } from '../moved-on-feedback'
 import { inventoryMeasurementIssues, buildCustomerInventoryList, planCustomerInventoryReply } from '@/lib/customer-inventory-review'
 import { salesAutomationExclusion } from '../sales-work-queue'
 import { salesEmailConfigured } from '@/lib/server/email-provider'
@@ -99,6 +100,7 @@ import {
   getSalesLeadByInboundId,
   getSalesQuote,
   listFollowUpLogs,
+  listFollowUpLogsForLead,
   listSalesClients,
   listSalesEmails,
   listSalesLeads,
@@ -136,21 +138,6 @@ function detectBookingIntent(message?: string): boolean {
   const shortConfirmation = /^(yes|yep|yeah|yup|ok|okay|perfect|sounds good|deal)$/i.test(compact)
   if (shortConfirmation) return true
   return /\b(book|confirm(?: the)? (?:quote|move|booking|job)|let'?s? do it|go ahead|lock it in|i'?m in|i'?ll take it|ill take it|reserve|i accept|accepted|ok let'?s go|booked|send the deposit|deposit link|pay the deposit|book me|book it|proceed|proceed with|let'?s? go|im in|i want to book|i want to proceed|take it|i'?ll book|lock me in|lock in|i'?d like to book|ready to book|ready to go)\b/.test(text)
-}
-
-function detectMovedOnIntent(message?: string): boolean {
-  if (!message) return false
-  return /\b(already (booked|hired|found|went with)|booked (with|someone else|another)|hired (someone|another)|found (someone|another mover|another company)|went with (someone|another|a different)|chose (someone|another|a different)|got a better (deal|price|quote)|not moving with you|we moved on|i moved on|no longer need|don'?t need (movers|moving)|do not need (movers|moving))\b/i.test(message)
-}
-
-function detectLostFeedbackDetail(message?: string): boolean {
-  if (!message) return false
-  const text = message.trim()
-  if (text.length < 8) return false
-  if (/\b(price|expensive|cheaper|cheap|cost|quote|deal|discount|timing|availability|available|date|schedule|trust|review|referral|friend|family|company|mover|movers|service|response|follow[- ]?up|deposit|insurance|licensed|cash|ancient|u-?haul|two men|amj|metropolitan|atlas|allied|northstar|better)\b/i.test(text)) {
-    return true
-  }
-  return /\b(went with|booked with|hired|chose|picked|decided|too high|lower rate|better rate|someone else|another one|another company)\b/i.test(text)
 }
 
 function detectRenewedMoveInterest(message?: string): boolean {
@@ -1930,7 +1917,8 @@ ALWAYS DO THESE
 
 SPECIAL CASES
 - If LEAD STAGE is booked or PAYMENT STATUS is deposit_received/paid_in_full, treat the message as post-booking support. Acknowledge the booked move and answer in an operations tone, not a sales tone.
-- If the customer says they booked another mover, moved on, or no longer need us, do not sell. Ask one short feedback question so Saturn Star can learn if it was price, timing, trust, service, or another reason.
+- If the customer says they booked another mover, moved on, or no longer need us, do not sell. Read the full recent thread first. If they already gave a reason, acknowledge and record it; never ask them to repeat it or probe for more details. Otherwise the inbound reply flow may send one short feedback question automatically when contact is eligible. Continue naturally in the existing conversation and ask what made the difference (for example price, timing, response speed, or service). Make it easy to answer in a few words. If they answer, thank them and record only what they volunteered; do not ask for a competitor name, price, or further explanation. Do not introduce yourself again in an active thread, sound defensive, or promise a discount/incentive.
+- In an ongoing SMS or email thread, continue naturally without “Hi, I’m [name]” or “this is [company]” introductions. Use a brief sign-off only when it fits the conversation.
 - If inventory already exists, confirm it rather than asking from scratch.
 - Treat city-only route details as incomplete. A usable moving route needs the exact pickup address and exact dropoff address. If either exact address is missing, ask for the missing address before asking about inventory, parking, access, or email.
 - Before asking for an address or inventory, read RECENT THREAD and LATEST MESSAGE for customer corrections. If the customer gives two addresses separated by "to", treat the first as pickup and the second as dropoff. If the customer says "that is the pickup" or "the other one is dropoff", do not repeat the same address question.
@@ -2056,8 +2044,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Hi ${firstName}, no worries that you didn't move forward with us. Quick question so we can improve: was it mainly price, timing, another company, or something about our process?`
-          : `Hi ${firstName},\n\nNo worries that you didn't move forward with us. Quick question so we can improve: was it mainly price, timing, another company, or something about our process?\n\nJohn\nSaturn Star Moving`,
+          ? `Thanks for considering us. If you're open to sharing, what made the difference: price, timing, how quickly each company got back to you, or something else? Even a word or two helps us improve.`
+          : `Thanks for considering us. If you're open to sharing, what made the difference: price, timing, how quickly each company got back to you, or something else? Even a word or two helps us improve.`,
       subject: channel === 'email' ? 'Quick Feedback Question' : undefined,
       capturedSummary: 'Asked lost lead why they did not move forward so sales data can improve.',
       intent: 'lost_feedback_requested',
@@ -2070,8 +2058,8 @@ function fallbackCopy(kind: AutomationJobKind, lead: CRMLead, channel: Conversat
     return {
       reply:
         channel === 'sms'
-          ? `Thanks for letting us know, ${firstName}. No worries. What made the difference: price, timing, another company, or something else?`
-          : `Hi ${firstName},\n\nThanks for letting us know. No worries.\n\nWhat made the difference: price, timing, another company, or something else?\n\nJohn\nSaturn Star Moving`,
+          ? `Thanks for letting me know. What made the difference for you: price, timing, how quickly each company got back to you, or something else? Even a word or two is helpful.`
+          : `Thanks for letting me know. What made the difference for you: price, timing, how quickly each company got back to you, or something else? Even a word or two is helpful.`,
       subject: channel === 'email' ? 'Quick Feedback Question' : undefined,
       capturedSummary: 'Lead said they moved on or booked another mover. Asked for lost-lead feedback.',
       intent: 'lead_response',
@@ -3130,6 +3118,67 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
       thread,
       reason: channelUnavailableReason,
     }
+  }
+
+  // A clear moved-on reply gets one immediate, low-pressure feedback question.
+  // Keep the lead active for human review; this is not a stage-change decision.
+  if (job.kind === 'lead_response' && contact.channel === 'sms' && inboundMessage && detectMovedOnIntent(inboundMessage) && !detectLostFeedbackDetail(inboundMessage)) {
+    const [priorLogs, smsHistory] = await Promise.all([
+      listFollowUpLogsForLead(lead.id).catch(() => []),
+      listSmsMessagesForContact(contact.to).catch(() => []),
+    ])
+    const alreadyAsked =
+      priorLogs.some(log => /post[- ]loss feedback request sent|asked .*feedback after .*moved on|loss feedback (question|request) sent/i.test(log.notes || '')) ||
+      smsHistory.some(message => message.direction === 'outbound' && /what made the difference|what was the main reason you decided not to move|honest feedback helps us improve|what mattered most in your decision/i.test(message.body || ''))
+    if (!shouldRequestMovedOnFeedback({
+      message: inboundMessage,
+      feedback: lead.customerFeedback,
+      booked: isBookedOrPaidLead(lead),
+      doNotContact: lead.automationStatus === 'do_not_contact',
+      optedOut: detectOptOut(inboundMessage),
+      alreadyAsked,
+    })) {
+      if (!detectMovedOnIntent(inboundMessage) || detectLostFeedbackDetail(inboundMessage)) return null as never
+      return { status: 'completed' as const, sent: false, lead, thread: existingThread, message: 'Moved-on feedback was already requested or recorded; no repeat message sent.' }
+    }
+
+    const lock = await getSalesLeadForUpdate(lead.id).catch(() => null)
+    if (!lock) {
+      return { status: 'completed' as const, sent: false, lead, thread: existingThread, message: 'Could not safely claim the one-time feedback request; left for human review.' }
+    }
+    const currentFeedback = lock.lead.customerFeedback
+    if (currentFeedback?.requestedAt || currentFeedback?.status === 'requested' || currentFeedback?.status === 'received' || currentFeedback?.status === 'declined') {
+      return { status: 'completed' as const, sent: false, lead: lock.lead, thread: existingThread, message: 'Moved-on feedback was already requested or recorded; no repeat message sent.' }
+    }
+
+    const requestedAt = new Date().toISOString()
+    const claimedLead = await saveSalesLead({
+      ...lock.lead,
+      customerFeedback: {
+        outcome: 'lost', status: 'requested', reason: 'unknown', customerWords: '', sourceId: '',
+        competitor: '', competitorPrice: '', repNotes: `One-time feedback request sent by SMS after customer said they moved on (${requestedAt}).`,
+        context: [], requestedAt,
+      },
+    }, lock.updatedAt)
+    const body = 'Thanks for letting me know. If you’re open to sharing, what made the difference—price, timing, response time, or something else? Even a word or two helps us improve. No need to reply if you’d rather not.'
+    const sendResult = await sendSalesMessage({
+      actor: 'automation', channel: 'sms', to: contact.to, body, leadId: claimedLead.id,
+      replyToInboundAt: String(job.payload?.receivedAt || lead.lastInboundAt || ''),
+      notes: `One-time feedback request sent after moved-on reply: ${previewText(inboundMessage, 220)}`,
+    })
+    const didSend = !sendResult.deduped && !sendResult.result?.blocked
+    const finalLead = didSend ? (sendResult.lead || claimedLead) : claimedLead
+    if (!didSend && sendResult.result?.blocked) {
+      await saveFollowUpLog({
+        id: uid('fu'), leadId: claimedLead.id, type: 'note', date: new Date().toISOString(), createdAt: new Date().toISOString(),
+        notes: `One-time moved-on feedback SMS could not be sent: ${String(sendResult.result.reason || 'SMS blocked')}. A representative should review the reply.`,
+      }).catch(() => {})
+    }
+    const thread = didSend ? await saveAutomationThreadAfterOutbound({
+      lead: finalLead, existingThread, channel: 'sms', contactValue: contact.to, preview: body,
+      jobKind: job.kind, intent: 'moved_on_feedback_request', inboundMessage,
+    }) : existingThread
+    return { status: 'completed' as const, sent: didSend, lead: finalLead, thread, message: didSend ? body : 'Feedback request was not sent; the one-time request was reserved for human review.' }
   }
 
   const repWorkflowReason = humanConversationOwnershipReason(lead)

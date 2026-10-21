@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import ts from 'typescript'
 import * as feedback from '../../lib/customer-feedback'
+import { detectLostFeedbackDetail, detectMovedOnIntent, shouldRequestMovedOnFeedback } from '../../lib/moved-on-feedback'
 import * as permissions from '../../lib/server/sales-permissions'
 import type { CRMLead } from '../../lib/types'
 
@@ -50,6 +51,20 @@ test('questions do not chase requests, opt-outs, unknown outcomes or already ans
   for (const status of ['requested', 'declined'] as const) assert.equal(feedback.feedbackQuestion({ ...valid(), status }), null)
   assert.equal(feedback.feedbackQuestion(valid(), true), null)
   assert.equal(feedback.feedbackQuestion(valid()), null)
+  assert.equal(feedback.feedbackQuestion({ ...feedback.emptyFeedback(), outcome: 'lost', status: 'received', reason: 'unknown', customerWords: 'Thanks' }), null)
+})
+test('moved-on replies trigger at most one feedback ask only when no reason or exclusion exists', () => {
+  const base = { message: "We've moved on with another mover", feedback: feedback.emptyFeedback(), booked: false, doNotContact: false, optedOut: false, alreadyAsked: false }
+  assert.equal(detectMovedOnIntent(base.message), true)
+  assert.equal(detectLostFeedbackDetail(base.message), false)
+  assert.equal(shouldRequestMovedOnFeedback(base), true)
+  for (const message of ['price', 'faster', 'Responsiveness', 'timing']) assert.equal(detectLostFeedbackDetail(message), true)
+  for (const patch of [
+    { message: 'We went with another mover because they were faster', alreadyAsked: false },
+    { booked: true }, { doNotContact: true }, { optedOut: true }, { alreadyAsked: true },
+    { feedback: { ...feedback.emptyFeedback(), status: 'received' as const } },
+    { feedback: { ...feedback.emptyFeedback(), status: 'requested' as const } },
+  ]) assert.equal(shouldRequestMovedOnFeedback({ ...base, ...patch }), false)
 })
 test('authentication and branch/ownership checks block access before drafting or saving', async () => {
   for (const session of [null, { role: 'driver' }, { role: 'manager', branch: 'toronto' }, { role: 'sales_rep', userId: 'someone_else' }]) {
@@ -83,7 +98,7 @@ test('queued lost feedback cancels before delivery even when the lead is reopene
   const route = loadModule('lib/server/sales-automation.ts', {}, source => {
     const file = ts.createSourceFile('automation.ts', source, ts.ScriptTarget.Latest, true)
     const fn = file.statements.find(s => ts.isFunctionDeclaration(s) && s.name?.text === 'shouldSkipAutomation')!
-    return `export ${fn.getText(file)}`
+    return `const salesAutomationExclusion = () => null; export ${fn.getText(file)}`
   })
   for (const stage of ['lost', 'new']) assert.match(route.shouldSkipAutomation({ stage }, { kind: 'lost_feedback' }), /representative review/)
 })
