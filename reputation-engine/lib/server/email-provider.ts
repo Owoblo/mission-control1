@@ -102,6 +102,12 @@ export async function sendProviderEmail(payload: ProviderEmailPayload): Promise<
   return receipt
 }
 
+/** Use SES for operational alerts even when another provider is configured for other mail. */
+export async function sendSesProviderEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
+  requireEmailBody(payload)
+  return sendWithSes(payload)
+}
+
 export function getConfiguredEmailProvider(): EmailProviderName {
   return selectedProvider()
 }

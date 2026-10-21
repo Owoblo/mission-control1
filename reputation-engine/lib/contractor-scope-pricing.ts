@@ -1,5 +1,5 @@
 export type TaxTreatment = 'included' | 'additional' | 'not_registered' | 'unspecified'
-export type ScopePrice = { amount: number; tax: TaxTreatment; notes: string }
+export type ScopePrice = { amount: number; tax: TaxTreatment; notes: string; mode?: 'flat' | 'hourly' }
 export type PricingEvent = {
   id: string; at: string; actor: 'staff' | 'contractor'; action: string
   price?: ScopePrice; notes: string
@@ -14,7 +14,7 @@ export type ScopePricing = {
 }
 export const initialScopePricing = (): ScopePricing => ({ revision: 0, status: 'request_price', events: [] })
 export const taxLabels: Record<TaxTreatment, string> = { unspecified: '', included: 'Tax included', additional: 'Applicable tax additional', not_registered: 'No tax charged — not registered' }
-export const priceLabel = (price: ScopePrice) => `${new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(price.amount)} CAD${price.tax !== 'unspecified' ? ` · ${taxLabels[price.tax]}` : ''}`
+export const priceLabel = (price: ScopePrice) => `${new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(price.amount)} CAD${price.mode === 'hourly' ? '/hour' : ''}${price.tax !== 'unspecified' ? ` · ${taxLabels[price.tax]}` : ''}`
 export const pricingStatusLabels: Record<ScopePricing['status'], string> = { request_price: 'Awaiting contractor price', offered: 'Offer awaiting response', submitted: 'Price submitted for review', countered: 'Counteroffer awaiting review', agreed: 'Price agreed — assignment pending', declined: 'Declined' }
 const text = (value: unknown) => {
   if (value == null) return ''
@@ -23,10 +23,12 @@ const text = (value: unknown) => {
 }
 function parsePrice(input: Record<string, unknown>): ScopePrice {
   const amount = input.amount
-  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000 || Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001) throw Error('Enter a valid flat price between $0.01 and $100,000, with at most two decimal places.')
+  const mode = input.mode ?? 'flat'
+  if (!['flat', 'hourly'].includes(String(mode))) throw Error('Choose a flat total or hourly rate.')
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000 || Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001) throw Error(`Enter a valid ${mode === 'hourly' ? 'hourly rate' : 'flat price'} between $0.01 and $100,000, with at most two decimal places.`)
   const tax = input.tax ?? 'unspecified'
   if (!['included', 'additional', 'not_registered', 'unspecified'].includes(String(tax))) throw Error('Choose how tax is handled.')
-  return { amount, tax: tax as TaxTreatment, notes: text(input.notes) }
+  return { amount, tax: tax as TaxTreatment, notes: text(input.notes), mode: mode as 'flat' | 'hourly' }
 }
 // A price agreement is a negotiation result only. It never assigns a crew or approves dispatch.
 export function transitionScopePricing(current: ScopePricing, actor: 'staff' | 'contractor', input: Record<string, unknown>, now = new Date().toISOString()): ScopePricing {

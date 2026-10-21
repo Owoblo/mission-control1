@@ -3,7 +3,7 @@ import { createSmsReplyAddress } from './email-sms-reply-store'
 import { getTwilioCredentials, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
-import { sendProviderEmail } from '@/lib/server/email-provider'
+import { sendSesProviderEmail } from '@/lib/server/email-provider'
 
 // Per-caller cooldown so reps don't get spammed on repeat calls
 const _callerIdCooldown = new Map<string, number>()
@@ -133,7 +133,7 @@ export async function sendInternalAlertSms(to: string, body: string, from: strin
 export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients = NOTIFY_TO) {
   const to = uniqueEmails(recipients)
   if (!to.length) return
-  await Promise.all(to.map(recipient => sendProviderEmail({
+  await Promise.all(to.map(recipient => sendSesProviderEmail({
     from: NOTIFY_FROM,
     to: recipient,
     subject,
