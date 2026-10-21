@@ -57,11 +57,7 @@ export function validateFeedback(input: unknown, evidence: FeedbackEvidence[]): 
   return result
 }
 export function feedbackQuestion(feedback: CustomerFeedback, suppressed = false): string | null {
-  if (suppressed || feedback.status === 'declined' || feedback.status === 'requested') return null
-  if (feedback.status === 'received') {
-    if (feedback.requestedAt || feedback.competitor || feedback.reason !== 'competitor') return null
-    return 'Thank you for sharing that. If you’re comfortable saying, which company did you choose, and what made them the better fit? No obligation to answer.'
-  }
+  if (suppressed || feedback.status === 'declined' || feedback.status === 'requested' || feedback.status === 'received') return null
   if (feedback.requestedAt) return null
   if (feedback.outcome === 'won') return 'Thank you for choosing us. What mattered most in your decision, and is there anything we could have made easier? Honest feedback is welcome.'
   if (feedback.outcome !== 'lost') return null

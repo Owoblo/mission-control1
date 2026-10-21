@@ -1183,6 +1183,16 @@ Add factual notes:
 
 Do not write insults or speculation. “Price haggler” is not useful data. “Customer required a $900 total for a scope priced at $1,650; declined after service comparison” is useful.
 
+### One-time feedback after a customer chooses another mover
+
+Read the full recent SMS, email, and call timeline before following up. If the customer has already explained why they chose someone else, record their words and do not ask again. If the reason is unknown and contact is welcome, the inbound reply automation may send one short, personal question immediately in the existing SMS thread. Ask what made the difference—price, timing, response speed, service, or something else—and make clear that a few words are enough. The purpose is learning, not winning the customer back. Do not argue, pitch, ask multiple questions, or promise a discount or other incentive. Do not reintroduce yourself in an active conversation; use a natural sign-off only if it fits. Check the CRM feedback record and recent outbound thread before sending; record whether it was asked, answered, declined, or unanswered, preserve the customer's wording, and categorize only what the evidence supports. If the customer answers, thank them and log what they volunteered; do not follow up to get a competitor name, price, or more detail. If feedback identifies a service or process issue, acknowledge it without defensiveness and route the specific improvement to the responsible team. Stop after the customer answers or declines. Booked customers, opt-outs, already-answered reasons, and prior feedback requests are excluded from the automatic ask. The automation never changes the lead to Lost by itself.
+
+Example when the thread is already active:
+
+> “Thanks for considering us. If you’re open to sharing, what made the difference: price, timing, how quickly each company got back to you, or something else? Even a word or two helps us improve.”
+
+If the customer answers with a reason, thank them and reflect the reason accurately. Do not convert “the other mover was faster and cheaper” into “we were unresponsive”; record competitor response speed and price as separate factors. Accept a brief answer as complete feedback; do not interrogate the customer for amounts or the competitor's identity.
+
 ## 18. Calls and communications
 
 ### Calls

@@ -89,6 +89,8 @@ export interface SendSalesMessageInput {
   actorName?: string
   actorUserId?: string
   pauseAutomationHours?: number
+  /** Ignore older SMS in the short-window duplicate guard when replying to a new inbound. */
+  replyToInboundAt?: string
 }
 
 export interface SendSalesMessageResult {
@@ -150,12 +152,15 @@ export async function outboundSmsRecentlySent(input: {
   leadId?: string
   windowMs?: number
   body?: string
+  after?: string
 }) {
   const to = normalizePhone(input.to)
   const from = normalizePhone(input.from)
   if (!to) return false
 
-  const since = new Date(Date.now() - (input.windowMs || OUTBOUND_SMS_DEDUPE_WINDOW_MS)).toISOString()
+  const windowStart = Date.now() - (input.windowMs || OUTBOUND_SMS_DEDUPE_WINDOW_MS)
+  const inboundAt = input.after ? Date.parse(input.after) : Number.NaN
+  const since = new Date(Number.isFinite(inboundAt) ? Math.max(windowStart, inboundAt) : windowStart).toISOString()
   const filters = [
     'direction=eq.outbound',
     `created_at=gte.${encodeURIComponent(since)}`,
@@ -274,6 +279,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
       to: rawTo,
       from: rawFrom,
       leadId: input.leadId,
+      after: input.replyToInboundAt,
     })
     const duplicateAutomationBody = actor === 'automation' && !duplicateOutbound && await outboundSmsRecentlySent({
       to: rawTo,
