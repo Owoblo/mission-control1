@@ -282,8 +282,10 @@ export function SalesHeader() {
             playChime()
             // 📱 Browser push notification
             showPushNotification(
-              isDexaView ? 'Dexa — New Lead' : '🌟 Saturn Star — New Lead',
-              newest.title || 'New activity'
+              newest.source === 'contractor_price'
+                ? `Contractor price update — ${newest.title}`
+                : isDexaView ? 'Dexa — New Lead' : '🌟 Saturn Star — New Lead',
+              newest.preview || 'Open Mission Control to respond'
             )
           }
         }

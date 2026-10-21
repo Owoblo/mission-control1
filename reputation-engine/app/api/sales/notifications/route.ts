@@ -13,7 +13,7 @@ import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
 import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-state'
 import { getSessionUser } from '@/lib/server/session'
-import { listAllInboundLeads, listNurtureNotificationLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots } from '@/lib/server/sales-repository'
+import { listAllInboundLeads, listNurtureNotificationLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots, listContractorPriceResponseLeads } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { uid } from '@/lib/sales'
@@ -48,7 +48,7 @@ let sourceSnapshot: { expiresAt: number; value: Awaited<ReturnType<typeof readNo
 let sourcePending: ReturnType<typeof readNotificationSources> | undefined
 let sourceRetryAfter = 0
 async function readNotificationSources() {
-  return Promise.all([listAllInboundLeads(), listSalesLeadInboxSnapshots(), listSalesEmails(), listFollowUpLogs(), listSmsMessages(), listNurtureNotificationLeads().then(leads => leads.filter(lead => nurtureReminderDue(lead)))])
+  return Promise.all([listAllInboundLeads(), listSalesLeadInboxSnapshots(), listSalesEmails(), listFollowUpLogs(), listSmsMessages(), listNurtureNotificationLeads().then(leads => leads.filter(lead => nurtureReminderDue(lead))), listContractorPriceResponseLeads(new Date(Date.now() - 48 * 60 * 60 * 1000)).catch(error => { console.error('Contractor price alerts unavailable', String(error)); return [] })])
 }
 async function getNotificationSources() {
   if (sourceSnapshot && sourceSnapshot.expiresAt > Date.now()) return sourceSnapshot.value
@@ -121,7 +121,7 @@ async function loadNotifications() {
   // Notifications are a current work surface, not an archive counter.
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
-  const [[allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, nurtureLeads], acknowledgedKeys] = await Promise.all([
+  const [[allInboundLeads, crmLeads, allEmails, followUpLogs, smsMessages, nurtureLeads, contractorPriceLeads], acknowledgedKeys] = await Promise.all([
     getNotificationSources(),
     listAcknowledgedKeys(session.userId || session.name || 'unknown'),
   ])
@@ -285,6 +285,33 @@ async function loadNotifications() {
       href: `/sales/leads/${lead.id}`, priority: 'today', reason: 'The scheduled Nurture check-in is due.',
       requiredAction: 'Log check-in and schedule next', dedupeKey: `nurture:${lead.id}:${lead.followUpDate}`,
     }))
+  const contractorPriceItems: NotificationItem[] = contractorPriceLeads.flatMap(row => {
+    const lead = row.data
+    if (session.branch && lead.branch && lead.branch !== session.branch) return []
+    if (session.role === 'sales_rep' && (lead.assignedRepUserId ? lead.assignedRepUserId !== session.userId : lead.assignedRepName && lead.assignedRepName !== session.name)) return []
+    return (lead.contractorScopeReviews || []).flatMap(review => (review.pricing?.events || [])
+      .filter(event => event.actor === 'contractor' && new Date(event.at) > cutoff)
+      .map(event => {
+        const action = event.action === 'submit' ? 'submitted a bid' : event.action === 'counter' ? 'sent a counteroffer' : event.action === 'accept' ? 'accepted your offer' : event.action === 'decline' ? 'declined the job' : 'responded to the job offer'
+        const amount = typeof event.price?.amount === 'number' ? new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(event.price.amount) : ''
+        const details = event.price?.notes || event.notes || ''
+        return {
+          id: `contractor-price:${lead.id}:${review.id}:${event.id}`,
+          type: 'alert' as const,
+          source: 'contractor_price',
+          title: `${review.scope?.contactName || 'Contractor'} ${action}`,
+          preview: [amount, details].filter(Boolean).join(' · ').slice(0, 240) || 'Open the contractor response to review details.',
+          time: event.at,
+          leadId: lead.id,
+          phone: null,
+          href: `/sales/contractors?leadId=${encodeURIComponent(lead.id)}`,
+          priority: 'interrupt' as const,
+          reason: 'A contractor submitted a price or responded to an offer.',
+          requiredAction: 'Review contractor response',
+          dedupeKey: `contractor-price:${lead.id}:${review.id}:${event.id}`,
+        }
+      }))
+  })
   const leadById = new Map(crmLeads.map(lead => [lead.id, lead]))
   const visibleToSession = (item: NotificationItem) => {
     const lead = item.leadId ? leadById.get(item.leadId) : null
@@ -295,7 +322,7 @@ async function loadNotifications() {
     return (!ownerId && !ownerName) || ownerId === session.userId || ownerName === session.name
   }
   const seen = new Set<string>()
-  const allItems = [...nurtureItems, ...alertItems, ...leadItems, ...smsItems, ...emailItems]
+  const allItems = [...contractorPriceItems, ...nurtureItems, ...alertItems, ...leadItems, ...smsItems, ...emailItems]
     .filter(visibleToSession)
     .filter(item => !acknowledgedKeys.has(item.dedupeKey))
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
