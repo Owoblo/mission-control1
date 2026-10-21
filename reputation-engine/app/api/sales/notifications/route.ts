@@ -293,7 +293,7 @@ async function loadNotifications() {
       .filter(event => event.actor === 'contractor' && new Date(event.at) > cutoff)
       .map(event => {
         const action = event.action === 'submit' ? 'submitted a bid' : event.action === 'counter' ? 'sent a counteroffer' : event.action === 'accept' ? 'accepted your offer' : event.action === 'decline' ? 'declined the job' : 'responded to the job offer'
-        const amount = typeof event.price?.amount === 'number' ? new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(event.price.amount) : ''
+        const amount = typeof event.price?.amount === 'number' ? `${new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(event.price.amount)}${event.price.mode === 'hourly' ? '/hour' : ''}` : ''
         const details = event.price?.notes || event.notes || ''
         return {
           id: `contractor-price:${lead.id}:${review.id}:${event.id}`,

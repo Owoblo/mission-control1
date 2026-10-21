@@ -604,7 +604,7 @@ export async function listContractorPriceResponseLeads(since: Date) {
   })
   const response = await fetchSupabaseWithRetry(`${url}/rest/v1/crm_leads?${query}`, { headers, cache: 'no-store' })
   if (!response.ok) throw new Error('Contractor price notifications unavailable')
-  return await response.json() as Array<{ id: string; data: CRMLead & { contractorScopeReviews?: Array<{ id: string; scope?: { contactName?: string; origin?: string; destination?: string }; pricing?: { events?: Array<{ id: string; at: string; actor: string; action: string; notes?: string; price?: { amount: number; tax?: string; notes?: string } }> } }> }; updated_at: string }>
+  return await response.json() as Array<{ id: string; data: CRMLead & { contractorScopeReviews?: Array<{ id: string; scope?: { contactName?: string; origin?: string; destination?: string }; pricing?: { events?: Array<{ id: string; at: string; actor: string; action: string; notes?: string; price?: { amount: number; tax?: string; notes?: string; mode?: 'flat' | 'hourly' } }> } }> }; updated_at: string }>
 }
 
 export async function listSalesLeadSearchSnapshots() {
