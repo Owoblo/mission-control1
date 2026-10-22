@@ -1,3 +1,6 @@
+import { normalizeAutomatedCustomerText } from '@/lib/customer-message-style'
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { uid } from '@/lib/sales'
 import {
   getSaturnBranchLabel,
@@ -227,6 +230,12 @@ async function syncLeadMessagingState(leadId: string, actor: 'human' | 'automati
 }
 
 export async function sendSalesMessage(input: SendSalesMessageInput): Promise<SendSalesMessageResult> {
+  if (input.actor === 'automation') {
+    input = { ...input, body: normalizeAutomatedCustomerText(input.body),
+      ...(input.subject ? { subject: normalizeAutomatedCustomerText(input.subject) } : {}),
+      ...(input.htmlBody ? { htmlBody: normalizeAutomatedCustomerText(input.htmlBody) } : {}),
+    }
+  }
   const actor = input.actor || 'human'
   let result: Record<string, unknown> = { ok: true }
 
@@ -266,7 +275,10 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     const rawTo = normalizePhone(input.to) || input.to
 
     // ── Safety guard: block shortcodes, OTP numbers, non-NANP automation ──
-    const blockCheck = shouldBlockSmsTo(rawTo, actor)
+    const savedBlock = findBlockedCaller(await getDialerSettings(), rawTo)
+    const blockCheck = savedBlock
+      ? { blocked: true, reason: 'Recipient is on the persistent blocked-callers list.' }
+      : shouldBlockSmsTo(rawTo, actor)
     if (blockCheck.blocked) {
       const blockLog: FollowUpLog = {
         id: uid('fu'),
@@ -328,7 +340,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     const toNumber = isWhatsApp ? `whatsapp:${rawTo}` : rawTo
 
     const providerStartedAt = performance.now()
-    const smsRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    const smsRes = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         Authorization: twilioAuth(accountSid, authToken),
@@ -348,7 +360,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
     }
     result = { ok: true, sid: smsResult.sid, fromNumber: rawFrom, branchLabel: getSaturnBranchLabel(rawFrom) }
     // Log to sms_messages — WhatsApp SIDs start with WA, SMS with SM (detectable later)
-    void recordOutboundSmsToSupabase(rawFrom, rawTo, input.body, input.leadId, String(smsResult.sid || ''))
+    await recordOutboundSmsToSupabase(rawFrom, rawTo, input.body, input.leadId, String(smsResult.sid || ''))
   }
 
   const now = new Date().toISOString()

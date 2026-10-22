@@ -1,3 +1,4 @@
+import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import { AUTOMATION_JOB_LOCK_TIMEOUT_MS, MAX_AUTOMATION_JOB_ATTEMPTS } from '@/lib/automation-job-retry'
 import { measureDependency } from '@/lib/server/performance'
 import { requireSupabaseEnv } from '@/lib/server/runtime'

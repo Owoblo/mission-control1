@@ -1,3 +1,4 @@
+import { hasFullQuotePayment } from './booking-policy'
 import { deriveOpsChecklist, getQuotedTruckCount, isTruckReservationComplete } from './operations'
 import { moveRelationshipLifecycleGaps } from './move-relationship'
 import type { CRMLead, CRMQuote } from './types'
@@ -68,7 +69,7 @@ function hasDeposit(lead: CRMLead, quote?: CRMQuote | null) {
 }
 
 function isPaid(lead: CRMLead, quote?: CRMQuote | null) {
-  return lead.paymentStatus === 'paid_in_full' || Boolean(quote?.balancePaidAt) || Number(quote?.balance || 0) <= 0
+  return hasFullQuotePayment(lead, quote)
 }
 
 function executionTimestamp(lead: CRMLead, phase: string) {

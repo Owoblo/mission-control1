@@ -1,3 +1,5 @@
+import { handlePreparedSms } from '@/lib/server/prepared-sms-route'
+import type { PreparedSms } from '@/lib/server/prepared-sms'
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
 import { getWorkerSharedSecret, requireSupabaseEnv } from '@/lib/server/runtime'
@@ -115,6 +117,9 @@ export async function POST(request: Request) {
   if (!session && !isWorker) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json() as {
+    prepared_rows?: PreparedSms[]
+    campaign_key?: string
+    approved?: boolean
     name?: string
     market?: string
     city?: string
@@ -123,6 +128,7 @@ export async function POST(request: Request) {
     template?: string
     sender_numbers?: string[]
     rep_name?: string
+    include_weekends?: boolean
     daily_cap?: number
     start_date?: string
     start_hour?: number
@@ -130,6 +136,11 @@ export async function POST(request: Request) {
     timezone?: string
     dry_run?: boolean
     allow_existing_reschedule?: boolean
+  }
+
+  if (body.prepared_rows) {
+    if (!isWorker && session?.role !== 'owner') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return handlePreparedSms({ ...body, prepared_rows: body.prepared_rows })
   }
 
   const contactsInput = Array.isArray(body.contacts) ? body.contacts : []
@@ -161,7 +172,7 @@ export async function POST(request: Request) {
 
   const template = ensureSmsOptOutLine(body.template || DEFAULT_PARTNERSHIP_SMS_TEMPLATE)
   const repName = cleanText(body.rep_name) || 'Saturn Star Partnerships'
-  const dailyCap = Math.max(1, Math.min(1000, Number(body.daily_cap || 100)))
+  const dailyCap = Math.max(1, Math.floor(Number(body.daily_cap || 100)))
   const startHour = Math.max(7, Math.min(20, Number(body.start_hour || 10)))
   const endHour = Math.max(startHour + 1, Math.min(21, Number(body.end_hour || 17)))
   const timezone = String(body.timezone || 'America/Toronto')
@@ -205,6 +216,7 @@ export async function POST(request: Request) {
   const schedulePreview = buildPartnershipSmsSchedule({
     count: Math.min(5, toInsert.length + schedulableExistingKeys.size),
     dailyCap,
+    includeWeekends: body.include_weekends === true,
     senderNumbers,
     startDate: body.start_date || new Date().toISOString().slice(0, 10),
     startHour,
@@ -341,6 +353,7 @@ export async function POST(request: Request) {
   const schedule = buildPartnershipSmsSchedule({
     count: scheduledContacts.length,
     dailyCap,
+    includeWeekends: body.include_weekends === true,
     senderNumbers,
     startDate: body.start_date || now.slice(0, 10),
     startHour,

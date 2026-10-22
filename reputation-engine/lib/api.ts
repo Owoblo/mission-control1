@@ -1,3 +1,4 @@
+import type { PublicReviewJob } from './public-review'
 import type { Job, Partner } from './types'
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -15,19 +16,19 @@ export async function fetchJobs(): Promise<Job[]> {
   return readJson<Job[]>(response)
 }
 
-export async function fetchJob(id: string): Promise<Job | null> {
-  const response = await fetch(`/api/public/reviews/${id}`, { cache: 'no-store' })
-  if (response.status === 404) return null
-  return readJson<Job>(response)
+export async function fetchJob(id: string, token = ''): Promise<PublicReviewJob | null> {
+  const response = await fetch(`/api/public/reviews/${id}`, { cache: 'no-store', headers: { 'x-review-token': token } })
+  if (response.status === 404 || response.status === 403) return null
+  return readJson<PublicReviewJob>(response)
 }
 
-export async function saveJob(job: Job): Promise<Job> {
+export async function saveJob(job: PublicReviewJob, token = ''): Promise<PublicReviewJob> {
   const response = await fetch(`/api/public/reviews/${job.id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(job),
+    headers: { 'Content-Type': 'application/json', 'x-review-token': token },
+    body: JSON.stringify({ feedbackRating: job.feedbackRating, feedbackComment: job.feedbackComment, reviews: job.reviews }),
   })
-  return readJson<Job>(response)
+  return readJson<PublicReviewJob>(response)
 }
 
 export async function removeJob(id: string): Promise<void> {

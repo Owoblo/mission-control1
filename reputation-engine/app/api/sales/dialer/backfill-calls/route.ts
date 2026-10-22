@@ -1,3 +1,4 @@
+import { storeInteraction } from '@/lib/server/interactions'
 /**
  * POST /api/sales/dialer/backfill-calls
  * Fetches all Twilio call logs + recordings and maps them into the CRM pipeline.
@@ -146,41 +147,13 @@ export async function POST() {
       }).catch(() => null) : null
       const recordingUrl = archived?.recordingUrl || recording?.recordingUrl
 
+      await storeInteraction({ source: 'twilio_backfill', channel: 'call', eventId: callSid, sender: rawExternal, occurredAt: call.start_time, raw: call, provenance: { recordingUrl } })
+
       // Find matching CRM lead
       let crmLead = allLeads.find(l => {
         const ld = digitsOnly(l.phone || '')
         return ld && (ld === extDigits || ld.endsWith(extDigits) || extDigits.endsWith(ld))
       }) ?? null
-
-      if (!crmLead) {
-        const newLead: CRMLead = {
-          id: uid('lead'),
-          name: externalPhone,
-          phone: externalPhone,
-          email: '',
-          stage: 'contacted',
-          source: isOutbound ? 'outbound_call' : 'twilio_call',
-          moveType: 'residential',
-          moveDate: '',
-          originCity: '',
-          destCity: '',
-          originAddress: '',
-          notes: '',
-          leadScore: 30,
-          totalCubicFeet: 0,
-          totalWeightLbs: 0,
-          totalItems: 0,
-          inventory: [],
-          roomBreakdown: {},
-          callLogs: [],
-          createdAt: new Date(call.start_time).toISOString().slice(0, 10),
-        }
-        crmLead = await saveSalesLead(newLead).catch(() => null)
-        if (crmLead) {
-          allLeads.push(crmLead) // keep in-memory list up to date
-          created++
-        }
-      }
 
       if (!crmLead) { skipped++; continue }
 

@@ -12,10 +12,12 @@ import {
   saveSalesQuote,
 } from '@/lib/server/sales-repository'
 import { uid, formatMoney, getDefaultPaymentTerms } from '@/lib/sales'
-import { saveJobRecord } from '@/lib/server/repository'
+import { getJob, saveJobRecord } from '@/lib/server/repository'
 import { readEnv, getAppBaseUrl } from '@/lib/server/runtime'
 import type { CRMLead, CRMQuote } from '@/lib/types'
 import { sanitizeCustomerQuoteText } from '@/lib/customer-quote-content'
+import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import { getSessionUser } from '@/lib/server/session'
 
 const CURRENT_QUOTE_TERMS_VERSION = '2026-06-07-basic-moving-terms'
 
@@ -83,7 +85,10 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
   try {
     const searchParams = new URL(request.url).searchParams
     const token = searchParams.get('token')
-    const isPreview = searchParams.get('preview') === '1'
+    const previewRequested = searchParams.get('preview') === '1'
+    // A public customer can append arbitrary query parameters, so only an
+    // authenticated Sales user may suppress customer-view tracking.
+    const isPreview = previewRequested && canAccessSalesWorkspace(await getSessionUser())
     const currentQuote = await getSalesQuote(params.id)
 
     if (!currentQuote || !isTokenValid(token, currentQuote.acceptToken)) {
@@ -131,15 +136,17 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       void sendQuoteNotification(isRepeatView ? 'viewed_again' : 'viewed', quote, lead)
     }
 
-    void logEvent('quote_viewed', {
-      leadId: quote.leadId,
-      actorName: 'Customer',
-      lead: lead || undefined,
-      quote,
-      properties: {
-        days_since_created: lead ? daysBetween(lead.createdAt, new Date().toISOString()) : undefined,
-      },
-    })
+    if (!isPreview) {
+      void logEvent('quote_viewed', {
+        leadId: quote.leadId,
+        actorName: 'Customer',
+        lead: lead || undefined,
+        quote,
+        properties: {
+          days_since_created: lead ? daysBetween(lead.createdAt, new Date().toISOString()) : undefined,
+        },
+      })
+    }
 
     return NextResponse.json({
       quote: {
@@ -240,7 +247,11 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   try {
     const body = (await request.json()) as {
       token?: string
-      action?: 'accept' | 'decline'
+      action?: 'accept' | 'decline' | 'engagement'
+      event?: 'quote_section_viewed' | 'quote_section_interaction'
+      section?: string
+      interaction?: string
+      elapsedMs?: number
       termsAccepted?: boolean
       termsVersion?: string
     }
@@ -248,6 +259,33 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
     if (!quote || !isTokenValid(body.token || null, quote.acceptToken)) {
       return NextResponse.json({ error: 'Quote link is invalid or expired' }, { status: 404 })
+    }
+
+    if (body.action === 'engagement') {
+      const validSections = new Set(['overview', 'photos', 'move_details', 'scope', 'route_plan', 'pricing', 'payment', 'decision', 'trust', 'conditions', 'move_notes'])
+      const validInteractions = new Set(['price_breakdown'])
+      if (body.event === 'quote_section_viewed' && !validSections.has(body.section || '')) {
+        return NextResponse.json({ error: 'Invalid quote section' }, { status: 400 })
+      }
+      if (body.event === 'quote_section_interaction' && !validInteractions.has(body.interaction || '')) {
+        return NextResponse.json({ error: 'Invalid quote interaction' }, { status: 400 })
+      }
+      if (body.event !== 'quote_section_viewed' && body.event !== 'quote_section_interaction') {
+        return NextResponse.json({ error: 'Invalid quote engagement event' }, { status: 400 })
+      }
+      const lead = quote.leadId ? await getSalesLead(quote.leadId) : null
+      void logEvent(body.event, {
+        leadId: quote.leadId,
+        actorName: 'Customer',
+        lead: lead || undefined,
+        quote,
+        properties: {
+          quote_section: body.section,
+          quote_interaction: body.interaction,
+          elapsed_ms: Number.isFinite(body.elapsedMs) ? Math.max(0, Math.min(3_600_000, Number(body.elapsedMs))) : undefined,
+        },
+      })
+      return NextResponse.json({ ok: true })
     }
 
     const action = body.action || 'accept'
@@ -314,8 +352,10 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         const customerName = savedLead?.name || client?.name || 'Customer'
         const customerEmail = client?.email || ''
         const customerPhone = client?.phone || savedLead?.phone || ''
-        await saveJobRecord({
-          id: uid('job'),
+        const reviewJobId = `review_lead_${nextQuote.leadId || nextQuote.id}`
+        if (!(await getJob(reviewJobId))) await saveJobRecord({
+          id: reviewJobId,
+          crmLeadId: nextQuote.leadId,
           customerName,
           customerEmail,
           customerPhone,

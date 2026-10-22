@@ -1,3 +1,4 @@
+import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { displayEmailSubject } from '@/lib/email-display'
@@ -49,11 +50,11 @@ const NOTIFICATION_DISPOSITION_TYPE = 'notification_disposition'
 async function loadNotificationSources() {
   const cutoffIso = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
   const [inboundResult, leadsResult, emailsResult, alertsResult, smsResult] = await Promise.all([
-    measureDependency('notifications.inbound_leads', listRecentInboundLeads(cutoffIso).catch(() => [] as Awaited<ReturnType<typeof listRecentInboundLeads>>)),
-    measureDependency('notifications.crm_leads', listSalesLeadNotificationSnapshots().catch(() => [] as Awaited<ReturnType<typeof listSalesLeadNotificationSnapshots>>)),
-    measureDependency('notifications.crm_emails', listRecentSalesEmails(cutoffIso).catch(() => [] as Awaited<ReturnType<typeof listRecentSalesEmails>>)),
-    measureDependency('notifications.sales_alerts', listRecentSalesAlerts(cutoffIso).catch(() => [] as Awaited<ReturnType<typeof listRecentSalesAlerts>>)),
-    measureDependency('notifications.sms_messages', listSmsMessages(undefined, undefined, cutoffIso).catch(() => [])),
+    measureDependency('notifications.inbound_leads', listRecentInboundLeads(cutoffIso)),
+    measureDependency('notifications.crm_leads', listSalesLeadNotificationSnapshots()),
+    measureDependency('notifications.crm_emails', listRecentSalesEmails(cutoffIso)),
+    measureDependency('notifications.sales_alerts', listRecentSalesAlerts(cutoffIso)),
+    measureDependency('notifications.sms_messages', listSmsMessages(undefined, undefined, cutoffIso)),
   ])
   return { cutoffIso, inboundResult, leadsResult, emailsResult, alertsResult, smsResult }
 }
@@ -98,6 +99,14 @@ function formatNotificationPhone(value?: string | null) {
 }
 
 export async function GET() {
+  try { return await loadNotifications() } catch {
+    return NextResponse.json({ error: 'Notifications are temporarily unavailable.' }, {
+      status: 503, headers: { 'Cache-Control': 'private, no-store', 'Retry-After': '30' },
+    })
+  }
+}
+
+async function loadNotifications() {
   const startedAt = performance.now()
   const session = await getSessionUser()
   if (!session || !canAccessSalesWorkspace(session)) {

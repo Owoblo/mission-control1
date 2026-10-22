@@ -19,6 +19,7 @@ export function normalizeJob(input: Partial<Job> & Pick<Job, 'id' | 'customerNam
 
   return {
     id: input.id,
+    reviewAccessVersion: input.reviewAccessVersion ?? 0,
     customerName: input.customerName.trim(),
     customerEmail: input.customerEmail.trim(),
     customerPhone: input.customerPhone.trim(),

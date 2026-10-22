@@ -1,3 +1,5 @@
+import { captureTwilioInteraction } from '@/lib/server/interactions'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
 /**
  * POST /api/sales/operations/twiml
  * Handles voice calls on the operations number (+12267746581).
@@ -33,7 +35,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'operations_call', 'call')
+    const formData = new URLSearchParams(rawBody)
     const to = (formData.get('To') as string | null)?.trim() || ''
     const from = (formData.get('From') as string | null)?.trim() || ''
 

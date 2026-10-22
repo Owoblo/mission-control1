@@ -3666,6 +3666,8 @@ export default function SalesLeadDetailPage() {
         itemIndex === index
           ? {
               ...item,
+              ...(field === 'name' ? { nameNeedsConfirmation: false } : {}),
+              ...(field === 'qty' ? { quantityNeedsConfirmation: false } : {}),
               [field]: field === 'qty' || field === 'cubicFeet' || field === 'weightLbs' ? Number(value || 0) : value,
             }
           : item
@@ -4034,7 +4036,7 @@ export default function SalesLeadDetailPage() {
   }
 
   if (!lead) {
-    return <div className="crm-shell"><h1 className="sr-only">Lead record</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-stone-500">{error || 'Lead not found'}</div></div>
+    return <div className="crm-shell"><h1 className="sr-only">Lead record</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-stone-500">{error ? 'The lead could not be loaded. Your saved record has not been changed.' : 'Loading lead…'}<button type="button" className="crm-button mx-auto mt-4 block" onClick={() => { setError(null); void refresh(params.id!) }}>Retry loading</button></div></div>
   }
 
   const displayLeadName =
@@ -4158,6 +4160,11 @@ export default function SalesLeadDetailPage() {
         </div>
       </div>
 
+      {inventoryMetrics.measurementsComplete === false ? (
+        <div role="status" className="border-l-2 border-amber-500 bg-amber-50 px-5 py-3 text-sm text-amber-900">
+          Inventory size and weight are incomplete. Current figures are known subtotals. Confirm the unresolved item details before choosing a truck or relying on the estimate.
+        </div>
+      ) : null}
       {textParsedInventoryReviewItems.length > 0 ? (
         <div className="border-l-2 border-[#C99700] bg-white px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-4">

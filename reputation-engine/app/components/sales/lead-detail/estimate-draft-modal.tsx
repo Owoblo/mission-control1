@@ -12,6 +12,7 @@ import { getDisassemblyServiceLabel, getIncludedDisassemblyItems } from '@/lib/m
 import { formatMovePolicyCategoryLabel, getMovePolicyFinding, summarizeMovePolicy } from '@/lib/move-policy'
 import { getTvBoxMaterialPresetForSize } from '@/lib/packing-materials'
 import { buildStarterInventoryPlan } from '@/lib/starter-inventory'
+import { buildCustomerInventoryList, inventoryMeasurementIssues } from '@/lib/customer-inventory-review'
 import { buildInventorySnapshotCopyText } from '@/lib/inventory-copy'
 import { buildCustomerQuoteScope } from '@/lib/customer-quote-content'
 import { deriveAccessComplexityAssessment } from '@/lib/access-intelligence'
@@ -198,6 +199,7 @@ const BRANCH_CAPACITY_ESTIMATES: Record<NonNullable<CRMLead['branch']>, { crew: 
   waterloo: { crew: 12, trucks: 4 },
   london: { crew: 10, trucks: 3 },
   ottawa: { crew: 10, trucks: 3 },
+  toronto: { crew: 0, trucks: 0 }, // Pilot market: operations must configure actual capacity.
 }
 
 function daysUntilDate(value?: string) {
@@ -482,7 +484,7 @@ export function EstimateDraftModal({
   const [quoteType, setQuoteType] = useState<'standard' | 'labor_only' | 'packing_only' | 'long_distance' | 'storage'>(
     lead.quoteType || 'standard'
   )
-  const [localBranch, setLocalBranch] = useState<'windsor' | 'waterloo' | 'london' | 'ottawa'>(
+  const [localBranch, setLocalBranch] = useState<NonNullable<CRMLead['branch']>>(
     detectSalesBranchFromLocation(lead.originAddress, lead.originCity) || lead.branch || 'windsor'
   )
   const [distanceKm, setDistanceKm] = useState<number>(0)
@@ -1200,6 +1202,7 @@ export function EstimateDraftModal({
   const [quickCuFt, setQuickCuFt] = useState('')
   const [quickWeightLbs, setQuickWeightLbs] = useState('')
   const [quickLookupLoading, setQuickLookupLoading] = useState(false)
+  const quickAddInFlight = useRef(false)
   const [quickLookupNote, setQuickLookupNote] = useState<string | null>(null)
   const [quickLookupError, setQuickLookupError] = useState<string | null>(null)
   // Paste-list import
@@ -1817,39 +1820,47 @@ export function EstimateDraftModal({
         return
       }
       const data = await res.json() as { cubicFeet?: number; weightLbs?: number; notes?: string; confidence?: string; source?: string }
-      if (data.cubicFeet && !quickCuFt) {
+      if (Number.isFinite(data.cubicFeet) && Number(data.cubicFeet) > 0 && !quickCuFt) {
         setQuickCuFt(String(data.cubicFeet))
         if (data.weightLbs) setQuickWeightLbs(String(data.weightLbs))
         const src = data.source === 'preset' ? 'preset' : `AI · ${data.confidence || 'medium'} confidence`
         setQuickLookupNote(`${data.cubicFeet} cu ft · ${data.weightLbs ? `${data.weightLbs} lbs` : ''} (${src})${data.notes ? ` — ${data.notes}` : ''}`)
+        return data
       }
+      setQuickLookupError('No size estimate found — enter cu ft manually.')
     } catch { setQuickLookupError('Size lookup is unavailable — enter cu ft manually.') }
     finally { setQuickLookupLoading(false) }
   }
 
   async function addQuickItem() {
-    if (!quickItem.trim()) return
-    // Tapping Add on mobile can skip the input blur that used to trigger AI lookup.
-    if (!quickCuFt) await lookupItemDimensions(quickItem)
-    const qty = Math.max(1, Number(quickQty) || 1)
-    const cf = Number(quickCuFt) || 0
-    const weightLbs = Number(quickWeightLbs) || Math.round(cf * 4)
-    onAddInventoryItems([{
-      id: `manual-${Date.now()}`,
-      room: quickRoom,
-      name: quickItem.trim(),
-      item: quickItem.trim(),
-      qty,
-      cubicFeet: cf,
-      weightLbs,
-      included: true,
-    }])
-    setQuickItem('')
-    setQuickQty('1')
-    setQuickCuFt('')
-    setQuickWeightLbs('')
-    setQuickLookupNote(null)
-    setQuickLookupError(null)
+    if (!quickItem.trim() || quickAddInFlight.current) return
+    quickAddInFlight.current = true
+    try {
+      // Use the response directly: state setters do not update this async closure.
+      const dimensions = !quickCuFt ? await lookupItemDimensions(quickItem) : undefined
+      if (!quickCuFt && !dimensions) return
+      const qty = Math.max(1, Number(quickQty) || 1)
+      const cf = Number(quickCuFt) || Number(dimensions?.cubicFeet) || 0
+      const weightLbs = Number(quickWeightLbs) || Number(dimensions?.weightLbs) || Math.round(cf * 4)
+      onAddInventoryItems([{
+        id: `manual-${Date.now()}`,
+        room: quickRoom,
+        name: quickItem.trim(),
+        item: quickItem.trim(),
+        qty,
+        cubicFeet: cf,
+        weightLbs,
+        included: true,
+      }])
+      setQuickItem('')
+      setQuickQty('1')
+      setQuickCuFt('')
+      setQuickWeightLbs('')
+      setQuickLookupNote(null)
+      setQuickLookupError(null)
+    } finally {
+      quickAddInFlight.current = false
+    }
   }
 
   function addConjointPresetItem(presetId: string, owner: 'person_a' | 'person_b') {
@@ -1890,8 +1901,8 @@ export function EstimateDraftModal({
     setConjointMlsNotice(`${label} note added.`)
   }
 
-  async function copyInventorySnapshot() {
-    const text = buildInventorySnapshotCopyText(inventory)
+  async function copyInventorySnapshot(forImport = false) {
+    const text = forImport ? buildCustomerInventoryList(inventory) : buildInventorySnapshotCopyText(inventory)
     if (!text.trim()) {
       setInventoryCopyNotice('Nothing to copy yet')
       window.setTimeout(() => setInventoryCopyNotice(null), 1800)
@@ -3780,7 +3791,16 @@ export function EstimateDraftModal({
                   >
                     {inventoryCopyNotice || 'Copy list'}
                   </button>
+                  <button type="button" onClick={() => void copyInventorySnapshot(true)}
+                    className="rounded-[6px] border border-[var(--app-line)] bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--app-ink)]">
+                    Copy for inventory software
+                  </button>
                 </div>
+                {inventoryMeasurementIssues(inventory).length > 0 ? (
+                  <p role="status" className="mt-3 text-sm text-amber-800">
+                    Size and weight totals are incomplete. {inventoryMeasurementIssues(inventory).length} inventory entries need names, quantities or measurements confirmed. The values below are known subtotals, not the full load.
+                  </p>
+                ) : null}
                 {textParsedInventoryItems.length > 0 ? (
                   <div className="mt-3 border-l-2 border-[#C99700] bg-white px-3 py-3">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a6800]">Inventory parsed from customer text · review required</div>
@@ -4516,7 +4536,6 @@ export function EstimateDraftModal({
                           <input
                             value={quickItem}
                             onChange={e => { setQuickItem(e.target.value); setQuickLookupNote(null) }}
-                            onBlur={e => void lookupItemDimensions(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addQuickItem() } }}
                             className="crm-input py-1 text-xs"
                             placeholder="Item name (e.g. Pet Étagère)"

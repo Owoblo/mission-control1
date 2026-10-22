@@ -1,3 +1,4 @@
+import { scopeDashboard } from '@/lib/server/dashboard-scope'
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { getSalesOverview, listSalesLeadSearchSnapshots, listSalesQuoteIndexSnapshots } from '@/lib/server/sales-repository'
@@ -227,6 +228,10 @@ function buildDashboardOverview(overview: Awaited<ReturnType<typeof getSalesOver
     name: lead.name,
     phone: lead.phone,
     stage: lead.stage,
+    branch: lead.branch,
+    estimateDate: lead.estimateDate,
+    paymentStatus: lead.paymentStatus,
+    lastTouchedAt: lead.lastTouchedAt,
     assignedRep: lead.assignedRep,
     assignedRepName: lead.assignedRepName,
     assignedRepUserId: lead.assignedRepUserId,
@@ -259,6 +264,9 @@ function buildDashboardOverview(overview: Awaited<ReturnType<typeof getSalesOver
       acceptedAt: quote.acceptedAt,
       respondedAt: quote.respondedAt,
       validDays: quote.validDays,
+      depositPaidAt: quote.depositPaidAt,
+      depositPaidAmount: quote.depositPaidAmount,
+      moveDate: quote.moveDate,
     })) as typeof overview.quotes
   const followUps = overview.followUps
     .filter(item => Boolean(item.leadId && leadIds.has(item.leadId)))
@@ -268,8 +276,8 @@ function buildDashboardOverview(overview: Awaited<ReturnType<typeof getSalesOver
 
 export async function GET(request: Request) {
   const startedAt = performance.now()
+  const session = await getSessionUser()
   try {
-    const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {
       return finishTimedResponse(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), startedAt, 'sales_overview')
     }
@@ -307,9 +315,7 @@ export async function GET(request: Request) {
 
     if (mode === 'dashboard') {
       const fullOverview = await getCachedSalesOverview()
-      const scopedOverview = isBranchScopedManager(session)
-        ? { ...fullOverview, leads: fullOverview.leads.filter(lead => leadMatchesSessionBranch(lead, session)) }
-        : fullOverview
+      const scopedOverview = scopeDashboard(fullOverview, session)
       return finishTimedResponse(NextResponse.json(buildDashboardOverview(scopedOverview)), startedAt, 'sales_overview_dashboard')
     }
 
@@ -332,7 +338,7 @@ export async function GET(request: Request) {
     return finishTimedResponse(NextResponse.json(overview), startedAt, 'sales_overview')
   } catch (error) {
     console.error('[sales-overview] Live CRM read failed', error)
-    if (overviewCache) {
+    if (overviewCache && canAccessSalesWorkspace(session) && !isBranchScopedManager(session)) {
       return finishTimedResponse(NextResponse.json(
         { ...compactOverview(overviewCache.payload), stale: true, warning: 'Live data is temporarily unavailable.' },
         { headers: { 'X-Saturn-Data': 'stale', 'Retry-After': '5' } }

@@ -1,3 +1,4 @@
+import { executeDirectPayment } from '@/lib/server/direct-payment-operation'
 /**
  * POST /api/sales/stripe/charge-balance
  * Charges the saved card for the remaining balance after job completion.
@@ -18,7 +19,8 @@ export async function POST(request: Request) {
   const session = await getSessionUser()
 
   try {
-    const { leadId, quoteId, amountOverride } = (await request.json()) as {
+    const { leadId, quoteId, amountOverride, operationId } = (await request.json()) as {
+      operationId: string
       leadId: string
       quoteId: string
       amountOverride?: number
@@ -79,35 +81,17 @@ export async function POST(request: Request) {
     piParams.set('metadata[type]', 'balance')
     appendStripeAccountMetadata(piParams, stripeAccount)
 
-    const pi = await stripePost<{
-      id?: string
-      status?: string
-      error?: { message?: string }
-    }>('payment_intents', stripeKey, piParams)
-
-    if (pi.status !== 'succeeded' || !pi.id) {
-      return NextResponse.json({ error: pi.error?.message || 'Charge failed' }, { status: 402 })
-    }
-
-    const paid = getQuotePaidSoFar(quote, lead)
-    const nextBalance = Math.max(0, Math.round((quote.total - (paid.totalPaid + chargeAmount)) * 100) / 100)
-    const paidAt = new Date().toISOString()
-    const { cardBrand, cardLast4 } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
-    const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: nextBalance <= 0 ? 'final' : 'balance', method: 'credit_card', paidAt, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
-    const updatedQuote = await saveSalesQuote({
-      ...quote,
-      balance: nextBalance,
-      balancePaidAt: paidAt,
-      balancePaidAmount: Math.round((paid.balancePaid + chargeAmount) * 100) / 100,
-      balancePaidMethod: 'stripe',
-      stripeAccountKey: stripeAccount.key,
-      paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
+    const result = await executeDirectPayment({
+      operationKey: operationId, kind: 'balance', quote, lead, amount: chargeAmount,
+      account: stripeAccount.key, stripeKey, params: piParams, actorName: session?.name, actorId: session?.userId,
     })
-
-    const updatedLead = await saveSalesLead({
-      ...lead,
-      paymentStatus: nextBalance <= 0 ? 'paid_in_full' : 'deposit_received',
-    })
+    const { pi, cardBrand, cardLast4 } = result
+    let updatedQuote = result.quote
+    const updatedLead = result.lead
+    const paymentRecord = result.paymentRecord
+    const nextBalance = updatedQuote.balance
+    if (result.replayed) return NextResponse.json({ ok:true, replayed:true, paymentIntentId:pi.id, amount:result.amount, balance:nextBalance, cardBrand, cardLast4, lead:updatedLead, quote:updatedQuote })
+    if (!paymentRecord) throw new Error('Payment saved; receipt projection requires reconciliation')
 
     await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
     await recordLeadPaymentAudit({

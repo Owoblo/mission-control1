@@ -9,7 +9,12 @@ const PUBLIC_PATHS = new Set(['/login'])
 // Webhooks / public API — no session cookie
 const PUBLIC_API_PATHS = new Set([
   '/api/sales/twilio/sms',
+  '/api/sales/telnyx/messaging',
+  '/api/sales/telnyx/voice',
+  '/api/sales/telnyx/bridge',
   '/api/sales/inbox/email-inbound',
+  '/api/marketing/sms/email-reply/ses', // SNS signature + exact receiving topic checked by handler.
+  '/api/marketing/sms/email-reply', // Dedicated ingress secret + authenticated mailbox required in handler.
   '/api/sales/operations/sms',
   '/api/sales/operations/twiml',
   '/api/sales/emails/backfill',
@@ -18,11 +23,12 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/stripe/webhook/dexa',
   '/api/partners/referral-capture',
   '/api/marketing/email-events/ses',
+  '/api/marketing/email-unsubscribe',
 ])
 
-// All Twilio dialer callbacks — Twilio hits these without auth, so the whole prefix is public
+// Only provider callbacks bypass staff sessions; each mutating callback verifies its signature.
 function isPublicDialerPath(pathname: string) {
-  return pathname.startsWith('/api/sales/dialer/')
+  return ['twiml','ivr','voicemail','call-status','dial-status','missed-call','recording-callback','conference/events','queue/connect','queue/wait'].some(path => pathname === `/api/sales/dialer/${path}`)
 }
 
 function isPublicMarketingDialerPath(pathname: string) {
@@ -34,6 +40,7 @@ function isPublicMarketingDialerPath(pathname: string) {
 }
 
 const INTERNAL_SECRET_API_PATHS = new Set([
+  '/api/marketing/sms/campaigns',
   '/api/sales/automation/ingest',
   '/api/sales/automation/process',
   '/api/sales/automation/reactivate',
@@ -138,7 +145,10 @@ export async function middleware(request: NextRequest) {
     const operationsPath = pathname.startsWith('/sales/operations') || pathname.startsWith('/api/sales/operations') || pathname.startsWith('/sales/contractors') || pathname.startsWith('/api/sales/subcontractors') || pathname.startsWith('/api/sales/subcontractor-offers') || pathname.startsWith('/sales/partner-operations') || pathname.startsWith('/api/sales/partner-operations') || pathname.startsWith('/sales/partner-simulations') || pathname.startsWith('/api/sales/partner-pilots')
     const operationsLeadMutation = pathname === '/api/sales/playbook' || /^\/api\/sales\/leads\/[^/]+\/(planning|outcome)$/.test(pathname) ||
       (request.method === 'PATCH' && /^\/api\/sales\/leads\/[^/]+$/.test(pathname))
-    const canAccessSales = role === 'owner' || role === 'manager' || role === 'sales_rep' || (role === 'operations_lead' && (operationsPath || operationsLeadMutation))
+    const telephonyStaffPath = pathname.startsWith('/api/sales/dialer/') && (role === 'operations_lead' || role === 'crew' || role === 'partnership_manager')
+    // The send handler enforces partnership-only sender/recipient access itself.
+    const partnershipSmsPath = role === 'partnership_manager' && pathname === '/api/sales/send' && request.method === 'POST'
+    const canAccessSales = partnershipSmsPath || telephonyStaffPath || role === 'owner' || role === 'manager' || role === 'sales_rep' || (role === 'operations_lead' && (operationsPath || operationsLeadMutation))
     if (!canAccessSales) {
       if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       return NextResponse.redirect(new URL(role === 'partnership_manager' ? '/marketing/partners?tab=phone' : '/crew/calendar', request.url))

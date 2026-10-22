@@ -4,6 +4,7 @@
 // Tier 3: Community relationship partners (brand/trust plays)
 
 export const SERVICE_AREAS = [
+  { id: 'toronto', label: 'Toronto / GTA + Hamilton', province: 'ON', areaCode: '437' },
   { id: 'windsor',   label: 'Windsor',          province: 'ON', areaCode: '226' },
   { id: 'london',    label: 'London',            province: 'ON', areaCode: '519' },
   { id: 'kitchener', label: 'Kitchener/Waterloo', province: 'ON', areaCode: '519' },

@@ -462,6 +462,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     if (['booked', 'completed'].includes(nextLead.stage)) nextLead.crewNote = buildCurrentCrewBrief(nextLead, quote)
     const saved = await saveSalesLead(nextLead, record!.updatedAt)
     if (
+      saved.partnerReferralContactId ||
       saved.source === 'partner_referral' ||
       current.source === 'partner_referral' ||
       saved.partnerReferralContactId !== current.partnerReferralContactId

@@ -28,6 +28,8 @@ export type EventType =
   | 'quote_created'
   | 'quote_sent'
   | 'quote_viewed'
+  | 'quote_section_viewed'
+  | 'quote_section_interaction'
   | 'quote_accepted'
   | 'quote_declined'
   | 'sms_sent'

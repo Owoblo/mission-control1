@@ -14,7 +14,12 @@ async function isAuthorized(request: Request) {
 
 export async function GET(request: Request) {
   if (!(await isAuthorized(request))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const report = await getPerformanceHealth()
+  let report
+  try { report = await getPerformanceHealth() } catch {
+    return NextResponse.json({ status: 'fail', generatedAt: new Date().toISOString(), error: 'Database health checks could not complete.' }, {
+      status: 503, headers: { 'Cache-Control': 'private, no-store' },
+    })
+  }
   return NextResponse.json(report, {
     status: report.status === 'fail' ? 503 : 200,
     headers: { 'Cache-Control': 'private, no-store' },

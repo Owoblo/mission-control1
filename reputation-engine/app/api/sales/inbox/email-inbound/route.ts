@@ -1,3 +1,4 @@
+import { storeInteraction } from '@/lib/server/interactions'
 /**
  * POST /api/sales/inbox/email-inbound
  * Receives inbound emails from Resend (email.received webhook)
@@ -8,49 +9,18 @@ import { uid } from '@/lib/sales'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { queueLeadIntelligenceRefresh } from '@/lib/server/lead-intelligence-refresh'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
-import { getWorkerSharedSecret, readEnv } from '@/lib/server/runtime'
+import { authorizeInboundEmail } from '@/lib/server/inbound-email-auth'
 import { saveSalesEmail, saveFollowUpLog } from '@/lib/server/sales-repository'
 
-async function verifySvixSignature(request: Request, rawBody: string): Promise<boolean> {
-  const secret = readEnv('RESEND_WEBHOOK_SECRET')
-  if (!secret) return true
-
-  const msgId = request.headers.get('svix-id') || ''
-  const msgTs = request.headers.get('svix-timestamp') || ''
-  const msgSig = request.headers.get('svix-signature') || ''
-
-  if (!msgId || !msgTs || !msgSig) return false
-
-  // Replay protection: reject if timestamp is >5 minutes old
-  const ts = parseInt(msgTs, 10)
-  if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false
-
-  // Decode the whsec_ secret
-  const secretBytes = Uint8Array.from(atob(secret.replace(/^whsec_/, '')), c => c.charCodeAt(0))
-  const toSign = new TextEncoder().encode(`${msgId}.${msgTs}.${rawBody}`)
-
-  const key = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  const sig = await crypto.subtle.sign('HMAC', key, toSign)
-  const computed = 'v1,' + btoa(String.fromCharCode(...Array.from(new Uint8Array(sig))))
-
-  return msgSig.split(' ').some(s => s === computed)
-}
-
 export async function POST(request: Request) {
-  const workerSecret = request.headers.get('x-internal-secret')
-  const expectedWorkerSecret = getWorkerSharedSecret()
-  const isWorker = workerSecret && expectedWorkerSecret && workerSecret === expectedWorkerSecret
-  const isHealthCheck = isWorker && request.headers.get('x-health-check') === '1'
-
   const rawBody = await request.text()
-
-  if (!isWorker) {
-    const valid = await verifySvixSignature(request, rawBody)
-    if (!valid) return new Response('Unauthorized', { status: 401 })
-  }
+  const auth = authorizeInboundEmail(request, rawBody)
+  if (!auth.authorized) return auth.response
+  const isHealthCheck = auth.isWorker && request.headers.get('x-health-check') === '1'
 
   try {
     const raw = JSON.parse(rawBody) as Record<string, unknown>
+    await storeInteraction({ source: 'email_webhook', channel: 'email', eventId: request.headers.get('svix-id') || undefined, raw: rawBody })
 
     let from = ''
     let fromName: string | undefined
@@ -97,6 +67,7 @@ export async function POST(request: Request) {
     }
 
     const now = receivedAt || new Date().toISOString()
+    await storeInteraction({ source: 'email_inbound', channel: 'email', eventId: request.headers.get('svix-id') || undefined, sender: from, recipient: to, body, occurredAt: now, raw })
     if (isHealthCheck) {
       const emailId = uid('em')
       await saveSalesEmail({
@@ -120,7 +91,7 @@ export async function POST(request: Request) {
       channel: 'email',
       email: from,
       occurredAt: now,
-      notes: subject ? `Inbound email: ${subject}` : 'Inbound email reply received',
+      notes: `${subject ? `Subject: ${subject}\n\n` : ''}${body}`,
       metadata: {
         from,
         to,

@@ -1,3 +1,10 @@
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
+import { isSmsProviderReceipt } from '@/lib/telephony-providers'
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
+import { reserveMissedCallReply, recordMissedCallReply } from '@/lib/server/callback-actions'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
 /**
  * POST /api/sales/dialer/call-status
  * Twilio status callback — fires when a call ends.
@@ -24,9 +31,14 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const form = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'twilio_call_status', 'call')
+    const form = carrierVoiceForm(rawBody)
     const callStatus = (form.get('CallStatus') as string || '').toLowerCase()
     const from = (form.get('From') as string || '').trim()
+    if (findBlockedCaller(await getDialerSettings(), from)) return new Response(null, { status: 204 })
     const callDuration = Number(form.get('CallDuration') || 0)
     const branchNumber = pickSaturnBranchPhoneNumber(
       searchParams.get('branchNumber'),
@@ -40,6 +52,9 @@ export async function POST(request: Request) {
     if (!isMissed || !from || from === 'anonymous' || from.toLowerCase().startsWith('client:')) {
       return new Response(null, { status: 204 })
     }
+
+    const callSid = form.get('CallSid') || ''
+    if (!(await reserveMissedCallReply(callSid))) return new Response(null, { status: 204 })
 
     // Try to find lead name for personalization
     const leads = await listSalesLeads().catch(() => [])
@@ -55,7 +70,7 @@ export async function POST(request: Request) {
     const branchLabel = getSaturnBranchLabel(branchNumber)
     const body = `${greeting} This is Saturn Star Moving${branchLabel ? ` on the ${branchLabel} line` : ''} — sorry we missed your call! Reply here or call us back here and we'll get you sorted right away.`
 
-    await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    const sent = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         Authorization: twilioAuth(accountSid, authToken),
@@ -68,16 +83,24 @@ export async function POST(request: Request) {
       }).toString(),
     })
 
+    const message = await sent.json().catch(() => null)
+    if (!sent.ok || typeof message?.sid !== 'string' || !isSmsProviderReceipt(message.sid)) {
+      await recordMissedCallReply(callSid, 'unknown')
+      return new Response('SMS outcome requires review', { status: 503 })
+    }
+    await recordMissedCallReply(callSid, 'handed_off')
+
     void createSalesSystemAlert({
       title: 'Missed inbound call',
       leadId: matchedLead?.id,
       branchNumber,
-      details: `Caller ${from} was sent an automatic missed-call SMS from ${branchNumber}.`,
+      details: `Caller ${from} had an automatic missed-call SMS accepted by Twilio from ${branchNumber}.`,
       occurredAt: new Date().toISOString(),
     })
 
     return new Response(null, { status: 204 })
-  } catch {
-    return new Response(null, { status: 204 })
+  } catch (error) {
+    console.error('[sales-call-status] Unable to process provider callback', error)
+    return new Response('Callback outcome requires review', { status: 503 })
   }
 }

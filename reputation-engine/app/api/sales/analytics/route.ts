@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { formatMoney } from '@/lib/sales'
 import { buildCRMAnalyticsSnapshot, resolveAnalyticsFilters } from '@/lib/server/crm-analytics'
-import { listFollowUpLogs, listSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
+import { listFollowUpLogsStrict, listSalesLeads, listSalesQuotes } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
 import { isBranchScopedManager, leadMatchesSessionBranch } from '@/lib/server/sales-permissions'
 
@@ -10,14 +10,18 @@ function toCsv(snapshot: ReturnType<typeof buildCRMAnalyticsSnapshot>) {
     ['Metric', 'Value'],
     ['Leads received', String(snapshot.totals.leadsReceived)],
     ['Confirmed bookings', String(snapshot.totals.confirmedBookings)],
-    ['Confirmed revenue', formatMoney(snapshot.totals.confirmedRevenue)],
+    ['Booked quote value (not collected revenue)', formatMoney(snapshot.totals.confirmedRevenue)],
     ['Tentative reservations', String(snapshot.totals.tentativeReservations)],
     ['Lost leads', String(snapshot.totals.lostLeads)],
-    ['Conversion rate', `${snapshot.totals.conversionRate}%`],
+    ['Lead cohort booking rate', `${snapshot.totals.cohortConversionRate}%`],
+    ['Booking activity / new leads (different populations)', `${snapshot.totals.periodBookingActivityRate}%`],
     ['Average quote value', formatMoney(snapshot.totals.averageQuoteValue)],
     ['Follow-up compliance', `${snapshot.totals.followUpComplianceRate}%`],
     ['Monthly target', formatMoney(snapshot.totals.monthlyTarget)],
     ['Monthly progress', `${snapshot.totals.monthlyProgressPct}%`],
+    [''],
+    ['Metric definition', 'Date basis', 'Denominator', 'Exclusions', 'Source'],
+    ...Object.values(snapshot.metricDefinitions).map(definition => [definition.label, definition.dateBasis, definition.denominator, definition.exclusions, definition.source]),
     [''],
     ['Source', 'Count'],
     ...snapshot.sourceBreakdown.map(item => [item.label, String(item.count)]),
@@ -38,11 +42,25 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const filters = resolveAnalyticsFilters(url.searchParams)
   if (isBranchScopedManager(session)) filters.branch = session.branch
-  const [allLeads, allQuotes, allFollowUps] = await Promise.all([
-    listSalesLeads().catch(() => []),
-    listSalesQuotes().catch(() => []),
-    listFollowUpLogs().catch(() => []),
-  ])
+  const [leadsResult, quotesResult, followUpsResult] = await Promise.allSettled([listSalesLeads(), listSalesQuotes(), listFollowUpLogsStrict()])
+  const failedSources = [
+    ...(leadsResult.status === 'rejected' ? ['leads'] : []),
+    ...(quotesResult.status === 'rejected' ? ['quotes'] : []),
+    ...(followUpsResult.status === 'rejected' ? ['followUps'] : []),
+  ]
+  if (failedSources.length) {
+    return NextResponse.json({
+      error: 'CRM analytics data is incomplete; retry after the affected data source is available.',
+      code: 'ANALYTICS_SOURCE_READ_FAILED',
+      failedSources,
+    }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+  }
+  if (leadsResult.status !== 'fulfilled' || quotesResult.status !== 'fulfilled' || followUpsResult.status !== 'fulfilled') {
+    return NextResponse.json({ error: 'CRM analytics data is incomplete.', code: 'ANALYTICS_SOURCE_READ_FAILED' }, { status: 503 })
+  }
+  const allLeads = leadsResult.value
+  const allQuotes = quotesResult.value
+  const allFollowUps = followUpsResult.value
 
   const leads = allLeads.filter(lead => leadMatchesSessionBranch(lead, session))
   const allowedLeadIds = new Set(leads.map(lead => lead.id))
@@ -60,9 +78,10 @@ export async function GET(request: Request) {
       headers: {
         'Content-Type': 'text/csv',
         'Content-Disposition': `attachment; filename="crm-analytics-${filters.dateFrom}-to-${filters.dateTo}.csv"`,
+        'Cache-Control': 'no-store',
       },
     })
   }
 
-  return NextResponse.json(snapshot)
+  return NextResponse.json({ ...snapshot, dataStatus: { complete: true, generatedAt: new Date().toISOString(), sources: ['leads', 'quotes', 'followUps'] } }, { headers: { 'Cache-Control': 'no-store' } })
 }

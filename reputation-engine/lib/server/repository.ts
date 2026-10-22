@@ -109,3 +109,13 @@ export async function savePartnerRecord(partner: Partner): Promise<Partner> {
 export async function deletePartnerRecord(id: string): Promise<void> {
   await softDelete('review_partners', id)
 }
+
+export async function patchPublicReview(job: Job, patch: Record<string, unknown>, proof: Job['reviewProofAssets'] = []): Promise<Job> {
+  const { url, headers } = requireSupabase()
+  const response = await fetch(`${url}/rest/v1/rpc/patch_review_feedback`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ p_job_id: job.id, p_access_version: job.reviewAccessVersion || 0, p_patch: patch, p_proof: proof }),
+  })
+  if (!response.ok) throw new Error('Review changed or feedback could not be saved. Please reload.')
+  return normalizeJob(await response.json() as Job)
+}

@@ -1,3 +1,8 @@
+import { blocksAutomatedFollowUp } from '../follow-up-radar'
+import { inventoryMeasurementIssues, buildCustomerInventoryList, planCustomerInventoryReply } from '@/lib/customer-inventory-review'
+import { countsAsCommercialLead } from '../interaction-classification'
+import { salesAutomationExclusion } from '../sales-work-queue'
+import { storeInteraction } from './interactions'
 import {
   dateStamp,
   detectSalesBranchFromLocation,
@@ -1075,6 +1080,7 @@ function buildEstimateMissingReasons(lead: CRMLead) {
   else if (!hasCompleteMoveAddress(lead.destAddress)) reasons.push('destination_address')
   if (hasMlsDraftInventoryNeedingConfirmation(lead)) reasons.push('inventory_confirmation')
   if (!lead.totalCubicFeet && !(lead.inventory || []).length) reasons.push('inventory')
+  if (inventoryMeasurementIssues(lead.inventory).length) reasons.push('inventory_measurements')
   if (leadNeedsAccessBeforeAutomatedQuote(lead)) reasons.push('access')
   return reasons
 }
@@ -1109,7 +1115,7 @@ function buildEstimateScopeConfirmation(lead: CRMLead, channel: ConversationChan
   const moveDate = lead.moveDate
     ? new Date(`${lead.moveDate}T12:00:00`).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'flexible date'
-  const inventory = describeInventorySnapshot(lead)
+  const inventory = `items listed below:\n${buildCustomerInventoryList(lead.inventory)}`
   const question = 'Does that cover the main furniture, aside from boxes you are still packing?'
   if (channel === 'sms') {
     return `Thanks, ${firstName} — that helps. I have ${moveDate}, ${route}, and ${inventory}. ${question}`
@@ -1635,8 +1641,12 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
     receivedAt: now,
   }).catch(() => null)
 
-  let enrichedLead = mergeExtractedSignals(lead, extractedSignals, message || lead.inboundMessage)
-  enrichedLead = resolveInboundSalesContext(enrichedLead, message || lead.inboundMessage)
+  // Resolve single-address replies against the prior route before AI extraction
+  // can assign the same destination to both ends of the move.
+  const contextualLead = resolveInboundSalesContext(lead, message || lead.inboundMessage)
+  let enrichedLead = mergeExtractedSignals(contextualLead, extractedSignals, message || lead.inboundMessage)
+  enrichedLead.originAddress = contextualLead.originAddress
+  enrichedLead.destAddress = contextualLead.destAddress
   enrichedLead = await hydrateLeadFromAddressAndInventory(enrichedLead).catch(() => enrichedLead)
 
   const explicitHumanRequest =
@@ -2364,7 +2374,13 @@ async function resolveCanonicalLeadForAutomationJob(job: CRMAutomationJob, lead:
 }
 
 function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
+  const queueExclusion = salesAutomationExclusion(lead)
+  if (queueExclusion) return queueExclusion
   if (lead.automationStatus === 'do_not_contact') return 'Lead is marked do-not-contact.'
+  // A lost-feedback job can remain queued while a rep reopens the lead to
+  // Nurture. Re-check current stage and ownership before delivery.
+  if (job.kind === 'lost_feedback' && lead.stage !== 'lost') return 'Lead was reopened; cancel stale lost feedback.'
+  if (job.kind === 'lost_feedback' && (lead.automationStatus === 'paused' || lead.automationStatus === 'handoff')) return 'Lost feedback is paused for representative follow-up.'
   const settingsReason = disabledNudgeReason(lead, job.kind)
   if (settingsReason) return settingsReason
   const repWorkflowReason = humanConversationOwnershipReason(lead)
@@ -3066,6 +3082,9 @@ async function handleListingInventoryScanJob(job: CRMAutomationJob, lead: CRMLea
 }
 
 async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
+  if (blocksAutomatedFollowUp(lead, job.kind)) {
+    return { status: 'cancelled' as const, reason: 'A reviewed follow-up plan owns the next contact. Review the radar task.' }
+  }
   const preferredChannel = (job.channel || chooseContactChannel(lead)?.channel || 'sms') as ConversationChannel
   const contact = chooseContactChannel(lead, preferredChannel)
   if (!contact) {
@@ -3446,6 +3465,48 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
         }),
       })
     }
+  }
+
+  const customerInventoryReply = job.kind === 'lead_response'
+    ? planCustomerInventoryReply(addressCheckedLead, inboundMessage || '', new Date().toISOString())
+    : null
+  if (customerInventoryReply) {
+    let reviewedLead = addressCheckedLead
+    if (customerInventoryReply.handoff) {
+      reviewedLead = await handoffLeadForManualReview(
+        reviewedLead,
+        'Customer inventory is ready for coordinator review and pricing.',
+        `Review customer item names, quantities, measurements and access before quoting.\n${buildCustomerInventoryList(reviewedLead.inventory)}`,
+      )
+      await createSalesSystemAlert({
+        title: 'Customer inventory ready for quote review',
+        leadId: reviewedLead.id,
+        severity: 'warning',
+        details: 'Customer confirmed the inventory list or requested a quote. Review unresolved items and measurements before pricing.',
+      })
+    }
+    const sendResult = await sendSalesMessage({
+      actor: 'automation', channel: contact.channel, to: contact.to,
+      subject: contact.channel === 'email' ? 'Your moving inventory' : undefined,
+      body: customerInventoryReply.body, leadId: reviewedLead.id,
+      notes: customerInventoryReply.handoff
+        ? 'Customer inventory handed to coordinator for pricing; no automated quote sent.'
+        : 'Sent the full named inventory list for customer corrections and missing items.',
+    })
+    if (!wasSalesMessageDelivered(sendResult)) {
+      return { status: 'completed' as const, sent: false, lead: reviewedLead,
+        message: 'Inventory reply was not sent; pending review state was not advanced.' }
+    }
+    reviewedLead = await saveSalesLead({
+      ...(sendResult.lead || reviewedLead), smsInventoryReview: customerInventoryReply.review,
+    })
+    const thread = await saveAutomationThreadAfterOutbound({
+      lead: reviewedLead, existingThread, channel: contact.channel,
+      contactValue: contact.to, preview: customerInventoryReply.body, jobKind: job.kind,
+      intent: customerInventoryReply.handoff ? 'handoff' : 'inventory_list_confirmation', inboundMessage,
+    })
+    return { status: 'completed' as const, sent: true, lead: reviewedLead, thread,
+      message: customerInventoryReply.body }
   }
 
   const inventorySmsResult = await maybeHandleMlsInventorySms({
@@ -3897,6 +3958,9 @@ async function handleLostFeedbackJob(job: CRMAutomationJob, lead: CRMLead) {
   if (lead.stage !== 'lost') {
     return { status: 'cancelled' as const, reason: 'Lead is not marked lost.' }
   }
+  if (lead.automationStatus === 'paused' || lead.automationStatus === 'handoff' || lead.automationStatus === 'do_not_contact') {
+    return { status: 'cancelled' as const, reason: 'Lost feedback is paused because a representative owns this conversation.' }
+  }
   return handleLeadResponseJob({
     ...job,
     payload: {
@@ -3940,7 +4004,9 @@ export async function processAutomationJob(job: CRMAutomationJob) {
       return deferred || activeJob
     }
 
-    const skipReason = activeJob.kind === 'intelligence_refresh' ? null : shouldSkipAutomation(lead, activeJob)
+    const skipReason = activeJob.kind === 'intelligence_refresh' ? null
+      : !countsAsCommercialLead(lead) ? 'Commercial qualification required before sales automation.'
+        : shouldSkipAutomation(lead, activeJob)
     if (skipReason) {
       const cancelled = await patchAutomationJob(activeJob.id, {
         status: 'cancelled',
@@ -4027,7 +4093,19 @@ export async function processDueAutomationJobs(limit = 25) {
 
 export async function processInboundAutomationEvent(event: InboundAutomationEvent) {
   const receivedAt = event.receivedAt || new Date().toISOString()
-  const lead = await ensureLeadForInbound({ ...event, receivedAt })
+  const interactionId = await storeInteraction({
+    source: event.source || 'automation_ingest',
+    channel: event.channel === 'email' ? 'email' : event.source?.includes('call') ? 'call' : event.source?.includes('form') ? 'web_form' : 'sms',
+    eventId: String(event.raw?.messageSid || event.raw?.MessageSid || event.raw?.resendId || event.raw?.CallSid || event.inboundLeadId || '') || undefined,
+    sender: event.phone || event.email, body: event.message, occurredAt: receivedAt,
+    raw: event.raw || event, provenance: event.attribution as Record<string, unknown> | undefined,
+  })
+  const existingLead = event.leadId ? await getSalesLead(event.leadId)
+    : await findLeadByInboundIdentity(event.phone, event.email, event.inboundLeadId)
+  if (!existingLead || !countsAsCommercialLead(existingLead)) {
+    return { lead: null, thread: null, job: null, interactionId }
+  }
+  const lead = await ensureLeadForInbound({ ...event, leadId: existingLead.id, receivedAt })
   const channel = inferChannel(event)
   const contactValue =
     channel === 'sms'
@@ -4049,7 +4127,7 @@ export async function processInboundAutomationEvent(event: InboundAutomationEven
     }, {
       ...withoutMissingFields(lead.qualificationState),
       capturedSummary: previewText(event.message || lead.inboundMessage, 180),
-      lastIntent: channel === 'sms' ? 'inbound_sms' : 'inbound_email',
+      lastIntent: lead.qualificationState?.lastIntent || (channel === 'sms' ? 'inbound_sms' : 'inbound_email'),
     }),
   })
 

@@ -1,3 +1,4 @@
+import { issueReviewCapability } from '@/lib/server/review-capability'
 import { NextResponse } from 'next/server'
 import { uid } from '@/lib/sales'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
   const now = new Date().toISOString()
   const reviewJob = await saveJobRecord({
     id: existingReviewJob?.id || uid('review'),
+    reviewAccessVersion: existingReviewJob?.reviewAccessVersion ?? 0,
     customerName: leadName,
     customerEmail: leadEmail || '',
     customerPhone: leadPhone || '',
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
     googleProfileLocation: reviewLocation?.label,
     reviewProofAssets: existingReviewJob?.reviewProofAssets || [],
   })
-  const reviewFlowUrl = `${new URL(request.url).origin}/review/${reviewJob.id}`
+  const reviewFlowUrl = `${new URL(request.url).origin}/review/${reviewJob.id}?token=${encodeURIComponent(issueReviewCapability(reviewJob))}`
   const brandName = reviewLocation?.businessName || 'Saturn Star Movers'
   const copy = buildReviewRequestCopy({ firstName, brandName, reviewFlowUrl })
 

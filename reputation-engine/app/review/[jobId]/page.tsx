@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import type { PublicReviewJob as Job } from '@/lib/public-review'
 import { fetchJob, saveJob } from '@/lib/api'
 import { BRAND, INCENTIVE_AMOUNT, REVIEW_LINKS } from '@/lib/config'
 import { reviewCount } from '@/lib/store'
-import type { Job, ReviewKey } from '@/lib/types'
+import type { ReviewKey } from '@/lib/types'
 
 const STARS = [1, 2, 3, 4, 5]
 
@@ -37,7 +38,7 @@ export default function ReviewPage() {
 
   async function refresh() {
     try {
-      const nextJob = await fetchJob(jobId)
+      const nextJob = await fetchJob(jobId, new URLSearchParams(window.location.search).get('token') || '')
       if (!nextJob) {
         setStep('not-found')
         setJob(null)
@@ -60,7 +61,7 @@ export default function ReviewPage() {
   }, [jobId])
 
   async function updateJob(nextJob: Job, nextStep?: Step) {
-    const saved = await saveJob(nextJob)
+    const saved = await saveJob(nextJob, new URLSearchParams(window.location.search).get('token') || '')
     setJob(saved)
     if (nextStep) setStep(nextStep)
   }
@@ -113,7 +114,7 @@ export default function ReviewPage() {
     try {
       const formData = new FormData()
       Array.from(files).forEach(file => formData.append('files', file))
-      const response = await fetch(`/api/public/reviews/${job.id}`, { method: 'POST', body: formData })
+      const response = await fetch(`/api/public/reviews/${job.id}`, { method: 'POST', body: formData, headers: { 'x-review-token': new URLSearchParams(window.location.search).get('token') || '' } })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Could not upload review proof')
       setJob(payload)
@@ -138,7 +139,7 @@ export default function ReviewPage() {
       <div className="mx-auto max-w-md py-20 text-center">
         <div className="mb-4 text-5xl">?</div>
         <h2 className="mb-2 text-xl font-bold text-[var(--app-ink)]">Link not found</h2>
-        <p className="text-sm text-slate-400">This review link is invalid or the job has not been synced yet.</p>
+        <p className="text-sm text-slate-400">This review link is invalid or has expired. Please contact the moving team for a new link.</p>
       </div>
     )
   }

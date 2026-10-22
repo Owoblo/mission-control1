@@ -1,3 +1,4 @@
+import { carrierDialTarget } from '@/lib/server/carrier-voice'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { getSessionUser } from '@/lib/server/session'
@@ -15,7 +16,7 @@ function buildTransferTwiml(to: string, callerId?: string | null): string {
     return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial><Client>${identity}</Client></Dial></Response>`
   }
   // Phone number
-  return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${pickSaturnBranchPhoneNumber(callerId)}"><Number>${to}</Number></Dial></Response>`
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${pickSaturnBranchPhoneNumber(callerId)}">${carrierDialTarget(to, pickSaturnBranchPhoneNumber(callerId))}</Dial></Response>`
 }
 
 export async function POST(request: Request) {

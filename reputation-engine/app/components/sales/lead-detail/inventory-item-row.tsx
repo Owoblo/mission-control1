@@ -105,9 +105,15 @@ export function InventoryItemRow({ item, index, onUpdate, onToggle, onRemove }: 
                 </div>
               )}
               <div className="text-[11px] text-stone-400 truncate">
-                {[cuFt > 0 ? `${cuFt} cu ft` : '', lbs > 0 ? `${lbs} lbs` : ''].filter(Boolean).join(' · ')}
+                {[cuFt > 0 ? `${cuFt} cu ft` : 'Size needed', lbs > 0 ? `${lbs} lbs` : 'Weight needed', item.dimensionSource === 'preset' ? 'Preset estimate' : ''].filter(Boolean).join(' · ')}
                 {excluded ? ' · excluded' : null}
               </div>
+              {item.customerDescription && (
+                <div className="text-[11px] text-stone-500">Customer: {item.customerDescription}</div>
+              )}
+              {item.nameNeedsConfirmation || item.quantityNeedsConfirmation ? (
+                <div className="text-[11px] text-amber-700">Confirm {item.nameNeedsConfirmation ? 'item name' : ''}{item.nameNeedsConfirmation && item.quantityNeedsConfirmation ? ' and ' : ''}{item.quantityNeedsConfirmation ? 'quantity' : ''}</div>
+              ) : null}
               {item.notes && (
                 <div className="text-[11px] text-stone-400 truncate italic">{item.notes}</div>
               )}

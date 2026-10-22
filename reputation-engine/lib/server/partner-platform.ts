@@ -1,3 +1,4 @@
+import { portalMutation, type PortalRole } from '@/lib/partner-portal-policy'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { calculatePartnerScore, deriveComplianceState, tierForScore } from '@/lib/partner-platform'
 import bcrypt from 'bcryptjs'
@@ -33,27 +34,53 @@ export async function getPartner360(partnerId: string) {
   return { partner, members, vehicles, availability, documents, compliance, assignments, ledger, claims, correctiveActions, rates, audits, performance: { metrics, score, tier: tierForScore(score) }, balances }
 }
 
-export async function createPartnerResource(partnerId: string, resource: string, input: any, actor?: { userId?: string; name?: string }) {
+export async function createPartnerResource(partnerId: string, resource: string, input: any, actor?: { userId?: string; name?: string; portalRole?: PortalRole; partnerMemberId?: string | null }) {
   const allowed: Record<string, string> = { member: 'partner_members', vehicle: 'partner_vehicles', availability: 'partner_availability', document: 'partner_documents', claim: 'partner_claims', corrective_action: 'partner_corrective_actions', rate: 'partner_rate_versions' }
   const table = allowed[resource]; if (!table) throw new Error('Unsupported partner resource')
+  if (actor?.portalRole) {
+    input = portalMutation(resource, input, actor.portalRole, 'POST')
+    await validatePortalReferences(partnerId, resource, input, actor.portalRole, actor.partnerMemberId)
+  }
   const rows = await rest<any[]>(table, { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ ...input, subcontractor_id: partnerId }) })
   await rest('partner_audit_events', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ subcontractor_id: partnerId, entity_type: resource, entity_id: rows[0].id, action: 'created', actor_user_id: actor?.userId || null, actor_name: actor?.name || null, next_value: rows[0] }) })
   return rows[0]
 }
 
-export async function updatePartnerResource(partnerId: string, resource: string, id: string, patch: any, actor?: { userId?: string; name?: string }) {
-  const allowed: Record<string, string> = { member: 'partner_members', vehicle: 'partner_vehicles', document: 'partner_documents', claim: 'partner_claims', corrective_action: 'partner_corrective_actions', assignment: 'partner_job_assignments' }
+export async function updatePartnerResource(partnerId: string, resource: string, id: string, patch: any, actor?: { userId?: string; name?: string; portalRole?: PortalRole; partnerMemberId?: string | null }) {
+  const allowed: Record<string, string> = { member: 'partner_members', vehicle: 'partner_vehicles', document: 'partner_documents', availability: 'partner_availability', claim: 'partner_claims', corrective_action: 'partner_corrective_actions', assignment: 'partner_job_assignments' }
   const table = allowed[resource]; if (!table) throw new Error('Unsupported partner resource')
   const prior = (await rest<any[]>(`${table}?select=*&id=eq.${encodeURIComponent(id)}&subcontractor_id=eq.${encodeURIComponent(partnerId)}&limit=1`))[0]
   if (!prior) throw new Error('Partner resource not found')
-  const rows = await rest<any[]>(`${table}?id=eq.${encodeURIComponent(id)}&subcontractor_id=eq.${encodeURIComponent(partnerId)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ ...patch, updated_at: new Date().toISOString() }) })
+  if (actor?.portalRole) {
+    patch = portalMutation(resource, patch, actor.portalRole, 'PATCH', prior)
+    await validatePortalReferences(partnerId, resource, prior, actor.portalRole, actor.partnerMemberId)
+  }
+  const versionGuard = actor?.portalRole && prior.updated_at ? `&updated_at=eq.${encodeURIComponent(prior.updated_at)}` : ''
+  const rows = await rest<any[]>(`${table}?id=eq.${encodeURIComponent(id)}&subcontractor_id=eq.${encodeURIComponent(partnerId)}${versionGuard}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ ...patch, ...(resource === 'availability' ? {} : { updated_at: new Date().toISOString() }) }) })
+  if (!rows[0]) throw new Error('Resource changed; reload before retrying')
   await rest('partner_audit_events', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ subcontractor_id: partnerId, entity_type: resource, entity_id: id, action: 'updated', actor_user_id: actor?.userId || null, actor_name: actor?.name || null, previous_value: prior, next_value: rows[0] }) })
   return rows[0]
 }
 
-export async function createPartnerPortalUser(partnerId: string, input: { email: string; name: string; password: string; role: 'partner_admin' | 'partner_dispatcher' | 'partner_crew'; partnerMemberId?: string }, actor?: { userId?: string; name?: string }) {
+export async function createPartnerPortalUser(partnerId: string, input: { email: string; name: string; password: string; role: 'partner_admin' | 'partner_dispatcher' | 'partner_crew'; partnerMemberId?: string }, actor?: { userId?: string; name?: string; portalRole?: PortalRole; partnerMemberId?: string | null }) {
   if (!['partner_admin','partner_dispatcher','partner_crew'].includes(input.role) || !input.email || !input.name || input.password.length < 10) throw new Error('Name, email, valid partner role, and a 10+ character temporary password are required.')
   const rows = await rest<any[]>('app_users', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ email: input.email.toLowerCase().trim(), name: input.name.trim(), password_hash: await bcrypt.hash(input.password, 12), role: input.role, partner_id: partnerId, partner_member_id: input.partnerMemberId || null }) })
   await rest('partner_audit_events', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ subcontractor_id: partnerId, entity_type: 'portal_user', entity_id: rows[0].id, action: 'access_created', actor_user_id: actor?.userId || null, actor_name: actor?.name || null, next_value: { email: rows[0].email, name: rows[0].name, role: rows[0].role } }) })
   return { id: rows[0].id, email: rows[0].email, name: rows[0].name, role: rows[0].role }
+}
+
+async function validatePortalReferences(partnerId: string, resource: string, input: any, role: PortalRole, memberId?: string | null) {
+  if (role === 'partner_crew' && !memberId) throw new Error('Crew member identity required')
+  for (const [field, table] of [['member_id','partner_members'], ['vehicle_id','partner_vehicles']]) {
+    if (input[field]) {
+      const rows = await rest<any[]>(`${table}?id=eq.${encodeURIComponent(input[field])}&subcontractor_id=eq.${encodeURIComponent(partnerId)}&select=id&limit=1`)
+      if (!rows.length) throw new Error('Resource does not belong to this partner')
+    }
+  }
+  if (resource === 'assignment' && role === 'partner_crew' && !input.member_ids?.includes(memberId)) throw new Error('Assignment not permitted')
+  if (resource === 'claim') {
+    if (typeof input.lead_id !== 'string' || !input.lead_id) throw new Error('Assigned job required')
+    const rows = await rest<any[]>(`partner_job_assignments?lead_id=eq.${encodeURIComponent(input.lead_id)}&subcontractor_id=eq.${encodeURIComponent(partnerId)}&select=member_ids`)
+    if (!rows.some(row => role !== 'partner_crew' || row.member_ids?.includes(memberId))) throw new Error('Assigned job required')
+  }
 }

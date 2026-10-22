@@ -14,12 +14,13 @@ export async function stripeGet<T extends Record<string, unknown>>(path: string,
   return res.json() as Promise<T>
 }
 
-export async function stripePost<T extends Record<string, unknown>>(path: string, key: string, body: URLSearchParams) {
+export async function stripePost<T extends Record<string, unknown>>(path: string, key: string, body: URLSearchParams, idempotencyKey?: string) {
   const res = await fetch(`https://api.stripe.com/v1/${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
       'Content-Type': 'application/x-www-form-urlencoded',
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
     },
     body: body.toString(),
     cache: 'no-store',

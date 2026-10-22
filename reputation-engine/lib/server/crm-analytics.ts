@@ -1,3 +1,4 @@
+import { countsAsCommercialLead } from '../interaction-classification'
 import {
   LOST_REASONS,
   CRM_LEAD_SOURCES,
@@ -25,6 +26,16 @@ export type AnalyticsFilters = {
 }
 
 export type CRMAnalyticsSnapshot = ReturnType<typeof buildCRMAnalyticsSnapshot>
+
+export const CRM_ANALYTICS_METRIC_DEFINITIONS = {
+  leadsReceived: { label: 'Leads received', dateBasis: 'lead.createdAt', denominator: 'Count of qualifying leads created in the selected window.', exclusions: 'Non-commercial records, partner opportunities, and records outside active rep/source/branch filters.', source: 'crm_leads' },
+  confirmedBookings: { label: 'Bookings made', dateBasis: 'lead.bookedAt, falling back to accepted quote acceptedAt', denominator: 'Count of commercial leads currently in a booked-like stage whose booking date is in the selected window.', exclusions: 'Does not count cancelled/non-booked stages or bookings without an available booking date.', source: 'crm_leads + crm_quotes' },
+  cohortConversionRate: { label: 'Lead cohort booking rate', dateBasis: 'lead.createdAt for cohort; current CRM stage as of report generation for outcome', denominator: 'Commercial leads created in the selected window; numerator is those now in a booked-like stage.', exclusions: 'Lead maturity is not controlled, so recent cohorts have had less time to book; this is not a finalized cohort metric.', source: 'crm_leads' },
+  periodBookingActivityRate: { label: 'Booking activity / new leads', dateBasis: 'booking date for numerator; lead.createdAt for denominator', denominator: 'Bookings made in the window divided by new leads received in the window.', exclusions: 'Numerator and denominator are different populations; do not interpret as conversion.', source: 'crm_leads + crm_quotes' },
+  confirmedRevenue: { label: 'Booked quote value', dateBasis: 'booking date for booked-like leads in the selected window', denominator: 'Sum of selected quote total for each booked-like lead with booking date in the window.', exclusions: 'Not collected, recognized, or net revenue; excludes payments, refunds, labor, subcontractor, truck, and other costs.', source: 'crm_leads + crm_quotes' },
+  averageQuoteValue: { label: 'Average quote value', dateBasis: 'quote.createdAt', denominator: 'Sum of quote totals divided by number of quotes created in the selected window for scoped commercial leads.', exclusions: 'Does not deduplicate revised quotes or represent booked/collected value.', source: 'crm_quotes' },
+  followUpComplianceRate: { label: 'First response within 24 hours', dateBasis: 'lead.createdAt and firstResponseAt/lastHumanOutboundAt', denominator: 'New commercial leads in the selected window excluding leads already marked lost.', exclusions: 'Stored response timestamps only; does not verify call attempts, channel sequence, or the two-minute standard.', source: 'crm_leads' },
+} as const
 
 type TrendBucket = {
   label: string
@@ -149,7 +160,7 @@ export function buildCRMAnalyticsSnapshot(
   followUps: FollowUpLog[],
   filters: AnalyticsFilters
 ) {
-  const scopedLeads = leads.filter(lead => matchesLeadFilters(lead, filters))
+  const scopedLeads = leads.filter(lead => countsAsCommercialLead(lead) && matchesLeadFilters(lead, filters))
   const scopedLeadIds = new Set(scopedLeads.map(lead => lead.id))
   const quotesByLead = new Map<string, CRMQuote[]>()
 
@@ -161,6 +172,7 @@ export function buildCRMAnalyticsSnapshot(
   }
 
   const leadsReceived = scopedLeads.filter(lead => isWithinRange(lead.createdAt, filters.dateFrom, filters.dateTo))
+  const cohortBookedLeads = leadsReceived.filter(lead => isBookedLikeStage(lead.stage))
   const bookedLeads = scopedLeads.filter(lead => isBookedLikeStage(lead.stage) && isWithinRange(lead.bookedAt || getQuoteForLead(quotesByLead, lead.id)?.acceptedAt, filters.dateFrom, filters.dateTo))
   const tentativeLeads = scopedLeads.filter(lead => lead.stage === 'tentative' && isWithinRange(lead.createdAt, filters.dateFrom, filters.dateTo))
   const reservationLeads = scopedLeads.filter(lead =>
@@ -303,13 +315,19 @@ export function buildCRMAnalyticsSnapshot(
 
   return {
     appliedFilters: filters,
+    metricDefinitions: CRM_ANALYTICS_METRIC_DEFINITIONS,
     totals: {
       leadsReceived: leadsReceived.length,
+      partnerOpportunities: leads.filter(lead => lead.commercialDisposition === 'partner_opportunity' && matchesLeadFilters(lead, filters) && isWithinRange(lead.createdAt, filters.dateFrom, filters.dateTo)).length,
+      recordsAwaitingQualification: leads.filter(lead => (!lead.commercialDisposition || lead.commercialDisposition === 'lead_candidate') && matchesLeadFilters(lead, filters)).length,
       confirmedBookings: bookedLeads.length,
       confirmedRevenue,
+      cohortBookedLeads: cohortBookedLeads.length,
+      cohortConversionRate: leadsReceived.length > 0 ? Math.round((cohortBookedLeads.length / leadsReceived.length) * 100) : 0,
+      periodBookingActivityRate: leadsReceived.length > 0 ? Math.round((bookedLeads.length / leadsReceived.length) * 100) : 0,
       tentativeReservations: tentativeLeads.length,
       lostLeads: lostLeads.length,
-      conversionRate: leadsReceived.length > 0 ? Math.round((bookedLeads.length / leadsReceived.length) * 100) : 0,
+      conversionRate: leadsReceived.length > 0 ? Math.round((cohortBookedLeads.length / leadsReceived.length) * 100) : 0,
       averageQuoteValue,
       followUpComplianceRate,
       followUpCompliant,
@@ -367,8 +385,9 @@ export function buildCRMAnalyticsSnapshot(
     truckUtilizationDays,
     branchBreakdown: SALES_BRANCHES.map(b => {
       const branchLeads = scopedLeads.filter(l => l.branch === b.id)
-      const received = branchLeads.filter(l => isWithinRange(l.createdAt, filters.dateFrom, filters.dateTo)).length
-      const booked = branchLeads.filter(l => isBookedLikeStage(l.stage) && isWithinRange(l.bookedAt || getQuoteForLead(quotesByLead, l.id)?.acceptedAt, filters.dateFrom, filters.dateTo)).length
+      const cohort = branchLeads.filter(l => isWithinRange(l.createdAt, filters.dateFrom, filters.dateTo))
+      const received = cohort.length
+      const booked = cohort.filter(l => isBookedLikeStage(l.stage)).length
       const lost = branchLeads.filter(l => l.stage === 'lost' && isWithinRange(l.lostAt || l.createdAt, filters.dateFrom, filters.dateTo)).length
       return { branch: b.id, label: b.label, received, booked, lost, conversionRate: received > 0 ? Math.round((booked / received) * 100) : 0 }
     }).filter(b => b.received > 0 || b.booked > 0).sort((a, b) => b.received - a.received),

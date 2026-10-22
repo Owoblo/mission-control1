@@ -1,5 +1,6 @@
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import type { CRMLead } from '@/lib/types'
+import { getAttributedPartnerId } from '@/lib/partner-referral-attribution'
 
 type PartnerContact = {
   id: string
@@ -39,14 +40,13 @@ async function refreshReferralCount(contactId: string) {
 
 export async function syncLeadPartnerReferral(lead: CRMLead, previousContactId?: string) {
   const { url, headers } = requireSupabaseEnv()
-  const currentContactId = lead.source === 'partner_referral' ? lead.partnerReferralContactId : undefined
+  const currentContactId = getAttributedPartnerId(lead)
   const existingResponse = await fetch(
     `${url}/rest/v1/partner_referrals?crm_lead_id=eq.${encodeURIComponent(lead.id)}&select=id,contact_id&limit=20`,
     { headers, cache: 'no-store' }
   )
-  const existing = existingResponse.ok
-    ? await existingResponse.json() as Array<{ id: string; contact_id?: string | null }>
-    : []
+  if (!existingResponse.ok) throw new Error(`Could not read partnership attribution (${existingResponse.status})`)
+  const existing = await existingResponse.json() as Array<{ id: string; contact_id?: string | null }>
 
   const affected = new Set(existing.map(item => item.contact_id).filter(Boolean) as string[])
   if (previousContactId) affected.add(previousContactId)

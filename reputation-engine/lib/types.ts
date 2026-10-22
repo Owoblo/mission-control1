@@ -180,7 +180,7 @@ export type QuotePaymentTerms =
   | 'po_required'
 export type LeadFollowUpStatus = 'pending' | 'following_up' | 'followed_up' | 'no_response'
 export type FollowUpType = 'note' | 'call' | 'sms' | 'email' | 'visit' | 'view' | 'accept' | 'decline' | 'consultation' | 'status_change'
-export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa'
+export type SalesBranch = 'windsor' | 'waterloo' | 'london' | 'ottawa' | 'toronto'
 export type LeadKind = 'customer' | 'realtor_opportunity' | 'partner_opportunity'
 export type LeadContactRole = 'customer' | 'realtor' | 'partner'
 export type RealtorLookupStatus = 'not_checked' | 'matched' | 'partial' | 'missing'
@@ -364,6 +364,9 @@ export interface CallLogEntry {
   source?: 'dialer' | 'inbound' | 'consultation' | 'manual'
   callOutcome?: string
   answeredBy?: 'browser' | 'mobile' | 'sip' | 'unknown'
+  answeredAt?: string
+  answerLatencySeconds?: number
+  answeredIdentity?: string
   repId?: string
   repName?: string
   audioConnected?: boolean
@@ -376,6 +379,12 @@ export interface CallLogEntry {
 export type MovePolicyCategory = 'blocked' | 'hazardous' | 'manual_review' | 'specialty_fee' | 'default_exclude'
 
 export interface InventoryItem {
+  /** Original customer wording is retained even when the display name is normalized. */
+  customerDescription?: string
+  nameNeedsConfirmation?: boolean
+  quantityNeedsConfirmation?: boolean
+  dimensionSource?: 'preset' | 'unknown'
+
   assembly?: import('./assembly-planning').AssemblyInstructions
   id?: string
   room?: string
@@ -970,6 +979,9 @@ export interface CrewPayoutEntry {
 }
 
 export interface CRMLead {
+  commercialDisposition?: import('./interaction-classification').InteractionDisposition
+  commercialClassificationId?: number
+  interactionProvenance?: { firstTouch: string; latestTouch: string; convertingTouch?: string }
   operatingReview?: import('./move-operating-plan').OperatingReview
   operatingReviewHistory?: import('./move-operating-plan').OperatingReview[]
   operationalOutcome?: import('./move-outcome').OperationalOutcome
@@ -989,6 +1001,8 @@ export interface CRMLead {
   partnerLeadSignal?: string
   partnerLeadPriority?: 'normal' | 'high' | 'urgent'
   partnerLeadSummary?: string
+  handoffStatus?: 'new' | 'in_progress' | 'completed' | 'needs_partner_follow_up' | string
+  handoffAt?: string
   partnerLeadFeedback?: string
   opportunityContext?: LeadOpportunityContext
   attributionSignals?: LeadAttributionSignal[]
@@ -1098,6 +1112,12 @@ export interface CRMLead {
   qualificationState?: LeadQualificationState
   inboxState?: LeadInboxState
   directMailAttributed?: boolean
+  smsInventoryReview?: {
+    requestedFingerprint?: string
+    confirmedFingerprint?: string
+    requestedAt?: string
+    confirmedAt?: string
+  }
   inventory?: InventoryItem[]
   removedInventoryItemKeys?: string[]
   mediaAssets?: LeadMediaAsset[]

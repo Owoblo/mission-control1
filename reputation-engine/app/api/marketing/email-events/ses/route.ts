@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createVerify } from 'node:crypto'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
-import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
+import { sendPartnershipEmailAlert } from '@/lib/server/partnership-email-alerts'
 
 export const dynamic = 'force-dynamic'
 
@@ -150,7 +150,7 @@ async function handleSesEvent(message: SesMessage, raw: unknown) {
   }
 
   if (contactId) {
-    const contactUpdates: Record<string, unknown> = { last_touch_at: occurredAt }
+    const contactUpdates: Record<string, unknown> = {} // Provider telemetry is not a new conversation touch.
     if (eventType === 'email_opened') contactUpdates.email_last_opened_at = occurredAt
     if (eventType === 'email_clicked') contactUpdates.email_last_clicked_at = occurredAt
     if (eventType === 'email_bounced') {
@@ -169,7 +169,7 @@ async function handleSesEvent(message: SesMessage, raw: unknown) {
       contactUpdates.cross_channel_suppression_reason = eventType
     }
 
-    await requireSupabaseWrite(fetch(`${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(contactId)}`, {
+    if (Object.keys(contactUpdates).length) await requireSupabaseWrite(fetch(`${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(contactId)}`, {
       method: 'PATCH',
       headers,
       body: JSON.stringify(contactUpdates),
@@ -181,7 +181,7 @@ async function handleSesEvent(message: SesMessage, raw: unknown) {
       body: JSON.stringify({
         contact_id: contactId,
         channel: 'email',
-        direction: ['email_opened', 'email_clicked'].includes(eventType) ? 'inbound' : 'outbound',
+        direction: 'system',
         notes: `SES event: ${eventType}${subject ? ` — "${subject}"` : ''}`,
         outcome_code: eventType,
         created_by: 'SES',
@@ -191,14 +191,19 @@ async function handleSesEvent(message: SesMessage, raw: unknown) {
     }).catch(() => {})
   }
 
-  if (recipientEmail && ['email_bounced', 'email_complained', 'email_unsubscribed'].includes(eventType)) {
-    await pausePartnershipSequenceForInbound({
-      channel: 'email',
-      email: recipientEmail,
-      occurredAt,
-      notes: `SES ${eventType.replace('email_', '')} event`,
-      metadata: { source: 'ses', provider_message_id: messageId },
-    }).catch(() => {})
+  if (contactId && ['email_bounced', 'email_complained', 'email_unsubscribed'].includes(eventType)) {
+    await requireSupabaseWrite(fetch(`${url}/rest/v1/sequence_jobs?contact_id=eq.${encodeURIComponent(contactId)}&status=eq.pending`, {
+      method: 'PATCH', headers, body: JSON.stringify({ status: 'cancelled', error: `Paused after ${eventType}` }),
+    }), 'Cancelling sequence after provider failure')
+    const response = await fetch(`${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(contactId)}&select=id,name,company,city,email&limit=1`, { headers, cache: 'no-store' })
+    if (!response.ok) throw new Error('Failed to load delivery alert contact')
+    const [contact] = await response.json() as Array<{ id: string; name: string; company: string; city: string; email: string }>
+    if (contact) await sendPartnershipEmailAlert({
+      id: `${messageId}-${eventType}`, contactId, contactName: contact.name, company: contact.company,
+      city: contact.city, email: recipientEmail, occurredAt, subject,
+      label: eventType === 'email_bounced' ? 'Partner email delivery failure' : eventType === 'email_complained' ? 'Partner email complaint' : 'Partner email opt-out',
+      notes: `SES ${eventType.replace('email_', '')} event. ${eventType === 'email_bounced' ? 'This address is paused. Review the delivery diagnostic and research a replacement.' : 'Outreach is stopped for this contact.'}`,
+    })
   }
 }
 

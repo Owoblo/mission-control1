@@ -8,5 +8,18 @@ node_modules
 # a web deployment into a 300MB+ archive.
 /mobile
 deliverables
+partnership-system
 docs/audit-evidence
 *.tsbuildinfo
+
+# Local credentials never belong in deployment source uploads.
+.env*
+/artifacts
+/reports
+/output
+tests/**
+docs/**
+partnership-system/**
+scripts/**
+!scripts/
+!scripts/check-mobile-api-routes.mjs

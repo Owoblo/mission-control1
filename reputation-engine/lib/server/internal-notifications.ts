@@ -1,3 +1,5 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { createSmsReplyAddress } from './email-sms-reply-store'
 import { getTwilioCredentials, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
@@ -25,7 +27,7 @@ export async function sendCallerIdSms(
   const message = `📞 ${leadName} is calling · ${callerPhone} · ${branchLabel}`
 
   await Promise.all(repPhones.map(phone =>
-    fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         Authorization: twilioAuth(accountSid, authToken),
@@ -114,7 +116,7 @@ function escapeHtml(value: string) {
 export async function sendInternalAlertSms(to: string, body: string, from: string) {
   const { accountSid, authToken } = getTwilioCredentials()
 
-  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+  await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
     method: 'POST',
     headers: {
       Authorization: twilioAuth(accountSid, authToken),
@@ -128,17 +130,20 @@ export async function sendInternalAlertSms(to: string, body: string, from: strin
   }).catch(() => {})
 }
 
-export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients = NOTIFY_TO) {
+export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients = NOTIFY_TO, smsReply?: { contactId: string; fromNumber: string; toNumber: string }) {
   const to = uniqueEmails(recipients)
   if (!to.length) return
-  await Promise.all(to.map(recipient => sendProviderEmail({
+  await Promise.all(to.map(async recipient => {
+    const replyAddress = smsReply ? await createSmsReplyAddress(recipient, smsReply.contactId, smsReply.fromNumber, smsReply.toNumber).catch(error => { console.error('SMS email reply address unavailable', String(error)); return null }) : null
+    return sendProviderEmail({
     from: NOTIFY_FROM,
     to: recipient,
     subject,
-    html: htmlBody,
-    replyTo: 'business@starmovers.ca',
+    html: htmlBody + (replyAddress ? '<p>Reply to this email to send an SMS to this contact. Put only your message above the quoted email; omit your signature. One reply per notification. Use CRM for attachments.</p>' : ''),
+    replyTo: replyAddress || 'business@starmovers.ca',
     trackingMode: 'deliverability',
-  }).catch(() => null)))
+  }).catch(() => null)
+  }))
 }
 
 export function partnershipInboundNotificationEmail(options: {
@@ -244,12 +249,12 @@ export function smsNotificationEmail(from: string, body: string, leadId?: string
   return `
 <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
   <div style="background:#1a2744;color:#f5a623;padding:12px 20px;border-radius:8px 8px 0 0;font-weight:700;font-size:15px">
-    📩 New SMS from ${from}
+    Sales inbound SMS — ${escapeHtml(from)}
   </div>
   <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px">
     <div style="background:#f0f2f5;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${body}</div>
     <div style="margin-top:16px">
-      <a href="${crmLink}" style="background:#1a2744;color:#f5a623;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM</a>
+      <a href="${crmLink}" style="background:#1a2744;color:#f5a623;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open Sales Conversation</a>
     </div>
     <div style="margin-top:16px;font-size:11px;color:#94a3b8">Saturn Star Moving · Reply to this SMS in the CRM Inbox</div>
   </div>

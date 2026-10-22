@@ -1,3 +1,7 @@
+import { carrierVoiceForm, carrierDialTarget } from '@/lib/server/carrier-voice'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { reservePartnershipCall } from '@/lib/server/partnership-phone-policy'
 import { getSalesLeadByContact, saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
 import { notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl, requireSupabaseEnv } from '@/lib/server/runtime'
@@ -59,9 +63,15 @@ function xmlValue(value: string) {
     .replace(/'/g, '&apos;')
 }
 
-function internalSipTargets(users?: string[]) {
+function legStatusAttrs(callbackUrl?: string) {
+  return callbackUrl
+    ? ` statusCallback="${xmlValue(callbackUrl)}" statusCallbackMethod="POST" statusCallbackEvent="initiated ringing answered completed"`
+    : ''
+}
+
+function internalSipTargets(users?: string[], callbackForIdentity?: (identity: string) => string) {
   return (users || INTERNAL_SIP_USERS)
-    .map(username => `<Sip>sip:${username}@${SIP_DOMAIN}</Sip>`)
+    .map(username => `<Sip${legStatusAttrs(callbackForIdentity?.(`sip:${username}`))}>sip:${username}@${SIP_DOMAIN}</Sip>`)
     .join('')
 }
 
@@ -123,16 +133,26 @@ function internalRingTargets(
   fallbackToLegacy = false,
   sipUsers?: string[],
   displayName?: string,
+  callbackForIdentity?: (identity: string) => string,
 ) {
   // Rings simultaneously: all active rep browsers + Groundwire/SIP.
   // Prefers available (not-busy) reps to avoid interrupting active calls.
   const clientTarget = (identity: string) => displayName
-    ? `<Client><Identity>${xmlValue(identity)}</Identity><Parameter name="DisplayName" value="${xmlValue(displayName)}" /></Client>`
-    : `<Client>${xmlValue(identity)}</Client>`
+    ? `<Client${legStatusAttrs(callbackForIdentity?.(identity))}><Identity>${xmlValue(identity)}</Identity><Parameter name="DisplayName" value="${xmlValue(displayName)}" /></Client>`
+    : `<Client${legStatusAttrs(callbackForIdentity?.(identity))}>${xmlValue(identity)}</Client>`
   const clients = browserIdentities.length > 0
     ? browserIdentities.map(clientTarget).join('')
     : fallbackToLegacy ? clientTarget(FALLBACK_CLIENT_IDENTITY) : ''
-  return `${clients}${internalSipTargets(sipUsers)}`
+  return `${clients}${internalSipTargets(sipUsers, callbackForIdentity)}`
+}
+
+function legStatusCallbackUrl(baseUrl: string, workspace: 'sales' | 'partnership', identity: string, parentCallSid: string, startedAt: string) {
+  const url = new URL('/api/sales/dialer/leg-status', baseUrl)
+  url.searchParams.set('workspace', workspace)
+  url.searchParams.set('identity', identity)
+  url.searchParams.set('parentCallSid', parentCallSid)
+  url.searchParams.set('startedAt', startedAt)
+  return url.toString()
 }
 
 function buildDialRecordingAttrs(recordingCallback?: string, dialStatusCallback?: string) {
@@ -188,10 +208,10 @@ function matchesPhone(phone: string, lead?: CRMLead | null) {
   )
 }
 
-// Bare-minimum TwiML — used if anything goes wrong so the call ALWAYS gets through
+// Inbound-only fallback: SDK outbound failures must never loop back to our reps.
 function fallbackTwiml(appUrl = '') {
   const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
-  const dialAttrs = buildDialRecordingAttrs(recordingCallback)
+  const dialAttrs = `callerId="${getDefaultSaturnBranchNumber()}" ${buildDialRecordingAttrs(recordingCallback)}`
 
   return xmlResponse(
     `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}>${internalRingTargets([], true)}</Dial></Response>`
@@ -231,8 +251,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  let outboundRequest = false
   try {
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    const formData = carrierVoiceForm(rawBody)
     const to = (formData.get('To') as string | null)?.trim()
     const from = (formData.get('From') as string | null)?.trim()
     const direction = (formData.get('Direction') as string | null)?.trim()
@@ -243,6 +267,7 @@ export async function POST(request: Request) {
     // Direction is "inbound" for BOTH — so we must use From to differentiate
     const fromBrowser = (from || '').toLowerCase().startsWith('client:')
     const fromSip = (from || '').toLowerCase().startsWith('sip:')
+    outboundRequest = fromBrowser || fromSip
     const sipDialTarget = extractSipDialTarget(to)
     const normalizedTo = sipDialTarget || to || ''
     const isOurNumber = !!normalizedTo && !!getSaturnBranchLabel(normalizedTo)
@@ -250,6 +275,8 @@ export async function POST(request: Request) {
     const branchCity = getSaturnBranchLabel(normalizedTo) || 'Windsor'
 
     if (isInbound) {
+      const inboundStartedAt = new Date().toISOString()
+      await captureTwilioInteraction(formData.toString(), 'twilio_call', 'call')
       // Reject spam calls with impossible phone numbers (E.164 max is 15 digits).
       // Robocallers use 20+ digit fake numbers to evade caller ID blocking.
       if (from && isSpamPhoneNumber(from)) {
@@ -409,9 +436,8 @@ export async function POST(request: Request) {
 
           if (callSid) {
             // Only link to an EXISTING lead — never create phantom "Unknown Caller" leads.
-            // If no existing lead matches, the recording-callback's ensureInboundLeadCallMapping
-            // handles creating the lead when the recording arrives (it has better phone matching
-            // and the inbound_lead entry above gives it full context).
+            // Unmatched calls and recordings stay in the interaction review queue.
+            // A recording by itself is not evidence of a commercial opportunity.
             const allLeads = await listSalesLeads().catch(() => null)
             // Treat null (fetch failure) as "skip" — don't create phantom leads on DB errors
             const crmLead = allLeads?.find(lead => matchesPhone(from, lead)) ?? null
@@ -493,6 +519,9 @@ export async function POST(request: Request) {
         recordingCallback ? `recordingStatusCallbackEvent="${DIAL_RECORDING_EVENTS}"` : '',
         `timeout="${ringTimeout}"`,
       ].filter(Boolean).join(' ')
+      const callbackForIdentity = appUrl && callSid
+        ? (identity: string) => legStatusCallbackUrl(appUrl, inboundWorkspace, identity, callSid, inboundStartedAt)
+        : undefined
 
       // If all reps are busy AND there are active browser sessions, route to queue instead of
       // ringing all (which would likely time-out to missed-call immediately).
@@ -510,7 +539,7 @@ export async function POST(request: Request) {
       // safety net. A registered browser can still ring even if its telemetry heartbeat
       // was delayed or dropped.
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers, incomingDisplayName)}</Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers, incomingDisplayName, callbackForIdentity)}</Dial></Response>`
       )
     }
 
@@ -530,7 +559,7 @@ export async function POST(request: Request) {
     }
 
     const dialTarget = sipDialTarget || to || ''
-    if (!dialTarget) return fallbackTwiml(getRequestOrigin(request) || getAppUrl())
+    if (!dialTarget) return xmlResponse('<Response><Say>Please enter a destination phone number and try again.</Say><Hangup/></Response>')
 
     const requestedOutboundLeadId =
       ((formData.get('leadId') as string | null) || (formData.get('LeadId') as string | null) || '').trim() || null
@@ -555,6 +584,7 @@ export async function POST(request: Request) {
       matchedLeadId: outboundLeadId,
       reason: 'default' as const,
     }))
+    if(getSaturnTrackingSource(callerIdResolution.fromNumber)==='partnership_outreach') await reservePartnershipCall(dialTarget,callerIdResolution.fromNumber,String(formData.get('CallSid')||''))
     const appUrl = getRequestOrigin(request) || getAppUrl()
     const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
     const dialStatusParams = new URLSearchParams()
@@ -570,10 +600,14 @@ export async function POST(request: Request) {
       .join(' ')
 
     return xmlResponse(
-      `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${dialTarget}</Number></Dial></Response>`
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}>${carrierDialTarget(dialTarget, callerIdResolution.fromNumber)}</Dial></Response>`
     )
   } catch {
-    // If anything at all goes wrong, still try the internal SIP reps.
+    if (outboundRequest) {
+      console.error('Outbound call routing failed; no internal fallback was dialled')
+      return xmlResponse('<Response><Say>This call could not be connected. Please check the contact restrictions and try again from the CRM.</Say><Hangup/></Response>')
+    }
+    // Keep inbound callers able to reach staff when optional routing services fail.
     return fallbackTwiml(getRequestOrigin(request) || getAppUrl())
   }
 }

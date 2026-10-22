@@ -1,3 +1,4 @@
+import { executeDirectPayment } from '@/lib/server/direct-payment-operation'
 import { NextResponse } from 'next/server'
 import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
   const session = await getSessionUser()
 
   try {
-    const { leadId, quoteId, amountOverride } = (await request.json()) as {
+    const { leadId, quoteId, amountOverride, operationId } = (await request.json()) as {
+      operationId: string
       leadId: string
       quoteId: string
       amountOverride?: number
@@ -69,51 +71,17 @@ export async function POST(request: Request) {
     piParams.set('metadata[type]', 'deposit')
     appendStripeAccountMetadata(piParams, stripeAccount)
 
-    const pi = await stripePost<{
-      id?: string
-      status?: string
-      error?: { message?: string }
-    }>('payment_intents', stripeKey, piParams)
-
-    const { cardBrand, cardLast4 } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
-
-    if (pi.status !== 'succeeded' || !pi.id) {
-      await recordLeadPaymentAudit({
-        leadId,
-        quoteId,
-        actorName: session?.name,
-        action: 'deposit_charge_attempt',
-        amount: chargeAmount,
-        cardBrand,
-        cardLast4,
-        note: pi.error?.message || 'Stripe did not return a successful deposit charge.',
-      })
-      return NextResponse.json({ error: pi.error?.message || 'Charge failed' }, { status: 402 })
-    }
-
-    const now = new Date().toISOString()
-    const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: 'deposit', method: 'credit_card', paidAt: now, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
-    let updatedQuote = await saveSalesQuote({
-      ...quote,
-      depositPaidAt: now,
-      depositPaidAmount: chargeAmount,
-      depositPaidMethod: 'stripe',
-      depositStripePaymentIntentId: pi.id,
-      depositStripeCustomerId: customerId || quote.depositStripeCustomerId,
-      depositStripePaymentMethodId: paymentMethodId,
-      depositStripeCardBrand: cardBrand || quote.depositStripeCardBrand,
-      depositStripeCardLast4: cardLast4 || quote.depositStripeCardLast4,
-      stripeAccountKey: stripeAccount.key,
-      paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
+    const result = await executeDirectPayment({
+      operationKey: operationId, kind: 'deposit', quote, lead, amount: chargeAmount,
+      account: stripeAccount.key, stripeKey, params: piParams, actorName: session?.name, actorId: session?.userId,
     })
-
-    const updatedLead = await saveSalesLead({
-      ...lead,
-      paymentStatus: chargeAmount >= quote.total ? 'paid_in_full' : 'deposit_received',
-      depositAmount: chargeAmount,
-      depositMethod: 'Credit Card',
-      depositDate: now.slice(0, 10),
-    })
+    const { pi, cardBrand, cardLast4 } = result
+    let updatedQuote = result.quote
+    const updatedLead = result.lead
+    const paymentRecord = result.paymentRecord
+    const nextBalance = updatedQuote.balance
+    if (result.replayed) return NextResponse.json({ ok:true, replayed:true, paymentIntentId:pi.id, amount:result.amount, balance:nextBalance, cardBrand, cardLast4, lead:updatedLead, quote:updatedQuote })
+    if (!paymentRecord) throw new Error('Payment saved; receipt projection requires reconciliation')
 
     await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
     await recordLeadPaymentAudit({

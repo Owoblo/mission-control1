@@ -189,7 +189,14 @@ export default function ReviewsWorkspacePage() {
                           <div><span className="text-[var(--app-muted)]">Phone:</span> {job.customerPhone || '—'}</div>
                           <div className="mt-1"><span className="text-[var(--app-muted)]">Email:</span> {job.customerEmail || '—'}</div>
                           <div className="mt-1"><span className="text-[var(--app-muted)]">Google:</span> {job.googleProfileLocation || 'Not selected'}</div>
-                          <LinkActions label="Customer review page" url={`${appOrigin}/review/${job.id}`} copyKey={`${job.id}:customer-link`} copiedKey={copiedKey} onCopy={copyLink} />
+                          <button className="text-xs font-bold underline" onClick={async () => {
+                            try {
+                              const response = await fetch(`/api/jobs/${job.id}/review-link`, { method: 'POST' })
+                              const result = await response.json()
+                              if (!response.ok) throw new Error(result.error || 'Could not create review link')
+                              await copyLink(`${job.id}:customer-link`, result.url)
+                            } catch (error) { setError(error instanceof Error ? error.message : 'Could not create review link') }
+                          }}>{copiedKey === `${job.id}:customer-link` ? 'Copied review link' : 'Copy secure customer review link'}</button>
                           {job.crmLeadId ? <Link href={`/sales/leads/${job.crmLeadId}`} className="mt-3 inline-block font-semibold text-[#0f6a53]">Open lead →</Link> : null}
                         </div>
                         <label className="block"><span className="crm-label mb-2 block">Private feedback</span><textarea defaultValue={job.feedbackComment || ''} onBlur={event => void patchJob(job, { feedbackComment: event.target.value, customerExperience: { ...cx, privateFeedbackStatus: event.target.value.trim() ? 'completed' : cx.privateFeedbackStatus, updatedAt: new Date().toISOString() } })} className="crm-input min-h-[110px] w-full resize-y" placeholder="What went well? What could we improve?" /></label>

@@ -1,6 +1,10 @@
-import { getTwilioCredentials, requireSupabaseEnv, getAppBaseUrl } from '@/lib/server/runtime'
-import { outboundSmsRecentlySent, recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
-import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { carrierVoiceForm } from '@/lib/server/carrier-voice'
+import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
+import { captureTwilioInteraction } from '@/lib/server/interactions'
+import { reserveMissedCallReply, recordMissedCallReply } from '@/lib/server/callback-actions'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { requireSupabaseEnv, getAppBaseUrl } from '@/lib/server/runtime'
+import { outboundSmsRecentlySent } from '@/lib/server/sales-messaging'
 import { getSaturnBranchLabel } from '@/lib/sales-phones'
 import { sendRepAlertEmail, missedCallNotificationEmail } from '@/lib/server/internal-notifications'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
@@ -17,24 +21,6 @@ const recentMissedSmsSent = new Map<string, number>()
 
 function xmlResponse(twiml: string) {
   return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
-}
-
-async function sendSms(accountSid: string, authToken: string, to: string, from: string, body: string) {
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: twilioAuth(accountSid, authToken),
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({ To: to, From: from, Body: body }).toString(),
-  })
-
-  const payload = await response.json().catch(() => ({})) as { sid?: string; message?: string }
-  if (!response.ok || !payload.sid) {
-    throw new Error(payload.message || 'Missed-call SMS failed')
-  }
-
-  return payload.sid
 }
 
 async function updateInboundLead(from: string, patch: Record<string, unknown>) {
@@ -67,8 +53,13 @@ export async function POST(request: Request) {
   let whoResult: 'browser' | 'rep' | 'nobody' = 'nobody'
 
   try {
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'twilio_missed_call', 'call')
+    const formData = carrierVoiceForm(rawBody)
     const from    = (formData.get('From') as string | null)?.trim() || ''
+    if (findBlockedCaller(await getDialerSettings(), from)) return xmlResponse('<Response></Response>')
     const to      = (formData.get('To') as string | null)?.trim() || ''
     const callSid = (formData.get('CallSid') as string | null)?.trim() || ''
     const dialCallStatus   = (formData.get('DialCallStatus') as string | null)?.trim() || ''
@@ -113,7 +104,7 @@ export async function POST(request: Request) {
         from: businessNumber,
       }).catch(() => false)
 
-      if (!withinCooldown && !recentlySent) {
+      if (!withinCooldown && !recentlySent && await reserveMissedCallReply(callSid)) {
         recentMissedSmsSent.set(from, Date.now())
 
         // Fire automation — it picks up context from any existing lead and sends a
@@ -127,14 +118,9 @@ export async function POST(request: Request) {
           raw: { callSid, from, to, dialCallStatus, missedCall: true },
         }).then(() => true).catch(() => false)
 
-        // Fallback only if automation fails entirely
-        if (!automationHandled) {
-          const { accountSid, authToken } = getTwilioCredentials()
-          const callerSms = `Hi! You just called Saturn Star Moving. We missed you — reply here to get a moving estimate or we'll call you right back.`
-          void sendSms(accountSid, authToken, from, businessNumber, callerSms)
-            .then(sid => recordOutboundSmsToSupabase(businessNumber, from, callerSms, undefined, sid))
-            .catch(() => {})
-        }
+        // An automation error can occur after provider delivery. Never send a second fallback blindly.
+        await recordMissedCallReply(callSid, automationHandled ? 'handed_off' : 'unknown')
+
       }
 
       void sendRepAlertEmail(

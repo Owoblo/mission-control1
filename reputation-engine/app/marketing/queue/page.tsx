@@ -222,6 +222,15 @@ function ActionCard({
   onSkip: (item: QueueItem) => void
   done: boolean
 }) {
+  const [mailText, setMailText] = useState(item.message_draft || '')
+  const [mailCheck, setMailCheck] = useState('')
+  async function checkMail() {
+    setMailCheck('Checking…')
+    try {
+      const r=await fetch(`/api/marketing/contacts/${item.contact_id}/authorize-mail`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:mailText})})
+      const result=await r.json();setMailCheck(r.ok?'Approved for this letter. Record the actual mailing separately.':result.error||'Letter held')
+    } catch { setMailCheck('Check unavailable. Try again before mailing.') }
+  }
   const ch = CHANNEL_META[item.channel] ?? { icon: '📋', color: 'bg-slate-50 border-slate-200', label: item.channel }
   const isExpanded = expanded === item.id
   const c = item.contact
@@ -295,6 +304,12 @@ function ActionCard({
             <div className="text-sm text-[#071421]">{item.message_draft ?? item.label}</div>
           </div>
 
+          {item.channel === 'direct_mail' && item.contact_id && <div className="space-y-2">
+            <label className="block text-sm font-medium">Review the exact letter before mailing</label>
+            <textarea className="w-full rounded border p-2 text-sm" rows={5} value={mailText} onChange={e=>{setMailText(e.target.value);setMailCheck('')}} />
+            <button className="rounded bg-[#071421] px-3 py-2 text-sm text-white" onClick={()=>void checkMail()} disabled={!mailText.trim() || mailCheck==='Checking…'}>Check mailing eligibility</button>
+            {mailCheck && <p role="status" className="text-sm">{mailCheck}</p>}
+          </div>}
           {/* Contact details */}
           <div className="grid grid-cols-2 gap-3 text-sm">
             {c?.phone && (

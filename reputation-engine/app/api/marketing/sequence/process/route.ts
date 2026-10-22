@@ -1,8 +1,12 @@
+import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
+import { executePreparedSmsJob, PreparedSmsProviderError } from '@/lib/server/prepared-sms-worker'
+import { persistScheduledReplyReceipt } from '@/lib/server/partnership-scheduled-receipt'
+import { reserveAction } from '@/lib/partnership-core/reserve.mjs'
 import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { requireSupabaseEnv, readEnv } from '@/lib/server/runtime'
-import { sendProviderEmail } from '@/lib/server/email-provider'
+import { sendOutreachEmail } from '@/lib/server/email-provider'
 import { emailVerificationAllowsSend, verifyEmailAddress } from '@/lib/server/email-verification'
 import {
   decodeSenderFromTemplateKey,
@@ -209,10 +213,21 @@ function isPermanentSmsFailure(status: number, errorText: string) {
     '30006', // landline or unreachable carrier
     '30007', // carrier violation/filtering
   ]
-  return status === 400 ||
-    status === 404 ||
-    permanentCodes.some(code => text.includes(code)) ||
+  // Do not classify every HTTP 400 as a bad destination. Twilio returns
+  // account-level failures, including 30002 (account suspended), as 400s.
+  // Suppressing every contact in that case would corrupt the outreach list.
+  return permanentCodes.some(code => text.includes(code)) ||
     /invalid|not a valid|landline|unreachable|unknown destination|blocked|opted out/.test(text)
+}
+
+async function twilioAccountIsSuspended(accountSid: string, authToken: string) {
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}` },
+    cache: 'no-store',
+  }).catch(() => null)
+  if (!response) return false
+  const payload = await response.json().catch(() => ({})) as Record<string, unknown>
+  return String(payload.status || '').toLowerCase() === 'suspended'
 }
 
 function parseScheduledReplyTemplateKey(value: unknown) {
@@ -365,6 +380,18 @@ async function processScheduledReply(params: {
     return 'skipped'
   }
 
+  const cardRequest = (touch.metadata as {scheduled_reply?: {automatic_requested_card?: boolean; source_message_sid?: string}})?.scheduled_reply
+  if (cardRequest?.automatic_requested_card) {
+    const latestRes = await fetch(`${url}/rest/v1/market_touches?${new URLSearchParams({contact_id:'eq.'+String(contact.id),channel:'eq.sms',direction:'in.(inbound,outbound)',order:'created_at.desc',limit:'1',select:'direction,metadata'})}`, {headers,cache:'no-store'})
+    if (!latestRes.ok) throw new Error('Requested card freshness lookup failed')
+    const [latest] = await latestRes.json()
+    if (latest?.direction !== 'inbound' || latest.metadata?.messageSid !== cardRequest.source_message_sid) {
+      const cancel = await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {method:'PATCH',headers,body:JSON.stringify({status:'cancelled',error:'Conversation changed after card request; review latest reply'})})
+      if (!cancel.ok) throw new Error('Card cancellation persistence failed')
+      return 'skipped'
+    }
+  }
+
   const fromNumber = partnershipSenderOrFallback(
     payload.fromNumber || scheduled.fromNumber,
     contact.city as string | null,
@@ -377,7 +404,8 @@ async function processScheduledReply(params: {
   })
   payload.mediaUrls.forEach(mediaUrl => paramsBody.append('MediaUrl', mediaUrl))
 
-  const twilioRes = await fetch(
+  await reserveAction({url,headers,contactId:String(contact.id),channel:'sms',kind:'reply',key:'sequence:'+String(job.id),content:payload.body,sender:fromNumber})
+  const twilioRes = await sendSmsProviderRequest(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
     {
       method: 'POST',
@@ -398,47 +426,13 @@ async function processScheduledReply(params: {
     throw new Error(`Twilio scheduled reply: ${errText}`)
   }
 
-  const mediaNote = payload.mediaUrls.length ? `\n[MMS: ${payload.mediaUrls.join(', ')}]` : ''
-  await Promise.all([
-    fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
-      method: 'PATCH', headers,
-      body: JSON.stringify({ status: 'sent', sent_at: now }),
-    }),
-    fetch(`${url}/rest/v1/market_touches?id=eq.${scheduled.touchId}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({
-        outcome_code: 'scheduled_reply_sent',
-        next_step: 'Scheduled SMS sent',
-      }),
-    }),
-    fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({
-        last_touch_at: now,
-        next_follow_up: defaultFollowUpDate(now, 3),
-      }),
-    }),
-    fetch(`${url}/rest/v1/market_touches`, {
-      method: 'POST',
-      headers: { ...headers, Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        contact_id: contact.id,
-        channel: 'sms',
-        direction: 'outbound',
-        notes: `${payload.body}${mediaNote}`.trim(),
-        created_by: 'Scheduled Reply',
-        created_at: now,
-        metadata: {
-          scheduled_reply: true,
-          from: fromNumber,
-          scheduled_touch_id: scheduled.touchId,
-          mediaUrls: payload.mediaUrls,
-        },
-      }),
-    }),
-  ])
+  const provider = await twilioRes.json() as { sid?: string; status?: string }
+  await persistScheduledReplyReceipt({
+    url, headers, jobId: String(job.id), contactId: String(contact.id),
+    touchId: scheduled.touchId, existingMetadata: touch?.metadata as Record<string, unknown> | undefined,
+    fromNumber, toNumber: String(contact.phone), body: payload.body,
+    mediaUrls: payload.mediaUrls, now, provider,
+  })
 
   return 'processed'
 }
@@ -511,6 +505,7 @@ async function processSequence(request: Request) {
 
   const claimedJobs: Record<string, unknown>[] = []
   for (const job of jobs) {
+    if (job.sms_payload && readEnv('PREPARED_SMS_EXECUTION_ENABLED') !== 'true') continue
     const claimed = await claimSequenceJob(url, headers, job)
     if (claimed) claimedJobs.push(claimed)
   }
@@ -546,9 +541,6 @@ async function processSequence(request: Request) {
     }
   }
 
-  const accountSid = readEnv('TWILIO_ACCOUNT_SID')
-  const authToken = readEnv('TWILIO_AUTH_TOKEN')
-
   let processed = 0
   let skipped = 0
 
@@ -558,6 +550,21 @@ async function processSequence(request: Request) {
     const scheduledAt = typeof job.scheduled_at === 'string' ? job.scheduled_at : now
     const scheduledTime = new Date(scheduledAt).getTime()
     const scheduledReply = parseScheduledReplyTemplateKey(job.template_key)
+
+    // Provider checks belong to the job's channel, never the shared queue.
+    let accountSid = ''
+    let authToken = ''
+    if (scheduledReply || job.channel === 'sms') {
+      accountSid = readEnv('TWILIO_ACCOUNT_SID')
+      authToken = readEnv('TWILIO_AUTH_TOKEN')
+      try {
+        if (!accountSid || !authToken) throw new Error('Missing Twilio credentials')
+        if (await twilioAccountIsSuspended(accountSid, authToken)) throw new Error('twilio_account_suspended')
+      } catch (error) {
+        await releaseFailedSequenceJob(url, headers, job, error)
+        continue
+      }
+    }
 
     if (scheduledReply) {
       try {
@@ -661,7 +668,8 @@ async function processSequence(request: Request) {
         const deliverabilityText = unsubscribeUrl && !text.includes(unsubscribeUrl)
           ? `${text}\n\nNo longer useful? Unsubscribe: ${unsubscribeUrl}`
           : text
-        const emailReceipt = await sendProviderEmail({
+        await reserveAction({url,headers,contactId:String(contact.id),channel:'email',key:'sequence:'+String(job.id),content:deliverabilityText,sender:PARTNERSHIP_SENDER_EMAIL,emailProvider:'ses'})
+        const emailReceipt = await sendOutreachEmail({
           from: `${partnershipEmailFromName()} <${PARTNERSHIP_SENDER_EMAIL}>`,
           to: contact.email as string,
           subject,
@@ -720,6 +728,18 @@ async function processSequence(request: Request) {
         ])
         processed++
       } else if (job.channel === 'sms') {
+        if (job.sms_payload) {
+          try {
+            await executePreparedSmsJob({ job: job as { id: string }, contact: contact as { id: string }, url, headers, accountSid, authToken, enabled: readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true' })
+            processed++
+          } catch (error) {
+            if (error instanceof PreparedSmsProviderError && isPermanentSmsFailure(error.status, error.providerBody)) {
+              await suppressSmsContact({ url, headers, contact, job, errorText: error.providerBody, now })
+              skipped++
+            } else throw error
+          }
+          continue
+        }
         if (!contact.phone) {
           await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
             method: 'PATCH', headers,
@@ -763,7 +783,8 @@ async function processSequence(request: Request) {
         }
 
         const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(fromNumber)
-        const twilioRes = await fetch(
+        await reserveAction({url,headers,contactId:String(contact.id),channel:'sms',key:'sequence:'+String(job.id),content:smsBody,sender:fromNumber})
+        const twilioRes = await sendSmsProviderRequest(
           `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
           {
             method: 'POST',

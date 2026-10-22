@@ -1,3 +1,5 @@
+import { scopeDashboard, callMatchesDashboardBranch } from '@/lib/server/dashboard-scope'
+import { isBranchScopedManager } from '@/lib/server/sales-permissions'
 import { NextResponse } from 'next/server'
 import { compareLeadsByGuidance, getLeadGuidance } from '@/lib/lead-guidance'
 import { dateStamp, formatMoney, isClosedLeadStage } from '@/lib/sales'
@@ -84,7 +86,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'metric is required' }, { status: 400 })
     }
 
-    const { leads, quotes, followUps } = await getSalesOverview()
+    const { leads, quotes, followUps } = scopeDashboard(await getSalesOverview(), session)
     const today = dateStamp()
     const quoteMap = buildQuoteMap(quotes)
     const followUpsByLead = buildFollowUpsByLead(followUps)
@@ -206,13 +208,13 @@ export async function GET(request: Request) {
       metric === 'failed_calls_today'
     ) {
       const direction = metric === 'inbound_calls_today' ? 'inbound' : metric === 'outbound_calls_today' ? 'outbound' : undefined
-      const callOutcomes = await listTelephonyCallOutcomes({
+      const callOutcomes = (await listTelephonyCallOutcomes({
         date: today,
         direction,
         missedOnly: metric === 'missed_calls_today',
         failedOnly: metric === 'failed_calls_today',
         limit: 600,
-      })
+      })).filter(call => !isBranchScopedManager(session) || callMatchesDashboardBranch(call, session!.branch!, new Set(leads.map(lead => lead.id))))
       title = metric === 'calls_today'
         ? 'Calls Today'
         : metric === 'inbound_calls_today'

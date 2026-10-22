@@ -3,38 +3,6 @@ import { getSessionUser } from '@/lib/server/session'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { partnershipRecordMatchesSession } from '@/lib/server/partnership-access'
-import { isPartnershipSenderNumber } from '@/lib/partnership-lines'
-
-function normalizePhoneNumber(value: unknown) {
-  if (typeof value !== 'string') return ''
-  const digits = value.replace(/\D/g, '')
-  if (digits.length === 10) return `+1${digits}`
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
-  return value.trim()
-}
-
-function metadataString(metadata: Record<string, unknown> | null | undefined, keys: string[]) {
-  if (!metadata) return ''
-  for (const key of keys) {
-    const value = metadata[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return ''
-}
-
-function isVisiblePartnershipTouch(touch: Record<string, unknown>) {
-  if (String(touch.channel || '').toLowerCase() !== 'sms') return true
-  const metadata = touch.metadata && typeof touch.metadata === 'object'
-    ? touch.metadata as Record<string, unknown>
-    : null
-  const direction = String(touch.direction || '').toLowerCase()
-  const candidate = direction === 'inbound'
-    ? metadataString(metadata, ['to', 'To', 'to_number', 'toNumber'])
-    : metadataString(metadata, ['from', 'From', 'from_number', 'fromNumber'])
-  const normalized = normalizePhoneNumber(candidate)
-  return !!normalized && isPartnershipSenderNumber(normalized)
-}
-
 export async function GET(request: Request) {
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -60,7 +28,11 @@ export async function GET(request: Request) {
   )
   if (!res.ok) return NextResponse.json({ error: 'Failed' }, { status: 500 })
   const touches = (await res.json()) as Array<Record<string, unknown>>
-  return NextResponse.json(touches.filter(isVisiblePartnershipTouch))
+  // The contact has already passed the partnership market access check above.
+  // Do not hide linked history based on sender metadata: older sends, migrated
+  // numbers, and provider callbacks may legitimately carry a different sender
+  // representation. The contact_id relationship is the source of truth here.
+  return NextResponse.json(touches)
 }
 
 export async function POST(request: Request) {

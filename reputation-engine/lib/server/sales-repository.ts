@@ -1,3 +1,4 @@
+import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import {
   buildSalesSummary,
   BOOKED_LIKE_STAGES,
@@ -1246,6 +1247,14 @@ export async function listFollowUpLogs() {
     }
     throw error
   }
+}
+
+// Analytics must distinguish a genuinely empty follow-up history from a
+// missing/unavailable table; the tolerant reader above remains for legacy UI
+// surfaces that intentionally degrade without that optional history.
+export async function listFollowUpLogsStrict() {
+  const logs = await selectAll<FollowUpLog>('crm_followup_logs')
+  return logs.map(log => normalizeFollowUp(log))
 }
 
 // Dashboard/list screens only need enough recent history to derive guidance and

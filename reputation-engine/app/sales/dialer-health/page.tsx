@@ -69,6 +69,9 @@ interface TelephonyHealthResponse {
     failedCallsToday: number
     mediaConnectionFailuresToday: number
     avgAnswerTimeSeconds: number | null
+    answerLatencySamples: number
+    answeredWithinTwoMinutesPercent: number | null
+    answerLatencyByRep: Array<{ repId: string; repName?: string; workspace: string; samples: number; averageSeconds: number; withinTwoMinutesPercent: number }>
     browserCallsToday: number
     mobileCallsToday: number
     callsWithNoAudioToday: number
@@ -544,7 +547,16 @@ export default function DialerHealthPage() {
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--app-muted)]">Production Monitoring</h2>
               <div className="space-y-2 text-sm text-[var(--app-muted)]">
                 <div>Browser sessions online: {health?.browserPresence?.sessionCount ?? 0}</div>
-                <div>Average answer time: {health?.metrics?.avgAnswerTimeSeconds ?? 'n/a'}s</div>
+                <div>Inbound time to answer: {health?.metrics?.avgAnswerTimeSeconds ?? 'n/a'}s</div>
+                <div>Answered within two minutes (reference): {health?.metrics?.answeredWithinTwoMinutesPercent == null
+                  ? `no verified latency sample (n=${health?.metrics?.answerLatencySamples ?? 0})`
+                  : `${health.metrics.answeredWithinTwoMinutesPercent}% (n=${health.metrics.answerLatencySamples})`}</div>
+                <div>Provider-stamped answer callbacks:</div>
+                {health?.metrics?.answerLatencyByRep?.map(group => (
+                  <div key={`${group.workspace}:${group.repId}`} className="pl-3">
+                    {group.repName || group.repId} · {group.workspace}: {group.withinTwoMinutesPercent}% within 2 min (reference), avg {group.averageSeconds}s (n={group.samples})
+                  </div>
+                ))}
                 <div>Browser answered calls: {health?.metrics?.browserCallsToday ?? 0}</div>
                 <div>Groundwire/mobile answered calls: {health?.metrics?.mobileCallsToday ?? 0}</div>
                 <div>Calls with no audio: {health?.metrics?.callsWithNoAudioToday ?? 0}</div>

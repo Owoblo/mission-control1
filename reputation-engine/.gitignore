@@ -25,3 +25,18 @@ reports/
 docs/partnership-continuation.md
 docs/self-improving-outreach-loop.md
 market-intelligence/
+partnership-system/catalogs/raw/
+partnership-system/catalogs/classifications.csv
+partnership-system/catalogs/examples-and-boundaries.csv
+partnership-system/catalogs/browse.html
+partnership-system/markets/**/runs/
+
+# Local partnership ledger and contact evidence projections
+/partnership-system/state/
+
+# Private GTA launch audit contact exports
+/deliverables/gta-launch-20260926/*.csv
+/deliverables/gta-launch-20260926/crm-audit-snapshot.json
+/deliverables/gta-launch-20260926/batches/**/*.csv
+
+/deliverables/gta-launch-20260926/paused-import-*.jsonl

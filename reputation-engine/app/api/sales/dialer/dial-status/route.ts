@@ -1,7 +1,9 @@
+import { captureTwilioInteraction } from '@/lib/server/interactions'
+import { reserveMissedCallReply, recordMissedCallReply } from '@/lib/server/callback-actions'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
-import { sendSalesMessage } from '@/lib/server/sales-messaging'
-import { logTelephonyCallOutcome } from '@/lib/server/telephony-monitoring'
+import { estimateInboundAnswerLatencySeconds, logTelephonyCallOutcome } from '@/lib/server/telephony-monitoring'
 import {
   getCrmCallSidMapping,
   getInboundLeadByCallSid,
@@ -108,7 +110,12 @@ function extractSipDialTarget(value?: string | null) {
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const formData = await request.formData()
+    const rawBody = await request.text()
+    const rejection = await authorizeTwilioWebhook(request, rawBody)
+    if (rejection) return rejection
+    await captureTwilioInteraction(rawBody, 'twilio_dial_status', 'call')
+
+    const formData = new URLSearchParams(rawBody)
     const callSid        = (formData.get('CallSid') as string | null)?.trim() || ''
     const dialCallSid    = (formData.get('DialCallSid') as string | null)?.trim() || ''
     const dialCallStatus = (formData.get('DialCallStatus') as string | null)?.trim() || ''
@@ -183,32 +190,6 @@ export async function POST(request: Request) {
           return ld && (ld === extDigits || ld.endsWith(extDigits) || extDigits.endsWith(ld))
         }) ?? null
 
-        if (!crmLead) {
-          const newLead: CRMLead = {
-            id: uid('lead'),
-            name: externalPhone,
-            phone: externalPhone,
-            email: '',
-            stage: 'contacted',
-            source: 'outbound_call',
-            moveType: 'residential',
-            moveDate: '',
-            originCity: '',
-            destCity: '',
-            originAddress: '',
-            notes: '',
-            leadScore: 30,
-            totalCubicFeet: 0,
-            totalWeightLbs: 0,
-            totalItems: 0,
-            inventory: [],
-            roomBreakdown: {},
-            callLogs: [],
-            createdAt: now.slice(0, 10),
-          }
-          crmLead = await saveSalesLead(newLead).catch(() => null)
-        }
-
         if (crmLead) {
           const callLogId = uid('cl')
           savedCallLogId = callLogId
@@ -273,9 +254,8 @@ export async function POST(request: Request) {
     if (answered && callSid && !isOutbound) {
       const mapping = await getCrmCallSidMapping(callSid).catch(() => null)
       const inboundLead = await getInboundLeadByCallSid(callSid).catch(() => null)
-      const answerTimeSeconds = inboundLead?.created_at
-        ? Math.max(0, Math.round((Date.now() - new Date(inboundLead.created_at).getTime()) / 1000))
-        : undefined
+      const callbackAt = Date.now()
+      const answerTimeSeconds = estimateInboundAnswerLatencySeconds(inboundLead?.created_at, callbackAt, duration)
       if (mapping) {
         const updatedLead = await updateLeadCallLogEntry(mapping.leadId, mapping.callLogId, {
           notes: `Inbound call from ${normalizedFrom || 'unknown number'}${branchLabel ? ` via ${branchLabel} line` : ''} — ${formatDuration(duration)}. Recording processing…`,
@@ -309,6 +289,7 @@ export async function POST(request: Request) {
             answerChannel: 'unknown',
             durationSeconds: duration,
             answerTimeSeconds,
+            answerTimeMethod: answerTimeSeconds === undefined ? undefined : 'callback_elapsed_minus_connected_duration_estimate',
             browserHealthyAtRing: browserHealthy,
             browserSessionCount,
             audioConnected: true,
@@ -333,7 +314,7 @@ export async function POST(request: Request) {
         (typeof inboundRaw.missedCallAutoReplyAt === 'string' ? inboundRaw.missedCallAutoReplyAt : null) ||
         crmLead?.lastMissedCallAutoReplyAt ||
         null
-      const sendFallbackReply = !!fallbackPhone && !isSaturnBranchPhoneNumber(fallbackPhone) && shouldSendFallbackReply(lastFallbackReplyAt)
+      const sendFallbackReply = !!fallbackPhone && !isSaturnBranchPhoneNumber(fallbackPhone) && shouldSendFallbackReply(lastFallbackReplyAt) && await reserveMissedCallReply(callSid)
       const now = new Date().toISOString()
       const missedReason = classifyMissedReason({
         dialCallStatus,
@@ -400,7 +381,7 @@ export async function POST(request: Request) {
       }
 
       if (sendFallbackReply && fallbackPhone) {
-        void (async () => {
+        await (async () => {
           const automationResult = await processInboundAutomationEvent({
             leadId: mapping?.leadId,
             inboundLeadId: inboundLead?.id,
@@ -421,18 +402,8 @@ export async function POST(request: Request) {
             },
           }).catch(() => null)
 
-          if (automationResult?.job?.status === 'completed') return
-
-          const branchText = branchLabel ? ` on the ${branchLabel} line` : ''
-          await sendSalesMessage({
-            channel: 'sms',
-            to: fallbackPhone,
-            body: `Sorry we missed your call${branchText}. Reply here and Saturn Star will text or call you right back.`,
-            leadId: mapping?.leadId,
-            fromNumber: branchNumber || undefined,
-            actor: 'automation',
-            notes: `Automation missed-call SMS sent to ${fallbackPhone}`,
-          }).catch(() => {})
+          // Reserved once across all missed-call callbacks; ambiguous automation failures are held for review.
+          await recordMissedCallReply(callSid, automationResult ? 'handed_off' : 'unknown')
         })()
       }
 

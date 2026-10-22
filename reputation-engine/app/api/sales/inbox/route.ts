@@ -1,3 +1,4 @@
+import { countsAsCommercialLead } from '@/lib/interaction-classification'
 import { NextResponse } from 'next/server'
 import { buildInboundQueueSummary, decorateInboundLead } from '@/lib/inbound-inbox'
 import { calculateLeadScore, normalizeLead, uid } from '@/lib/sales'
@@ -414,6 +415,10 @@ export async function POST(request: Request) {
       email: validated.email || inbound.email,
       inboundId: payload.inboundId,
     }, actor, { includeClosed: true })
+
+    if (!duplicateLead || !countsAsCommercialLead(duplicateLead)) {
+      return NextResponse.json({ error: 'Review and qualify this interaction in Interaction Review before claiming it.' }, { status: 409 })
+    }
 
     if (duplicateLead) {
       const inboundCallLog = buildInboundCallLog(inbound)

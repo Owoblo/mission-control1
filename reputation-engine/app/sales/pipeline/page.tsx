@@ -8,6 +8,7 @@ import { formatDate, formatMoney, getLeadAssignedRepName, getSalesBranchLabel, S
 import { formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
+import { getSalesWorkQueue } from '@/lib/sales-work-queue'
 
 const COLUMN_ORDER: CRMLead['stage'][] = ['new', 'contacted', 'estimate_scheduled', 'estimate_completed', 'pricing', 'quoted', 'tentative', 'nurture', 'booked', 'completed', 'customer_success', 'lost']
 
@@ -324,7 +325,7 @@ function SalesPipelineContent() {
   const attentionCounts = useMemo(() => {
     const t = today()
     const ago7 = daysAgo(7)
-    const active = leads.filter(l => !isClosedLeadStage(l.stage))
+    const active = leads.filter(l => getSalesWorkQueue(l) === 'sales' && !isClosedLeadStage(l.stage))
     return {
       overdue: active.filter(l => l.followUpDate && dayStart(new Date(l.followUpDate)) < t).length,
       cold: active.filter(l => {
@@ -332,7 +333,7 @@ function SalesPipelineContent() {
         return last && new Date(last) < ago7
       }).length,
       no_quote: active.filter(l => !l.quoteId && ['new','contacted','estimate_scheduled','estimate_completed','pricing'].includes(l.stage)).length,
-      new_today: leads.filter(l => l.createdAt && dayStart(new Date(l.createdAt)).getTime() === t.getTime()).length,
+      new_today: active.filter(l => l.createdAt && dayStart(new Date(l.createdAt)).getTime() === t.getTime()).length,
     }
   }, [leads])
 
@@ -350,6 +351,7 @@ function SalesPipelineContent() {
     const t = today()
     const ago7 = daysAgo(7)
     return list
+      .filter(l => getSalesWorkQueue(l) === 'sales')
       .filter(l => !filterStage || l.stage === filterStage)
       .filter(l => !filterSource || l.source === filterSource)
       .filter(l => !filterCity || l.originCity === filterCity)
@@ -413,13 +415,7 @@ function SalesPipelineContent() {
   const grouped = useMemo(() => COLUMN_ORDER.map(stage => ({
     stage, label: COLUMN_LABELS[stage],
     cards: applyFilters(
-      leads.filter(l => l.stage === stage).filter(l => {
-        if (stage === 'contacted' && !query && !filterAttention) {
-          const isJunk = /^(unknown caller|new caller|\+\d{10,}$)/i.test((l.name || '').trim())
-          if (isJunk && !l.quoteId && !l.email) return false
-        }
-        return true
-      })
+      leads.filter(l => l.stage === stage)
     ),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   })), [guidanceMap, leads, query, filterStage, filterSource, filterCity, filterRep, filterBranch, filterMoveDate, filterAttention, sortMode, ownershipView, workflowFilter, currentUser?.name, currentUser?.userId, quoteMap])

@@ -1,3 +1,4 @@
+import { fetchRead } from '@/lib/resilient-read'
 import { NextResponse } from 'next/server'
 import { normalizePartnershipStage } from '@/lib/marketing'
 import { getPartnershipLinesForMarket, normalizePartnershipCityKey } from '@/lib/partnership-lines'
@@ -39,6 +40,15 @@ function resolveMarket(city: string | null, keys: Record<MarketKey, Set<string>>
 }
 
 export async function GET() {
+  try { return await loadSummary() } catch {
+    return NextResponse.json({ error: 'Relationship totals are temporarily unavailable. Please retry.' }, {
+      status: 503, headers: { 'Cache-Control': 'private, no-store', 'Retry-After': '30' },
+    })
+  }
+}
+
+async function loadSummary() {
+  const signal = AbortSignal.timeout(18_000)
   const session = await getSessionUser()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { url, headers } = requireSupabaseEnv()
@@ -46,9 +56,9 @@ export async function GET() {
   const pageSize = 1000
 
   for (let offset = 0; ; offset += pageSize) {
-    const response = await fetch(
+    const response = await fetchRead(
       `${url}/rest/v1/market_contacts?select=id,city,stage,sequence_paused,last_inbound_at,last_touch_at,created_at&order=created_at.asc&limit=${pageSize}&offset=${offset}${partnershipScopeFilter(session)}`,
-      { headers, cache: 'no-store' },
+      { headers, cache: 'no-store', signal },
     )
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to load relationship summary' }, { status: 500 })
@@ -81,8 +91,8 @@ export async function GET() {
   const sinceIso = since.toISOString()
   const visibleContactIds = new Set(rows.map(row => row.id))
   const [touchesResponse, referralsResponse] = await Promise.all([
-    fetch(`${url}/rest/v1/market_touches?select=contact_id,created_at&created_at=gte.${encodeURIComponent(sinceIso)}&limit=20000`, { headers, cache: 'no-store' }),
-    fetch(`${url}/rest/v1/partner_referrals?select=contact_id,job_status,booked_amount_cents,created_at,updated_at&or=(created_at.gte.${encodeURIComponent(sinceIso)},updated_at.gte.${encodeURIComponent(sinceIso)})&limit=10000`, { headers, cache: 'no-store' }),
+    fetchRead(`${url}/rest/v1/market_touches?select=contact_id,created_at&created_at=gte.${encodeURIComponent(sinceIso)}&limit=20000`, { headers, cache: 'no-store', signal }),
+    fetchRead(`${url}/rest/v1/partner_referrals?select=contact_id,job_status,booked_amount_cents,created_at,updated_at&or=(created_at.gte.${encodeURIComponent(sinceIso)},updated_at.gte.${encodeURIComponent(sinceIso)})&limit=10000`, { headers, cache: 'no-store', signal }),
   ])
   const touches = touchesResponse.ok
     ? await touchesResponse.json() as Array<{ contact_id: string | null; created_at: string }>

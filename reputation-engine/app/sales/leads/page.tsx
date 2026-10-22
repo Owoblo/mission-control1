@@ -8,8 +8,9 @@ import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/l
 import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDeletedSalesLead, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
+import { getSalesWorkQueue, torontoDate } from '@/lib/sales-work-queue'
 
-type LeadViewMode = 'focus' | 'booked' | 'all' | 'realtor' | 'deleted'
+type LeadViewMode = 'focus' | 'booked' | 'all' | 'realtor' | 'review' | 'deleted'
 type DeletedLeadRow = CRMLead & { _deletedAt?: string }
 type DecoratedLeadRow = {
   lead: CRMLead
@@ -25,6 +26,7 @@ const LEAD_VIEW_MODES: Array<{ id: LeadViewMode; label: string; description: str
   { id: 'booked', label: 'Booked', description: 'Booked and completed jobs that still matter operationally.' },
   { id: 'all', label: 'All Active', description: 'Everything active except deleted and lost.' },
   { id: 'realtor', label: '🏠 Realtor Opps', description: 'Destination-side leads — pitch the listing agent for the current occupant\'s move.' },
+  { id: 'review', label: 'Non-sales / Service', description: 'Reviewed non-sales contacts and service cases. Keep their history; handle in the appropriate workflow.' },
   { id: 'deleted', label: 'Deleted', description: 'Recently removed leads that can still be restored.' },
 ]
 
@@ -228,7 +230,7 @@ function SalesLeadsIndexContent() {
     }
   }, [deletedLeads.length, deletedLoading, viewMode])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = torontoDate()
 
   const decoratedLeads = useMemo<DecoratedLeadRow[]>(() => {
     const quoteMap = new Map(quotes.map(item => [item.id, item]))
@@ -238,7 +240,7 @@ function SalesLeadsIndexContent() {
       const guidance = getLeadGuidance(lead, quote, followUps)
       const isBooked = isBookedLikeStage(lead.stage)
       const isClosed = isClosedLeadStage(lead.stage)
-      const isActionable = !isBooked && !isClosed && guidance.action.priority >= 50
+      const isActionable = getSalesWorkQueue(lead) === 'sales' && !isBooked && !isClosed && guidance.action.priority >= 50
       return { lead, quote, guidance, isBooked, isClosed, isActionable }
     })
   }, [followUps, leads, query, quotes])
@@ -252,12 +254,12 @@ function SalesLeadsIndexContent() {
     [decoratedLeads]
   )
   const activeLeads = useMemo(
-    () => decoratedLeads.filter(item => !item.isClosed || item.isBooked).sort((left, right) => compareLeadsByGuidance(left, right)),
+    () => decoratedLeads.filter(item => getSalesWorkQueue(item.lead) === 'sales' && (!item.isClosed || item.isBooked)).sort((left, right) => compareLeadsByGuidance(left, right)),
     [decoratedLeads]
   )
   const realtorLeads = useMemo(
     () => decoratedLeads
-      .filter(item => item.lead.leadKind === 'realtor_opportunity' && !item.isClosed)
+      .filter(item => getSalesWorkQueue(item.lead) === 'realtor' && !item.isClosed)
       .sort((a, b) => {
         // Un-pitched first, then by follow-up date
         const aPitched = !!a.lead.realtorOutreachStartedAt
@@ -275,15 +277,18 @@ function SalesLeadsIndexContent() {
     [deletedLeads, query]
   )
 
+  const reviewLeads = decoratedLeads.filter(item => getSalesWorkQueue(item.lead) === 'review')
+
   const todaysCallList = useMemo(
     () => decoratedLeads.filter(({ lead }) =>
+      getSalesWorkQueue(lead) === 'sales' &&
       lead.followUpDate && lead.followUpDate <= today &&
       !isBookedLikeStage(lead.stage) && !isClosedLeadStage(lead.stage)
     ).sort((a, b) => (a.lead.followUpDate || '').localeCompare(b.lead.followUpDate || '')),
     [decoratedLeads, today]
   )
 
-  const visibleLeads = viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : viewMode === 'realtor' ? realtorLeads : activeLeads
+  const visibleLeads = viewMode === 'focus' ? focusLeads : viewMode === 'booked' ? bookedLeads : viewMode === 'realtor' ? realtorLeads : viewMode === 'review' ? reviewLeads : activeLeads
   const emptyText =
     viewMode === 'focus'
       ? 'No leads currently need live follow-up.'
@@ -323,6 +328,8 @@ function SalesLeadsIndexContent() {
                     ? bookedLeads.length
                     : mode.id === 'realtor'
                       ? realtorLeads.length
+                      : mode.id === 'review'
+                        ? reviewLeads.length
                       : mode.id === 'deleted'
                         ? deletedLeads.length
                         : activeLeads.length
@@ -350,7 +357,7 @@ function SalesLeadsIndexContent() {
       </section>
 
       {/* Today's Calls / Overdue Follow-ups */}
-      {viewMode !== 'deleted' && viewMode !== 'booked' && todaysCallList.length > 0 && (
+      {(viewMode === 'focus' || viewMode === 'all') && todaysCallList.length > 0 && (
         <section className="overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white">
           <div className="flex items-center justify-between border-b border-[var(--app-line)] px-5 py-3">
             <span className="text-sm font-semibold text-[var(--app-ink)]">

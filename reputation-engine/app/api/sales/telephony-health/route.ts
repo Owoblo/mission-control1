@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import { GET as getBranchBreakdown } from '../branch-breakdown/route'
 import { NextResponse } from 'next/server'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
 import { getSessionUser } from '@/lib/server/session'
@@ -42,6 +43,19 @@ export async function GET(request: Request) {
   const session = await getSessionUser()
   if (!session || !canAccessSalesWorkspace(session)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Branch dashboards must never use company-wide telephony totals or feeds.
+  if (session.role === 'manager' && session.branch) {
+    const response = await getBranchBreakdown()
+    if (!response.ok) return response
+    const breakdown = await response.json()
+    const calls = breakdown.calls.today
+    return NextResponse.json({
+      ok: true, generatedAt: breakdown.updatedAt, branch: session.branch,
+      metrics: { totalCallsToday: calls.total, missedCallsToday: calls.missed, failedCallsToday: calls.failed },
+      browserPresence: null, probes: [], recentDialerEvents: [], alerts: [], recentAlerts: [], recentAlertCount: 0,
+    })
   }
 
   const [lastInboundCallAt, lastInboundSmsAt, lastRecordingCallbackAt, lastTranscriptionAt, followUpLogs, metrics, browserPresence, recentDialerEvents] = await Promise.all([

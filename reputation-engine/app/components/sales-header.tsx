@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { fetchRead, startReadPolling } from '@/lib/resilient-read'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
@@ -45,11 +46,13 @@ const SALES_ROLES = ['owner', 'manager', 'sales_rep']
 const BASE_NAV = [
   { environment: 'Command', href: '/sales', label: 'Dashboard', match: (p: string) => p === '/sales', roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Command', href: '/sales/tasks', label: 'Tasks', match: (p: string) => p.startsWith('/sales/tasks'), roles: ['owner', 'manager', 'sales_rep', 'operations_lead', 'partnership_manager'] },
+  { environment: 'Intake', href: '/sales/interactions', label: 'Interaction Review', match: (p: string) => p.startsWith('/sales/interactions'), roles: ['owner'] },
   { environment: 'Intake', href: '/sales/inbox', label: 'Inbox', match: (p: string) => p.startsWith('/sales/inbox'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/sales/leads', label: 'Leads', match: (p: string) => p.startsWith('/sales/leads'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Intake', href: '/marketing', label: 'Partnerships', match: (p: string) => p.startsWith('/marketing'), roles: ['owner', 'manager', 'partnership_manager'] },
   { environment: 'Sales', href: '/sales/reviews', label: 'Reviews', match: (p: string) => p.startsWith('/sales/reviews'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/pipeline', label: 'Pipeline', match: (p: string) => p.startsWith('/sales/pipeline'), roles: ['owner', 'manager', 'sales_rep'] },
+  { environment: 'Sales', href: '/sales/follow-up-radar', label: 'Sales Opportunities', match: (p: string) => p.startsWith('/sales/follow-up-radar'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/follow-up', label: 'Follow-Up', match: (p: string) => p.startsWith('/sales/follow-up'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/academy', label: 'Academy', match: (p: string) => p.startsWith('/sales/academy'), roles: ['owner', 'manager', 'sales_rep'] },
@@ -134,7 +137,8 @@ export function SalesHeader() {
 
   const [query, setQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
-  const [leadsLoaded, setLeadsLoaded] = useState(false)
+  const [leadSearchLoading, setLeadSearchLoading] = useState(false)
+  const [leadSearchError, setLeadSearchError] = useState(false)
   const [newLeadOpen, setNewLeadOpen] = useState(false)
   const [quickScanOpen, setQuickScanOpen] = useState(false)
   const [allLeads, setAllLeads] = useState<CRMLead[]>([])
@@ -211,29 +215,46 @@ export function SalesHeader() {
     }
   }
 
-  // Load searchable lead data only after the user actually uses search.
+  // Refresh while searching: this header persists across navigation and new
+  // website leads can arrive after its initial search index was loaded.
   useEffect(() => {
-    if (!searchFocused && query.trim().length === 0) return
-    if (leadsLoaded) return
+    if (!searchFocused) return
     if (!canUseSalesActions) return
     let cancelled = false
-    fetchSalesLeadSearchIndex()
-      .then(leads => {
+    let inFlight = false
+    const refresh = async () => {
+      if (inFlight || document.hidden) return
+      inFlight = true
+      setLeadSearchLoading(true)
+      try {
+        const leads = await fetchSalesLeadSearchIndex()
         if (cancelled) return
         setAllLeads(leads as CRMLead[])
-        setLeadsLoaded(true)
-      })
-      .catch(() => null)
+        setLeadSearchError(false)
+      } catch {
+        if (!cancelled) setLeadSearchError(true)
+      } finally {
+        inFlight = false
+        if (!cancelled) setLeadSearchLoading(false)
+      }
+    }
+    const debounce = window.setTimeout(() => void refresh(), 250)
+    const interval = window.setInterval(() => void refresh(), 30_000)
+    window.addEventListener('focus', refresh)
     return () => {
       cancelled = true
+      window.clearTimeout(debounce)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refresh)
     }
-  }, [canUseSalesActions, leadsLoaded, query, searchFocused])
+  }, [canUseSalesActions, query, searchFocused])
 
   // Close search dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowDropdown(false)
+        setSearchFocused(false)
       }
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false)
@@ -245,10 +266,8 @@ export function SalesHeader() {
 
   // ── Fetch notifications (poll every 30s) ───────────────────────────────
   useEffect(() => {
-    async function fetchNotifications() {
-      try {
-        const res = await fetch('/api/sales/notifications', { credentials: 'include' })
-        if (!res.ok) return
+    async function fetchNotifications(signal: AbortSignal) {
+        const res = await fetchRead('/api/sales/notifications', { credentials: 'include', signal }, { timeoutMs: 12_000 })
         const data = await res.json() as { items: NotificationItem[]; totalCount: number; breakdown: { leads: number; sms: number; emails: number; alerts: number } }
 
         // Detect new items for toast + chime + push
@@ -281,24 +300,12 @@ export function SalesHeader() {
           emails: visibleItems.filter(i => i.type === 'email').length,
           alerts: visibleItems.filter(i => i.type === 'alert').length,
         })
-      } catch { /* non-fatal */ }
     }
 
-    let interval: ReturnType<typeof setInterval> | null = null
-
-    function schedule() {
-      if (interval) clearInterval(interval)
-      const delay = typeof document !== 'undefined' && document.hidden ? 60_000 : 20_000
-      interval = setInterval(() => void fetchNotifications(), delay)
-    }
-
-    void fetchNotifications()
-    schedule()
-    document.addEventListener('visibilitychange', schedule)
-    return () => {
-      if (interval) clearInterval(interval)
-      document.removeEventListener('visibilitychange', schedule)
-    }
+    return startReadPolling(fetchNotifications, {
+      intervalMs: () => document.hidden ? 60_000 : 20_000,
+      maxDelayMs: 120_000,
+    })
   }, [isDexaView])
 
   useEffect(() => {
@@ -360,7 +367,7 @@ export function SalesHeader() {
   const navItems = BASE_NAV
     .filter(item => item.roles.includes(role))
     .filter(item => !(role === 'sales_rep' && ['Finance', 'Live Feed', 'Analytics', 'Reps', 'Team', 'Partnerships'].includes(item.label)))
-  const primaryNavLabels = new Set(['Dashboard', 'Tasks', 'Inbox', 'Leads', 'Pipeline', 'Booked', 'Partnerships', 'Operations'])
+  const primaryNavLabels = new Set(['Dashboard', 'Tasks', 'Inbox', 'Leads', 'Pipeline', 'Sales Opportunities', 'Booked', 'Partnerships', 'Operations'])
   const primaryNavItems = navItems.filter(item => primaryNavLabels.has(item.label))
   const secondaryNavItems = navItems.filter(item => !primaryNavLabels.has(item.label))
   const activeSecondaryItem = secondaryNavItems.some(item => item.match(pathname))
@@ -674,7 +681,7 @@ export function SalesHeader() {
                 {showDropdown && (
                   <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-[10px] border border-[var(--app-line)] bg-white shadow-lg">
                     {searchResults.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-[var(--app-muted)]">No leads found for &ldquo;{query}&rdquo;</div>
+                      <div className="px-4 py-3 text-sm text-[var(--app-muted)]">{leadSearchLoading ? 'Searching leads…' : leadSearchError ? 'Lead search could not refresh. Please try again.' : <>No leads found for &ldquo;{query}&rdquo;</>}</div>
                     ) : (
                       searchResults.map(lead => (
                         <div

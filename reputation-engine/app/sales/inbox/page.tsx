@@ -1582,6 +1582,9 @@ function SalesInboxPageInner() {
                           {outboundOnly && (
                             <span className="shrink-0 rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">No reply</span>
                           )}
+                          {thread.partnerOpportunity && (
+                            <span className="shrink-0 rounded-[3px] border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sky-700">Partner handoff</span>
+                          )}
                         </div>
                         <span className="shrink-0 text-[10px] text-[var(--app-muted)]">{timeAgo(thread.lastAt)}</span>
                       </div>
@@ -1864,10 +1867,24 @@ function SalesInboxPageInner() {
                             {thread.trackingLabel ? ` • ${thread.trackingLabel}` : ''}
                             {thread.lastReadAt ? ` • read ${timeAgo(thread.lastReadAt)}${thread.lastReadByName ? ` by ${thread.lastReadByName}` : ''}` : ''}
                           </div>
+                          {thread.partnerOpportunity ? (
+                            <div className="mt-2 max-w-2xl rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">
+                              <strong>Partner-sourced opportunity.</strong> {thread.partnerLeadSummary || 'Call the referring partner first, collect the client details and scope, and do not quote until the route is confirmed.'}
+                              {thread.partnerHandoffStatus ? <span className="ml-2 font-semibold">Status: {thread.partnerHandoffStatus.replace(/_/g, ' ')}</span> : null}
+                            </div>
+                          ) : null}
                         </div>
-                        {thread.leadId && (
-                          <a href={`/sales/leads/${thread.leadId}`} className="ml-auto crm-button min-h-11 text-sm lg:min-h-9 lg:text-xs">View Lead →</a>
-                        )}
+                        <div className="ml-auto flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openDialer(thread.contactPhone, thread.leadName || undefined, thread.leadId || undefined)}
+                            className="crm-button min-h-11 px-4 text-sm lg:min-h-9 lg:px-3 lg:text-xs"
+                            aria-label={`Call ${thread.leadName || formatPhoneDisplay(thread.contactPhone)}`}
+                          >Call</button>
+                          {thread.leadId && (
+                            <a href={`/sales/leads/${thread.leadId}`} className="crm-button min-h-11 px-4 text-sm lg:min-h-9 lg:px-3 lg:text-xs">View Lead →</a>
+                          )}
+                        </div>
                       </div>
                       <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 py-6 sm:px-6">
                         {thread.messages.map((msg, index) => {

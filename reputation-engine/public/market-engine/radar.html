@@ -541,7 +541,7 @@
 'use strict';
 
 /* ─── CONFIG ─────────────────────────────────────── */
-const OPENAI_KEY    = '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';
+async function legacyAiDisabled() { throw new Error('Legacy browser AI is disabled. Use the authenticated CRM intelligence tools.'); }
 const MODEL         = 'gpt-4o';
 const STORAGE_KEY   = 'ssradar_v3';
 const SCAN_INTERVAL = 20 * 60 * 1000;
@@ -800,9 +800,9 @@ Skip any item with confidence < 5. If nothing qualifies return exactly: []
 POSTS:
 ${list}`;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await legacyAiDisabled('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+    headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({
       model: MODEL, temperature: 0.1, max_tokens: 2000,
       messages: [
@@ -1457,9 +1457,9 @@ Return ONLY valid JSON — no markdown, no explanation:
   ]
 }`;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await legacyAiDisabled('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+    headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({
       model: MODEL, temperature: 0.35, max_tokens: 1800,
       messages: [
@@ -1553,9 +1553,9 @@ async function researchDM() {
 
   /* ── PHASE 1: GPT-4o knowledge ──────────────────── */
   try {
-    const p1res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const p1res = await legacyAiDisabled('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+      headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({
         model: MODEL, temperature: 0, max_tokens: 250,
         messages: [{ role: 'user', content:
@@ -1620,9 +1620,9 @@ async function researchDM() {
     /* ── PHASE 3: Extract name from scraped content ── */
     resultsEl.innerHTML = '<span class="spinning" style="display:inline-block;margin-right:4px">⚙</span> Extracting name…';
 
-    const p3res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const p3res = await legacyAiDisabled('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${OPENAI_KEY}` },
+      headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({
         model: MODEL, temperature: 0, max_tokens: 200,
         messages: [{ role: 'user', content:

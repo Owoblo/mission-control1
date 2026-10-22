@@ -37,6 +37,20 @@ export async function POST(
   const touches = await touchesRes.json() as PartnershipAssistantTouch[]
   const suggestion = await suggestPartnershipReply({ contact, touches })
 
+  // Keep the model decision durable so later founder edits can become policy
+  // or classifier improvements instead of disappearing with the session.
+  await fetch(`${url}/rest/v1/saturn_ai_decisions`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      contact_id: id,
+      input: { latestInbound: touches.filter(t => t.direction === 'inbound').at(-1)?.notes || null },
+      prediction: { intent: suggestion.intent, confidence: suggestion.confidence, recommendedAction: suggestion.recommended_action, riskFlags: suggestion.risk_flags, draftSms: suggestion.draft_sms },
+      policy_version: 'partnership-policy-v1',
+      model_version: process.env.OPENAI_AUTOMATION_MODEL || 'deterministic-rules',
+    }),
+  }).catch(() => {})
+
   return NextResponse.json({
     ok: true,
     contact_id: id,

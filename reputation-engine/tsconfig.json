@@ -36,9 +36,11 @@
   ],
   "exclude": [
     "node_modules",
+    "scripts",
     "mobile",
     ".estimate-recovery",
     "deliverables",
-    "market-intelligence"
+    "market-intelligence",
+    "artifacts"
   ]
 }

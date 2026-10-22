@@ -113,6 +113,7 @@ export interface PartnershipAssistantResult {
     asks_share_number?: boolean
     asks_identity_confirmation?: boolean
     asks_name?: boolean
+    person_name?: string
     asks_references?: boolean
     referred_person_name?: string
     referred_person_phone?: string
@@ -323,6 +324,7 @@ function extractFields(text: string): PartnershipAssistantResult['extracted'] {
     .replace(/[,.]\s*$/, '')
     .trim()
   const time_window = text.match(TIME_RE)?.[0]
+  const personName = text.match(/\b(?:my name is|i am|i'm|this is)\s+([A-Z][a-z.'-]+(?:\s+[A-Z][a-z.'-]+){0,2})\b/)?.[1]
   const delivery_instructions = /\b(mailbox|front desk|reception|secretary|assistant|leave|drop|office|brokerage)\b/i.test(text)
     ? text.slice(0, 220)
     : undefined
@@ -338,6 +340,7 @@ function extractFields(text: string): PartnershipAssistantResult['extracted'] {
     asks_share_number: SHARE_NUMBER_RE.test(text),
     asks_identity_confirmation: IDENTITY_CONFIRMATION_RE.test(text),
     asks_name: /\b(?:what(?:'s| is)\s+(?:your|the)\s+name|who am i texting|who is this)\b/i.test(text),
+    ...(personName ? { person_name: personName.trim() } : {}),
     asks_references: REFERENCES_RE.test(text),
     ...(referredContactName ? { referred_person_name: referredContactName } : {}),
     ...(referredPhone ? { referred_person_phone: referredPhone } : {}),
@@ -443,12 +446,16 @@ function draftFromRules(input: {
   latestText: string
 }): PartnershipAssistantResult {
   const { contact, touches, intent, extracted, config, latestText } = input
-  const askForName = isBusinessOnlyContact(contact) && !extracted.asks_name && [
+  const askForName = isBusinessOnlyContact(contact) && !extracted.person_name && !extracted.asks_name && [
     'asks_for_pricing',
     'asks_for_email',
     'asks_contact_info',
     'asks_social_media',
     'asks_references',
+    'postcard_yes',
+    'send_digital_package',
+    'send_card_or_flyer_media',
+    'warm_acknowledgement',
   ].includes(intent)
   const packageConfigured = hasPackage(config)
   const digitalSent = wasSent(touches, /\b(digital package|referral program|rate card|flyer|package link)\s*:\s*https?:\/\//i)

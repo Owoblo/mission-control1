@@ -218,6 +218,7 @@ const PUBLIC_BRANCH_MARKETS: Record<NonNullable<CRMLead['branch']>, string> = {
   waterloo: 'Waterloo Region, Ontario',
   london: 'London, Ontario',
   ottawa: 'Ottawa, Ontario',
+  toronto: 'Toronto / GTA, Ontario',
 }
 
 function quoteBranch(quote: PublicQuote) {
@@ -956,6 +957,8 @@ function QuoteAcceptPageInner() {
   const [termsPrompt, setTermsPrompt] = useState(false)
   const [protectionPrompt, setProtectionPrompt] = useState(false)
   const termsRef = useRef<HTMLDivElement | null>(null)
+  const quotePageStartedAt = useRef<number | null>(null)
+  const engagedSections = useRef(new Set<string>())
 
   const id = searchParams.get('id')
   const token = searchParams.get('token')
@@ -968,6 +971,7 @@ function QuoteAcceptPageInner() {
   useEffect(() => {
     async function load() {
       if (!id || !token) { setError('Missing quote link details.'); setLoading(false); return }
+      if (quotePageStartedAt.current === null) quotePageStartedAt.current = performance.now()
       try {
         const requestParams = new URLSearchParams({ token })
         if (previewMode) requestParams.set('preview', '1')
@@ -993,6 +997,56 @@ function QuoteAcceptPageInner() {
     }
     void load()
   }, [id, previewMode, token])
+
+  useEffect(() => {
+    if (!id || !token || !quote || loading || previewMode || printMode || typeof IntersectionObserver === 'undefined') return
+
+    const visibilityTimers = new Map<Element, number>()
+
+    const postEngagement = (payload: { event: 'quote_section_viewed' | 'quote_section_interaction'; section?: string; interaction?: string }) => {
+      void fetch(`/api/public/quotes/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, action: 'engagement', ...payload, elapsedMs: Math.round(performance.now() - (quotePageStartedAt.current ?? performance.now())) }),
+        keepalive: true,
+      }).catch(() => {})
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const section = (entry.target as HTMLElement).dataset.quoteSection
+        if (!section || engagedSections.current.has(section)) continue
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.55) {
+          if (!visibilityTimers.has(entry.target)) {
+            const timer = window.setTimeout(() => {
+              visibilityTimers.delete(entry.target)
+              if (engagedSections.current.has(section)) return
+              engagedSections.current.add(section)
+              postEngagement({ event: 'quote_section_viewed', section })
+              observer.unobserve(entry.target)
+            }, 900)
+            visibilityTimers.set(entry.target, timer)
+          }
+        } else {
+          const timer = visibilityTimers.get(entry.target)
+          if (timer) window.clearTimeout(timer)
+          visibilityTimers.delete(entry.target)
+        }
+      }
+    }, { threshold: [0, 0.55, 0.75] })
+
+    document.querySelectorAll<HTMLElement>('[data-quote-section]').forEach(element => observer.observe(element))
+    const onVisibility = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target.closest('[data-quote-action="price_breakdown"]') : null
+      if (target) postEngagement({ event: 'quote_section_interaction', section: 'pricing', interaction: 'price_breakdown' })
+    }
+    document.addEventListener('click', onVisibility)
+    return () => {
+      observer.disconnect()
+      visibilityTimers.forEach(timer => window.clearTimeout(timer))
+      document.removeEventListener('click', onVisibility)
+    }
+  }, [id, loading, previewMode, printMode, quote, token])
 
   useEffect(() => {
     if (!printMode || loading || !quote) return
@@ -1155,7 +1209,7 @@ function QuoteAcceptPageInner() {
     return (
       <div className="min-h-screen bg-[#F7F4ED]">
         <ProtectionOfferModal open={protectionPrompt} busy={stripeLoading} deposit={quote.deposit} onChoose={choice => void payDepositStripe(choice)} onClose={() => setProtectionPrompt(false)} />
-        <div className="mx-auto max-w-md px-4 py-8 pb-16">
+        <div data-quote-section="overview" className="mx-auto max-w-md px-4 py-8 pb-16">
           {/* Header */}
           <div className="mb-6 flex items-center gap-3">
             <LogoMark size={36} brand={brand} />
@@ -1183,7 +1237,7 @@ function QuoteAcceptPageInner() {
               <div className="mb-4 text-lg font-semibold text-[#071421]">Hi {firstName},</div>
 
               {/* Rate card */}
-              <div className="rounded-2xl bg-white border border-[#071421]/10 shadow-sm p-5 mb-4">
+              <div data-quote-section="pricing" className="rounded-2xl bg-white border border-[#071421]/10 shadow-sm p-5 mb-4">
                 <div className="text-[10px] font-bold uppercase tracking-widest text-[#071421]/40 mb-3">Your quote</div>
                 <div className="text-xl font-black text-[#071421] mb-1">{rateDesc}</div>
                 {maximumHours > minimumHours ? (
@@ -1225,7 +1279,7 @@ function QuoteAcceptPageInner() {
               </div>
 
               {!alreadyPaid && (
-                <div ref={termsRef} className="mb-4">
+                <div data-quote-section="conditions" ref={termsRef} className="mb-4">
                   <CustomerTermsAgreement
                     brand={brand}
                     isBindingEstimate={false}
@@ -1240,7 +1294,7 @@ function QuoteAcceptPageInner() {
               )}
 
               {/* Deposit + book */}
-              <div className="rounded-2xl border-2 border-[#071421] bg-[#071421] p-6 text-center mb-4">
+              <div data-quote-section="decision" className="rounded-2xl border-2 border-[#071421] bg-[#071421] p-6 text-center mb-4">
                 <div className="text-lg font-black text-white mb-1">{invoiceStyleTerms ? 'Approve this estimate' : 'Reserve your move date'}</div>
                 <div className="text-sm text-white/60 mb-5 leading-5">
                   {invoiceStyleTerms
@@ -1262,7 +1316,7 @@ function QuoteAcceptPageInner() {
               </div>
 
               {/* Social proof */}
-              <div className="space-y-2">
+              <div data-quote-section="trust" className="space-y-2">
                 {brand.logo === 'saturn' && REVIEWS.slice(0, 2).map((r, i) => (
                   <div key={i} className="rounded-xl bg-white border border-[#071421]/8 p-4">
                     <Stars count={r.stars} />
@@ -1319,7 +1373,7 @@ function QuoteAcceptPageInner() {
       <div className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16 print:px-0 print:py-4 print:max-w-none">
 
         {/* ── Hero ── */}
-        <div className="relative mb-16 overflow-hidden rounded-2xl bg-[#071421] shadow-[0_30px_90px_rgba(7,20,33,0.18)]">
+        <div data-quote-section="overview" className="relative mb-16 overflow-hidden rounded-2xl bg-[#071421] shadow-[0_30px_90px_rgba(7,20,33,0.18)]">
           {listingPhotos[0] && (
             <>
               <img src={listingPhotos[0]} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" />
@@ -1401,10 +1455,10 @@ function QuoteAcceptPageInner() {
         </div>
 
         {/* ── Customer and property photos ── */}
-        {listingPhotos.length > 0 && <PhotoGallery photos={listingPhotos} />}
+        {listingPhotos.length > 0 && <div data-quote-section="photos"><PhotoGallery photos={listingPhotos} /></div>}
 
         {/* ── Move stats ── */}
-        <div className="mb-16">
+        <div data-quote-section="move_details" className="mb-16">
           <SectionLabel>Your move at a glance</SectionLabel>
           <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:grid-cols-3 lg:grid-cols-5">
           {[
@@ -1442,6 +1496,7 @@ function QuoteAcceptPageInner() {
           </div>
         </div>
 
+        <div data-quote-section="scope">
         {isBindingEstimate && moveIntelligence.fixedPriceReadiness !== 'ready' && (
           <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-[#071421]">
             <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Scope confirmation required</div>
@@ -1469,10 +1524,11 @@ function QuoteAcceptPageInner() {
         )}
 
         {hasInventory && <ScopeOfWork scope={customerScope} />}
+        </div>
 
         {/* ── Multi-leg Move Plan ── */}
         {(quote.legs?.length ?? 0) > 1 && (
-          <div className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
+          <div data-quote-section="route_plan" className="mb-6 overflow-hidden rounded-xl border border-[#071421]/10 bg-white">
             <div className="border-b border-[#071421]/8 px-5 py-4">
               <div className="text-xs font-bold uppercase tracking-wider text-[#071421]">Move Plan — {quote.legs!.length} Stops</div>
             </div>
@@ -1533,7 +1589,7 @@ function QuoteAcceptPageInner() {
             isTwoDay,
           })
           return (
-            <div className="mb-16 overflow-hidden rounded-2xl bg-white p-8 shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:p-10">
+            <div data-quote-section="route_plan" className="mb-16 overflow-hidden rounded-2xl bg-white p-8 shadow-[0_12px_40px_rgba(7,20,33,0.06)] sm:p-10">
               <div className="mb-8">
                 <SectionLabel>Your moving day</SectionLabel>
                 <div className="text-3xl font-bold tracking-tight text-[#071421]">From arrival to the final room.</div>
@@ -1566,10 +1622,11 @@ function QuoteAcceptPageInner() {
         })()}
 
         {/* ── Pricing ── */}
-        <div className="mb-12 overflow-hidden rounded-2xl bg-[#071421] text-white shadow-[0_24px_70px_rgba(7,20,33,0.16)]">
+        <div data-quote-section="pricing" className="mb-12 overflow-hidden rounded-2xl bg-[#071421] text-white shadow-[0_24px_70px_rgba(7,20,33,0.16)]">
           <div className="flex items-center justify-between px-8 pt-8 sm:px-12 sm:pt-12">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Your move investment</div>
             <button
+              data-quote-action="price_breakdown"
               onClick={() => setLineItemsOpen(v => !v)}
               className="text-[10px] font-semibold uppercase tracking-wide text-white/40 hover:text-white"
             >
@@ -1621,7 +1678,7 @@ function QuoteAcceptPageInner() {
         </div>
 
         {/* ── Payment schedule ── */}
-        <div className="mb-16 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)]">
+        <div data-quote-section="payment" className="mb-16 overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(7,20,33,0.06)]">
           <div className="px-8 pt-8 sm:px-10">
             <SectionLabel>{invoiceStyleTerms ? 'Approval and billing' : 'Reservation and payment'}</SectionLabel>
           </div>
@@ -1658,7 +1715,7 @@ function QuoteAcceptPageInner() {
         </div>
 
         {/* ── Accept CTA ── */}
-        <div className="mb-8 print:hidden">
+        <div data-quote-section="decision" className="mb-8 print:hidden">
           <AcceptBlock
             quote={quote}
             brand={brand}
@@ -1680,7 +1737,7 @@ function QuoteAcceptPageInner() {
 
         {/* ── Trust before paperwork ── */}
         {brand.logo === 'saturn' && (
-          <div className="mb-16">
+          <div data-quote-section="trust" className="mb-16">
             <SectionLabel>Trusted for moves that matter</SectionLabel>
             <div className="mb-8 max-w-2xl text-3xl font-bold tracking-tight text-[#071421] sm:text-4xl">Careful planning. Calm communication. Five-star execution.</div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1698,7 +1755,7 @@ function QuoteAcceptPageInner() {
 
         {/* ── Conditional Clause ── */}
         {quote.conditionalClause && (
-          <div className="mb-6 overflow-hidden rounded-xl border border-[#C99700]/30 bg-white">
+          <div data-quote-section="conditions" className="mb-6 overflow-hidden rounded-xl border border-[#C99700]/30 bg-white">
             <div className="border-b border-[#C99700]/20 px-5 py-3.5" style={{ background: 'rgba(245,166,35,0.05)' }}>
               <div className="flex items-center gap-2">
                 <span className="text-sm">⚠️</span>
@@ -1716,7 +1773,7 @@ function QuoteAcceptPageInner() {
           const notes = buildMoveSpecificNotes(jobFactors, inventory, quote.moveType)
           if (notes.length === 0) return null
           return (
-            <div className="mb-8">
+            <div data-quote-section="move_notes" className="mb-8">
               <SectionLabel>Move-Specific Notes</SectionLabel>
               <div className="rounded-xl border border-[#071421]/10 bg-white divide-y divide-[#071421]/5">
                 {notes.map((note, i) => (

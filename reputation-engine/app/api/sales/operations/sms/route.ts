@@ -1,3 +1,4 @@
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 /**
  * POST /api/sales/operations/sms
  * Handles inbound SMS to the operations number (+12267746581).
@@ -149,6 +150,7 @@ export async function POST(request: Request) {
       return new Response('Forbidden', { status: 403 })
     }
 
+    await captureTwilioInteraction(rawBody, 'operations_sms', 'sms')
     const from = toE164((formData.get('From') ?? '').trim())
     const body = (formData.get('Body') ?? '').trim()
     const messageSid = (formData.get('MessageSid') ?? formData.get('SmsSid') ?? '').trim()

@@ -1,3 +1,4 @@
+import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { getDialerIdentityAvailability } from '@/lib/server/telephony-monitoring'
 
 const QUEUE_NAME = 'saturn-main-queue'
@@ -15,6 +16,9 @@ function buildRequeueTwiml() {
 }
 
 async function handleConnect(request: Request) {
+  const rawBody = request.method === 'GET' ? '' : await request.text()
+  const rejection = await authorizeTwilioWebhook(request, rawBody)
+  if (rejection) return rejection
   const { searchParams } = new URL(request.url)
   const requestedIdentity = searchParams.get('identity')?.trim() || 'saturn-star-rep'
   const availability = await getDialerIdentityAvailability({ identity: requestedIdentity }).catch(() => null)

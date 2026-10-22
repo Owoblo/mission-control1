@@ -45,6 +45,16 @@ export interface TelephonyDashboardMetrics {
   failedCallsToday: number
   mediaConnectionFailuresToday: number
   avgAnswerTimeSeconds: number | null
+  answerLatencySamples: number
+  answeredWithinTwoMinutesPercent: number | null
+  answerLatencyByRep: Array<{
+    repId: string
+    repName?: string
+    workspace: string
+    samples: number
+    averageSeconds: number
+    withinTwoMinutesPercent: number
+  }>
   callsByRep: Array<{ rep: string; count: number }>
   callsBySourceNumber: Array<{ source: string; count: number }>
   browserCallsToday: number
@@ -80,6 +90,26 @@ export interface TelephonyCallOutcomeRecord {
   branchNumber?: string
   sourceNumber?: string
   callSid?: string
+}
+
+/** Estimate inbound wait-to-answer from the completed <Dial> callback. */
+export function estimateInboundAnswerLatencySeconds(startedAt?: string | null, callbackAt = Date.now(), connectedDurationSeconds = 0) {
+  if (!startedAt) return undefined
+  const startedMs = Date.parse(startedAt)
+  if (!Number.isFinite(startedMs) || !Number.isFinite(callbackAt) || !Number.isFinite(connectedDurationSeconds)) return undefined
+  const elapsedSeconds = (callbackAt - startedMs) / 1000
+  if (elapsedSeconds < 0) return undefined
+  // Twilio calls the Dial action after the conversation ends; subtract the
+  // connected call duration so this does not count talk time as ring time.
+  return Math.max(0, Math.round(elapsedSeconds - Math.max(0, connectedDurationSeconds)))
+}
+
+export function providerAnswerLatencySeconds(startedAt?: string | null, answeredAt?: string | null) {
+  if (!startedAt || !answeredAt) return undefined
+  const startedMs = Date.parse(startedAt)
+  const answeredMs = Date.parse(answeredAt)
+  if (!Number.isFinite(startedMs) || !Number.isFinite(answeredMs) || answeredMs < startedMs) return undefined
+  return Math.max(0, Math.round((answeredMs - startedMs) / 1000))
 }
 
 export interface DialerIdentityAvailability {
@@ -481,7 +511,7 @@ export async function buildTelephonyDashboardMetrics() {
   const today = dateStamp()
   const sinceIso = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
 
-  const [callOutcomeRows, dialerEventRows] = await Promise.all([
+  const [callOutcomeRows, dialerEventRows, callLegRows] = await Promise.all([
     queryAnalyticsRows({
       select: 'id,event_type,lead_id,rep_id,ts,properties,created_at',
       event_type: `eq.${CALL_OUTCOME_EVENT_TYPE}`,
@@ -495,6 +525,13 @@ export async function buildTelephonyDashboardMetrics() {
       ts: `gte.${sinceIso}`,
       order: 'ts.desc',
       limit: 600,
+    }).catch(() => [] as AnalyticsQueryRow[]),
+    queryAnalyticsRows({
+      select: 'id,event_type,lead_id,rep_id,ts,properties,created_at',
+      event_type: 'eq.telephony_call_leg_event',
+      ts: `gte.${sinceIso}`,
+      order: 'ts.desc',
+      limit: 1200,
     }).catch(() => [] as AnalyticsQueryRow[]),
   ])
 
@@ -517,9 +554,45 @@ export async function buildTelephonyDashboardMetrics() {
   const operationalMetrics = buildTelephonyOperationalMetricsFromEvents(dialerEvents)
   const alerts = buildTelephonyHealthAlertsFromEvents(dialerEvents)
 
-  const answerTimes = outcomes
+  const answeredLegs = callLegRows
+    .map(mapAnalyticsRow)
+    .filter(row => isSalesToday(row.ts) && row.properties.event === 'answered' && row.properties.direction === 'inbound')
+    .filter(row => Number.isFinite(Number(row.properties.answerTimeSeconds)) && Number(row.properties.answerTimeSeconds) >= 0)
+  const answerTimes = answeredLegs
     .map(row => Number(row.properties.answerTimeSeconds))
-    .filter(value => Number.isFinite(value) && value >= 0)
+  const answerGroups = new Map<string, { workspace: string; values: number[] }>()
+  answeredLegs.forEach(row => {
+    const repId = row.repId || String(row.properties.identity || 'unattributed')
+    const workspace = String(row.properties.workspace || 'unknown')
+    const key = `${workspace}:${repId}`
+    const group = answerGroups.get(key) || { workspace, values: [] }
+    group.values.push(Number(row.properties.answerTimeSeconds))
+    answerGroups.set(key, group)
+  })
+  const answerLatencyByRep: TelephonyDashboardMetrics['answerLatencyByRep'] = Array.from(answerGroups.entries()).map(([key, group]) => {
+    const repId = key.slice(group.workspace.length + 1)
+    return {
+      repId,
+      workspace: group.workspace,
+      samples: group.values.length,
+      averageSeconds: Math.round(group.values.reduce((sum, value) => sum + value, 0) / group.values.length),
+      withinTwoMinutesPercent: Math.round((group.values.filter(value => value <= 120).length / group.values.length) * 100),
+    }
+  })
+  const repNameById = new Map<string, string>()
+  const idsToResolve = answerLatencyByRep.map(group => group.repId).filter(id => /^[A-Za-z0-9_-]{8,80}$/.test(id))
+  if (idsToResolve.length) {
+    try {
+      const { url, headers } = requireSupabaseEnv()
+      const userQuery = new URLSearchParams({ select: 'id,name', id: `in.(${Array.from(new Set(idsToResolve)).join(',')})` })
+      const response = await fetch(`${url}/rest/v1/app_users?${userQuery}`, { headers, cache: 'no-store' })
+      if (response.ok) {
+        const users = await response.json() as Array<{ id: string; name?: string | null }>
+        users.forEach(user => { if (user.name) repNameById.set(user.id, user.name) })
+      }
+    } catch { /* Rep identifiers remain visible when name lookup is unavailable. */ }
+  }
+  answerLatencyByRep.forEach(group => { group.repName = repNameById.get(group.repId) })
 
   const callsByRep = new Map<string, number>()
   const callsBySource = new Map<string, number>()
@@ -555,6 +628,11 @@ export async function buildTelephonyDashboardMetrics() {
     avgAnswerTimeSeconds: answerTimes.length
       ? Math.round(answerTimes.reduce((sum, value) => sum + value, 0) / answerTimes.length)
       : null,
+    answerLatencySamples: answerTimes.length,
+    answeredWithinTwoMinutesPercent: answerTimes.length
+      ? Math.round((answerTimes.filter(value => value <= 120).length / answerTimes.length) * 100)
+      : null,
+    answerLatencyByRep,
     callsByRep: summarizeCountMap(callsByRep).slice(0, 6).map(item => ({ rep: item.key, count: item.count })),
     callsBySourceNumber: summarizeCountMap(callsBySource).slice(0, 6).map(item => ({ source: item.key, count: item.count })),
     browserCallsToday,

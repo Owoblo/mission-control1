@@ -1,12 +1,14 @@
+import { persistPartnershipInboundPause } from '@/lib/server/partnership-inbound-pause'
 import { defaultFollowUpDate, normalizePartnershipStage } from '@/lib/marketing'
 import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
-import { partnershipPhoneLookupSuffix, partnershipPhonesMatch } from '@/lib/partnership-contact-match'
+import { partnershipPhoneLookupSuffix, partnershipPhonesMatch, samePartnershipIdentity } from '@/lib/partnership-contact-match'
 import { getPartnershipAlertRecipients, partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { partnershipDispositionFromSuggestion, suggestPartnershipReply, type PartnershipAssistantContact } from '@/lib/server/partnership-reply-assistant'
 import { isOptOutText } from '@/lib/server/partnership-sms'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { queueRequestedOttawaCard } from '@/lib/server/partnership-card-fulfillment'
 import { appendLocalityEvidence, extractPartnerLocality } from '@/lib/server/partnership-locality'
+import { isGreetingDerivedContactName } from '@/lib/partnership-identity'
 
 type InboundChannel = 'email' | 'phone' | 'sms'
 
@@ -39,6 +41,16 @@ interface MarketContactMatch {
 
 function normalizeEmail(value?: string | null) {
   return (value || '').trim().toLowerCase()
+}
+
+function shouldPromoteInboundPersonName(contact: MarketContactMatch, personName?: string | null) {
+  const candidate = String(personName || '').trim()
+  if (!candidate || candidate.length < 2) return false
+  const current = String(contact.name || '').trim().toLowerCase()
+  const company = String(contact.company || '').trim().toLowerCase()
+  if (current && company && current === company) return true
+  if (!current) return true
+  return /\b(mortgage|staging|stager|interior|design|realty|real estate|law|moving|movers|team|group|inc|ltd|corp|corporation|brokerage)\b/i.test(current)
 }
 
 async function findPartnershipContactMatch(input: PausePartnershipSequenceInput) {
@@ -74,10 +86,9 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
       `${url}/rest/v1/market_contacts?phone=ilike.*${encodeURIComponent(suffix)}*&select=id,name,company,title,email,phone,city,industry,stage,decision,sequence_paused,pipeline_phase,affiliate_partner_id,tracking_code,notes&order=id.asc&limit=200&offset=${offset}`,
           { headers, cache: 'no-store' }
         )
-        if (!response.ok) return null
+        if (!response.ok) throw new Error('Partnership identity lookup failed')
         const rows = await response.json() as MarketContactMatch[]
         matches.push(...rows.filter(contact => partnershipPhonesMatch(contact.phone, normalizedPhone)))
-        if (matches.length > 1) return null
         if (rows.length < 200) return chooseBestMatch(matches)
       }
     }
@@ -88,7 +99,12 @@ async function findPartnershipContactMatch(input: PausePartnershipSequenceInput)
 
 function chooseBestMatch(matches: MarketContactMatch[]) {
   // Shared brokerage numbers must not pick an arbitrary person's record.
-  return matches.length === 1 ? matches[0] : null
+  if (matches.length === 1) return matches[0]
+  // Imports can duplicate the same business and phone across nearby locality
+  // rows. That is not a person collision. Keep the relationship in Partnership
+  // CRM when every candidate represents the same business identity.
+  if (samePartnershipIdentity(matches)) return matches[0]
+  return null
 }
 
 function extractExplicitPersonName(notes?: string | null) {
@@ -97,7 +113,7 @@ function extractExplicitPersonName(notes?: string | null) {
   const named = text.match(/\b(?:my name is|i am|i'm|this is)\s+([A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+){1,3})\b/u)
   if (named?.[1]) return named[1].trim()
   const leading = text.match(/^([A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+){1,3})(?=\s*(?:[./,-]|$))/u)
-  if (leading?.[1] && !/^(Hi|Hello|Thanks|Thank You|Sure|Yes|No|Okay|Absolutely|Unfortunately)\b/i.test(leading[1])) return leading[1].trim()
+  if (leading?.[1] && !/^(Hi|Hey|Hello|Thanks|Thank You|Sure|Yes|No|Okay|Absolutely|Unfortunately|Good Morning|Good Afternoon|Good Evening)\b/i.test(leading[1])) return leading[1].trim()
   return null
 }
 
@@ -143,8 +159,12 @@ function classifyInboundWorkflow(
 
   if (playbook.quick_action === 'wrong_number') {
     return {
-      stage: 'closed_lost',
-      pipeline_phase: 'closed',
+      // A wrong-recipient reply should stop this phone sequence without
+      // destroying the underlying organization relationship. The phone may
+      // belong to the right business but the sender may have intended another
+      // vendor, as with a realtor looking for garbage-disposal services.
+      stage: 'dormant',
+      pipeline_phase: 'respectful_pause',
       decision: 'bad_number',
     }
   }
@@ -202,8 +222,21 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   if (!contact) return { matched: false as const }
 
   const occurredAt = input.occurredAt || new Date().toISOString()
+  await persistPartnershipInboundPause({ ...requireSupabaseEnv(), contactId: contact.id, channel: input.channel })
   try {
   const { url, headers } = requireSupabaseEnv()
+  // A previous parser could promote a greeting such as "Hey John" to the
+  // contact name. Repair that deterministically before composing notifications
+  // or future replies. Keep the business name as the contact fallback until a
+  // real person identifies themselves.
+  if (isGreetingDerivedContactName(contact.name) && contact.company) {
+    await fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ name: contact.company }),
+    })
+    contact.name = contact.company
+  }
   const explicitPersonName = extractExplicitPersonName(input.notes)
   if (explicitPersonName && shouldCapturePersonName(contact, explicitPersonName)) {
     await fetch(`${url}/rest/v1/market_contacts?id=eq.${contact.id}`, {
@@ -221,7 +254,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     contact.notes = correctedNotes
   }
   const inboundSid = String(input.metadata?.messageSid || '')
-  if (input.channel === 'sms' && /^(SM|MM)[0-9a-f]{32}$/i.test(inboundSid)) {
+  if (input.channel === 'sms' && /^(?:(?:SM|MM)[0-9a-f]{32}|telnyx:[0-9a-f-]{36})$/i.test(inboundSid)) {
     const prior = await fetch(`${url}/rest/v1/market_touches?${new URLSearchParams({contact_id:'eq.'+contact.id,direction:'eq.inbound','metadata->>messageSid':'eq.'+inboundSid,select:'id',limit:'1'})}`, {headers,cache:'no-store'})
     if (!prior.ok) throw new Error('Inbound replay lookup failed')
     if ((await prior.json()).length) {
@@ -309,6 +342,9 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   })
   const disposition = partnershipDispositionFromSuggestion(playbook)
   const workflow = classifyInboundWorkflow(playbook, currentStage, contact, optedOut)
+  const promotedPersonName = shouldPromoteInboundPersonName(contact, playbook.extracted.person_name)
+    ? playbook.extracted.person_name
+    : null
   const nextFollowUp =
     optedOut
       ? null
@@ -323,6 +359,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       method: 'PATCH',
       headers,
       body: JSON.stringify({
+        ...(promotedPersonName ? { name: promotedPersonName } : {}),
         sequence_paused: true,
         sequence_paused_reason: optedOut ? 'opt_out' : `${input.channel}_reply`,
         pipeline_phase: workflow.pipeline_phase,
@@ -361,6 +398,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
             confidence: playbook.confidence,
             goal_state: playbook.goal_state,
             extracted: playbook.extracted,
+            ...(promotedPersonName ? { crm_name_capture: { person_name: promotedPersonName, source: 'inbound_reply' } } : {}),
             recommended_action: playbook.recommended_action,
             quick_action: playbook.quick_action ?? null,
             draft_sms: playbook.draft_sms,
@@ -372,7 +410,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     }),
   ])
 
-  void sendRepAlertEmail(
+  await sendRepAlertEmail(
     `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
     partnershipInboundNotificationEmail({
       contactId: contact.id,
@@ -385,7 +423,8 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       email: contact.email || input.email || null,
       mediaUrls: metadataMediaUrls(input.metadata),
     }),
-    getPartnershipAlertRecipients(contact.city)
+    getPartnershipAlertRecipients(contact.city),
+    input.channel === 'sms' && !optedOut ? { contactId: contact.id, fromNumber: String(input.metadata?.to || ''), toNumber: String(input.metadata?.from || input.phone || '') } : undefined
   )
 
   if (input.channel === 'sms' && !optedOut) {

@@ -1,3 +1,4 @@
+import { inventoryMeasurementIssues } from './customer-inventory-review'
 import type { InventoryItem } from './types'
 
 const LABEL_ALIASES: Array<[RegExp, string]> = [
@@ -89,14 +90,14 @@ export function buildInventorySnapshotCopyText(inventory: InventoryItem[]) {
     ))
     const lines = items.flatMap(item => {
       const quantity = Math.max(1, Number(item.qty || 1))
-      const line = `* ${quantity} ${pluralize(displayLabel(item), quantity)}`
+      const line = `* ${item.quantityNeedsConfirmation ? 'Quantity to confirm:' : quantity} ${pluralize(displayLabel(item), quantity)}${item.nameNeedsConfirmation ? ` (name to confirm: "${item.customerDescription || displayLabel(item)}")` : ''}`
       const note = customerItemNote(item)
       return note ? [line, `  *${note}*`] : [line]
     })
     return [
       `## ${room}`,
       '',
-      `**${count} item${count === 1 ? '' : 's'} · ${cubicFeet} cu. ft.**`,
+      `**${count} item${count === 1 ? '' : 's'} · ${cubicFeet} cu. ft.${inventoryMeasurementIssues(items).length ? ' known subtotal; incomplete' : ' estimated'}**`,
       '',
       ...lines,
     ].join('\n')
@@ -111,7 +112,7 @@ export function buildInventorySnapshotCopyText(inventory: InventoryItem[]) {
   const summary = [
     '## Estimated Total',
     '',
-    `**${totalItems} item${totalItems === 1 ? '' : 's'} · ${totalCubicFeet} cu. ft.**`,
+    `**${totalItems} item${totalItems === 1 ? '' : 's'} · ${totalCubicFeet} cu. ft.${inventoryMeasurementIssues(included).length ? ' known subtotal; incomplete' : ' estimated'}**`,
   ]
   if (specialHandling.length) {
     summary.push('', '### Special Handling', '', ...specialHandling.map(note => `* ${note}`))

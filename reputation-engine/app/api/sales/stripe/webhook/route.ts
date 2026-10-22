@@ -1,3 +1,7 @@
+import { recordDirectPaymentProviderFact } from '@/lib/server/direct-payment-operation'
+import { completeCheckoutReservation } from '@/lib/server/checkout-operation'
+import { bookingDecision } from '@/lib/booking-policy'
+import { withProviderWebhookReceipt } from '@/lib/server/provider-webhook-receipts'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
@@ -21,7 +25,7 @@ function buildBookingConfirmationEmail(name: string, brand: ReceiptBrand, moveDa
   const route = originCity && destCity ? `${originCity} → ${destCity}` : originCity || destCity || 'TBD'
   return {
     subject: `Your Move is Confirmed — ${brand.fullName}`,
-    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;"><div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;"><div style="color:#C99700;font-size:24px;font-weight:700;">${brand.fullName}</div></div><div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;"><h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — your move is confirmed!</h1><p style="color:#555;margin:0 0 24px;line-height:1.6;">We have everything locked in. Move date: <strong>${dateLine}</strong> · Route: <strong>${route}</strong>.</p><p style="color:#555;font-size:14px;line-height:1.6;">Our team will reach out 48 hours before your move with crew details. Questions? <strong>${brand.phone}</strong></p></div></div>`,
+    html: `<div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;color:#1a1a1a;"><div style="background:#071421;padding:32px 24px;border-radius:12px 12px 0 0;text-align:center;"><div style="color:#C99700;font-size:24px;font-weight:700;">${brand.fullName}</div></div><div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:32px 24px;border-radius:0 0 12px 12px;"><h1 style="font-size:20px;font-weight:700;margin:0 0 8px;">Hi ${first} — your move is confirmed!</h1><p style="color:#555;margin:0 0 24px;line-height:1.6;">Your booking is confirmed. We will finalize the crew and vehicle assignment before your move. Move date: <strong>${dateLine}</strong> · Route: <strong>${route}</strong>.</p><p style="color:#555;font-size:14px;line-height:1.6;">Our team will reach out 48 hours before your move with crew details. Questions? <strong>${brand.phone}</strong></p></div></div>`,
     text: `Hi ${first}, your move with ${brand.fullName} is confirmed for ${dateLine} (${route}). We'll reach out 48 hours before. Questions? ${brand.phone}`,
   }
 }
@@ -43,11 +47,17 @@ export async function POST(request: Request) {
   let event: Stripe.Event
   try {
     const stripe = new Stripe(stripeKey, { apiVersion: '2026-02-25.clover', httpClient: Stripe.createNodeHttpClient() })
-    event = webhookSecret
-      ? stripe.webhooks.constructEvent(body, sig, webhookSecret)
-      : JSON.parse(body) as Stripe.Event
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
   } catch (err) {
     return new Response(`Webhook signature failed: ${err instanceof Error ? err.message : 'unknown'}`, { status: 400 })
+  }
+
+  return withProviderWebhookReceipt({
+    account: stripeAccount.key, live: event.livemode, id: event.id,
+    type: event.type, objectId: String((event.data.object as {id?: string}).id || event.id),
+  }, async () => {
+  if (event.type === 'payment_intent.succeeded' && event.data.object.metadata?.ssmOperationId) {
+    await recordDirectPaymentProviderFact(event.data.object, stripeAccount.key, event.livemode)
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -141,7 +151,8 @@ export async function POST(request: Request) {
         // Update the lead: auto-book + mark deposit received
         if (targetLeadId) {
           if (lead) {
-            const alreadyBooked = lead.stage === 'booked' || lead.stage === 'completed'
+            const alreadyBooked = ['booked','completed','customer_success'].includes(lead.stage)
+            const commerciallyConfirmed = bookingDecision(lead, { ...quote, depositPaidAmount: actualDepositPaid }).confirmed
             const paymentBrand = getReceiptBrand(lead, quote)
             const depositAmt = actualDepositPaid
             const branch = deriveLeadBranch(lead)
@@ -154,9 +165,9 @@ export async function POST(request: Request) {
 
             await saveSalesLead({
               ...lead,
-              stage: alreadyBooked ? lead.stage : 'booked',
-              tentativeReservationStatus: lead.tentativeReservationStatus === 'active' ? 'converted' : lead.tentativeReservationStatus,
-              bookedAt: alreadyBooked ? lead.bookedAt : now,
+              stage: alreadyBooked ? lead.stage : commerciallyConfirmed ? 'booked' : 'tentative',
+              tentativeReservationStatus: lead.tentativeReservationStatus === 'active' && commerciallyConfirmed ? 'converted' : lead.tentativeReservationStatus,
+              bookedAt: alreadyBooked ? lead.bookedAt : commerciallyConfirmed ? now : undefined,
               paymentStatus: 'deposit_received',
               depositAmount: depositAmt,
               depositMethod: 'Credit Card',
@@ -172,14 +183,14 @@ export async function POST(request: Request) {
             })
 
             // Log booking to timeline
-            if (!alreadyBooked) {
+            if (!alreadyBooked && commerciallyConfirmed) {
               await saveFollowUpLog({
                 id: uid('fu'),
                 leadId: targetLeadId,
                 type: 'status_change',
                 date: now,
                 createdAt: now,
-                notes: `Job auto-confirmed via Stripe deposit payment ($${(depositAmt || 0).toFixed(2)})${protectionAmount > 0 ? ` with ${MOVE_PROTECTION_NAME} ($${protectionAmount.toFixed(2)})` : ''}.`,
+                notes: `Sales booking confirmed via Stripe deposit payment; crew/vehicle readiness is tracked separately ($${(depositAmt || 0).toFixed(2)})${protectionAmount > 0 ? ` with ${MOVE_PROTECTION_NAME} ($${protectionAmount.toFixed(2)})` : ''}.`,
               }).catch(() => {})
 
               if (lead.email && quote) {
@@ -188,7 +199,7 @@ export async function POST(request: Request) {
               }
             }
 
-            void scheduleMoveReminder(targetLeadId)
+            if (commerciallyConfirmed) void scheduleMoveReminder(targetLeadId)
 
             // Notify the team — deposit paid
             if (!receiptAlreadyRecorded) {
@@ -257,6 +268,7 @@ export async function POST(request: Request) {
             }
           }
         }
+      if (session.metadata?.ssmCheckoutOperationId) await completeCheckoutReservation(session.metadata.ssmCheckoutOperationId, session.id, stripeAccount.key, event.livemode)
       } catch (err) {
         console.error('Stripe webhook processing error:', err)
         // Non-2xx is intentional: Stripe retries transient processing failures.
@@ -268,4 +280,5 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ received: true })
+  })
 }

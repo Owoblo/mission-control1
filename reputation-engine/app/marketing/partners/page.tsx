@@ -1,9 +1,15 @@
 'use client'
 
+import { fetchRead } from '@/lib/resilient-read'
+import { loadContactDirectory } from '@/lib/contact-directory-loader'
+import gtaCities from '@/lib/data/gta-service-cities.json'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { MessageText } from '@/app/components/partnership/message-text'
+import { partnershipMediaKind } from '@/lib/partnership-media'
+import { VideoAttachment } from '@/app/components/partnership/video-attachment'
 import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
 import { businessCardFirstName, appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
 import { sendSalesMessage } from '@/lib/sales-api'
@@ -539,6 +545,9 @@ function summarizeTouch(channel: string, direction?: string | null, notes?: stri
   if (text.startsWith('Added to Instantly')) return { label: 'Added to Instantly', body: text, auto: true }
   const src = (text.match(/source["\s:]+instantly/i) || (notes && JSON.stringify(notes).includes('instantly')))
   if (channel === 'email' && direction === 'inbound' && text.includes('Instantly')) return { label: 'Instantly Reply', body: text }
+  if (channel === 'email' && /email_bounced|SES bounced event/i.test(text)) return { label: 'Delivery failure', body: text, auto: true }
+  if (channel === 'email' && /requires verification|verify#|email_verification/i.test(text)) return { label: 'Verification required', body: text, auto: true }
+  if (channel === 'email' && /automatic reply|out of office/i.test(text)) return { label: 'Automatic reply', body: text, auto: true }
   if (channel === 'email' && text.includes('opened')) return { label: 'Email Opened', body: text, auto: true }
   if (channel === 'email' && text.includes('clicked')) return { label: 'Link Clicked', body: text, auto: true }
   if (channel === 'direct_mail') return { label: 'Direct Mail', body: text || 'Direct mail sent' }
@@ -1857,7 +1866,7 @@ function RelationshipLobby({ contacts, marketSummary, rolling30, loading, onSele
   const priority = [...needsReply, ...promisesDue, ...warm]
     .filter((contact, index, all) => all.findIndex(item => item.id === contact.id) === index)
     .slice(0, 7)
-  const markets = ['windsor', 'waterloo', 'london', 'ottawa'].map(market => {
+  const markets = ['windsor', 'waterloo', 'london', 'ottawa', 'toronto'].map(market => {
     const rows = contacts.filter(contact => marketForContact(contact) === market)
     const summary = marketSummary?.[market as PartnershipMarketKey]
     return {
@@ -3593,7 +3602,10 @@ const OTTAWA_PARTNER_CITY_KEYS = [
   'carp',
 ]
 
+const TORONTO_PARTNER_CITY_KEYS = [...gtaCities.map(city => city.toLowerCase().replace(/[^a-z0-9]+/g, '_')), 'gta', 'greater_toronto_area']
+
 const PARTNERSHIP_AREA_GROUPS = [
+  { id: 'toronto_area', label: 'Toronto / GTA + Hamilton', cityKeys: TORONTO_PARTNER_CITY_KEYS },
   {
     id: 'windsor_area',
     label: 'Windsor / Essex / Chatham',
@@ -3697,7 +3709,7 @@ function areaForCity(cityKey: string) {
   return PARTNERSHIP_AREA_GROUPS.find(area => area.cityKeys.includes(cityKey))
 }
 
-type PartnershipMarketKey = 'windsor' | 'waterloo' | 'london' | 'ottawa'
+type PartnershipMarketKey = 'windsor' | 'waterloo' | 'london' | 'ottawa' | 'toronto'
 
 type PartnershipMarketCommand = {
   id: PartnershipMarketKey
@@ -3711,6 +3723,7 @@ type PartnershipMarketCommand = {
 }
 
 const PARTNERSHIP_MARKET_COMMANDS: PartnershipMarketCommand[] = [
+  { id: 'toronto', label: 'Toronto / GTA + Hamilton', manager: 'Unassigned', email: 'business@starmovers.ca', areaId: 'toronto_area', defaultSegment: 'toronto', defaultName: 'GTA Partnership SMS', cityKeys: TORONTO_PARTNER_CITY_KEYS },
   {
     id: 'windsor',
     label: 'Windsor / Essex',
@@ -3754,7 +3767,7 @@ const PARTNERSHIP_MARKET_COMMANDS: PartnershipMarketCommand[] = [
 ]
 
 function marketCommandForKey(value?: string | null) {
-  return PARTNERSHIP_MARKET_COMMANDS.find(market => market.id === value) || PARTNERSHIP_MARKET_COMMANDS[0]
+  return PARTNERSHIP_MARKET_COMMANDS.find(market => market.id === value) || PARTNERSHIP_MARKET_COMMANDS.find(market => market.id === 'windsor')!
 }
 
 function marketForCityKey(cityKey: string): PartnershipMarketKey | null {
@@ -3821,6 +3834,7 @@ function PhoneTab({
   const [smsBody, setSmsBody] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  const [emailSender, setEmailSender] = useState('john')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [mediaUploading, setMediaUploading] = useState(false)
   const [scheduleMode, setScheduleMode] = useState(false)
@@ -4414,16 +4428,12 @@ function PhoneTab({
         const data = await res.json().catch(() => null) as { error?: string } | null
         if (!res.ok) throw new Error(data?.error || 'Could not send SMS')
       } else {
-        await sendSalesMessage({ channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody })
-        await fetch('/api/marketing/touches', {
+        const response = await fetch(`/api/marketing/contacts/${selected.id}/send-email`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-          body: JSON.stringify({
-            contact_id: selected.id, channel: composeChannel, direction: 'outbound',
-            notes: `Subject: ${emailSubject}\n\n${emailBody}`,
-            metadata: {},
-            schedule_follow_up_days: 3,
-          }),
+          body: JSON.stringify({ sender: isOttawa(selected.city) ? 'courage' : emailSender, subject: emailSubject, body: emailBody }),
         })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || 'Email failed')
       }
       showToast(composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
       const outboundAt = new Date().toISOString()
@@ -4433,7 +4443,7 @@ function PhoneTab({
         latest_touch_channel: composeChannel,
         latest_touch_note: composeChannel === 'sms' ? currentSmsBody : emailBody,
         last_touch_at: outboundAt,
-        sequence_paused: false,
+        sequence_paused: composeChannel === 'email',
         needs_follow_up: true,
       }
       setReplyContacts(curr => curr.some(c => c.id === selected.id)
@@ -5248,15 +5258,21 @@ function PhoneTab({
                     {bubbleText && <div className="whitespace-pre-wrap break-words"><MessageText text={bubbleText} /></div>}
                     {touchMedia.length > 0 && (
                       <div className="mt-2 grid gap-2">
-                        {touchMedia.map(url => (
-                          isVideoUrl(url) ? (
-                            <video key={url} src={mediaPlaybackUrl(url)} controls className="max-h-64 rounded-[12px] bg-black" />
-                          ) : (
-                            <a key={url} href={mediaPlaybackUrl(url)} target="_blank" rel="noreferrer">
-                              <img src={mediaPlaybackUrl(url)} alt="" className="max-h-64 rounded-[12px] object-cover" />
-                            </a>
+                        {touchMedia.map(url => {
+                          const kind = partnershipMediaKind(url, touch.metadata || {})
+                          const src = mediaPlaybackUrl(url)
+                          return (
+                            <div key={url} className="min-w-0">
+                              {kind === 'audio' && <audio src={src} controls preload="none" aria-label="Audio MMS" className="max-w-full" />}
+                              {kind === 'video' && <VideoAttachment key={url} touchId={touch.id} source={src} original={url} />}
+                              {kind === 'image' && <a href={src} target="_blank" rel="noreferrer"><img src={src} alt="MMS attachment" className="max-h-64 rounded-[12px] object-cover" /></a>}
+                              {kind !== 'video' && <a href={src} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm underline">
+                                Open {kind === 'file' ? 'attachment' : `${kind} attachment`}
+                              </a>}
+                              {kind === 'audio' && /\.amr(?:[?#]|$)/i.test(url) && <p className="mt-1 text-xs">If playback is unavailable, open the audio file in a compatible player.</p>}
+                            </div>
                           )
-                        ))}
+                        })}
                       </div>
                     )}
                     {!groupedWithNext && <div className={`mt-1.5 text-[11px] ${touch.direction === 'outbound' ? 'text-white/55' : 'text-slate-500'}`}>{fmtDate(touch.created_at)} · {fmtTime(touch.created_at)}</div>}
@@ -5454,6 +5470,11 @@ function PhoneTab({
               </div>
             ) : (
               <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-600">From
+                  <select value={isOttawa(selected.city) ? 'courage' : emailSender} onChange={e => setEmailSender(e.target.value)} className="mt-1 min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+                    <>{isOttawa(selected.city) ? <option value="courage">Dr. Courage — hello@dexamovers.ca</option> : <><option value="john">John — john@saturnstarmovers.ca</option><option value="business">Business — business@starmovers.ca</option></>}</>
+                  </select>
+                </label>
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
                   className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
@@ -6188,6 +6209,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
         rep_name: repName,
         sender_numbers: senderNumbers,
         daily_cap: dailyCap,
+        include_weekends: true,
         start_date: startDate,
         start_hour: startHour,
         end_hour: endHour,
@@ -6223,7 +6245,7 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
           <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
             <div className="text-3xl">Scheduled</div>
             <div className="text-base font-semibold text-[var(--app-ink)]">{result.scheduled ?? 0} SMS jobs created</div>
-            <div className="text-sm text-[var(--app-muted)]">Estimated {result.days_to_finish ?? 0} business day{result.days_to_finish === 1 ? '' : 's'} at {dailyCap}/day.</div>
+            <div className="text-sm text-[var(--app-muted)]">Estimated {result.days_to_finish ?? 0} calendar day{result.days_to_finish === 1 ? '' : 's'} at {dailyCap}/day.</div>
             <button onClick={onClose} className="crm-button-dark px-6">Done</button>
           </div>
         ) : (
@@ -6309,8 +6331,8 @@ function ScheduledSmsCampaignModal({ onClose, onDone, initialMarket }: { onClose
                 </div>
 
                 <div>
-                  <label className="crm-label">Daily cap</label>
-                  <input type="number" min={1} max={1000} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
+                  <label className="crm-label">Sending pace (contacts/day)</label>
+                  <input type="number" min={1} value={dailyCap} onChange={e => { setDailyCap(Number(e.target.value)); setPreview(null) }} className="crm-input mt-1 text-sm" />
                 </div>
 
                 <div>
@@ -6991,55 +7013,88 @@ function PartnershipEngineInner() {
   const [newRelationshipOpen, setNewRelationshipOpen] = useState(false)
   const contactsLoadedRef = useRef(false)
 
-  const loadContacts = useCallback(async (force = false) => {
-    if (contactsLoadedRef.current && !force) return
-    contactsLoadedRef.current = true
-    setContactsLoading(true)
-    const collected: Contact[] = []
-    const pageSize = 500
-    let firstPageLoaded = false
-    // Make the first useful directory page interactive immediately. Remaining
-    // pages hydrate in the background so totals/search still become complete.
-    for (let offset = 0; ; offset += pageSize) {
-      const r = await fetch(`/api/marketing/contacts?mode=directory&limit=${pageSize}&offset=${offset}`, { credentials: 'include' })
-      if (!r.ok) break
-      const d = await r.json() as { contacts?: Contact[]; total?: number }
-      const page = d.contacts ?? []
-      collected.push(...page)
-      if (offset === 0) {
-        firstPageLoaded = true
-        setContacts([...collected])
-        setContactsLoading(false)
-      }
-      if (page.length < pageSize || collected.length >= Number(d.total || 0)) break
-    }
-    setContacts(collected)
-    setContactsLoading(false)
-    contactsLoadedRef.current = firstPageLoaded
+  const contactsRef = useRef<Contact[]>([])
+  const contactsRequestRef = useRef<AbortController | null>(null)
+  const [loadErrors, setLoadErrors] = useState<Record<string, string>>({})
+  const [contactsRefreshing, setContactsRefreshing] = useState(false)
+  const setLoadError = useCallback((key: string, message = '') => {
+    setLoadErrors(current => ({ ...current, [key]: message }))
   }, [])
+
+  useEffect(() => () => {
+    contactsRequestRef.current?.abort()
+    contactsRequestRef.current = null
+  }, [])
+
+  const loadContacts = useCallback(async (force = false) => {
+    if (contactsRequestRef.current || (contactsLoadedRef.current && !force)) return
+    const controller = new AbortController()
+    contactsRequestRef.current = controller
+    setContactsRefreshing(true)
+    setContactsLoading(contactsRef.current.length === 0)
+    setLoadError('contacts')
+    try {
+      await loadContactDirectory<Contact>({
+        previous: contactsRef.current,
+        readPage: async offset => {
+          const response = await fetchRead(`/api/marketing/contacts?mode=directory&limit=500&offset=${offset}`, {
+            credentials: 'include', signal: controller.signal,
+          }, { timeoutMs: 12_000, retries: 1 })
+          return response.json()
+        },
+        publish: rows => {
+          if (controller.signal.aborted) return
+          contactsRef.current = rows
+          setContacts(rows)
+          setContactsLoading(false)
+        },
+      })
+      contactsLoadedRef.current = true
+    } catch {
+      if (!controller.signal.aborted) {
+        contactsLoadedRef.current = false
+        setLoadError('contacts', 'Partnership records could not fully load. Any records already loaded are still shown; totals and search may be incomplete.')
+      }
+    } finally {
+      if (contactsRequestRef.current === controller) contactsRequestRef.current = null
+      if (!controller.signal.aborted) {
+        setContactsLoading(false)
+        setContactsRefreshing(false)
+      }
+    }
+  }, [setLoadError])
 
   const loadBatches = useCallback(async () => {
     setBatchesLoading(true)
-    const r = await fetch('/api/marketing/batches', { credentials: 'include' })
-    if (r.ok) setBatches(await r.json() as Batch[])
-    setBatchesLoading(false)
-  }, [])
+    try {
+      const r = await fetchRead('/api/marketing/batches', { credentials: 'include' }, { timeoutMs: 12_000 })
+      setBatches(await r.json() as Batch[])
+      setLoadError('batches')
+    } catch {
+      setLoadError('batches', 'Campaign batches are temporarily unavailable.')
+    } finally { setBatchesLoading(false) }
+  }, [setLoadError])
 
   const loadLists = useCallback(async () => {
-    const r = await fetch('/api/marketing/lists', { credentials: 'include' })
-    if (r.ok) setLists(await r.json() as List[])
-  }, [])
+    try {
+      const r = await fetchRead('/api/marketing/lists', { credentials: 'include' }, { timeoutMs: 12_000 })
+      setLists(await r.json() as List[])
+      setLoadError('lists')
+    } catch { setLoadError('lists', 'Contact lists are temporarily unavailable.') }
+  }, [setLoadError])
 
   const loadRelationshipSummary = useCallback(async () => {
     setRelationshipSummaryLoading(true)
-    const response = await fetch('/api/marketing/relationship-summary', { credentials: 'include' })
-    if (response.ok) {
+    try {
+      const response = await fetchRead('/api/marketing/relationship-summary', { credentials: 'include' }, { timeoutMs: 20_000 })
       const payload = await response.json() as { markets?: RelationshipMarketSummary; rolling30?: RelationshipRolling30 }
       setRelationshipSummary(payload.markets || null)
       setRelationshipRolling30(payload.rolling30 || null)
-    }
-    setRelationshipSummaryLoading(false)
-  }, [])
+      setLoadError('summary')
+    } catch {
+      setLoadError('summary', 'Relationship totals are temporarily unavailable. Previously loaded totals may be out of date.')
+    } finally { setRelationshipSummaryLoading(false) }
+  }, [setLoadError])
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
@@ -7204,6 +7259,23 @@ function PartnershipEngineInner() {
             </button>
           )}
         </div>
+
+        {Object.values(loadErrors).some(Boolean) && (
+          <div role="alert" className="m-2 flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <div>
+              <strong>Some CRM data is temporarily unavailable.</strong>
+              {Object.entries(loadErrors).filter(([, message]) => message).map(([key, message]) => <p key={key}>{message}</p>)}
+            </div>
+            <button type="button" disabled={contactsRefreshing}
+              className="shrink-0 rounded-lg border border-amber-400 px-3 py-2 font-semibold disabled:opacity-50"
+              onClick={() => {
+                if (loadErrors.contacts) void loadContacts(true)
+                if (loadErrors.batches) void loadBatches()
+                if (loadErrors.lists) void loadLists()
+                if (loadErrors.summary) void loadRelationshipSummary()
+              }}>Retry</button>
+          </div>
+        )}
 
         {tab === 'today' && (
           <RelationshipLobby

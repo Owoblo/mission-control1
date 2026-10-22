@@ -24,6 +24,9 @@ type AnalyticsSnapshot = {
     tentativeReservations: number
     lostLeads: number
     conversionRate: number
+    cohortBookedLeads: number
+    cohortConversionRate: number
+    periodBookingActivityRate: number
     averageQuoteValue: number
     followUpComplianceRate: number
     followUpCompliant: number
@@ -97,6 +100,8 @@ type AnalyticsSnapshot = {
     sourceOptions: AnalyticsOption[]
     branchOptions: AnalyticsOption[]
   }
+  metricDefinitions: Record<string, { label: string; dateBasis: string; denominator: string; exclusions: string; source: string }>
+  dataStatus: { complete: boolean; generatedAt: string; sources: string[] }
 }
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
@@ -157,6 +162,7 @@ export default function AnalyticsPage() {
   const [branch, setBranch] = useState('')
   const [data, setData] = useState<AnalyticsSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('Failed to load analytics.')
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams({ range })
@@ -168,9 +174,15 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     setLoading(true)
+    setLoadError('Failed to load analytics.')
     fetch(`/api/sales/analytics?${queryString}`, { credentials: 'include' })
-      .then(response => response.ok ? response.json() : null)
+      .then(async response => {
+        const payload = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(payload?.error || 'Failed to load analytics.')
+        return payload
+      })
       .then(setData)
+      .catch(error => setLoadError(error instanceof Error ? error.message : 'Failed to load analytics.'))
       .finally(() => setLoading(false))
   }, [queryString])
 
@@ -179,7 +191,7 @@ export default function AnalyticsPage() {
   }
 
   if (!data) {
-    return <div className="crm-shell"><h1 className="sr-only">Analytics</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-rose-600">Failed to load analytics.</div></div>
+    return <div className="crm-shell"><h1 className="sr-only">Analytics</h1><div role="alert" className="crm-panel p-16 text-center text-sm text-rose-600">{loadError}</div></div>
   }
 
   const utilizationHighlights = data.truckUtilizationDays
@@ -250,8 +262,8 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard label="Leads Received" value={data.totals.leadsReceived.toLocaleString()} sub={`${data.totals.conversionRate}% conversion`} />
-        <StatCard label="Confirmed Bookings" value={data.totals.confirmedBookings.toLocaleString()} sub={formatMoney(data.totals.confirmedRevenue)} accent="text-emerald-600" />
+        <StatCard label="Leads Received" value={data.totals.leadsReceived.toLocaleString()} sub={`${data.totals.cohortConversionRate}% cohort booking rate`} />
+        <StatCard label="Bookings Made" value={data.totals.confirmedBookings.toLocaleString()} sub={`${formatMoney(data.totals.confirmedRevenue)} booked quote value`} accent="text-emerald-600" />
         <StatCard label="Tentative Reservations" value={data.totals.tentativeReservations.toLocaleString()} sub={`${data.totals.lostLeads} lost / declined`} accent="text-amber-600" />
         <StatCard
           label="Follow-Up Compliance"
@@ -263,7 +275,7 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard label="Average Quote Value" value={data.totals.averageQuoteValue > 0 ? formatMoney(data.totals.averageQuoteValue) : '—'} />
-        <StatCard label="Revenue Target" value={formatMoney(data.totals.monthlyTarget)} sub={`${data.totals.monthlyProgressPct}% of goal`} />
+        <StatCard label="Booked Quote Value Target" value={formatMoney(data.totals.monthlyTarget)} sub={`${data.totals.monthlyProgressPct}% of goal`} />
         <StatCard label="Source Mix" value={data.sourceBreakdown.length.toLocaleString()} sub="active lead sources in window" />
         <StatCard label="Activity Logged" value={activityTotal.toLocaleString()} sub="calls, emails, sms, notes" />
       </div>
@@ -271,7 +283,7 @@ export default function AnalyticsPage() {
       <div className="crm-panel p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Revenue vs Target</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--app-muted)]">Booked Quote Value vs Target</div>
             <div className="mt-1 text-lg font-semibold text-[#071421]">{formatMoney(data.totals.confirmedRevenue)}</div>
           </div>
           <div className="text-sm font-semibold text-[var(--app-muted)]">{data.totals.monthlyProgressPct}%</div>
@@ -297,7 +309,7 @@ export default function AnalyticsPage() {
               <TrendChart data={data.trend} mode="bookings" />
             </div>
             <div>
-              <div className="mb-3 text-sm font-medium text-[var(--app-muted)]">Booked revenue</div>
+              <div className="mb-3 text-sm font-medium text-[var(--app-muted)]">Booked quote value</div>
               <TrendChart data={data.trend} mode="revenue" />
             </div>
           </div>
@@ -327,6 +339,22 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      <details className="crm-panel p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-[#071421]">Metric definitions and data coverage</summary>
+        <p className="mt-2 text-xs text-[var(--app-muted)]">Snapshot generated {new Date(data.dataStatus.generatedAt).toLocaleString()}. Sources loaded: {data.dataStatus.sources.join(', ')}. Booking activity rate compares events dated in this window; it is not a cohort conversion rate.</p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {Object.values(data.metricDefinitions).map(definition => (
+            <div key={definition.label} className="rounded-lg bg-slate-50 p-3 text-xs">
+              <div className="font-semibold text-[#071421]">{definition.label}</div>
+              <div className="mt-1 text-[var(--app-muted)]">Date basis: {definition.dateBasis}</div>
+              <div className="mt-1 text-[var(--app-muted)]">Denominator: {definition.denominator}</div>
+              <div className="mt-1 text-[var(--app-muted)]">Exclusions: {definition.exclusions}</div>
+              <div className="mt-1 text-[var(--app-muted)]">Source: {definition.source}</div>
+            </div>
+          ))}
+        </div>
+      </details>
 
       {data.branchBreakdown.length > 0 && (
         <div className="crm-panel p-6">

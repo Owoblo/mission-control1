@@ -1,8 +1,12 @@
 import catalog from './data/partner-business-cards.json'
+import { isOttawa } from './partnership-core/ottawa.mjs'
 
 export type PartnerBusinessCard = typeof catalog[number]
 export const PARTNER_BUSINESS_CARDS: PartnerBusinessCard[] = catalog
 export const BUSINESS_CARD_ASSET_BASE = 'https://idbyrtwdeeruiutoukct.supabase.co/storage/v1/object/public/ops-media/partnership-library/business-cards/2026-09-10'
+export const GTA_CARD_ASSET_BASE = 'https://idbyrtwdeeruiutoukct.supabase.co/storage/v1/object/public/ops-media/partnership-library/business-cards/2026-09-26-gta-sold2move-v2'
+const LEGACY_GTA_CARD_ASSET_BASE = 'https://idbyrtwdeeruiutoukct.supabase.co/storage/v1/object/public/ops-media/partnership-library/business-cards/2026-09-26-gta'
+export const DEXA_CARD_ASSET_BASE = 'https://idbyrtwdeeruiutoukct.supabase.co/storage/v1/object/public/ops-media/partnership-library/business-cards/2026-09-16-dexa'
 
 export function normalizeCardCity(value: string) {
   return value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
@@ -16,13 +20,15 @@ export function findPartnerBusinessCard(city?: string | null): PartnerBusinessCa
   const key = normalizeCardCity(city)
   const exact = PARTNER_BUSINESS_CARDS.find(card => card.slug === key || normalizeCardCity(card.city) === key)
   if (exact) return exact
+  if (['gta', 'greater-toronto'].includes(key)) return PARTNER_BUSINESS_CARDS.find(card => card.slug === 'toronto') || null
+  if (isOttawa(city)) return PARTNER_BUSINESS_CARDS.find(card => card.slug === 'ottawa') || null
   const parts = city.split(/\s*(?:\/|,|\band\b|&)\s*/i).map(normalizeCardCity).filter(Boolean)
   const matches = PARTNER_BUSINESS_CARDS.filter(card => parts.includes(card.slug) || parts.includes(normalizeCardCity(card.city)))
   return matches.length === 1 ? matches[0] : null
 }
 
 export function businessCardUrl(card: PartnerBusinessCard, format: 'image' | 'pdf' = 'image') {
-  return `${BUSINESS_CARD_ASSET_BASE}/${card.slug}/card.${format === 'pdf' ? 'pdf' : 'jpg'}`
+  return `${card.region === 'toronto' ? GTA_CARD_ASSET_BASE : card.business === 'Dexa Movers' ? DEXA_CARD_ASSET_BASE : BUSINESS_CARD_ASSET_BASE}/${card.slug}/card.${format === 'pdf' ? 'pdf' : 'jpg'}`
 }
 
 /** Use clearly personal name segments; business-only labels keep a neutral reply. */
@@ -47,7 +53,7 @@ export function businessCardReply(card: PartnerBusinessCard, firstName = '') {
 
 export function attachBusinessCard(current: string[], card: PartnerBusinessCard) {
   // Switching cities replaces this library's previous card while keeping other uploads.
-  return [...current.filter(url => !url.startsWith(`${BUSINESS_CARD_ASSET_BASE}/`)), businessCardUrl(card)]
+  return [...current.filter(url => !url.startsWith(`${BUSINESS_CARD_ASSET_BASE}/`) && !url.startsWith(`${DEXA_CARD_ASSET_BASE}/`) && !url.startsWith(`${GTA_CARD_ASSET_BASE}/`) && !url.startsWith(`${LEGACY_GTA_CARD_ASSET_BASE}/`)), businessCardUrl(card)]
 }
 
 export function appendBusinessCardReply(current: string, card: PartnerBusinessCard, firstName = '') {

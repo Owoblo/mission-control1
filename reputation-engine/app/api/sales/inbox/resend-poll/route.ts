@@ -1,3 +1,4 @@
+import { storeInteraction } from '@/lib/server/interactions'
 /**
  * POST /api/sales/inbox/resend-poll
  * Polls Resend's receiving API and injects new emails into the CRM.
@@ -78,6 +79,8 @@ async function importEmail(email: ResendEmail) {
   const subject = `[resend:${email.id}] ${email.subject || '(no subject)'}`
   const body = email.text || email.html?.replace(/<[^>]+>/g, ' ').trim() || ''
 
+  await storeInteraction({ source: 'resend_poll', channel: 'email', eventId: email.id, sender: from, recipient: to, body, occurredAt: receivedAt, raw: email })
+
   if (!from) return { skipped: true, reason: 'no sender' }
 
   // Pause partnership sequences if this is a reply from a partner
@@ -85,7 +88,7 @@ async function importEmail(email: ResendEmail) {
     channel: 'email',
     email: from,
     occurredAt: receivedAt,
-    notes: `Inbound email: ${email.subject}`,
+    notes: `Subject: ${email.subject || '(no subject)'}\n\n${body}`,
     metadata: { from, to, subject: email.subject },
   }).catch(() => ({ matched: false as const }))
 

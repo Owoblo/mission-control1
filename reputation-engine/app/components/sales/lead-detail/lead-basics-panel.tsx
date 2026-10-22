@@ -93,6 +93,69 @@ type Props = {
   disabled?: boolean
 }
 
+function AccessQuickCapture({
+  field,
+  access,
+  stairFlights,
+  elevatorAccess,
+  disabled,
+  onAccessChange,
+  onStairFlightsChange,
+  onElevatorAccessChange,
+}: {
+  field: string
+  access: string
+  stairFlights?: number
+  elevatorAccess?: boolean
+  disabled?: boolean
+  onAccessChange: (value: string) => void
+  onStairFlightsChange?: (value: number) => void
+  onElevatorAccessChange?: (value: boolean | undefined) => void
+}) {
+  const current = access || ''
+  const floorChoices = [
+    { label: 'Ground', flights: 0, detail: 'ground floor' },
+    { label: '2nd floor', flights: 1, detail: '2nd floor / 1 flight' },
+    { label: '3rd floor', flights: 2, detail: '3rd floor / 2 flights' },
+    { label: '4th+', flights: 3, detail: '4th floor+ / 3+ flights' },
+  ]
+  const updateAccess = (part: 'floor' | 'elevator', value: string) => {
+    const kept = current
+      .split(' · ')
+      .filter(item => item && !(part === 'floor' ? /ground floor|\d+(?:st|nd|rd|th) floor|flight/i.test(item) : /elevator/i.test(item)))
+    onAccessChange([...kept, value].join(' · '))
+  }
+  const activeFloor = floorChoices.find(choice => choice.flights === stairFlights && current.toLowerCase().includes(choice.detail.split(' / ')[0]))
+  const buttonClass = (active: boolean) => `rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition ${active ? 'border-[var(--app-accent)] bg-[var(--app-accent)] text-white' : 'border-[var(--app-border)] bg-white text-[var(--app-ink)] hover:border-[var(--app-accent)]'} disabled:cursor-not-allowed disabled:opacity-50`
+
+  return (
+    <div className="mt-2 rounded-lg border border-[var(--app-border)] bg-white/70 p-2.5">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">{field} floor / stairs</div>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {floorChoices.map(choice => (
+          <button key={choice.label} type="button" disabled={disabled} className={buttonClass(activeFloor?.flights === choice.flights)} onClick={() => {
+            onStairFlightsChange?.(choice.flights)
+            updateAccess('floor', choice.detail)
+          }}>{choice.label}</button>
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-muted)]">Elevator</span>
+        {([
+          { label: 'Yes', value: true, text: 'elevator available' },
+          { label: 'No', value: false, text: 'no elevator' },
+          { label: 'Unknown', value: undefined, text: '' },
+        ] as const).map(choice => (
+          <button key={choice.label} type="button" disabled={disabled} className={buttonClass(elevatorAccess === choice.value && (choice.value !== undefined || !/elevator/i.test(current)))} onClick={() => {
+            onElevatorAccessChange?.(choice.value)
+            updateAccess('elevator', choice.text)
+          }}>{choice.label}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function AddressInput({
   value,
   placeholder,
@@ -460,6 +523,10 @@ export function LeadBasicsPanel({
   moveDateFlexible,
   moveDateFlexibleReason,
   moveType,
+  originStairFlights,
+  destStairFlights,
+  originElevatorAccess,
+  destElevatorAccess,
   originAddress,
   originCity,
   originAccess,
@@ -482,6 +549,10 @@ export function LeadBasicsPanel({
   onMoveDateFlexibleReasonChange,
   onMoveTypeChange,
   onBranchChange,
+  onOriginStairFlightsChange,
+  onDestStairFlightsChange,
+  onOriginElevatorAccessChange,
+  onDestElevatorAccessChange,
   onOriginAddressChange,
   onOriginCityChange,
   onOriginAccessChange,
@@ -813,6 +884,16 @@ export function LeadBasicsPanel({
           )}
           <input value={originCity} onChange={event => onOriginCityChange(event.target.value)} className="crm-input" placeholder="Origin city" />
           <input value={originAccess} onChange={event => onOriginAccessChange(event.target.value)} className="crm-input" placeholder="Origin access, stairs, elevator, long carry" />
+          <AccessQuickCapture
+            field="Origin"
+            access={originAccess}
+            stairFlights={originStairFlights}
+            elevatorAccess={originElevatorAccess}
+            disabled={disabled}
+            onAccessChange={onOriginAccessChange}
+            onStairFlightsChange={onOriginStairFlightsChange}
+            onElevatorAccessChange={onOriginElevatorAccessChange}
+          />
 
           {/* MLS Scan Prompt */}
           {(originAddress || originCity) && onScanListing && (
@@ -915,6 +996,16 @@ export function LeadBasicsPanel({
           )}
           <input value={destCity} onChange={event => onDestCityChange(event.target.value)} className="crm-input" placeholder="Destination city" />
           <input value={destAccess} onChange={event => onDestAccessChange(event.target.value)} className="crm-input" placeholder="Destination access, stairs, elevator, long carry" />
+          <AccessQuickCapture
+            field="Destination"
+            access={destAccess}
+            stairFlights={destStairFlights}
+            elevatorAccess={destElevatorAccess}
+            disabled={disabled}
+            onAccessChange={onDestAccessChange}
+            onStairFlightsChange={onDestStairFlightsChange}
+            onElevatorAccessChange={onDestElevatorAccessChange}
+          />
           <input value={parkingNotes} onChange={event => onParkingNotesChange(event.target.value)} className="crm-input" placeholder="Parking / truck notes" />
         </fieldset>
         <div className="relative mt-5 pl-4">

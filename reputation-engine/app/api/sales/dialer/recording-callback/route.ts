@@ -1,3 +1,4 @@
+import { captureTwilioInteraction } from '@/lib/server/interactions'
 export const maxDuration = 60 // allow time for Whisper transcription
 
 import { NextResponse } from 'next/server'
@@ -121,33 +122,6 @@ async function ensureInboundLeadCallMapping(callSid: string, inboundLead: Inboun
 
   const occurredAt = inboundLead.created_at || new Date().toISOString()
 
-  if (!lead) {
-    lead = await saveSalesLead({
-      id: uid('lead'),
-      name: inboundLead.name || 'Unknown Caller',
-      phone: inboundLead.phone || '',
-      email: inboundLead.email || '',
-      stage: 'contacted',
-      source: inboundLead.source || 'twilio_call',
-      moveType: 'residential',
-      moveDate: '',
-      originCity: '',
-      destCity: '',
-      originAddress: '',
-      notes: inboundLead.message || '',
-      leadScore: 30,
-      totalCubicFeet: 0,
-      totalWeightLbs: 0,
-      totalItems: 0,
-      inventory: [],
-      roomBreakdown: {},
-      callLogs: [],
-      createdAt: new Date(occurredAt).toISOString().slice(0, 10),
-      inboundId: inboundLead.id,
-      lastInboundAt: occurredAt,
-    }).catch(() => null)
-  }
-
   if (!lead) return null
 
   const existingLog = (lead.callLogs || []).find(entry => entry.callSid === callSid)
@@ -193,6 +167,8 @@ export async function POST(request: Request) {
     if (!(await verifyTwilioSignature(request, rawBody))) {
       return new Response('Forbidden', { status: 403 })
     }
+
+    await captureTwilioInteraction(rawBody, 'twilio_recording', 'call')
 
     const formData = new URLSearchParams(rawBody)
     // Conference recordings do not consistently include the original customer CallSid.
@@ -330,6 +306,16 @@ export async function POST(request: Request) {
           ).catch(() => null)
         : null
 
+    // Persist transcript metadata even when the caller has no CRM lead mapping yet.
+    if (archivedRecording || existingArchivedRecord?.cloudflare_object_key) {
+      await updateArchivedRecordingAiMetadata({
+        recordingSid: persistedRecordingSid,
+        callSid,
+        transcript: transcriptionQuotaExhausted ? null : transcript,
+        aiSummary: aiSummary as any,
+      })
+    }
+
     let updatedLead = lead
     if (leadId && callLogId) {
       updatedLead = await retryCallbackStep('updateLeadCallLogEntry', () => updateLeadCallLogEntry(leadId!, callLogId!, {
@@ -351,14 +337,7 @@ export async function POST(request: Request) {
         source: 'manual',
       } as any))
 
-      if (archivedRecording || existingArchivedRecord?.cloudflare_object_key) {
-        void updateArchivedRecordingAiMetadata({
-          recordingSid: persistedRecordingSid,
-          callSid,
-          transcript: transcriptionQuotaExhausted ? null : transcript,
-          aiSummary: aiSummary as any,
-        })
-      }
+
 
       if (updatedLead) {
         let nextLead = aiSummary ? applyPhoneCallSummaryToLead(updatedLead, aiSummary as any) : updatedLead
