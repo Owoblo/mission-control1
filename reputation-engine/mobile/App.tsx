@@ -41,15 +41,18 @@ import {
   loadMobileContacts,
   loadMobileCalls,
   loadPhoneLines,
+  loadTransferContext,
   loadVoiceToken,
   logMobileCall,
   MobileContact,
   MobileCallLog,
   PhoneLine,
+  TransferContext,
   peekMobileCalls,
   peekMobileContacts,
   postMobileEvent,
   postMobilePresence,
+  preparePartnerHandoff,
   prefetchPhoneTabs,
   resolveSuggestedLine,
   signIn,
@@ -303,6 +306,11 @@ function PhoneScreen({
   const [number, setNumber] = useState('');
   const [dialName, setDialName] = useState('');
   const [note, setNote] = useState('');
+  const [callWorkspace, setCallWorkspace] = useState<'sales' | 'partnership' | null>(null);
+  const [handoffCustomerName, setHandoffCustomerName] = useState('');
+  const [handoffPartnerName, setHandoffPartnerName] = useState('');
+  const [handoffBrief, setHandoffBrief] = useState('');
+  const [transferContext, setTransferContext] = useState<TransferContext | null>(null);
   const [wrapUp, setWrapUp] = useState<null | {
     callSid?: string;
     phone: string;
@@ -595,6 +603,11 @@ function PhoneScreen({
       const parameters = invite.getCustomParameters();
       const displayName =
         parameters.DisplayName || parameters.CustomerName || from;
+      setCallWorkspace(parameters.CallWorkspace === 'partnership' ? 'partnership' : 'sales');
+      setTransferContext(null);
+      setHandoffCustomerName('');
+      setHandoffPartnerName('');
+      setHandoffBrief('');
       internalCallRef.current = parameters.CallType === 'internal';
       callDirectionRef.current = 'inbound';
       inviteRef.current = invite;
@@ -636,6 +649,15 @@ function PhoneScreen({
       invite.on(CallInvite.Event.Accepted, call => {
         inviteRef.current = null;
         attachCall(call, from);
+        const callSidForContext = call.getSid();
+        loadTransferContext(token, callSidForContext || undefined)
+          .then(async result => {
+            if (result.context) return result;
+            await new Promise(resolve => setTimeout(resolve, 400));
+            return loadTransferContext(token, callSidForContext || undefined);
+          })
+          .then(result => setTransferContext(result.context))
+          .catch(() => setTransferContext(null));
       });
     };
     const onVoiceError = (error: unknown) => {
@@ -764,6 +786,8 @@ function PhoneScreen({
     if (!target || !voiceToken) return;
     setBusy(true);
     callDirectionRef.current = 'outbound';
+    setCallWorkspace(null);
+    setTransferContext(null);
     internalCallRef.current = false;
     connectedAtRef.current = null;
     setNote('');
@@ -798,6 +822,8 @@ function PhoneScreen({
     if (!voiceToken || entry.status === 'busy') return;
     setBusy(true);
     callDirectionRef.current = 'outbound';
+    setCallWorkspace(null);
+    setTransferContext(null);
     internalCallRef.current = true;
     connectedAtRef.current = null;
     setNote('');
@@ -910,10 +936,35 @@ function PhoneScreen({
     }
     setBusy(true);
     try {
+      let handoff: Awaited<ReturnType<typeof preparePartnerHandoff>> | null = null;
+      if (callDirectionRef.current === 'inbound' && callWorkspace === 'partnership') {
+        if (!entry.userId || !entry.target.startsWith('client:')) {
+          throw new Error('Choose an available Sales teammate in the Saturn Star app or CRM dialer.');
+        }
+        handoff = await preparePartnerHandoff(token, {
+          phone: state.phone || '',
+          callSid: sid,
+          targetUserId: entry.userId,
+          targetIdentity: entry.target.slice('client:'.length),
+          customerName: handoffCustomerName.trim() || undefined,
+          partnerName: handoffPartnerName.trim() || undefined,
+          notes: [handoffBrief.trim(), note.trim()].filter(Boolean).join('\n'),
+        });
+      }
       const result = await controlConference(token, {
         action: 'start',
         activeCallSid: sid,
         addTarget: entry.target,
+        ...(handoff ? {
+          context: {
+            leadId: handoff.leadId,
+            phone: state.phone,
+            customerName: handoff.customerName,
+            reason: 'Warm handoff from the partnership line to Sales',
+            notes: handoff.notes,
+            source: 'partnership_inbound_call',
+          },
+        } : {}),
       });
       if (
         !result.conferenceName ||
@@ -985,6 +1036,8 @@ function PhoneScreen({
     return (
       <ActiveCallScreen
         state={state}
+        transferContext={transferContext}
+        partnershipHandoff={callDirectionRef.current === 'inbound' && callWorkspace === 'partnership'}
         duration={formatDuration(seconds)}
         note={note}
         setNote={setNote}
@@ -1002,6 +1055,13 @@ function PhoneScreen({
           <TransferModal
             visible={showTransfer}
             entries={directory}
+            partnershipHandoff={callDirectionRef.current === 'inbound' && callWorkspace === 'partnership'}
+            customerName={handoffCustomerName}
+            partnerName={handoffPartnerName}
+            notes={handoffBrief}
+            onCustomerNameChange={setHandoffCustomerName}
+            onPartnerNameChange={setHandoffPartnerName}
+            onNotesChange={setHandoffBrief}
             onClose={() => setShowTransfer(false)}
             onSelect={beginConsult}
           />
@@ -1782,6 +1842,8 @@ function IncomingCallScreen({
 
 function ActiveCallScreen({
   state,
+  transferContext,
+  partnershipHandoff,
   duration,
   note,
   setNote,
@@ -1798,6 +1860,8 @@ function ActiveCallScreen({
   transferModal,
 }: {
   state: typeof initialCallState;
+  transferContext: TransferContext | null;
+  partnershipHandoff: boolean;
   duration: string;
   note: string;
   setNote: (value: string) => void;
@@ -1843,6 +1907,29 @@ function ActiveCallScreen({
             <Text style={styles.activeError}>{state.error}</Text>
           )}
         </View>
+
+        {transferContext && (
+          <View style={styles.transferContextCard}>
+            <Text style={styles.transferContextEyebrow}>
+              {transferContext.source === 'partnership_inbound_call' ? 'PARTNERSHIP HANDOFF' : 'CALL HANDOFF'}
+            </Text>
+            <Text style={styles.transferContextName}>
+              {transferContext.customerName || transferContext.phone || 'Incoming customer'}
+            </Text>
+            {!!transferContext.transferredBy && (
+              <Text style={styles.transferContextCopy}>Connected by {transferContext.transferredBy}</Text>
+            )}
+            {!!transferContext.reason && (
+              <Text style={styles.transferContextCopy}>{transferContext.reason}</Text>
+            )}
+            {!!transferContext.notes && (
+              <Text style={styles.transferContextNotes} numberOfLines={4}>{transferContext.notes}</Text>
+            )}
+            {!!transferContext.leadId && (
+              <Text style={styles.transferContextCopy}>Sales record: {transferContext.leadId}</Text>
+            )}
+          </View>
+        )}
 
         {state.phase === 'consulting' ? (
           <View style={styles.consultCard}>
@@ -1917,7 +2004,7 @@ function ActiveCallScreen({
                 onPress={onHold}
               />
               <ControlButton
-                label="Add / transfer"
+                label={partnershipHandoff ? 'Warm transfer to Sales' : 'Add / transfer'}
                 symbol="+"
                 onPress={onTransfer}
               />
@@ -1964,11 +2051,25 @@ function ActiveCallScreen({
 function TransferModal({
   visible,
   entries,
+  partnershipHandoff,
+  customerName,
+  partnerName,
+  notes,
+  onCustomerNameChange,
+  onPartnerNameChange,
+  onNotesChange,
   onClose,
   onSelect,
 }: {
   visible: boolean;
   entries: DirectoryEntry[];
+  partnershipHandoff: boolean;
+  customerName: string;
+  partnerName: string;
+  notes: string;
+  onCustomerNameChange: (value: string) => void;
+  onPartnerNameChange: (value: string) => void;
+  onNotesChange: (value: string) => void;
   onClose: () => void;
   onSelect: (entry: DirectoryEntry) => void;
 }) {
@@ -1982,7 +2083,9 @@ function TransferModal({
         <View style={styles.transferHeader}>
           <View>
             <Text style={styles.eyebrow}>PRIVATE CONSULT</Text>
-            <Text style={styles.transferTitle}>Add or transfer</Text>
+            <Text style={styles.transferTitle}>
+              {partnershipHandoff ? 'Warm transfer to Sales' : 'Add or transfer'}
+            </Text>
           </View>
           <Pressable onPress={onClose}>
             <Text style={styles.signOut}>Cancel</Text>
@@ -1992,15 +2095,46 @@ function TransferModal({
           The customer will hear hold music while you privately brief the
           teammate.
         </Text>
+        {partnershipHandoff && (
+          <View style={styles.handoffFields}>
+            <TextInput
+              value={customerName}
+              onChangeText={onCustomerNameChange}
+              placeholder="Customer name, if confirmed"
+              placeholderTextColor="#8F99A6"
+              style={styles.handoffInput}
+              autoCapitalize="words"
+            />
+            <TextInput
+              value={partnerName}
+              onChangeText={onPartnerNameChange}
+              placeholder="Referring partner, if known"
+              placeholderTextColor="#8F99A6"
+              style={styles.handoffInput}
+              autoCapitalize="words"
+            />
+            <TextInput
+              value={notes}
+              onChangeText={onNotesChange}
+              placeholder="What Sales should know before joining"
+              placeholderTextColor="#8F99A6"
+              style={[styles.handoffInput, styles.handoffNotesInput]}
+              multiline
+            />
+            <Text style={styles.handoffHint}>
+              This creates or updates the Sales record and gives your teammate the context before they answer.
+            </Text>
+          </View>
+        )}
         <ScrollView>
-          {entries.map(entry => (
+          {entries.filter(entry => !partnershipHandoff || Boolean(entry.userId)).map(entry => (
             <Pressable
               key={entry.id}
-              disabled={entry.status !== 'available'}
+              disabled={entry.status !== 'available' || (partnershipHandoff && !entry.userId)}
               onPress={() => onSelect(entry)}
               style={[
                 styles.directoryRow,
-                entry.status !== 'available' && styles.directoryRowBusy,
+                (entry.status !== 'available' || (partnershipHandoff && !entry.userId)) && styles.directoryRowBusy,
               ]}
             >
               <View style={styles.directoryAvatar}>
@@ -2571,6 +2705,20 @@ const styles = StyleSheet.create({
   lightButtonText: { fontSize: 15, fontWeight: '700', color: colors.ink },
   textButton: { padding: 15, alignItems: 'center' },
   textButtonText: { fontSize: 14, fontWeight: '600', color: colors.red },
+  transferContextCard: {
+    marginHorizontal: 18,
+    marginTop: 10,
+    marginBottom: 6,
+    padding: 15,
+    borderRadius: 15,
+    backgroundColor: '#FFF8E8',
+    borderWidth: 1,
+    borderColor: '#E9D7A8',
+  },
+  transferContextEyebrow: { fontSize: 10, letterSpacing: 1.4, fontWeight: '800', color: '#8B6418' },
+  transferContextName: { fontSize: 17, fontWeight: '700', color: colors.ink, marginTop: 5 },
+  transferContextCopy: { fontSize: 12, lineHeight: 17, color: colors.muted, marginTop: 3 },
+  transferContextNotes: { fontSize: 13, lineHeight: 19, color: colors.ink, marginTop: 8 },
   transferPage: { flex: 1, backgroundColor: colors.ivory },
   transferHeader: {
     flexDirection: 'row',
@@ -2593,6 +2741,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 18,
   },
+  handoffFields: { paddingHorizontal: 18, paddingBottom: 14 },
+  handoffInput: {
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: 'white',
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: colors.ink,
+    marginBottom: 8,
+  },
+  handoffNotesInput: { minHeight: 76, textAlignVertical: 'top' },
+  handoffHint: { fontSize: 12, lineHeight: 17, color: colors.muted, paddingTop: 2, paddingBottom: 3 },
   directoryRow: {
     flexDirection: 'row',
     alignItems: 'center',

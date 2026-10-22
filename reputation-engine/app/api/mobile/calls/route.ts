@@ -69,11 +69,18 @@ export async function POST(request: Request) {
 
   const lead = await getSalesLeadByContact(phone, null, null, { includeClosed: true })
   if (!lead) return NextResponse.json({ ok: true, matched: false })
-  if (!canHandleLeadCommunications(session, lead)) {
+  const callSid = payload.callSid?.trim() || undefined
+  const priorCall = callSid
+    ? (lead.callLogs || []).find(log => log.callSid === callSid)
+    : undefined
+  const isOwnPartnerHandoffCompletion = session.role === 'partnership_manager' &&
+    priorCall?.direction === 'inbound' &&
+    priorCall.source === 'inbound' &&
+    priorCall.repId === session.userId
+  if (!canHandleLeadCommunications(session, lead) && !isOwnPartnerHandoffCompletion) {
     return NextResponse.json({ error: 'You do not have access to this customer' }, { status: 403 })
   }
 
-  const callSid = payload.callSid?.trim() || undefined
   const durationSeconds = Math.max(0, Math.floor(Number(payload.durationSeconds || 0)))
   const answered = payload.answered !== false && durationSeconds > 0
   const direction: CallLogEntry['direction'] = payload.direction === 'inbound' ? 'inbound' : 'outbound'
@@ -81,12 +88,11 @@ export async function POST(request: Request) {
   const userNotes = payload.notes?.trim()
   const disposition = payload.disposition?.trim().replace(/_/g, ' ')
   const summary = `${direction === 'inbound' ? 'Inbound call from' : 'Outbound call to'} ${phone} — ${answered ? formatDuration(durationSeconds) : 'no answer'}${repTag}.`
-  const notes = [summary, disposition ? `Disposition: ${disposition}.` : '', userNotes ? `Rep notes: ${userNotes}` : '']
+  const existing = priorCall
+  const handoffNotes = existing?.notes?.includes('Partnership-line warm handoff') ? existing.notes : ''
+  const notes = [summary, disposition ? `Disposition: ${disposition}.` : '', userNotes ? `Rep notes: ${userNotes}` : '', handoffNotes]
     .filter(Boolean)
     .join('\n')
-  const existing = callSid
-    ? (lead.callLogs || []).find(log => log.callSid === callSid)
-    : undefined
   const logId = existing?.id || uid('cl')
   const callLog: CallLogEntry = {
     ...(existing || {}),

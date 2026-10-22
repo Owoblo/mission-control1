@@ -56,6 +56,17 @@ export type DirectoryEntry = {
   kind: string;
 };
 
+export type TransferContext = {
+  leadId?: string | null;
+  phone?: string | null;
+  customerName?: string | null;
+  transferredBy?: string | null;
+  reason?: string | null;
+  notes?: string | null;
+  source?: string | null;
+  createdAt?: string | null;
+};
+
 export type PhoneLine = {
   number: string;
   label: string;
@@ -495,7 +506,7 @@ export function prefetchPhoneTabs(token: string, includePartnership: boolean) {
 
 export function controlConference(
   token: string,
-  body: Record<string, string | boolean | null | undefined>,
+  body: Record<string, unknown>,
 ) {
   return request<{
     ok: boolean;
@@ -509,4 +520,35 @@ export function controlConference(
     token,
     body: JSON.stringify(body),
   });
+}
+
+export function preparePartnerHandoff(
+  token: string,
+  body: {
+    phone: string;
+    callSid: string;
+    targetUserId: string;
+    targetIdentity: string;
+    customerName?: string;
+    partnerName?: string;
+    notes?: string;
+  },
+) {
+  return request<{
+    ok: boolean;
+    leadId: string;
+    created: boolean;
+    customerName: string;
+    targetName: string;
+    notes: string;
+  }>('/api/mobile/partner-handoff', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  });
+}
+
+export function loadTransferContext(token: string, callSid?: string) {
+  const query = callSid ? `?callSid=${encodeURIComponent(callSid)}` : '';
+  return request<{ context: TransferContext | null }>(`/api/sales/dialer/transfer-context${query}`, { token });
 }
