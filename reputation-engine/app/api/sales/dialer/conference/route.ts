@@ -4,6 +4,7 @@ import { getAppBaseUrl, getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { getRequestSessionUser } from '@/lib/server/request-session'
 import { pickSaturnBranchPhoneNumber } from '@/lib/sales-phones'
+import { logDialerAnalyticsEvent } from '@/lib/server/telephony-monitoring'
 import {
   escapeTwiml,
   isSafeConferenceName,
@@ -23,6 +24,14 @@ type StartConferenceBody = {
   addTarget?: string
   holdOnly?: boolean
   callerId?: string | null
+  context?: {
+    leadId?: string | null
+    phone?: string | null
+    customerName?: string | null
+    reason?: string | null
+    notes?: string | null
+    source?: string | null
+  }
 }
 
 type UpdateConferenceBody = {
@@ -159,7 +168,7 @@ async function completeCall(accountSid: string, authToken: string, callSid?: str
   return updateCall(accountSid, authToken, callSid, { Status: 'completed' }).catch(() => null)
 }
 
-async function handleStartConference(body: StartConferenceBody) {
+async function handleStartConference(body: StartConferenceBody, session: Awaited<ReturnType<typeof getRequestSessionUser>>) {
   const activeCallSid = body.activeCallSid || body.customerCallSid
   if (!activeCallSid || (!body.addTarget && !body.holdOnly)) {
     return Response.json({ error: 'activeCallSid and a transfer target or holdOnly are required' }, { status: 400 })
@@ -229,6 +238,29 @@ async function handleStartConference(body: StartConferenceBody) {
       },
     })
     targetCallSid = typeof targetCall.sid === 'string' ? targetCall.sid : null
+    const targetIdentity = normalizedTarget.kind === 'client' ? normalizedTarget.target : null
+    if (targetIdentity && body.context?.leadId) {
+      await logDialerAnalyticsEvent({
+        userId: session?.userId,
+        userName: session?.name,
+        userRole: session?.role,
+        payload: {
+          event: 'transfer_context_created',
+          callSid: legs.customerCallSid,
+          leadId: body.context.leadId,
+          phoneNumber: body.context.phone || undefined,
+          extra: {
+            targetIdentity,
+            transferredBy: session?.name || null,
+            customerName: body.context.customerName || null,
+            reason: body.context.reason || 'Warm handoff from the partnership line to Sales',
+            notes: body.context.notes || null,
+            source: body.context.source || null,
+            targetCallSid,
+          },
+        },
+      }).catch(() => undefined)
+    }
   }
 
   return Response.json({
@@ -326,7 +358,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as ConferenceRequestBody
     return (body.action || 'start') === 'start'
-      ? handleStartConference(body as StartConferenceBody)
+      ? handleStartConference(body as StartConferenceBody, session)
       : handleUpdateConference(body as UpdateConferenceBody)
   } catch (error) {
     return Response.json(

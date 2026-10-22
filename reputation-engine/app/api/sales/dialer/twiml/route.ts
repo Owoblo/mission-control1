@@ -128,12 +128,19 @@ function internalRingTargets(
   fallbackToLegacy = false,
   sipUsers?: string[],
   displayName?: string,
+  callWorkspace?: 'sales' | 'partnership',
 ) {
   // Rings simultaneously: all active rep browsers + Groundwire/SIP.
   // Prefers available (not-busy) reps to avoid interrupting active calls.
-  const clientTarget = (identity: string) => displayName
-    ? `<Client><Identity>${xmlValue(identity)}</Identity><Parameter name="DisplayName" value="${xmlValue(displayName)}" /></Client>`
-    : `<Client>${xmlValue(identity)}</Client>`
+  const clientTarget = (identity: string) => {
+    const parameters = [
+      displayName ? `<Parameter name="DisplayName" value="${xmlValue(displayName)}" />` : '',
+      callWorkspace ? `<Parameter name="CallWorkspace" value="${callWorkspace}" />` : '',
+    ].filter(Boolean).join('')
+    return parameters
+      ? `<Client><Identity>${xmlValue(identity)}</Identity>${parameters}</Client>`
+      : `<Client>${xmlValue(identity)}</Client>`
+  }
   const clients = browserIdentities.length > 0
     ? browserIdentities.map(clientTarget).join('')
     : fallbackToLegacy ? clientTarget(FALLBACK_CLIENT_IDENTITY) : ''
@@ -528,7 +535,7 @@ export async function POST(request: Request) {
       // safety net. A registered browser can still ring even if its telemetry heartbeat
       // was delayed or dropped.
       return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers, incomingDisplayName)}</Dial></Response>`
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrsInbound}>${internalRingTargets(ringIdentities, false, activeSipUsers, incomingDisplayName, inboundWorkspace)}</Dial></Response>`
       )
     }
 
