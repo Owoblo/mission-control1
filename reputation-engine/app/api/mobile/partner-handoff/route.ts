@@ -1,3 +1,4 @@
+import { verifyOwnedActiveCall } from '@/lib/server/dialer-access'
 import { NextResponse } from 'next/server'
 import { normalizeLead, uid } from '@/lib/sales'
 import { normalizePhone } from '@/lib/sales-phones'
@@ -28,7 +29,7 @@ type HandoffBody = {
 async function getSalesTarget(userId: string) {
   const { url, headers } = requireSupabaseEnv()
   const query = new URLSearchParams({
-    select: 'id,name,role',
+    select: 'id,name,role,branch',
     id: `eq.${userId}`,
     role: 'in.(owner,manager,sales_rep)',
     limit: '1',
@@ -38,7 +39,7 @@ async function getSalesTarget(userId: string) {
     cache: 'no-store',
   })
   if (!response.ok) throw new Error('Could not verify the selected Sales teammate.')
-  const users = await response.json() as Array<{ id: string; name?: string; role?: string }>
+  const users = await response.json() as Array<{ id: string; name?: string; role?: string; branch?: string }>
   return users[0] || null
 }
 
@@ -64,16 +65,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Choose a valid Sales teammate.' }, { status: 400 })
     }
 
+    const verifiedCall = await verifyOwnedActiveCall(callSid, session, phone)
+    if (!verifiedCall.branch) return NextResponse.json({ error: 'The servicing branch could not be verified from this call.' }, { status: 409 })
     const target = await getSalesTarget(targetUserId)
     if (!target || !SALES_ROLES.has(target.role || '')) {
       return NextResponse.json({ error: 'The selected teammate is not on the Sales team.' }, { status: 400 })
     }
 
+    if (target.branch && target.branch !== verifiedCall.branch) return NextResponse.json({ error: 'Choose a teammate serving this call branch.' }, { status: 403 })
     const customerName = body.customerName?.trim().slice(0, 100) || ''
     const partnerName = body.partnerName?.trim().slice(0, 100) || ''
     const handoffNotes = body.notes?.trim().slice(0, 1500) || ''
     const now = new Date().toISOString()
     const lead = await getSalesLeadByContact(phone, null, null, { includeClosed: true })
+    if (lead?.branch && lead.branch !== verifiedCall.branch) return NextResponse.json({ error: 'The existing customer belongs to a different branch.' }, { status: 403 })
     const existingOwnerName = lead?.assignedRepName || lead?.assignedRep
     const hasDifferentOwner = lead && (
       (lead.assignedRepUserId && lead.assignedRepUserId !== targetUserId) ||
@@ -119,6 +124,7 @@ export async function POST(request: Request) {
       ...(lead || {
         id: uid('lead'),
         name: customerName || 'Referred caller',
+        branch: verifiedCall.branch,
         stage: 'contacted',
         leadKind: 'customer',
         primaryContactRole: 'customer',

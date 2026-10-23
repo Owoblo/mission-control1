@@ -1,3 +1,5 @@
+import { isOutboundTwilioCall } from '@/lib/twilio-call-matching'
+import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { createSalesSystemAlert } from '@/lib/server/sales-alerts'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 import { sendSalesMessage } from '@/lib/server/sales-messaging'
@@ -106,9 +108,12 @@ function extractSipDialTarget(value?: string | null) {
 // Twilio calls this URL after the <Dial> verb completes (action attribute).
 // DialCallStatus = completed|busy|no-answer|failed|canceled
 export async function POST(request: Request) {
+  const rawBody = await request.text()
+  const rejection = await authorizeTwilioWebhook(request, rawBody)
+  if (rejection) return rejection
   try {
     const { searchParams } = new URL(request.url)
-    const formData = await request.formData()
+    const formData = new URLSearchParams(rawBody)
     const callSid        = (formData.get('CallSid') as string | null)?.trim() || ''
     const dialCallSid    = (formData.get('DialCallSid') as string | null)?.trim() || ''
     const dialCallStatus = (formData.get('DialCallStatus') as string | null)?.trim() || ''
@@ -127,7 +132,7 @@ export async function POST(request: Request) {
     const fromBrowser = from.toLowerCase().startsWith('client:')
     const fromSip = from.toLowerCase().startsWith('sip:')
     const sipDialTarget = extractSipDialTarget(to)
-    const isOutbound  = direction.startsWith('outbound') || isSaturnBranchPhoneNumber(from) || (!!fromSip && !!sipDialTarget)
+    const isOutbound = isOutboundTwilioCall(from, to, direction)
     const normalizedFrom = from && !from.toLowerCase().startsWith('client:') ? normalizePhone(from) : from
     const branchNumber = pickSaturnBranchPhoneNumber(
       searchParams.get('branchNumber'),

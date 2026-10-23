@@ -53,7 +53,7 @@ function patchFile(file, replacements) {
   if (!fs.existsSync(file)) {
     throw new Error(`Required Twilio source is missing: ${file}`);
   }
-  let source = fs.readFileSync(file, 'utf8');
+  let source = fs.readFileSync(file, 'utf8').replace(/[ \t]+$/gm, '');
   for (const {before, after, marker} of replacements) {
     if (source.includes(marker)) continue;
     if (!source.includes(before)) {

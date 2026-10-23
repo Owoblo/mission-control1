@@ -63,6 +63,10 @@
     {
       "path": "/api/sales/follow-up-radar/process",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/ops/internal-alerts/process",
+      "schedule": "* * * * *"
     }
   ],
   "regions": [

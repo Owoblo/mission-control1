@@ -3147,7 +3147,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
       return { status: 'completed' as const, sent: false, lead, thread: existingThread, message: 'Could not safely claim the one-time feedback request; left for human review.' }
     }
     const currentFeedback = lock.lead.customerFeedback
-    if (currentFeedback?.requestedAt || currentFeedback?.status === 'requested' || currentFeedback?.status === 'received' || currentFeedback?.status === 'declined') {
+    if (currentFeedback?.requestReservedAt || currentFeedback?.requestedAt || currentFeedback?.status === 'requested' || currentFeedback?.status === 'received' || currentFeedback?.status === 'declined') {
       return { status: 'completed' as const, sent: false, lead: lock.lead, thread: existingThread, message: 'Moved-on feedback was already requested or recorded; no repeat message sent.' }
     }
 
@@ -3155,19 +3155,28 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     const claimedLead = await saveSalesLead({
       ...lock.lead,
       customerFeedback: {
-        outcome: 'lost', status: 'requested', reason: 'unknown', customerWords: '', sourceId: '',
-        competitor: '', competitorPrice: '', repNotes: `One-time feedback request sent by SMS after customer said they moved on (${requestedAt}).`,
-        context: [], requestedAt,
+        outcome: 'lost', status: 'not_requested', reason: 'unknown', customerWords: '', sourceId: '',
+        competitor: '', competitorPrice: '', repNotes: `One-time feedback request reserved after customer said they moved on (${requestedAt}).`,
+        context: [], requestReservedAt: requestedAt, requestDelivery: 'reserved',
       },
     }, lock.updatedAt)
     const body = 'Thanks for letting me know. If you’re open to sharing, what made the difference—price, timing, response time, or something else? Even a word or two helps us improve. No need to reply if you’d rather not.'
-    const sendResult = await sendSalesMessage({
+    let sendResult
+    try { sendResult = await sendSalesMessage({
       actor: 'automation', channel: 'sms', to: contact.to, body, leadId: claimedLead.id,
       replyToInboundAt: String(job.payload?.receivedAt || lead.lastInboundAt || ''),
       notes: `One-time feedback request sent after moved-on reply: ${previewText(inboundMessage, 220)}`,
-    })
+    }) } catch (error) {
+      const latest = await getSalesLeadForUpdate(claimedLead.id)
+      if (latest?.lead.customerFeedback?.requestReservedAt === requestedAt) await saveSalesLead({ ...latest.lead, customerFeedback: { ...latest.lead.customerFeedback, requestDelivery: 'unknown', repNotes: 'Feedback request outcome is unknown. Review the provider before any retry.' } }, latest.updatedAt)
+      throw error
+    }
     const didSend = !sendResult.deduped && !sendResult.result?.blocked
-    const finalLead = didSend ? (sendResult.lead || claimedLead) : claimedLead
+    const delivery = didSend ? 'submitted' : sendResult.result?.blocked ? 'blocked' : 'unknown'
+    const latest = await getSalesLeadForUpdate(claimedLead.id)
+    const finalLead = latest?.lead.customerFeedback?.requestReservedAt === requestedAt
+      ? await saveSalesLead({ ...latest.lead, customerFeedback: { ...latest.lead.customerFeedback, status: didSend ? 'requested' : 'not_requested', requestDelivery: delivery, requestedAt: didSend ? requestedAt : undefined, repNotes: `One-time feedback SMS ${delivery}. Delivery is tracked separately by the provider.` } }, latest.updatedAt)
+      : (latest?.lead || claimedLead)
     if (!didSend && sendResult.result?.blocked) {
       await saveFollowUpLog({
         id: uid('fu'), leadId: claimedLead.id, type: 'note', date: new Date().toISOString(), createdAt: new Date().toISOString(),

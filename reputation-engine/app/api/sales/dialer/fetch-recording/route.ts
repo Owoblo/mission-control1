@@ -1,3 +1,5 @@
+import { getRequestSessionUser } from '@/lib/server/request-session'
+import { canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 /**
  * POST /api/sales/dialer/fetch-recording
  * Fetches the Twilio recording for a given callSid and attaches it to the lead's call log.
@@ -23,7 +25,8 @@ import { uid } from '@/lib/sales'
 
 export async function POST(request: Request) {
   try {
-    if (!(await hasInternalSession())) {
+    const session = await getRequestSessionUser(request)
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -54,6 +57,8 @@ export async function POST(request: Request) {
       }
     }
 
+    if (!lead || !canHandleLeadCommunications(session, lead)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (mapping && mapping.leadId !== lead.id) return NextResponse.json({ error: 'Call belongs to a different customer' }, { status: 403 })
     const existingLog = lead
       ? (lead.callLogs || []).find(entry => {
           const entryRecordingSid = normalizeTwilioRecordingSid(entry.recordingSid)

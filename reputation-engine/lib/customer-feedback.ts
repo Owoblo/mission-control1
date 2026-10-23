@@ -14,6 +14,8 @@ export type CustomerFeedback = {
   context: FeedbackInsight[]
   reviewedAt?: string
   reviewedBy?: string
+  requestReservedAt?: string
+  requestDelivery?: 'reserved' | 'submitted' | 'blocked' | 'unknown'
   requestedAt?: string
 }
 export const emptyFeedback = (): CustomerFeedback => ({ outcome: 'unknown', status: 'not_requested', reason: 'unknown', customerWords: '', sourceId: '', competitor: '', competitorPrice: '', repNotes: '', context: [] })

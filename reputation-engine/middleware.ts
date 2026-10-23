@@ -15,6 +15,7 @@ const PUBLIC_API_PATHS = new Set([
   '/api/sales/inbox/email-inbound',
   // AWS SNS authenticates inside the handler using its signed envelope.
   '/api/sales/inbox/ses-inbound',
+  '/api/marketing/email-events/ses',
   '/api/sales/operations/sms',
   '/api/sales/operations/twiml',
   '/api/sales/emails/backfill',
@@ -24,10 +25,17 @@ const PUBLIC_API_PATHS = new Set([
   '/api/partners/referral-capture',
 ])
 
-// All Twilio dialer callbacks — Twilio hits these without auth, so the whole prefix is public
+// Only signed provider callbacks are public. Staff tools always require a session.
+const PUBLIC_DIALER_CALLBACKS = new Set([
+  'twiml', 'ivr', 'missed-call', 'voicemail', 'call-status', 'dial-status',
+  'recording-callback', 'conference/events', 'conference/hold',
+].map(name => `/api/sales/dialer/${name}`))
 function isPublicDialerPath(pathname: string) {
-  return pathname.startsWith('/api/sales/dialer/')
+  return PUBLIC_DIALER_CALLBACKS.has(pathname)
 }
+const PARTNERSHIP_DIALER_PATHS = new Set([
+  'token', 'events', 'internal-directory', 'conference', 'transfer', 'transfer-context', 'caller-id',
+].map(name => `/api/sales/dialer/${name}`))
 
 function isPublicMarketingDialerPath(pathname: string) {
   return (
@@ -142,7 +150,7 @@ export async function middleware(request: NextRequest) {
     const operationsPath = pathname.startsWith('/sales/operations') || pathname.startsWith('/api/sales/operations') || pathname.startsWith('/sales/contractors') || pathname.startsWith('/api/sales/subcontractors') || pathname.startsWith('/api/sales/subcontractor-offers') || pathname.startsWith('/sales/partner-operations') || pathname.startsWith('/api/sales/partner-operations') || pathname.startsWith('/sales/partner-simulations') || pathname.startsWith('/api/sales/partner-pilots')
     const operationsLeadMutation = pathname === '/api/sales/playbook' || /^\/api\/sales\/leads\/[^/]+\/(planning|outcome)$/.test(pathname) ||
       (request.method === 'PATCH' && /^\/api\/sales\/leads\/[^/]+$/.test(pathname))
-    const canAccessSales = role === 'owner' || role === 'manager' || role === 'sales_rep' || (role === 'operations_lead' && (operationsPath || operationsLeadMutation))
+    const canAccessSales = role === 'owner' || role === 'manager' || role === 'sales_rep' || (role === 'partnership_manager' && PARTNERSHIP_DIALER_PATHS.has(pathname)) || (role === 'operations_lead' && (operationsPath || operationsLeadMutation))
     if (!canAccessSales) {
       if (pathname.startsWith('/api/')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       return NextResponse.redirect(new URL(role === 'partnership_manager' ? '/marketing/partners?tab=phone' : '/crew/calendar', request.url))

@@ -11,6 +11,7 @@ type TwilioRecordingEntry = {
   media_url?: string
   duration?: string | number
   call_sid?: string
+  status?: string
   date_created?: string
 }
 
@@ -92,7 +93,7 @@ function toRecordingResult(
   accountSid: string,
   recording: TwilioRecordingEntry | null | undefined
 ): TwilioRecordingLookupResult | null {
-  if (!recording) return null
+  if (!recording || ['absent','failed'].includes(recording.status || '')) return null
 
   const recordingSid = normalizeTwilioRecordingSid(recording.sid)
   const fromSid = recordingSid ? buildTwilioRecordingMediaUrl(accountSid, recordingSid) : ''
@@ -162,58 +163,36 @@ export async function getTwilioRecordingBySid({
     auth
   )
 
-  return toRecordingResult(accountSid, recording) || {
-    recordingSid: sid,
-    recordingUrl: buildTwilioRecordingMediaUrl(accountSid, sid),
-  }
+  return toRecordingResult(accountSid, recording)
 }
 
-export async function findTwilioRecordingForCall({
-  accountSid,
-  authToken,
-  callSid,
-  recordingSid,
-}: {
-  accountSid: string
-  authToken: string
-  callSid?: string | null
-  recordingSid?: string | null
-}): Promise<TwilioRecordingLookupResult | null> {
-  const sidMatch = recordingSid ? await getTwilioRecordingBySid({ accountSid, authToken, recordingSid }) : null
-  if (sidMatch) return sidMatch
-
-  const normalizedCallSid = (callSid || '').trim()
-  if (!normalizedCallSid) return null
-
+export async function findTwilioRecordingsForCall({ accountSid, authToken, callSid, recordingSid }: {
+  accountSid: string; authToken: string; callSid?: string | null; recordingSid?: string | null
+}): Promise<TwilioRecordingLookupResult[]> {
+  if (recordingSid) {
+    const recording = await getTwilioRecordingBySid({ accountSid, authToken, recordingSid })
+    return recording ? [recording] : []
+  }
+  const sid = (callSid || '').trim()
+  if (!/^CA[0-9a-f]{32}$/i.test(sid)) return []
   const auth = twilioAuth(accountSid, authToken)
-  const checkedCallSids: Record<string, boolean> = {}
-
-  async function checkCallRecordings(targetCallSid?: string | null) {
-    const target = (targetCallSid || '').trim()
-    if (!target || checkedCallSids[target]) return null
-    checkedCallSids[target] = true
-
-    const recordings = await fetchRecordingsForCall(accountSid, auth, target)
-    return toRecordingResult(accountSid, recordings[0])
+  const call = await fetchCall(accountSid, auth, sid)
+  const root = call?.parent_call_sid || sid
+  const children = await fetchChildCalls(accountSid, auth, root)
+  const callSids = [...new Set([sid, root, ...children.map(child => child.sid)])]
+  const recordings = await Promise.all(callSids.map(target => fetchRecordingsForCall(accountSid, auth, target)))
+  const result = new Map<string, TwilioRecordingLookupResult>()
+  for (const entries of recordings) for (const entry of entries) {
+    const recording = toRecordingResult(accountSid, entry)
+    if (recording) result.set(recording.recordingSid || recording.recordingUrl, recording)
   }
+  return [...result.values()]
+}
 
-  const direct = await checkCallRecordings(normalizedCallSid)
-  if (direct) return direct
-
-  const call = await fetchCall(accountSid, auth, normalizedCallSid)
-  const parentCallSid = call?.parent_call_sid || ''
-  if (parentCallSid) {
-    const parent = await checkCallRecordings(parentCallSid)
-    if (parent) return parent
-  }
-
-  const childCalls = await fetchChildCalls(accountSid, auth, normalizedCallSid)
-  for (const childCall of childCalls) {
-    const child = await checkCallRecordings(childCall.sid)
-    if (child) return child
-  }
-
-  return null
+export async function findTwilioRecordingForCall(input: {
+  accountSid: string; authToken: string; callSid?: string | null; recordingSid?: string | null
+}): Promise<TwilioRecordingLookupResult | null> {
+  return (await findTwilioRecordingsForCall(input))[0] || null
 }
 
 export async function downloadTwilioRecording({

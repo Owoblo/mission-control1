@@ -654,7 +654,8 @@ function PhoneScreen({
           .then(async result => {
             if (result.context) return result;
             await new Promise(resolve => setTimeout(resolve, 400));
-            return loadTransferContext(token, callSidForContext || undefined);
+            const currentSid = call.getSid();
+            return currentSid ? loadTransferContext(token, currentSid) : { context: null };
           })
           .then(result => setTransferContext(result.context))
           .catch(() => setTransferContext(null));

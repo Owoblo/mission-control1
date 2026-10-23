@@ -386,3 +386,5 @@ export function depositReceivedEmail(leadName: string, leadId: string, amount: n
     accentColor: '#0f6a53',
   })
 }
+
+export function getRepAlertRecipients() { return uniqueEmails(NOTIFY_TO) }

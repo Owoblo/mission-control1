@@ -1,3 +1,4 @@
+import { createReservedCheckout } from '@/lib/server/checkout-operation'
 import { NextResponse } from 'next/server'
 import { ensureStripeCustomerForLead } from '@/lib/server/stripe-payments'
 import { getSalesLead, getSalesQuote } from '@/lib/server/sales-repository'
@@ -159,24 +160,7 @@ export async function POST(request: Request) {
     params.set('success_url', safeRedirectUrl(successUrl, `${returnBase}&paid=1`))
     params.set('cancel_url', safeRedirectUrl(cancelUrl, returnBase))
 
-    const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${stripeKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    })
-
-    const session = await stripeResponse.json() as {
-      id?: string
-      url?: string
-      error?: { message?: string }
-    }
-
-    if (!stripeResponse.ok || !session.url) {
-      return NextResponse.json({ error: session.error?.message || 'Stripe session creation failed' }, { status: 502 })
-    }
+    const session = await createReservedCheckout({ quoteId: quote.id, leadId: lead.id, revision: quote.revision || 0, account: stripeAccount.key, stripeKey, deposit: quote.deposit, params })
 
     return NextResponse.json({ url: session.url, sessionId: session.id, stripeAccountKey: stripeAccount.key })
   } catch (err) {

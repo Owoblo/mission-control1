@@ -2771,7 +2771,7 @@ export default function SalesLeadDetailPage() {
     if (!await showConfirm('Charge balance?', `Charge ${formatMoney(chargeAmt)} to the card on file?`, { confirmLabel: 'Charge', destructive: true })) return
     try {
       setChargeBalanceBusy(true)
-      const operationStorageKey = `ssm:charge-balance:${quote.id}`
+      const operationStorageKey = `ssm:charge-balance:${quote.id}:${chargeAmt}`
       const operationId = sessionStorage.getItem(operationStorageKey) || crypto.randomUUID()
       sessionStorage.setItem(operationStorageKey, operationId)
       const r = await fetch('/api/sales/stripe/charge-balance', {

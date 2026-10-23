@@ -1,3 +1,4 @@
+import { completeCheckoutReservation } from '@/lib/server/checkout-operation'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { sendDepositReceipt } from '@/lib/server/deposit-receipts'
@@ -171,6 +172,8 @@ export async function POST(request: Request) {
             void scheduleMoveReminder(targetLeadId)
 
             // Notify the team — deposit paid
+            if (session.metadata?.ssmCheckoutOperationId) await completeCheckoutReservation(session.metadata.ssmCheckoutOperationId, session.id, stripeAccount.key, session.livemode)
+
             if (!receiptAlreadyRecorded) {
               const customerName = lead.name || 'Customer'
               const depositAmt = actualDepositPaid

@@ -1,3 +1,4 @@
+import { withFinancialCommand, persistFinancialProjection } from '@/lib/server/financial-command'
 /**
  * POST /api/sales/stripe/save-payment-method
  * After client-side Stripe Elements confirmation, saves the payment method
@@ -19,7 +20,7 @@ import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
 import type { PaymentRecord } from '@/lib/types'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
 
-export async function POST(request: Request) {
+async function handlePayment(request: Request) {
   const session = await getSessionUser()
 
   try {
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
             recordedBy: session?.name,
             recordedByUserId: session?.userId,
           })
-          updatedQuote = await saveSalesQuote({
+          updatedQuote = {
             ...quote,
             depositPaidAt: now,
             depositPaidAmount: quote.deposit,
@@ -139,9 +140,9 @@ export async function POST(request: Request) {
             depositStripeCardLast4: cardLast4,
             stripeAccountKey: stripeAccount.key,
             paymentRecords: [...(quote.paymentRecords || []), depositPaymentRecord],
-          })
-        } else if (pi.error?.message) {
-          return NextResponse.json({ error: pi.error.message }, { status: 402 })
+          }
+        } else {
+          return NextResponse.json({ error: pi.error?.message || 'Deposit was not completed. Reconcile this operation before retrying.' }, { status: 402 })
         }
       }
     } else if (quoteId) {
@@ -157,13 +158,18 @@ export async function POST(request: Request) {
       }
     }
 
-    const updatedLead = await saveSalesLead({
+    const nextLead = {
       ...lead,
       paymentStatus: depositCharged ? 'deposit_received' : lead.paymentStatus,
       depositAmount: depositCharged ? depositAmount : lead.depositAmount,
       depositMethod: depositCharged ? paymentMethodLabel : lead.depositMethod,
       depositDate: depositCharged ? new Date().toISOString().slice(0, 10) : lead.depositDate,
-    })
+    }
+    let updatedLead: import('@/lib/types').CRMLead = nextLead
+    if (depositCharged && updatedQuote) {
+      const saved = await persistFinancialProjection(updatedQuote, nextLead)
+      updatedQuote = saved.quote; updatedLead = saved.lead
+    } else { updatedLead = await saveSalesLead(nextLead) }
 
     if (quote && updatedQuote) {
       await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
@@ -257,4 +263,8 @@ export async function POST(request: Request) {
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Save failed' }, { status: stripeErrorStatus(err) })
   }
+}
+
+export async function POST(request: Request) {
+  return withFinancialCommand(request, 'save-payment-method', handlePayment)
 }

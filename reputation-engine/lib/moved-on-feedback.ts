@@ -10,7 +10,7 @@ export function detectLostFeedbackDetail(message?: string): boolean {
   const text = message.trim()
   if (!text) return false
   if (/\b(price|expensive|cheaper|cheap|cost|quote|deal|discount|timing|availability|available|date|schedule|trust|review|referral|friend|family|service|response|responsiveness|responsive|faster|follow[- ]?up|deposit|insurance|licensed|cash|ancient|u-?haul|two men|amj|metropolitan|atlas|allied|northstar|better)\b/i.test(text)) return true
-  return /\b(went with|booked with|hired|chose|picked|decided|too high|lower rate|better rate|someone else|another one)\b/i.test(text)
+  return /\b(because|due to|too high|lower rate|better rate|moving (?:was |is )?cancelled|move (?:was |is )?cancelled|doing it (?:myself|ourselves))\b/i.test(text)
 }
 
 export function shouldRequestMovedOnFeedback(input: {
@@ -24,7 +24,7 @@ export function shouldRequestMovedOnFeedback(input: {
   const feedback = input.feedback
   return Boolean(
     !input.booked && !input.doNotContact && !input.optedOut && !input.alreadyAsked &&
-    !feedback?.requestedAt && !['requested', 'received', 'declined'].includes(feedback?.status || '') &&
+    !feedback?.requestReservedAt && !feedback?.requestedAt && !['requested', 'received', 'declined'].includes(feedback?.status || '') &&
     detectMovedOnIntent(input.message) && !detectLostFeedbackDetail(input.message)
   )
 }

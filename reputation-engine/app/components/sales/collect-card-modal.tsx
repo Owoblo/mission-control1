@@ -1,5 +1,6 @@
 'use client'
 
+import { paymentOperationId } from '@/lib/payment-operation-id'
 import { useEffect, useMemo, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -71,6 +72,7 @@ function CardForm({ lead, quote, onClose, onSuccess, setup }: Omit<Props, 'open'
         body: JSON.stringify({
           leadId: lead.id,
           quoteId: quote?.id,
+          operationId: paymentOperationId(`save:${quote?.id}:${setupIntentId}`),
           setupIntentId,
           customerId,
           chargeDepositNow: chargeNow && !!quote,

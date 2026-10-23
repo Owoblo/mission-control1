@@ -1,3 +1,4 @@
+import { hydrateLeadRecordings } from '@/lib/server/lead-recording-links'
 import { closeFollowUpOnRecordedLoss } from '@/lib/follow-up-radar'
 import { loadLinkedMovePlan } from '@/lib/server/linked-move-plan'
 import { listTasks } from '@/lib/server/task-repository'
@@ -315,7 +316,8 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    return NextResponse.json(lead)
+    const hydrated = await hydrateLeadRecordings(lead).catch(error => { console.error('Recording archive hydration failed', { leadId: lead.id, error: String(error) }); return lead })
+    return NextResponse.json(hydrated)
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load lead' },
