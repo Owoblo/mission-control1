@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { writeFileSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()
+execFileSync('git', ['fetch', 'origin', 'master'], { stdio: 'inherit' })
 execFileSync(process.execPath, ['scripts/check-release-contracts.mjs', '--tracked'], { stdio: 'inherit' })
 if (git('status','--porcelain','--untracked-files=normal')) throw new Error('Commit the reviewed release files before deploying. Use a clean checkout based on current master.')
 const root = git('rev-parse','--show-toplevel')
