@@ -1,3 +1,4 @@
+import { verifyOwnedActiveCall, assertOwnedLiveLeg, readTwilioCall } from '@/lib/server/dialer-access'
 import { isTelnyxNumber } from '@/lib/telephony-providers'
 import { requireEnv } from '@/lib/server/runtime'
 import { getAppBaseUrl, getTwilioCredentials } from '@/lib/server/runtime'
@@ -175,7 +176,7 @@ async function handleStartConference(body: StartConferenceBody, session: Awaited
   }
 
   const { accountSid, authToken } = getTwilioCredentials()
-  const legs = await resolveActiveCallLegs(accountSid, authToken, activeCallSid)
+  const legs = await verifyOwnedActiveCall(activeCallSid, session!)
   const conferenceName = makeConferenceName(legs.rootCallSid)
   const callerId = pickSaturnBranchPhoneNumber(body.callerId)
 
@@ -274,12 +275,20 @@ async function handleStartConference(body: StartConferenceBody, session: Awaited
   })
 }
 
-async function handleUpdateConference(body: UpdateConferenceBody) {
+async function handleUpdateConference(body: UpdateConferenceBody, session: NonNullable<Awaited<ReturnType<typeof getRequestSessionUser>>>) {
   const { accountSid, authToken } = getTwilioCredentials()
   const action = body.action
   if (!body.conferenceName || !isSafeConferenceName(body.conferenceName)) {
     return Response.json({ error: 'A valid conferenceName is required' }, { status: 400 })
   }
+
+  const conferenceSid = await findConferenceSid(accountSid, authToken, body.conferenceName)
+  const participants = await twilioRequest(accountSid, authToken, `/Conferences/${conferenceSid}/Participants.json?PageSize=50`) as { participants?: Array<{ call_sid: string }> }
+  const members = new Set((participants.participants || []).map(item => item.call_sid))
+  const requested = [body.customerCallSid, body.repCallSid, body.targetCallSid].filter(Boolean) as string[]
+  if (requested.some(sid => !members.has(sid))) return Response.json({ error: 'Call is not in this conference' }, { status: 403 })
+  const calls = await Promise.all([...members].map(sid => readTwilioCall(`/Calls/${sid}.json`) as Promise<TwilioCallLeg>))
+  assertOwnedLiveLeg(calls, session)
 
   if (action === 'hold' || action === 'resume') {
     if (!body.customerCallSid) {
@@ -351,7 +360,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getRequestSessionUser(request)
-  if (!session || !['owner', 'manager', 'sales_rep', 'partnership_manager'].includes(session.role || '')) {
+  if (!session?.userId || !['owner', 'manager', 'sales_rep', 'partnership_manager'].includes(session.role || '')) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -359,7 +368,7 @@ export async function POST(request: Request) {
     const body = await request.json() as ConferenceRequestBody
     return (body.action || 'start') === 'start'
       ? handleStartConference(body as StartConferenceBody, session)
-      : handleUpdateConference(body as UpdateConferenceBody)
+      : handleUpdateConference(body as UpdateConferenceBody, session)
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : 'Conference call control failed' },

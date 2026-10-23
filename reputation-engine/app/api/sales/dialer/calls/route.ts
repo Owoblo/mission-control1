@@ -1,3 +1,4 @@
+import { canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import { NextResponse } from 'next/server'
 import { getSalesLead, saveCrmCallSidMapping, saveSalesLead, setInboundLeadHandoff, updateLeadCallLogEntry } from '@/lib/server/sales-repository'
 import { getSessionUser } from '@/lib/server/session'
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
+    if (!canHandleLeadCommunications(sessionUser, lead)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     const durationSeconds = Math.max(0, Number(payload.durationSeconds || 0))
     const callLogId = uid('cl')
     const answered = payload.answered !== false && durationSeconds > 0

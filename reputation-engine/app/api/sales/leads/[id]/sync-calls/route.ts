@@ -1,225 +1,89 @@
-/**
- * POST /api/sales/leads/[id]/sync-calls
- * Fetches recent Twilio calls for this lead's phone number and logs any unmapped ones.
- * Explicit backfill action for missing/legacy call history. New calls should arrive via Twilio webhooks.
- */
-export const maxDuration = 60
-
 import { NextResponse } from 'next/server'
-import {
-  getCrmCallSidMapping,
-  getSalesLead,
-  saveCrmCallSidMapping,
-  saveSalesLead,
-  updateLeadCallLogEntry,
-} from '@/lib/server/sales-repository'
-import { isSaturnBranchPhoneNumber, normalizePhone } from '@/lib/sales-phones'
+import { getRequestSessionUser } from '@/lib/server/request-session'
+import { canHandleLeadCommunications } from '@/lib/server/sales-permissions'
+import { getSalesLead, getSalesLeadForUpdate, getCrmCallSidMapping, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
+import { hydrateLeadRecordings } from '@/lib/server/lead-recording-links'
+import { getCallRecordingBySid, recordingPlaybackReference } from '@/lib/server/call-recordings'
+import { mergeCallLogs } from '@/lib/call-recording-links'
+import { normalizePhone } from '@/lib/sales-phones'
+import { groupTwilioCallsByPhone, twilioPhoneFilters } from '@/lib/twilio-call-matching'
 import { getTwilioCredentials } from '@/lib/server/runtime'
-import { findTwilioRecordingForCall, twilioAuth } from '@/lib/server/twilio-recordings'
+import { findTwilioRecordingsForCall, twilioAuth } from '@/lib/server/twilio-recordings'
 import { archiveTwilioRecording } from '@/lib/server/recording-archive'
-import { uid } from '@/lib/sales'
-function formatDuration(s: number) {
-  const m = Math.floor(s / 60)
-  return m > 0 ? `${m}m ${s % 60}s` : `${s}s`
-}
-interface TwilioCall {
-  sid: string
-  from: string
-  to: string
-  status: string
-  direction: string
-  duration: string
-  start_time: string
-}
-
-async function readTwilioCalls(result: PromiseSettledResult<Response>): Promise<TwilioCall[]> {
-  if (result.status !== 'fulfilled' || !result.value.ok) return []
-
-  try {
-    const payload = await result.value.json() as { calls?: TwilioCall[] }
-    return payload.calls || []
-  } catch {
-    return []
+import type { CallLogEntry } from '@/lib/types'
+export const maxDuration = 300
+interface TwilioCall { sid: string; parent_call_sid?: string; from: string; to: string; status: string; direction: string; duration: string; start_time: string }
+async function readTwilioCalls(accountSid: string, auth: string, field: 'From' | 'To', value: string) {
+  const calls: TwilioCall[] = []
+  let url: string | null = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json?${new URLSearchParams({ [field]: value, Status: 'completed', PageSize: '100' })}`
+  let pages = 0
+  while (url && pages < 100) {
+    const response = await fetch(url, { headers: { Authorization: auth }, signal: AbortSignal.timeout(12_000) })
+    if (!response.ok) throw new Error(`Twilio call lookup failed (${response.status})`)
+    const payload = await response.json() as { calls?: TwilioCall[]; next_page_uri?: string | null }
+    calls.push(...(payload.calls || []))
+    url = payload.next_page_uri ? `https://api.twilio.com${payload.next_page_uri}` : null
+    pages += 1
   }
+  return { calls, truncated: !!url }
 }
 
-export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
-  try {
-    const lead = await getSalesLead(params.id)
-    if (!lead?.phone) return NextResponse.json({ ok: true, synced: 0 })
 
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const { id } = await props.params
+  const session = await getRequestSessionUser(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const lead = await getSalesLead(id)
+    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!canHandleLeadCommunications(session, lead)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!lead.phone) return NextResponse.json({ ok: true, synced: 0, lead })
+    let saved = await hydrateLeadRecordings(lead)
     const { accountSid, authToken } = getTwilioCredentials()
-    const auth = twilioAuth(accountSid, authToken)
     const phone = normalizePhone(lead.phone)
-    const enc = encodeURIComponent(phone)
-
-    // Look back 90 days so calls from any rep are captured regardless of when the lead was opened.
-    // PageSize=50 per direction (100 total) is well above any real-world call volume per lead.
-    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-    const cutoffEnc = encodeURIComponent(cutoff)
-
-    const [toRes, fromRes] = await Promise.allSettled([
-      fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json?To=${enc}&Status=completed&PageSize=50&StartTime%3E=${cutoffEnc}`, { headers: { Authorization: auth } }),
-      fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json?From=${enc}&Status=completed&PageSize=50&StartTime%3E=${cutoffEnc}`, { headers: { Authorization: auth } }),
-    ])
-
-    const [toCalls, fromCalls] = await Promise.all([
-      readTwilioCalls(toRes),
-      readTwilioCalls(fromRes),
-    ])
-
-    if (toRes.status === 'rejected' && fromRes.status === 'rejected') {
-      return NextResponse.json({
-        ok: true,
-        synced: 0,
-        warning: 'Twilio calls unavailable',
-      })
-    }
-
-    // Deduplicate by SID
-    const allCalls = [...toCalls, ...fromCalls].filter((c, i, arr) => arr.findIndex(x => x.sid === c.sid) === i)
-
+    const auth = twilioAuth(accountSid, authToken)
+    const lookups = await Promise.allSettled(twilioPhoneFilters(phone).map(filter => readTwilioCalls(accountSid, auth, filter.field, filter.value)))
+    const successful = lookups.filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof readTwilioCalls>>> => result.status === 'fulfilled')
+    if (!successful.length) return NextResponse.json({ error: 'Provider call history could not be read. Existing recordings were preserved.' }, { status: 503 })
+    const conversations = groupTwilioCallsByPhone([...new Map(successful.flatMap(result => result.value.calls).map(call => [call.sid, call])).values()], phone)
     let synced = 0
-    let updatedLead = { ...lead }
-
-    for (const call of allCalls) {
-      const durationSec = parseInt(call.duration || '0', 10) || 0
-      if (durationSec < 5) continue
-
-      // Check if already mapped
-      const existing = await getCrmCallSidMapping(call.sid).catch(() => null)
-      if (existing) {
-        if (existing.leadId === params.id) {
-          // Mapped to this lead — patch missing recording URL if needed
-          const existingLog = (updatedLead.callLogs || []).find((c: any) => c.callSid === call.sid)
-          if (existingLog && !(existingLog as any).recordingUrl) {
-            const recording = await findTwilioRecordingForCall({ accountSid, authToken, callSid: call.sid })
-            if (recording) {
-              const archived = await archiveTwilioRecording({
-                accountSid,
-                authToken,
-                callSid: call.sid,
-                recordingUrl: recording.recordingUrl,
-                recordingSid: recording.recordingSid,
-                durationSeconds: recording.durationSeconds,
-                leadId: existing.leadId,
-                callLogId: existing.callLogId,
-                phoneNumber: existingLog.phone || lead.phone,
-                city: lead.branch || lead.originCity,
-                createdAt: existingLog.date,
-              }).catch(() => null)
-              const recNote = ' Recording available.'
-              await updateLeadCallLogEntry(existing.leadId, existing.callLogId, {
-                recordingUrl: archived?.recordingUrl || recording.recordingUrl,
-                recordingSid: recording.recordingSid,
-                recordingDuration: recording.durationSeconds,
-                recordingStatus: archived ? 'verified' : undefined,
-                recordingSize: archived?.sizeBytes,
-                recordingContentType: archived?.contentType,
-                storageProvider: archived?.storageProvider,
-                cloudflareObjectKey: archived?.objectKey,
-                cloudflareUrl: archived?.recordingUrl,
-                notes: ((existingLog as any).notes || '').endsWith('.')
-                  ? ((existingLog as any).notes || '') + recNote
-                  : (existingLog as any).notes,
-              }).catch(() => {})
-              updatedLead = { ...updatedLead }
-              synced++
-            }
-          }
-        } else {
-          // Mapped to a different lead — check if that lead is a phantom Unknown Caller
-          // created because the original phone match failed. If so, re-attribute here.
-          const otherLead = await getSalesLead(existing.leadId).catch(() => null)
-          const isPhantom = otherLead &&
-            ['Unknown Caller', 'New Caller', 'New Contact'].includes(otherLead.name || '') &&
-            !otherLead.email &&
-            (otherLead.callLogs?.length ?? 0) <= 2
-
-          if (!isPhantom) {
-            continue // Legitimately mapped to another lead, skip
-          }
-          // Re-attribute: pull this call into the current (real) lead
-          // The callSid mapping will be updated below after we add the log
-        }
+    async function persist(entries: CallLogEntry[]) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const current = await getSalesLeadForUpdate(id)
+        if (!current) throw new Error('Lead no longer available')
+        try { return await saveSalesLead({ ...current.lead, callLogs: mergeCallLogs(current.lead.callLogs || [], entries) }, current.updatedAt) }
+        catch (error) { if (attempt === 2) throw error }
       }
-
-      // Skip duplicate already in this lead's call logs (unless it was a phantom re-attribution)
-      const alreadyInThisLead = (updatedLead.callLogs || []).some((c: any) => c.callSid === call.sid)
-      if (alreadyInThisLead) continue
-
-      // Skip our own number on both ends (internal calls)
-      const isOutbound = call.direction === 'outbound-api' || call.direction === 'outbound-dial' ||
-        isSaturnBranchPhoneNumber(call.from)
-      const externalPhone = isOutbound ? call.to : call.from
-      if (!externalPhone || isSaturnBranchPhoneNumber(externalPhone) || externalPhone.startsWith('client:') || externalPhone.startsWith('sip:')) continue
-
-      // Fetch recording across direct, parent, and child call legs.
-      const recording = await findTwilioRecordingForCall({ accountSid, authToken, callSid: call.sid })
-      const archived = recording ? await archiveTwilioRecording({
-        accountSid,
-        authToken,
-        callSid: call.sid,
-        recordingUrl: recording.recordingUrl,
-        recordingSid: recording.recordingSid,
-        durationSeconds: recording.durationSeconds,
-        leadId: lead.id,
-        phoneNumber: normalizePhone(externalPhone),
-        city: lead.branch || lead.originCity,
-        createdAt: call.start_time,
-      }).catch(() => null) : null
-      const recordingUrl = archived?.recordingUrl || recording?.recordingUrl
-
-      const callLogId = uid('cl')
-      const dirLabel = isOutbound ? 'Outbound' : 'Inbound'
-      const recNote = recordingUrl ? ' Recording available.' : ''
-
-      const newLog = {
-        id: callLogId,
-        type: 'call' as const,
-        notes: `${dirLabel} call ${isOutbound ? 'to' : 'from'} ${normalizePhone(externalPhone)} — ${formatDuration(durationSec)}.${recNote}`,
-        date: new Date(call.start_time).toISOString(),
-        phone: normalizePhone(externalPhone),
-        duration: formatDuration(durationSec),
-        durationSeconds: durationSec,
-        callSid: call.sid,
-        direction: isOutbound ? 'outbound' : 'inbound',
-        recordingUrl,
-        recordingSid: recording?.recordingSid,
-        recordingDuration: recording?.durationSeconds,
-        recordingStatus: archived ? 'verified' : undefined,
-        recordingSize: archived?.sizeBytes,
-        recordingContentType: archived?.contentType,
-        storageProvider: archived?.storageProvider,
-        cloudflareObjectKey: archived?.objectKey,
-        cloudflareUrl: archived?.recordingUrl,
-        source: 'manual' as const,
-      }
-
-      updatedLead = {
-        ...updatedLead,
-        stage: updatedLead.stage === 'new' || updatedLead.stage === 'nurture' ? 'contacted' : updatedLead.stage,
-        callLogs: [newLog as any, ...(updatedLead.callLogs || [])],
-      }
-      synced++
+      throw new Error('Lead changed during recording recovery')
     }
-
-    if (synced > 0) {
-      // Only save if we added new logs (patches to existing logs were already saved inline)
-      const hasNewLogs = (updatedLead.callLogs || []).length > (lead.callLogs || []).length
-      const saved = hasNewLogs ? await saveSalesLead(updatedLead) : (await getSalesLead(params.id)) ?? updatedLead
-      // Create callSid mappings for any new logs
-      if (hasNewLogs) {
-        for (const log of (saved.callLogs || []).filter((c: any) => (c as any).callSid)) {
-          await saveCrmCallSidMapping((log as any).callSid, saved.id, log.id).catch(() => {})
-        }
+    // Recover archive references before provider lookups. Archived audio can
+    // outlive Twilio retention and must never disappear with a provider 404.
+    saved = await persist(saved.callLogs || [])
+    for (const conversation of conversations) {
+      const call = conversation.call
+      const mappings = await Promise.all(conversation.callSids.map(sid => getCrmCallSidMapping(sid)))
+      if (mappings.some(mapping => mapping && mapping.leadId !== id)) continue
+      const matching = (saved.callLogs || []).filter(log => conversation.callSids.includes(log.callSid || ''))
+      const isInbound = normalizePhone(call.from) === phone
+      const direction = isInbound ? 'inbound' : 'outbound'
+      const duration = Number(call.duration || 0)
+      const found = await findTwilioRecordingsForCall({ accountSid, authToken, callSid: call.sid })
+      const entries: CallLogEntry[] = []
+      for (const recording of found) {
+        const existing = matching.find(log => log.recordingSid === recording.recordingSid) || matching.find(log => !log.recordingSid)
+        const logId = existing?.id || `cl_recording_${recording.recordingSid || call.sid}`
+        const stored = recording.recordingSid ? await getCallRecordingBySid(recording.recordingSid) : null
+        if (stored?.lead_id && stored.lead_id !== id) continue
+        const archived = stored?.cloudflare_object_key ? null : await archiveTwilioRecording({ accountSid, authToken, callSid: recording.callSid || call.sid, recordingSid: recording.recordingSid, recordingUrl: recording.recordingUrl, durationSeconds: recording.durationSeconds, leadId: id, callLogId: logId, phoneNumber: phone, city: lead.branch || lead.originCity, createdAt: call.start_time }).catch(() => null)
+        entries.push({ ...existing, id: logId, type: 'call', date: existing?.date || new Date(call.start_time).toISOString(), notes: existing?.notes || `${isInbound ? 'Inbound' : 'Outbound'} call — recording recovered.`, callSid: existing?.callSid || call.sid, phone, direction, source: existing?.source || 'manual', duration: existing?.duration || `${Math.floor((recording.durationSeconds || duration) / 60)}m ${(recording.durationSeconds || duration) % 60}s`, recordingSid: recording.recordingSid, recordingUrl: archived?.recordingUrl || recordingPlaybackReference(stored?.cloudflare_object_key) || recording.recordingUrl, recordingStatus: archived ? 'verified' : stored?.recording_status, recordingUnavailable: false, transcript: existing?.transcript || stored?.transcript || undefined })
       }
-      return NextResponse.json({ ok: true, synced, lead: saved })
+      if (!found.length && !matching.length) entries.push({ id: `cl_call_${call.sid}`, type: 'call', date: new Date(call.start_time).toISOString(), notes: `${isInbound ? 'Inbound' : 'Outbound'} call — ${call.status}.`, phone, callSid: call.sid, direction, source: 'manual', duration: duration ? `${Math.floor(duration / 60)}m ${duration % 60}s` : undefined })
+      if (entries.length) { saved = await persist(entries); synced += entries.length }
+      const mappedLog = entries[0] || matching[0]
+      // Mapping only follows a committed timeline entry. Retry repairs missing
+      // mappings without creating another call or losing archived recordings.
+      if (mappedLog) for (const sid of conversation.callSids) await saveCrmCallSidMapping(sid, id, mappedLog.id)
     }
-
-    return NextResponse.json({ ok: true, synced: 0 })
-  } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Failed' }, { status: 500 })
-  }
+    return NextResponse.json({ ok: true, synced, lead: saved, truncated: successful.some(result => result.value.truncated), partialLookup: successful.length !== lookups.length })
+  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Call recovery failed' }, { status: 500 }) }
 }

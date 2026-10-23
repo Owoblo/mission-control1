@@ -1,0 +1,43 @@
+name: CRM integrity
+on:
+  pull_request:
+    paths: ['reputation-engine/**', '.github/workflows/crm-integrity.yml', '.vercelignore']
+  push:
+    branches: [master]
+    paths: ['reputation-engine/**', '.github/workflows/crm-integrity.yml', '.vercelignore']
+permissions:
+  contents: read
+jobs:
+  web-and-database:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reputation-engine
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: reputation-engine/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:logic
+      - run: npm run test:crm-remediation
+      - run: npm run test:partner-handoff-db
+      - run: npm audit --omit=dev --audit-level=moderate
+      - run: npm run build
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reputation-engine/mobile
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: reputation-engine/mobile/package-lock.json
+      - run: npm ci
+      - run: npm test -- --runInBand

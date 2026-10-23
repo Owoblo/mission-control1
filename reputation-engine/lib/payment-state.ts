@@ -22,13 +22,22 @@ export function deriveMoneyState(quote?: CRMQuote | null, lead?: CRMLead | null)
   const recordedGross = records.reduce((sum, record) => sum + Math.max(0, Number(record.amount || 0)), 0)
   const refunded = records.reduce((sum, record) => sum + (record.status === 'refunded' ? Math.max(0, Number(record.amount || 0)) : Math.max(0, Number(record.refundedAmount || 0))), 0)
   const capturedFromRecords = records.reduce((sum, record) => sum + capturedAmount(record), 0)
-  const legacyCaptured = Math.max(0, Number(quote?.depositPaidAmount || 0) + Number(quote?.balancePaidAmount || 0), lead?.paymentStatus && lead.paymentStatus !== 'pending' ? Number(lead.depositAmount || 0) : 0)
-  const captured = records.length ? capturedFromRecords : legacyCaptured
+  const legacyDeposit = Math.max(0, Number(quote?.depositPaidAmount || 0), lead?.paymentStatus && lead.paymentStatus !== 'pending' ? Number(lead.depositAmount || 0) : 0)
+  const legacyBalance = Math.max(0, Number(quote?.balancePaidAmount || 0))
+  // Compare legacy totals with gross ledger value, so a refunded receipt cannot
+  // resurrect the old paid flag. A new balance receipt must also retain an
+  // earlier deposit that has not yet been migrated into the receipt ledger.
+  const depositGross = records.filter(record => record.kind === 'deposit').reduce((sum, record) => sum + Math.max(0, Number(record.amount || 0)), 0)
+  const balanceGross = records.filter(record => record.kind !== 'deposit').reduce((sum, record) => sum + Math.max(0, Number(record.amount || 0)), 0)
+  const earlierDeposit = Math.max(0, legacyDeposit - depositGross)
+  const earlierBalance = Math.max(0, legacyBalance - balanceGross)
+  const captured = capturedFromRecords + earlierDeposit + earlierBalance
   const netPaid = Math.max(0, captured)
   const balance = Math.max(0, Math.round((total - netPaid) * 100) / 100)
   const expectedLeadStatus = balance <= 0 && total > 0 ? 'paid_in_full' : netPaid > 0 ? 'deposit_received' : 'pending'
   const staleLeadStatus = Boolean(lead?.paymentStatus && lead.paymentStatus !== expectedLeadStatus)
 
+  if ((earlierDeposit > 0 || earlierBalance > 0) && !quote?.depositStripePaymentIntentId && !quote?.depositStripeSessionId) return { status: 'reconciliation_required', label: 'Confirm earlier payment', total, captured, refunded, netPaid, balance, explanation: `An earlier ${lead?.depositMethod || quote?.depositPaidMethod || 'payment'} entry records ${(earlierDeposit + earlierBalance).toFixed(2)}. No payment receipt is linked here. Verify receipt of funds with the payment source.`, requiresAttention: true }
   if (staleLeadStatus) return { status: 'reconciliation_required', label: 'Reconciliation required', total, captured, refunded, netPaid, balance, explanation: `Recorded transactions indicate ${expectedLeadStatus.replaceAll('_', ' ')}, but the lead is marked ${lead?.paymentStatus?.replaceAll('_', ' ')}.`, requiresAttention: true }
   if (refunded > 0 && netPaid <= 0) return { status: 'refunded', label: 'Refunded', total, captured: recordedGross, refunded, netPaid, balance, explanation: 'All recorded payment value has been refunded.', requiresAttention: false }
   if (refunded > 0) return { status: 'partially_refunded', label: 'Partially refunded', total, captured: recordedGross, refunded, netPaid, balance, explanation: `${refunded.toFixed(2)} has been refunded; ${netPaid.toFixed(2)} remains paid.`, requiresAttention: true }

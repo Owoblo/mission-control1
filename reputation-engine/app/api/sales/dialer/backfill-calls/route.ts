@@ -1,3 +1,4 @@
+import { getRequestSessionUser } from '@/lib/server/request-session'
 /**
  * POST /api/sales/dialer/backfill-calls
  * Fetches all Twilio call logs + recordings and maps them into the CRM pipeline.
@@ -58,7 +59,12 @@ async function fetchTwilioCalls(
   return calls
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const session = await getRequestSessionUser(request)
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.role !== 'owner' && !(session.role === 'manager' && !session.branch)) {
+    return NextResponse.json({ error: 'Global manager access required' }, { status: 403 })
+  }
   try {
     const { accountSid, authToken } = getTwilioCredentials()
 

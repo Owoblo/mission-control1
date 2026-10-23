@@ -1,3 +1,4 @@
+import type { InternalAlert } from './alert-outbox'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { requireSupabaseEnv } from './runtime'
 import { buildContractorScope, type ContractorScope } from '../contractor-scope-review'
@@ -11,8 +12,13 @@ export async function scopeLead(id: string) {
   if (!response.ok) throw Error('Could not load job')
   return (await response.json() as { id: string; data: ScopeLead; updated_at: string }[])[0] || null
 }
-export async function saveScopeReviews(row: NonNullable<Awaited<ReturnType<typeof scopeLead>>>, reviews: ScopeReview[]) {
+export async function saveScopeReviews(row: NonNullable<Awaited<ReturnType<typeof scopeLead>>>, reviews: ScopeReview[], alert?: { eventKey: string; payload: InternalAlert }) {
   const { url, headers } = requireSupabaseEnv()
+  if (alert) {
+    const response = await fetch(`${url}/rest/v1/rpc/save_scope_reviews_with_alert`, { method: 'POST', headers, body: JSON.stringify({ p_lead: row.id, p_updated: row.updated_at, p_reviews: reviews, p_event: alert.eventKey, p_payload: alert.payload }) })
+    if (!response.ok) throw Error('The job changed or its notification could not be saved. Refresh and try again.')
+    return
+  }
   const response = await fetch(`${url}/rest/v1/crm_leads?${new URLSearchParams({ id: `eq.${row.id}`, deleted: 'eq.false', updated_at: `eq.${row.updated_at}` })}`, { method: 'PATCH', headers: { ...headers, Prefer: 'return=representation' }, body: JSON.stringify({ data: { ...row.data, contractorScopeReviews: reviews }, updated_at: new Date().toISOString() }) })
   if (!response.ok || !(await response.json()).length) throw Error('The job changed. Refresh and try again.')
 }

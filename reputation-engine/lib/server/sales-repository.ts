@@ -1511,8 +1511,11 @@ export async function updateLeadCallLogEntry(
   callLogId: string,
   updates: Partial<import('@/lib/types').CallLogEntry>
 ) {
-  const lead = await getSalesLead(leadId)
-  if (!lead) throw new Error(`Lead ${leadId} not found`)
+  for (let attempt = 0; attempt < 3; attempt++) {
+  const current = await getSalesLeadForUpdate(leadId)
+  if (!current) throw new Error(`Lead ${leadId} not found`)
+  const lead = current.lead
+  if (!(lead.callLogs || []).some(entry => entry.id === callLogId)) throw new Error('The mapped call log is missing; recover its archive reference before updating it.')
 
   const normalizedUpdates = { ...updates }
   if (updates.recordingUrl || updates.recordingSid || updates.transcript) {
@@ -1535,7 +1538,10 @@ export async function updateLeadCallLogEntry(
     return { ...entry, ...normalizedUpdates, notes }
   })
 
-  return saveSalesLead({ ...lead, callLogs: updatedCallLogs })
+  try { return await saveSalesLead({ ...lead, callLogs: updatedCallLogs }, current.updatedAt) }
+  catch (error) { if (attempt === 2) throw error }
+  }
+  throw new Error('Call log changed during update')
 }
 
 export async function saveCrmCallSidMapping(callSid: string, leadId: string, callLogId: string) {

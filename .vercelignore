@@ -5,3 +5,17 @@ reputation-engine/.tmp*
 reputation-engine/.env*
 reputation-engine/*.tsbuildinfo
 **/.env*.local
+
+.git
+.vercel
+Downloads
+random
+starmovers-partner-worker
+*.docx
+partnership-inbound-webhooks-*.csv
+partnership-inbound-webhooks-*.json
+reputation-engine/mobile
+reputation-engine/artifacts
+reputation-engine/docs/audits
+reputation-engine/partnership-system
+reputation-engine/tests

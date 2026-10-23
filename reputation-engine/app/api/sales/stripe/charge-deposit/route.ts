@@ -1,3 +1,4 @@
+import { withFinancialCommand, persistFinancialProjection } from '@/lib/server/financial-command'
 import { NextResponse } from 'next/server'
 import { recordLeadPaymentAudit, recordQuoteUpdatedAudit } from '@/lib/server/sales-audit'
 import { canHandleLeadPayments } from '@/lib/server/sales-permissions'
@@ -13,7 +14,7 @@ import { getReceiptBrand } from '@/lib/receipt-brand'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 import { buildDepositConfirmationSms } from '@/lib/deposit-confirmation'
 
-export async function POST(request: Request) {
+async function handlePayment(request: Request) {
   const session = await getSessionUser()
 
   try {
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString()
     const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: 'deposit', method: cardFunding === 'debit' ? 'debit' : 'credit_card', methodLabel: paymentMethodLabel, cardBrand, cardFunding, paidAt: now, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
-    let updatedQuote = await saveSalesQuote({
+    const nextQuote: import('@/lib/types').CRMQuote = {
       ...quote,
       depositPaidAt: now,
       depositPaidAmount: chargeAmount,
@@ -107,15 +108,16 @@ export async function POST(request: Request) {
       depositStripeCardLast4: cardLast4 || quote.depositStripeCardLast4,
       stripeAccountKey: stripeAccount.key,
       paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
-    })
+    }
 
-    const updatedLead = await saveSalesLead({
+    const nextLead: import('@/lib/types').CRMLead = {
       ...lead,
       paymentStatus: chargeAmount >= quote.total ? 'paid_in_full' : 'deposit_received',
       depositAmount: chargeAmount,
       depositMethod: paymentMethodLabel,
       depositDate: now.slice(0, 10),
-    })
+    }
+    let { quote: updatedQuote, lead: updatedLead } = await persistFinancialProjection(nextQuote, nextLead)
 
     await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
     await recordLeadPaymentAudit({
@@ -212,4 +214,8 @@ export async function POST(request: Request) {
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Charge failed' }, { status: stripeErrorStatus(err) })
   }
+}
+
+export async function POST(request: Request) {
+  return withFinancialCommand(request, 'charge-deposit', handlePayment)
 }

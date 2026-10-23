@@ -1,3 +1,4 @@
+import { withFinancialCommand, persistFinancialProjection } from '@/lib/server/financial-command'
 /**
  * POST /api/sales/stripe/charge-balance
  * Charges the saved card for the remaining balance after job completion.
@@ -14,7 +15,7 @@ import { getSessionUser } from '@/lib/server/session'
 import { sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { appendStripeAccountMetadata, assertQuoteStripeAccount, requireStripeAccountForLead, stripeErrorStatus } from '@/lib/server/stripe-accounts'
 
-export async function POST(request: Request) {
+async function handlePayment(request: Request) {
   const session = await getSessionUser()
 
   try {
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
       )
     }
 
-    const chargeAmount = amountOverride ?? quote.balance
+    const beforePayment = getQuotePaidSoFar(quote, lead)
+    const chargeAmount = amountOverride ?? Math.max(0, Math.round((quote.total - beforePayment.totalPaid) * 100) / 100)
     if (!chargeAmount || chargeAmount <= 0) {
       return NextResponse.json({ error: 'Balance amount is zero — nothing to charge.' }, { status: 400 })
     }
@@ -96,7 +98,7 @@ export async function POST(request: Request) {
     const paidAt = new Date().toISOString()
     const { cardBrand, cardLast4, cardFunding } = await fetchStripeCardSummary(stripeKey, paymentMethodId)
     const paymentRecord = buildPaymentRecord({ quote, lead, amount: chargeAmount, kind: nextBalance <= 0 ? 'final' : 'balance', method: cardFunding === 'debit' ? 'debit' : 'credit_card', methodLabel: formatStripeCardPaymentLabel(cardBrand, cardFunding), cardBrand, cardFunding, paidAt, reference: pi.id, cardLast4, recordedBy: session?.name, recordedByUserId: session?.userId })
-    const updatedQuote = await saveSalesQuote({
+    const nextQuote: import('@/lib/types').CRMQuote = {
       ...quote,
       balance: nextBalance,
       balancePaidAt: paidAt,
@@ -106,12 +108,13 @@ export async function POST(request: Request) {
       balanceAuthorizationCapturedAt: authorizationLive ? paidAt : quote.balanceAuthorizationCapturedAt,
       stripeAccountKey: stripeAccount.key,
       paymentRecords: [...(quote.paymentRecords || []), paymentRecord],
-    })
+    }
 
-    const updatedLead = await saveSalesLead({
+    const nextLead: import('@/lib/types').CRMLead = {
       ...lead,
       paymentStatus: nextBalance <= 0 ? 'paid_in_full' : 'deposit_received',
-    })
+    }
+    const { quote: updatedQuote, lead: updatedLead } = await persistFinancialProjection(nextQuote, nextLead)
 
     await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
     await recordLeadPaymentAudit({
@@ -157,4 +160,8 @@ export async function POST(request: Request) {
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Charge failed' }, { status: stripeErrorStatus(err) })
   }
+}
+
+export async function POST(request: Request) {
+  return withFinancialCommand(request, 'charge-balance', handlePayment)
 }

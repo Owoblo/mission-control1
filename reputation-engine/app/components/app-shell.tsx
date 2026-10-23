@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { SessionRecovery } from './session-recovery'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { SalesHeader } from '@/app/components/sales-header'
 import { CrewHeader } from '@/app/components/crew-header'
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (pathname.startsWith('/sales') || pathname.startsWith('/admin') || pathname.startsWith('/marketing')) {
     return (
       <CRMAppFrame>
+        <SessionRecovery />
         <SalesHeader />
         <CRMMainViewport fixed={partnershipInbox}>
           <CRMMainContent flush={partnershipInbox}>
@@ -45,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (pathname.startsWith('/crew')) {
     return (
       <div className="min-h-screen bg-[var(--app-bg)]">
+        <SessionRecovery />
         <CrewHeader />
         <main className="mx-auto max-w-[800px] px-3 py-4 pb-8 md:px-8 md:py-8">
           {children}

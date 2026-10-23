@@ -1,3 +1,4 @@
+import { withFinancialCommand, persistFinancialProjection } from '@/lib/server/financial-command'
 import { NextResponse } from 'next/server'
 import { BALANCE_AUTHORIZATION_CONSENT_VERSION, getOutstandingBalance } from '@/lib/balance-authorization'
 import { buildPaymentRecord } from '@/lib/payment-records'
@@ -11,7 +12,7 @@ import { sendSalesMessage } from '@/lib/server/sales-messaging'
 
 type StripeIntent = { id?: string; status?: string; amount?: number; amount_capturable?: number; amount_received?: number; canceled_at?: number; latest_charge?: { payment_method_details?: { card?: { capture_before?: number } } }; error?: { message?: string } }
 
-export async function POST(request: Request) {
+async function handlePayment(request: Request) {
   const session = await getSessionUser()
   try {
     const body = await request.json() as { leadId?: string; quoteId?: string; action?: 'authorize' | 'increment' | 'capture' | 'cancel'; amount?: number; consentConfirmed?: boolean }
@@ -22,9 +23,11 @@ export async function POST(request: Request) {
     const account = requireStripeAccountForLead(lead); assertQuoteStripeAccount(quote, account.key)
     const paymentMethodId = quote.depositStripePaymentMethodId?.trim(); const customerId = quote.depositStripeCustomerId?.trim()
     const now = new Date().toISOString()
+    let nextLead = lead
     let updatedQuote = quote
 
     if (body.action === 'authorize') {
+      if (['authorized','capture_due'].includes(quote.balanceAuthorizationStatus || '')) return NextResponse.json({ error: 'An active authorization already exists. Increase or cancel it first.' }, { status: 409 })
       if (!paymentMethodId) return NextResponse.json({ error: 'No saved card is available. Collect the customer card first.' }, { status: 409 })
       if (!body.consentConfirmed && !quote.balanceAuthorizationConsentAt) return NextResponse.json({ error: 'Confirm the customer authorization consent before placing the hold.' }, { status: 409 })
       const amount = Math.round(Number(body.amount || getOutstandingBalance(quote, lead)) * 100) / 100
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
       if (intent.status !== 'requires_capture' || !intent.id) return NextResponse.json({ error: intent.error?.message || 'The balance authorization was not approved.' }, { status: 402 })
       const card = await fetchStripeCardSummary(account.secretKey, paymentMethodId)
       const captureBefore = intent.latest_charge?.payment_method_details?.card?.capture_before
-      updatedQuote = await saveSalesQuote({ ...quote, balanceAuthorizationStatus: 'authorized', balanceAuthorizationAmount: amount, balanceAuthorizationPaymentIntentId: intent.id, balanceAuthorizationAuthorizedAt: now, balanceAuthorizationCaptureBefore: captureBefore ? new Date(captureBefore * 1000).toISOString() : undefined, balanceAuthorizationFailure: undefined, balanceAuthorizationCardBrand: card.cardBrand, balanceAuthorizationCardLast4: card.cardLast4, balanceAuthorizationConsentAt: quote.balanceAuthorizationConsentAt || now, balanceAuthorizationConsentVersion: BALANCE_AUTHORIZATION_CONSENT_VERSION, stripeAccountKey: account.key })
+      updatedQuote = { ...quote, balanceAuthorizationStatus: 'authorized', balanceAuthorizationAmount: amount, balanceAuthorizationPaymentIntentId: intent.id, balanceAuthorizationAuthorizedAt: now, balanceAuthorizationCaptureBefore: captureBefore ? new Date(captureBefore * 1000).toISOString() : undefined, balanceAuthorizationFailure: undefined, balanceAuthorizationCardBrand: card.cardBrand, balanceAuthorizationCardLast4: card.cardLast4, balanceAuthorizationConsentAt: quote.balanceAuthorizationConsentAt || now, balanceAuthorizationConsentVersion: BALANCE_AUTHORIZATION_CONSENT_VERSION, stripeAccountKey: account.key }
     } else {
       const intentId = quote.balanceAuthorizationPaymentIntentId
       if (!intentId) return NextResponse.json({ error: 'No active balance authorization exists.' }, { status: 409 })
@@ -45,11 +48,11 @@ export async function POST(request: Request) {
         if (amount <= Number(quote.balanceAuthorizationAmount || 0)) return NextResponse.json({ error: 'The increased authorization must exceed the current hold.' }, { status: 400 })
         const intent = await stripePost<StripeIntent>(`payment_intents/${intentId}/increment_authorization`, account.secretKey, new URLSearchParams({ amount: String(Math.round(amount * 100)) }))
         if (!intent.id) return NextResponse.json({ error: intent.error?.message || 'Additional authorization was declined.' }, { status: 402 })
-        updatedQuote = await saveSalesQuote({ ...quote, balanceAuthorizationStatus: 'authorized', balanceAuthorizationAmount: amount, balanceAuthorizationFailure: undefined })
+        updatedQuote = { ...quote, balanceAuthorizationStatus: 'authorized', balanceAuthorizationAmount: amount, balanceAuthorizationFailure: undefined }
       } else if (body.action === 'cancel') {
         const intent = await stripePost<StripeIntent>(`payment_intents/${intentId}/cancel`, account.secretKey, new URLSearchParams())
         if (!intent.id) return NextResponse.json({ error: intent.error?.message || 'Authorization could not be canceled.' }, { status: 402 })
-        updatedQuote = await saveSalesQuote({ ...quote, balanceAuthorizationStatus: 'canceled', balanceAuthorizationCanceledAt: now })
+        updatedQuote = { ...quote, balanceAuthorizationStatus: 'canceled', balanceAuthorizationCanceledAt: now }
       } else {
         const amount = Math.round(Number(body.amount || getOutstandingBalance(quote, lead)) * 100) / 100
         if (amount <= 0 || amount > Number(quote.balanceAuthorizationAmount || 0)) return NextResponse.json({ error: 'Capture amount must be positive and cannot exceed the authorized amount.' }, { status: 400 })
@@ -58,10 +61,12 @@ export async function POST(request: Request) {
         const card = await fetchStripeCardSummary(account.secretKey, paymentMethodId)
         const nextBalance = Math.max(0, Math.round((getOutstandingBalance(quote, lead) - amount) * 100) / 100)
         const payment = buildPaymentRecord({ quote, lead, amount, kind: nextBalance <= 0 ? 'final' : 'balance', method: card.cardFunding === 'debit' ? 'debit' : 'credit_card', methodLabel: formatStripeCardPaymentLabel(card.cardBrand, card.cardFunding), cardBrand: card.cardBrand, cardFunding: card.cardFunding, cardLast4: card.cardLast4, paidAt: now, reference: intent.id, recordedBy: session?.name, recordedByUserId: session?.userId })
-        updatedQuote = await saveSalesQuote({ ...quote, balance: nextBalance, balancePaidAt: now, balancePaidAmount: Math.round((Number(quote.balancePaidAmount || 0) + amount) * 100) / 100, balancePaidMethod: 'stripe', balanceAuthorizationStatus: 'captured', balanceAuthorizationCapturedAt: now, paymentRecords: [...(quote.paymentRecords || []), payment] })
-        await saveSalesLead({ ...lead, paymentStatus: nextBalance <= 0 ? 'paid_in_full' : 'deposit_received' })
+        updatedQuote = { ...quote, balance: nextBalance, balancePaidAt: now, balancePaidAmount: Math.round((Number(quote.balancePaidAmount || 0) + amount) * 100) / 100, balancePaidMethod: 'stripe', balanceAuthorizationStatus: 'captured', balanceAuthorizationCapturedAt: now, paymentRecords: [...(quote.paymentRecords || []), payment] }
+        nextLead = { ...lead, paymentStatus: nextBalance <= 0 ? 'paid_in_full' : 'deposit_received' }
       }
     }
+    const saved = await persistFinancialProjection(updatedQuote, nextLead)
+    updatedQuote = saved.quote
     await recordQuoteUpdatedAudit(quote, updatedQuote, session?.name)
     await recordLeadPaymentAudit({ leadId: lead.id, quoteId: quote.id, actorName: session?.name, action: `balance_authorization_${body.action}`, amount: Number(body.amount || updatedQuote.balanceAuthorizationAmount || 0), cardBrand: updatedQuote.balanceAuthorizationCardBrand, cardLast4: updatedQuote.balanceAuthorizationCardLast4, note: `Balance authorization ${body.action} completed.` })
     if (lead.email && (body.action === 'authorize' || body.action === 'capture' || body.action === 'cancel')) {
@@ -77,4 +82,8 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Balance authorization failed.' }, { status: stripeErrorStatus(error) })
   }
+}
+
+export async function POST(request: Request) {
+  return withFinancialCommand(request, 'balance-authorization', handlePayment)
 }

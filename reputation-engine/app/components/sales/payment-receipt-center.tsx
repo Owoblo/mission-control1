@@ -1,5 +1,7 @@
 'use client'
 
+import { PaymentRecovery } from './payment-recovery'
+import { paymentOperationId } from '@/lib/payment-operation-id'
 import { useMemo, useState } from 'react'
 import type { CRMLead, CRMQuote, PaymentRecordKind, PaymentRecordMethod } from '@/lib/types'
 import { deriveMoneyState } from '@/lib/payment-state'
@@ -41,7 +43,7 @@ export function PaymentReceiptCenter({ lead, quote, canEdit, onUpdated }: { lead
     if (action === 'cancel' && !window.confirm('Cancel this authorization and release the held funds?')) return
     setBusy(true); setMessage('')
     try {
-      const response = await fetch('/api/sales/stripe/balance-authorization', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leadId: lead.id, quoteId: quote.id, action, amount: requestedAmount, consentConfirmed: action === 'authorize' }) })
+      const response = await fetch('/api/sales/stripe/balance-authorization', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operationId: paymentOperationId(`authorization:${quote.id}:${action}:${requestedAmount}:${quote.balanceAuthorizationPaymentIntentId || "new"}`), leadId: lead.id, quoteId: quote.id, action, amount: requestedAmount, consentConfirmed: action === 'authorize' }) })
       const payload = await response.json() as { ok?: boolean; error?: string; lead?: CRMLead; quote?: CRMQuote }
       if (!response.ok || !payload.ok || !payload.lead || !payload.quote) throw new Error(payload.error || 'Authorization action failed')
       onUpdated(payload.lead, payload.quote)
@@ -105,11 +107,13 @@ export function PaymentReceiptCenter({ lead, quote, canEdit, onUpdated }: { lead
     <div className="overflow-hidden rounded-[18px] border border-[#E5E7EB] bg-white">
       <div className="bg-[#071421] p-4 text-white">
         <div className="flex items-center justify-between gap-3">
-          <div><div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--app-warm)]">Payments & receipts</div><div className="mt-1 text-sm font-bold">{money(paid)} collected · {money(owing)} owing</div></div>
+          <div><div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--app-warm)]">Payments & receipts</div><div className="mt-1 text-sm font-bold">{money(paid)} recorded · {money(owing)} remaining</div></div>
           <button onClick={() => setOpen(value => !value)} disabled={!canEdit} className="rounded-[10px] bg-[#C99700] px-3 py-2 text-xs font-extrabold text-[#071421] disabled:opacity-50">{open ? 'Close' : '+ Record payment'}</button>
         </div>
       </div>
 
+      {moneyState.requiresAttention && <div role="status" className="border-b border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><strong>{moneyState.label}.</strong> {moneyState.explanation}</div>}
+      {canEdit && <PaymentRecovery quoteId={quote.id} onUpdated={onUpdated} />}
       {authorization.outstanding > 0 && <div className={`border-b p-4 ${authorization.live ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
         <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#667085]">Balance security</div><div className="mt-1 text-sm font-bold text-[#071421]">{authorization.live ? `${money(authorization.authorizedAmount)} authorized` : `${money(authorization.outstanding)} authorization required`}</div>{authorization.expiresAt && <div className="mt-1 text-[11px] text-[#667085]">Capture before {new Date(authorization.expiresAt).toLocaleString('en-CA')}</div>}</div><span className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${authorization.live ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-900'}`}>{authorization.live ? 'Dispatch cleared' : 'Not cleared'}</span></div>
         {canEdit && <div className="mt-3 flex flex-wrap gap-2">{!authorization.live && <button onClick={() => void manageAuthorization('authorize')} disabled={busy} className="rounded-[8px] bg-[#071421] px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50">Authorize balance</button>}{authorization.live && authorization.outstanding > authorization.authorizedAmount && <button onClick={() => void manageAuthorization('increment')} disabled={busy} className="rounded-[8px] bg-amber-600 px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50">Increase hold</button>}{authorization.live && <button onClick={() => void manageAuthorization('capture')} disabled={busy} className="rounded-[8px] bg-emerald-700 px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50">Capture final balance</button>}{authorization.live && <button onClick={() => void manageAuthorization('cancel')} disabled={busy} className="rounded-[8px] border border-rose-300 bg-white px-3 py-2 text-[11px] font-bold text-rose-700 disabled:opacity-50">Release hold</button>}</div>}

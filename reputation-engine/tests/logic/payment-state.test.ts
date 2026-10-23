@@ -20,3 +20,22 @@ test('money state distinguishes partial refunds', () => {
   assert.equal(result.status, 'partially_refunded')
   assert.equal(result.netPaid, 150)
 })
+
+
+test('an earlier e-transfer flag is recorded value requiring confirmation, not a Stripe receipt', () => {
+  const result = deriveMoneyState({ id: 'q', total: 1469, deposit: 440.7, paymentRecords: [] } as any, { paymentStatus: 'deposit_received', depositAmount: 500, depositMethod: 'etransfer' } as any)
+  assert.equal(result.netPaid, 500)
+  assert.equal(result.balance, 969)
+  assert.equal(result.status, 'reconciliation_required')
+  assert.match(result.explanation, /etransfer/)
+})
+test('a new balance receipt retains an earlier deposit without counting it twice', () => {
+  const result = deriveMoneyState({ total: 1469, balancePaidAmount: 969, paymentRecords: [{ kind: 'final', amount: 969 }] } as any, { paymentStatus: 'paid_in_full', depositAmount: 500, depositMethod: 'etransfer' } as any)
+  assert.equal(result.netPaid, 1469)
+  assert.equal(result.balance, 0)
+})
+test('legacy paid flags cannot resurrect a refunded deposit receipt', () => {
+  const result = deriveMoneyState({ total: 1000, depositPaidAmount: 200, paymentRecords: [{ kind: 'deposit', amount: 200, status: 'refunded' }] } as any, { paymentStatus: 'pending', depositAmount: 200 } as any)
+  assert.equal(result.netPaid, 0)
+  assert.equal(result.refunded, 200)
+})

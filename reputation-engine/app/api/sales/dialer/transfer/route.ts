@@ -1,3 +1,6 @@
+import { verifyOwnedActiveCall } from '@/lib/server/dialer-access'
+import { getRequestSessionUser } from '@/lib/server/request-session'
+import { normalizeInternalTransferTarget, escapeTwiml } from '@/lib/twilio-call-control'
 import { carrierDialTarget } from '@/lib/server/carrier-voice'
 import { getTwilioCredentials } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
@@ -20,8 +23,8 @@ function buildTransferTwiml(to: string, callerId?: string | null): string {
 }
 
 export async function POST(request: Request) {
-  const session = await getSessionUser()
-  if (!session) return new Response('Unauthorized', { status: 401 })
+  const session = await getRequestSessionUser(request)
+  if (!session?.userId || !['owner','manager','sales_rep','partnership_manager'].includes(session.role || '')) return new Response('Unauthorized', { status: 401 })
 
   try {
     const { callSid, to, callerId, context } = await request.json() as {
@@ -44,8 +47,11 @@ export async function POST(request: Request) {
       return Response.json({ error: 'callSid and to are required' }, { status: 400 })
     }
 
+    await verifyOwnedActiveCall(callSid, session)
+    const normalized = normalizeInternalTransferTarget(to)
+    const safeTo = normalized.kind === 'client' ? `client:${normalized.target}` : normalized.target
     const { accountSid, authToken } = getTwilioCredentials()
-    const twiml = buildTransferTwiml(to.trim(), callerId)
+    const twiml = buildTransferTwiml(escapeTwiml(safeTo), callerId)
 
     const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`,

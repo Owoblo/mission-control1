@@ -19,3 +19,5 @@ reputation-engine/.vercel
 .wrangler/
 **/.wrangler/
 .env*
+
+reputation-engine/release-manifest.json

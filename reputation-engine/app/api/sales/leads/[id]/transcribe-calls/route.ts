@@ -1,3 +1,6 @@
+import { getRequestSessionUser } from '@/lib/server/request-session'
+import { canHandleLeadCommunications } from '@/lib/server/sales-permissions'
+import { hydrateLeadRecordings } from '@/lib/server/lead-recording-links'
 /**
  * POST /api/sales/leads/[id]/transcribe-calls
  * Transcribes call logs that have a recordingUrl but no transcript.
@@ -13,9 +16,13 @@ import { getTwilioCredentials } from '@/lib/server/runtime'
 export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const lead = await getSalesLead(params.id)
+    const session = await getRequestSessionUser(_req)
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    let lead = await getSalesLead(params.id)
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
+    if (!canHandleLeadCommunications(session, lead)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    lead = await hydrateLeadRecordings(lead)
     const { accountSid, authToken } = getTwilioCredentials()
 
     // Find all call logs with a recording reference but no transcript yet.

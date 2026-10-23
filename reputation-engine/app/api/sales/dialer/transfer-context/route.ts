@@ -19,15 +19,8 @@ export async function GET(request: Request) {
     return identities.has(String((extra as Record<string, unknown>).targetIdentity || ''))
   }
 
-  const exactMatch = requestedCallSid
-    ? events.find(row => matchesIdentity(row) && String(((row.properties.extra || {}) as Record<string, unknown>).targetCallSid || '') === requestedCallSid)
-    : undefined
-  const match = exactMatch || events.find(row => {
-    if (!matchesIdentity(row)) return false
-    const extra = (row.properties.extra || {}) as Record<string, unknown>
-    const hasTargetCallSid = Boolean(extra.targetCallSid)
-    return !requestedCallSid || (!hasTargetCallSid && Date.now() - Date.parse(row.ts) < 60_000)
-  })
+  if (!/^CA[a-f0-9]{32}$/i.test(requestedCallSid)) return NextResponse.json({ context: null })
+  const match = events.find(row => matchesIdentity(row) && String(((row.properties.extra || {}) as Record<string, unknown>).targetCallSid || '') === requestedCallSid)
 
   if (!match) return NextResponse.json({ context: null })
   return NextResponse.json({
