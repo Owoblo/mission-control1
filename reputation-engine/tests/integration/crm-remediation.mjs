@@ -226,3 +226,17 @@ test('actual middleware separates signed callbacks, staff tools, native partners
   }
  }finally{if(secret===undefined)delete process.env.AUTH_SECRET;else process.env.AUTH_SECRET=secret;if(cron===undefined)delete process.env.CRON_SECRET;else process.env.CRON_SECRET=cron}
 })
+test('session renewal uses current database permissions and never extends deleted or legacy accounts',async()=>{
+ const original=globalThis.fetch;let reads=0
+ const load=createLoader(root,{'./runtime':{requireSupabaseEnv:()=>({url:'https://database.fixture',headers:{}})}})
+ const profile=load(path.join(root,'lib/server/session-profile.ts')).currentSessionProfile
+ try{
+  globalThis.fetch=async()=>{reads++;return Response.json([{id:'rep',name:'Fixture',role:'crew',branch:'ottawa'}])}
+  const current=await profile({exp:Date.now()+1000,userId:'rep',role:'manager',branch:'toronto'})
+  assert.equal(current.identity.role,'crew');assert.equal(current.identity.branch,'ottawa');assert.equal(current.renewable,true)
+  globalThis.fetch=async()=>Response.json([])
+  assert.equal(await profile({exp:Date.now()+1000,userId:'deleted',role:'manager'}),null)
+  const legacy=await profile({exp:Date.now()+1000,userId:'legacy-owner',role:'owner'})
+  assert.equal(legacy.renewable,false);assert.equal(reads,1)
+ }finally{globalThis.fetch=original}
+})
