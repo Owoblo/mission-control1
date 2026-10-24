@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { projectNextSteps, receiptDelivery, type EvidenceRow } from '../../lib/relationship-next-step'
 import { chooseInterruptingNotification } from '../../lib/notification-attention'
+import { taskHref, type CRMTask } from '../../lib/tasks'
 const contact = { id: 'partner', name: 'Fixture', owner_name: 'Owner' }
 const request = { id: 'request', contact_id: 'partner', direction: 'inbound', channel: 'sms', created_at: '2026-10-20T12:00:00Z', outcome_code: 'package_requested', notes: 'Please send a digital card.' }
 function project(extra: { touches?: EvidenceRow[]; tasks?: EvidenceRow[]; logs?: EvidenceRow[]; contact?: EvidenceRow } = {}) {
@@ -56,9 +57,21 @@ test('existing reviewed fulfilment links are honored using the actual provider s
   const receipt = { id: 'receipt', contact_id: 'partner', direction: 'outbound', channel: 'sms', created_at: '2026-10-21T12:00:00Z', metadata: { status: 'delivered' } }
   assert.equal(project({ touches: [{ ...request, metadata: { partnership_review: { fulfilled_by_touch_id: receipt.id } } }, receipt] })[0].state, 'fulfilled')
 })
+test('delivered material does not hide an unfinished owned task, and a failed linked send remains reviewable', () => {
+  const receipt = { id: 'receipt', contact_id: 'partner', direction: 'outbound', channel: 'sms', created_at: '2026-10-21T12:00:00Z', metadata: { status: 'delivered', relationship_fulfilment: { request_touch_id: 'request', kind: 'digital_card' } } }
+  const task = { id: 'task', related_id: 'partner', related_type: 'relationship', source_key: project()[0].key, status: 'open', owner_name: 'Owner' }
+  assert.equal(project({ touches: [request,receipt], tasks: [task] })[0].state, 'review')
+  assert.equal(project({ touches: [request,receipt], tasks: [{ ...task,status: 'completed' }] })[0].state, 'fulfilled')
+  assert.equal(project({ touches: [request,{ ...receipt,metadata: { ...receipt.metadata,status: 'failed' } }], tasks: [{ ...task,status: 'completed' }] })[0].state, 'review')
+})
 test('routine activity cannot produce an interrupt; urgent selection is independent of input order', () => {
   const routine = { priority: 'today', time: '2026-10-24T12:00:00Z' }
   assert.equal(chooseInterruptingNotification([routine, { ...routine, priority: 'monitor' }]), undefined)
   const urgent = { priority: 'interrupt', time: '2026-10-23T12:00:00Z' }
   assert.equal(chooseInterruptingNotification([routine, urgent]), urgent)
+})
+test('relationship tasks return to their original conversation, while portfolio research stays in Today', () => {
+  const task: CRMTask = { id: 't', title: 'Review request', relatedType: 'relationship', relatedId: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', status: 'open', priority: 'normal', category: 'relationship_development', source: 'condition', createdAt: '', updatedAt: '' }
+  assert.equal(taskHref(task), '/marketing/partners?tab=phone&contact=aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa')
+  assert.equal(taskHref({ ...task, relatedId: 'windsor-essex' }), '/marketing/partners?tab=today')
 })

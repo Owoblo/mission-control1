@@ -1,5 +1,5 @@
 /** Evidence-backed material requests. This projection never authorizes a send. */
-export const NEXT_STEP_POLICY = 'relationship-next-step-v1'
+export const NEXT_STEP_POLICY = 'relationship-next-step-v2'
 export type EvidenceRow = Record<string, any> & { id: string }
 export type MaterialKind = 'digital_card' | 'physical_card' | 'email' | 'references' | 'insurance'
 export type NextStep = {
@@ -65,15 +65,18 @@ export function projectNextSteps(input: { contact: EvidenceRow; touches: Evidenc
     const dueAt = task?.due_at || null
     const needsConfirmation = kind === 'insurance' || Boolean(request.metadata?.partnership_ai && (
       Number(request.metadata.partnership_ai.confidence) < 0.85 || request.metadata.partnership_ai.risk_flags?.length))
-    const state: NextStep['state'] = suppressed ? 'suppressed' : reviews.length ? 'reviewed' : delivery === 'delivered' ? 'fulfilled' : delivery === 'submitted' ? 'submitted' :
-      task?.status === 'completed' || task?.status === 'cancelled' ? 'reviewed' : time(dueAt) > time(input.now) ? 'waiting' : 'review'
+    const unfinishedTask = task && ['open', 'in_progress'].includes(task.status)
+    const state: NextStep['state'] = suppressed ? 'suppressed' : reviews.length || task?.status === 'cancelled' ? 'reviewed' :
+      delivery === 'delivered' ? (unfinishedTask ? 'review' : 'fulfilled') : delivery === 'submitted' ? 'submitted' : receipt ? 'review' :
+      task?.status === 'completed' ? 'reviewed' : time(dueAt) > time(input.now) ? 'waiting' : 'review'
     const reason = state === 'suppressed' ? 'Contact restrictions are active. Internal review only.' : state === 'fulfilled' ? 'A linked provider record confirms delivery; recipient review is not established.' :
+      delivery === 'delivered' && unfinishedTask ? 'Delivery is recorded. The owned review task still needs an outcome; check it before arranging more outreach.' :
       state === 'submitted' ? 'The linked message was submitted. Delivery is not yet confirmed; check before sending again.' :
       state === 'reviewed' ? 'A human review or task outcome is recorded; this is not independent delivery confirmation.' :
       state === 'waiting' ? 'An owned review is scheduled. No outreach is needed from this reminder today.' :
       receipt && !delivery ? 'The linked send has no confirmed provider success. Review its outcome before any retry.' :
       needsConfirmation ? 'Confirm this request against the original message before choosing an action.' : 'A recorded request has no linked delivery evidence. Check the conversation before acting.'
-    return [{ key, contactId: contact.id, contactName: contact.name || contact.company || 'Partner', kind, title: titles[kind], reason,
+    return [{ key, contactId: contact.id, contactName: contact.name || contact.company || 'Partner', kind, title: delivery === 'delivered' && unfinishedTask ? 'Record the request outcome' : titles[kind], reason,
       requestedAt: request.created_at, excerpt: String(request.notes || '').slice(0, 700), state, owner: task?.owner_name || (task?.owner_user_id ? 'Assigned team member' : null) || contact.owner_name || (contact.assigned_manager_user_id ? 'Assigned team member' : null),
       dueAt, taskId: task?.id || null, requestId: request.id, receiptId: receipt?.id || null, delivery, needsConfirmation, evidenceVersion: input.evidenceVersion }]
   }).sort((a,b) => Number(a.state !== 'review') - Number(b.state !== 'review') || time(a.requestedAt) - time(b.requestedAt) || a.key.localeCompare(b.key))

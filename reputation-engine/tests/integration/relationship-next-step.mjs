@@ -15,18 +15,31 @@ function fixture(actor = { role: 'owner', userId: 'owner', name: 'Owner' }) {
   globalThis.fetch = async (endpoint, options = {}) => {
     const u = new URL(endpoint), table = u.pathname.split('/').at(-1), q = u.searchParams
     assert.equal(u.hostname, 'database.fixture', 'No outbound provider or external service can be called')
+    if (table === 'record_relationship_next_step') {
+      assert.equal(options.method, 'POST')
+      if (failLog) return Response.json({ error: 'Fixture history unavailable' }, { status: 503 })
+      const input = JSON.parse(options.body), event = input.p_event, task = input.p_task
+      const existing = tables.partner_activity_logs.find(l => l.id === event.id)
+      if (existing) return Response.json({ ok: true, replayed: true, task_id: existing.metadata.task_id })
+      if (input.p_task_mode === 'create') {
+        if (tables.crm_tasks.some(t => t.source_key === task.source_key)) return Response.json({ code: '40001' }, { status: 409 })
+        tables.crm_tasks.push({ ...task, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        writes.push({ table: 'crm_tasks', value: task })
+      } else if (input.p_task_mode === 'defer') {
+        const current = tables.crm_tasks.find(t => t.id === task.id && t.updated_at === input.p_expected_task_updated_at && ['open', 'in_progress'].includes(t.status))
+        if (!current) return Response.json({ code: '40001' }, { status: 409 })
+        Object.assign(current, { due_at: task.due_at, updated_at: new Date(Date.now() + 1).toISOString() })
+        writes.push({ table: 'crm_tasks', value: task })
+      }
+      tables.partner_activity_logs.push({ ...event, contact_id: input.p_contact_id, created_at: new Date().toISOString() })
+      writes.push({ table: 'partner_activity_logs', value: event })
+      return Response.json({ ok: true, task_id: event.metadata.task_id })
+    }
+    assert.ok(!options.method || options.method === 'GET', 'Mutations must use the atomic journal command')
     assert.ok(Object.hasOwn(tables, table), `Unexpected table ${table}`)
     calls.push({ table, method: options.method || 'GET', query: q })
     if (table === failTable || (table === 'partner_activity_logs' && options.method && failLog)) return new Response('', { status: 503 })
     let rows = tables[table]
-    if (options.method === 'POST') {
-      const value = JSON.parse(options.body); writes.push({ table, value })
-      const field = q.get('on_conflict') || 'id'
-      const existing = rows.find(r => r[field] === value[field])
-      if (!existing) rows.push({ ...value, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      if (options.headers.Prefer.includes('return=minimal')) return new Response(null, { status: 204 })
-      return Response.json(existing ? [] : [value])
-    }
     const and = q.get('and')?.match(/id\.eq\.([0-9a-f-]+)/)?.[1]
     if (and) rows = rows.filter(r => r.id === and)
     for (const field of ['id', 'contact_id', 'related_id', 'updated_at', 'status', 'provider_message_id']) {
@@ -36,11 +49,6 @@ function fixture(actor = { role: 'owner', userId: 'owner', name: 'Owner' }) {
       else if (filter?.startsWith('in.(')) rows = rows.filter(r => filter.slice(4, -1).split(',').map(v => v.replace(/^"|"$/g, '')).includes(r[field]))
     }
     if (q.get('action')?.startsWith('in.(')) rows = rows.filter(r => q.get('action').slice(4,-1).split(',').includes(r.action))
-    if (options.method === 'PATCH') {
-      const value = JSON.parse(options.body); writes.push({ table, value })
-      for (const row of rows) Object.assign(row, value)
-      return Response.json(rows)
-    }
     return Response.json([...rows].sort((a,b) => a.id.localeCompare(b.id)))
   }
   const runtime = { requireSupabaseEnv: () => ({ url: 'https://database.fixture', headers: { 'Content-Type': 'application/json' } }) }
@@ -120,6 +128,8 @@ test('failed evidence journaling is reported instead of returning a successful r
     const step = (await (await f.get()).json()).rows[0]; f.failLog()
     assert.equal((await f.post(step, 'review')).status, 503)
     assert.equal(f.tables.partner_activity_logs.length, 0)
+    assert.equal((await f.post(step, 'create_task')).status, 503)
+    assert.equal(f.tables.crm_tasks.length, 0)
   } finally { f.close() }
 })
 test('existing fulfilment work is surfaced without loading attachments and prevents duplicate tasks', async () => {
@@ -131,6 +141,17 @@ test('existing fulfilment work is surfaced without loading attachments and preve
     assert.equal((await f.post(step, 'create_task')).status, 409)
     assert.equal(f.tables.crm_tasks.length, 1)
     assert.ok(f.calls.filter(c => c.table === 'crm_tasks').every(c => !c.query.get('select')?.includes('description')))
+  } finally { f.close() }
+})
+test('central task creation preserves the assigned manager and makes work visible in its mapped market', async () => {
+  const f = fixture()
+  try {
+    f.tables.market_contacts[0].assigned_manager_user_id = 'regional-manager'
+    const step = (await (await f.get()).json()).rows[0]
+    assert.equal((await f.post(step, 'create_task')).status, 200)
+    const task = f.tables.crm_tasks[0]
+    assert.equal(task.owner_user_id, 'regional-manager'); assert.equal(task.owner_name, null)
+    assert.equal(task.branch, 'ottawa')
   } finally { f.close() }
 })
 test('SES callback facts join by exact provider message and recipient, not opens or another contact', async () => {

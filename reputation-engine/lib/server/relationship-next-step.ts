@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { SessionPayload } from '../auth'
+import { relationshipIdentity } from '../relationship-record'
 import { NEXT_STEP_POLICY, projectNextSteps, receiptDelivery, type EvidenceRow, type NextStep } from '../relationship-next-step'
 import { requireSupabaseEnv } from './runtime'
 import { readCompleteRest } from './read-complete-rest'
@@ -86,11 +87,6 @@ export async function actOnNextStep(session: SessionPayload, body: Record<string
   const action = String(body.action)
   if (action !== 'shown' && action !== 'review' && ['suppressed', 'fulfilled', 'reviewed'].includes(step.state)) throw new NextStepError('This request is no longer actionable. Refresh the record.', 409)
   const { url, headers } = requireSupabaseEnv()
-  async function write(table: string, query: string, method: string, value: unknown, prefer = 'return=representation') {
-    const response = await fetch(`${url}/rest/v1/${table}?${query}`, { method, headers: { ...headers, Prefer: prefer }, body: JSON.stringify(value), cache: 'no-store', signal: AbortSignal.timeout(15000) })
-    if (!response.ok) throw new NextStepError('Could not save the change. Refresh to check the recorded result before retrying.')
-    return response.status === 204 ? [] : response.json()
-  }
   let receipt: EvidenceRow | undefined
   if (action === 'link_receipt') {
     receipt = data.touches.find(t => t.id === body.receiptId && t.contact_id === contactId)
@@ -100,6 +96,8 @@ export async function actOnNextStep(session: SessionPayload, body: Record<string
   const note = typeof body.note === 'string' ? body.note.trim() : ''
   if (action === 'correct' && (!note || note.length > 1000)) throw new NextStepError('Record why this suggestion needs correction (1–1,000 characters).', 400)
   let taskId = step.taskId
+  let taskMode = 'none', expectedTaskVersion: string | null = null
+  let taskCommand: Record<string, unknown> | null = null
   if (action === 'create_task' || action === 'defer') {
     const due = typeof body.dueAt === 'string' ? body.dueAt : null
     if (action === 'defer' && (!due || !Number.isFinite(Date.parse(due)) || Date.parse(due) <= Date.now())) throw new NextStepError('Choose a future internal review time.', 400)
@@ -108,27 +106,37 @@ export async function actOnNextStep(session: SessionPayload, body: Record<string
     if (!existing && legacyWork) throw new NextStepError('Existing fulfilment work is already open. Review that task before creating another.', 409)
     if (existing && action === 'defer') {
       if (!existing.updated_at) throw new NextStepError('Refresh this task before changing its review date.', 409)
-      const changed = await write('crm_tasks', new URLSearchParams({ id: `eq.${existing.id}`, updated_at: `eq.${existing.updated_at}`, status: 'in.(open,in_progress)' }).toString(), 'PATCH', { due_at: due, updated_at: new Date().toISOString() })
-      if (!changed.length) throw new NextStepError('The task changed. Refresh before rescheduling.', 409)
+      taskMode = 'defer'; expectedTaskVersion = existing.updated_at
+      taskCommand = { id: existing.id, source_key: step.key, due_at: due }
     } else if (!existing) {
       taskId = `material-${hash(step.key).slice(0, 32)}`
       const contact = data.contacts[0]
-      const created = await write('crm_tasks', 'on_conflict=source_key', 'POST', { id: taskId, source_key: step.key, source: 'condition', title: step.title,
+      taskMode = 'create'
+      taskCommand = { id: taskId, source_key: step.key, source: 'condition', title: step.title,
         description: `${step.reason}\nRequest: market_touches/${step.requestId}\nReview the original message and existing delivery evidence before contacting the partner.`, status: 'open', priority: 'normal', category: 'relationship_development',
-        owner_name: contact.owner_name || session.name || null, owner_user_id: contact.assigned_manager_user_id || (!contact.owner_name ? session.userId : null) || null,
-        branch: session.branch || null, related_type: 'relationship', related_id: contactId, related_label: step.contactName,
-        due_at: due, created_by_name: session.name || null, created_by_user_id: session.userId || null }, 'resolution=ignore-duplicates,return=representation')
-      if (!created.length) throw new NextStepError('A task was already created. Refresh to see its owner and review date.', 409)
+        owner_name: contact.owner_name || (!contact.assigned_manager_user_id ? session.name : null) || null, owner_user_id: contact.assigned_manager_user_id || (!contact.owner_name ? session.userId : null) || null,
+        branch: session.branch || relationshipIdentity({ city: contact.city }).phoneHub || null, related_type: 'relationship', related_id: contactId, related_label: step.contactName,
+        due_at: due, created_by_name: session.name || null, created_by_user_id: session.userId || null }
     }
   }
   const eventAction = action === 'correct' ? 'corrected' : action === 'link_receipt' ? 'receipt_linked' : action === 'review' ? 'review_opened' : action
   const eventHash = hash([contactId, step.key, step.evidenceVersion, session.userId || session.name, action, body.receiptId || null, body.dueAt || null, note])
   const id = `${eventHash.slice(0,8)}-${eventHash.slice(8,12)}-4${eventHash.slice(13,16)}-a${eventHash.slice(17,20)}-${eventHash.slice(20,32)}`
-  await write('partner_activity_logs', 'on_conflict=id', 'POST', { id, contact_id: contactId, action: `next_step.${eventAction}`, actor_user_id: session.userId || null, actor_name: session.name || null,
-    metadata: { insight_key: step.key, policy_version: NEXT_STEP_POLICY, model_version: 'deterministic-material-requests-v1', evidence_version: step.evidenceVersion, request_touch_id: step.requestId, kind: step.kind,
+  const event = { id, contact_id: contactId, action: `next_step.${eventAction}`, actor_user_id: session.userId || null, actor_name: session.name || null,
+    metadata: { original_contact_id: contactId, insight_key: step.key, policy_version: NEXT_STEP_POLICY, model_version: 'deterministic-material-requests-v1', evidence_version: step.evidenceVersion, request_touch_id: step.requestId, kind: step.kind,
       request_at: step.requestedAt, recommendation: { title: step.title, reason: step.reason, owner: step.owner, due_at: step.dueAt, needs_confirmation: step.needsConfirmation },
       evidence_sources: data.coverage.sources, review_due_at: body.dueAt || null,
       observed_state: step.state, request_excerpt: step.excerpt, task_id: taskId, receipt_touch_id: receipt?.id || null, provider_state: receipt ? receiptDelivery(receipt) : null, note: note || null,
-      semantics: action === 'shown' ? 'unique_visible_user_context' : 'human_action', outbound_sent: false } }, 'resolution=ignore-duplicates,return=minimal')
-  return { ok: true, outboundSent: false, taskId }
+      semantics: action === 'shown' ? 'unique_visible_user_context' : 'human_action', outbound_sent: false } }
+  const response = await fetch(`${url}/rest/v1/rpc/record_relationship_next_step`, {
+    method: 'POST', headers, body: JSON.stringify({ p_contact_id: contactId, p_event: event,
+      p_task: taskCommand, p_task_mode: taskMode, p_expected_task_updated_at: expectedTaskVersion }),
+    cache: 'no-store', signal: AbortSignal.timeout(15000),
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok || result?.ok !== true) {
+    if (['40001', '23505'].includes(result?.code)) throw new NextStepError('The task changed. Refresh to check its owner and review date.', 409)
+    throw new NextStepError('Could not save the change and its history together. Refresh to check the recorded result before retrying.')
+  }
+  return { ok: true, outboundSent: false, taskId: result.task_id || taskId }
 }

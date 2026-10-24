@@ -65,16 +65,20 @@ try {
     assert.ok(actions.some(a => a.action === 'shown'))
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No page overflow')
     await page.screenshot({ path: `/private/tmp/ssm-intelligence-${width}.png`, fullPage: true })
+    step = { ...step, title: 'Record the request outcome', delivery: 'delivered', receiptId: 'receipt', evidenceVersion: 'v3', reason: 'Delivery is recorded. The owned review task still needs an outcome.' }
+    await panel.getByRole('button', { name: 'Refresh', exact: true }).click()
+    await panel.getByRole('link', { name: 'Record task outcome', exact: true }).waitFor()
+    assert.equal(await panel.getByRole('button', { name: 'Review in conversation', exact: true }).count(), 0)
     unavailable = true
     await panel.getByRole('button', { name: 'Refresh', exact: true }).click()
     await panel.getByText('Evidence could not refresh.', { exact: false }).waitFor()
-    assert.equal(await panel.getByRole('button', { name: 'Review in conversation' }).isDisabled(), true)
+    assert.equal(await panel.getByRole('button', { name: 'Correct suggestion' }).isDisabled(), true)
     unavailable = false
     await page.goto('http://127.0.0.1:3108/marketing/partners?tab=today', { waitUntil: 'networkidle' })
     const queue = page.getByRole('region', { name: 'Outstanding partner requests', exact: true })
     await queue.getByRole('link').filter({ hasText: 'Partner Fixture' }).waitFor()
     await queue.getByRole('link').filter({ hasText: 'Partner Fixture' }).click()
-    await page.getByRole('region', { name: 'Next step', exact: true }).getByRole('link', { name: 'Open task', exact: true }).waitFor()
+    await page.getByRole('region', { name: 'Next step', exact: true }).getByRole('link', { name: 'Record task outcome', exact: true }).waitFor()
     assert.equal(actions.filter(a => a.action === 'create_task').length, 1)
     assert.deepEqual(errors, [])
     await context.close()

@@ -67,9 +67,9 @@ function NextStepItem({ step, receipts, onRefresh, onReview, readOnly = false }:
     <p className="mt-1 text-xs leading-5 text-slate-600">{step.reason}</p>
     <p className="mt-1 text-xs text-slate-500">{step.owner ? `Owner: ${step.owner}` : 'Owner not assigned'}{step.dueAt ? ` · Review ${date(step.dueAt)} Eastern` : ''}</p>
     <div className="mt-2 flex flex-wrap gap-2">
-      {active && onReview && <button disabled={busy || readOnly} className="min-h-10 rounded-lg bg-[#14213d] px-3 text-xs font-semibold text-white disabled:opacity-50" onClick={() => void act('review')}>Review in conversation</button>}
+      {active && onReview && !(step.delivery === 'delivered' && step.taskId) && <button disabled={busy || readOnly} className="min-h-10 rounded-lg bg-[#14213d] px-3 text-xs font-semibold text-white disabled:opacity-50" onClick={() => void act('review')}>Review in conversation</button>}
       <button aria-expanded={open} onClick={() => setOpen(v => !v)} className="min-h-10 rounded-lg border border-slate-200 px-3 text-xs font-medium">{open ? 'Hide evidence' : 'View evidence'}</button>
-      {step.taskId && <Link className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 text-xs font-medium" href={`/sales/tasks?relatedId=${encodeURIComponent(step.contactId)}&relatedLabel=${encodeURIComponent(step.contactName)}`}>Open task</Link>}
+      {step.taskId && <Link className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 text-xs font-medium" href={`/sales/tasks?relatedId=${encodeURIComponent(step.contactId)}&relatedLabel=${encodeURIComponent(step.contactName)}`}>{step.delivery === 'delivered' ? 'Record task outcome' : 'Open task'}</Link>}
     </div>
     {open && <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
       <div><p className="text-xs font-medium text-slate-500">Original request · {date(step.requestedAt)} Eastern</p><blockquote className="mt-1 whitespace-pre-wrap break-words border-l-2 border-slate-200 pl-3 text-xs leading-5 text-slate-700">{step.excerpt || 'No message text recorded.'}</blockquote></div>
