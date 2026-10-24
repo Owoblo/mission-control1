@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { chooseInterruptingNotification } from '@/lib/notification-attention'
 import { fetchRead, startReadPolling } from '@/lib/resilient-read'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -156,6 +157,7 @@ export function SalesHeader() {
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
+  const notificationsLoadedRef = useRef(false)
   const [snoozedBefore, setSnoozedBefore] = useState<number>(() => {
     return parseInt(readLocalStorageItem('ss_notif_snoozed') || '0', 10) || 0
   })
@@ -271,10 +273,10 @@ export function SalesHeader() {
         const data = await res.json() as { items: NotificationItem[]; totalCount: number; breakdown: { leads: number; sms: number; emails: number; alerts: number } }
 
         // Detect new items for toast + chime + push
-        if (seenIdsRef.current.size > 0) {
+        if (notificationsLoadedRef.current) {
           const newItems = data.items.filter(item => !seenIdsRef.current.has(item.id))
-          if (newItems.length > 0) {
-            const newest = newItems[0]
+          const newest = chooseInterruptingNotification(newItems)
+          if (newest) {
             if (toastTimer.current) clearTimeout(toastTimer.current)
             setToast(newest)
             toastTimer.current = setTimeout(() => setToast(null), 7000)
@@ -284,12 +286,13 @@ export function SalesHeader() {
             showPushNotification(
               newest.source === 'contractor_price'
                 ? `Contractor price update — ${newest.title}`
-                : isDexaView ? 'Dexa — New Lead' : '🌟 Saturn Star — New Lead',
+                : isDexaView ? 'Dexa — Needs attention' : 'Saturn Star — Needs attention',
               newest.preview || 'Open Mission Control to respond'
             )
           }
         }
         data.items.forEach(item => seenIdsRef.current.add(item.id))
+        notificationsLoadedRef.current = true
 
         const visibleItems = snoozedBefore > 0
           ? data.items.filter(item => new Date(item.time).getTime() > snoozedBefore)

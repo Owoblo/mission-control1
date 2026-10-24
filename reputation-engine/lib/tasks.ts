@@ -36,6 +36,9 @@ export function taskHref(task: CRMTask) {
   if (task.relatedType === 'lead' || task.relatedType === 'job' || task.relatedType === 'customer' || task.relatedType === 'review') {
     return task.relatedId ? `/sales/leads/${task.relatedId}` : undefined
   }
-  if (task.relatedType === 'partner' || task.relatedType === 'relationship') return '/marketing/partners'
+  if (task.relatedType === 'partner' || task.relatedType === 'relationship') {
+    return task.relatedId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(task.relatedId)
+      ? `/marketing/partners?tab=phone&contact=${encodeURIComponent(task.relatedId)}` : '/marketing/partners?tab=today'
+  }
   return undefined
 }

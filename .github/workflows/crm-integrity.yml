@@ -23,6 +23,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run test:logic
+      - run: npm run test:relationship-next-step
       - run: npm run test:crm-remediation
       - run: npm run test:partner-handoff-db
       - run: npm audit --omit=dev --audit-level=moderate
