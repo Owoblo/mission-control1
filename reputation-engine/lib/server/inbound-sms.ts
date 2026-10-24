@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { findInboundContractor, notifyContractorInbound } from '@/lib/server/contractor-inbound'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
@@ -75,7 +76,13 @@ async function writeSmsMessage(from: string, toNumber: string, body: string, mes
       )
       if (existingResponse.ok) {
         const existing = (await existingResponse.json()) as Array<{ id: string }>
-        if (existing.length > 0) return
+        if (existing.length > 0) {
+          if (leadId) {
+            const linked = await fetch(`${url}/rest/v1/sms_messages?id=eq.${encodeURIComponent(existing[0].id)}&lead_id=is.null`, { method: 'PATCH', headers, body: JSON.stringify({ lead_id: leadId }) })
+            if (!linked.ok) throw new Error('Unable to attach inbound SMS to its customer')
+          }
+          return
+        }
       }
     }
 
@@ -159,8 +166,7 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
         return new Response('<Response/>', { headers: { 'Content-Type': 'text/xml' } })
       }
 
-      const salesLine = ['google_online_search', 'direct_mail'].includes(getSaturnTrackingSource(toField) || '')
-      const partnership = !salesLine && !salesReply && !isAutomatedLeasingNotice(body)
+      const partnership = !salesReply && !isAutomatedLeasingNotice(body)
         ? await pausePartnershipSequenceForInbound({
             channel: 'sms',
             phone: normalized || from,
@@ -227,6 +233,10 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
           })
         }
 
+        // Preserve the customer's message before any AI/network work. Next keeps
+        // follow-up alive after the prompt provider acknowledgment.
+        await writeSmsMessage(normalized || from, toField, messageText, messageSid, replyLeadId || undefined)
+        after(async () => {
         const automation = await processInboundAutomationEvent({
           inboundLeadId,
           source: 'twilio_sms',
@@ -235,7 +245,7 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
           message: messageText,
           receivedAt,
           raw: { messageSid, from, to: toField, body, numMedia: media.length, media },
-        }).catch(() => null)
+        }).catch(error => { console.error('Inbound automation deferred to representative review', String(error)); return null })
 
         const resolvedLeadId = replyLeadId || automation?.lead?.id || undefined
         if (resolvedLeadId && media.length > 0 && automation?.lead) {
@@ -251,6 +261,7 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
           `Sales inbound SMS — ${automation?.lead?.name || from}`,
           smsNotificationEmail(from, messageText, resolvedLeadId)
         )
+        })
       }
     }
     void logEvent('sms_received', {

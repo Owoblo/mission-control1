@@ -12,6 +12,7 @@ import {
   stripMmsMarkersFromBody,
 } from '@/lib/sms-media'
 import type { CRMLead } from '@/lib/types'
+import { smsDeliveryLabel } from '@/lib/conversation-integrity'
 
 export interface LeadEmailMessage {
   id: string
@@ -33,6 +34,8 @@ export interface LeadSmsMessage {
   lead_id: string | null
   created_at: string
   twilio_sid?: string | null
+  delivery_status?: string | null
+  delivery_error?: string | null
   media?: Array<{ url?: string | null; contentType?: string | null }> | null
   mediaUrls?: Array<string | null | undefined> | null
   metadata?: {
@@ -388,6 +391,7 @@ export function LeadCommunicationsPanel({
                         {isWhatsApp ? <span className="mr-1 text-[#25D366]">WhatsApp ·</span> : null}
                         {new Date(message.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         {branchLabel ? ` • ${branchLabel}` : ''}
+                        {isOutbound ? <span className={`ml-2 ${['failed','undelivered','delivery_failed','sending_failed'].includes(message.delivery_status || '') ? 'font-semibold text-red-700' : ''}`}>{smsDeliveryLabel(message.delivery_status)}</span> : null}
                       </div>
                     </div>
                   )

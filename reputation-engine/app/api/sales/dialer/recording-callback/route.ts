@@ -1,3 +1,5 @@
+import { isVoicemailTranscript } from '@/lib/conversation-integrity'
+import { recordConversationSignal, completeCallback } from '@/lib/server/conversation-integrity'
 export const maxDuration = 60 // allow time for Whisper transcription
 
 import { NextResponse } from 'next/server'
@@ -265,7 +267,6 @@ export async function POST(request: Request) {
     const { accountSid, authToken } = getTwilioCredentials()
     const callbackRecordingUrl = normalizeTwilioRecordingMediaUrl(recordingUrl)
     const mp3Url = callbackRecordingUrl || (recordingSid ? buildTwilioRecordingMediaUrl(accountSid, recordingSid) : '')
-    const likelyVoicemail = recordingDuration > 0 && recordingDuration <= 30
     const currentCallLog = lead && callLogId
       ? (lead.callLogs || []).find(entry => entry.id === callLogId)
       : null
@@ -317,11 +318,10 @@ export async function POST(request: Request) {
       transcriptionError = isQuota ? null : (error instanceof Error ? error.message : 'Unknown transcription failure')
     }
 
-    const voicemailKeywords = ['leave a message', 'not available', 'please record', 'after the tone', 'after the beep', 'voicemail box', 'mailbox is full', 'call back', 'reach me at']
-    const isVoicemail = likelyVoicemail || (!!transcript && voicemailKeywords.some(kw => transcript!.toLowerCase().includes(kw)))
+    const isVoicemail = isVoicemailTranscript(transcript)
 
     const aiSummary = transcript && lead
-      ? await summarizePhoneCall(lead, transcript, callDirection).catch(() => null)
+      ? await summarizePhoneCall(lead, transcript, callDirection, currentCallLog?.date).catch(() => null)
       : transcript && inboundLead
         ? await summarizePhoneCall(
             { name: inboundLead.name || 'Unknown', phone: inboundLead.phone || '' } as any,
@@ -347,6 +347,7 @@ export async function POST(request: Request) {
         recordingSid: persistedRecordingSid,
         recordingDuration: recordingDuration > 0 ? recordingDuration : undefined,
         recordingStatus: archivedRecording || existingArchivedRecord?.cloudflare_object_key ? (transcript ? 'transcribed' : 'verified') : archiveError ? 'failed' : undefined,
+        transcriptionStatus: transcript ? 'completed' : 'pending',
         recordingSize: archivedRecording?.sizeBytes || existingArchivedRecord?.recording_size || undefined,
         recordingContentType: archivedRecording?.contentType || existingArchivedRecord?.content_type || undefined,
         storageProvider: archivedRecording?.storageProvider || existingArchivedRecord?.storage_provider || undefined,
@@ -357,7 +358,7 @@ export async function POST(request: Request) {
           ? undefined
           : isVoicemail ? `[Voicemail]${transcript ? ' ' + transcript : ''}` : (transcript || undefined),
         aiSummary: (aiSummary as any) || undefined,
-        isVoicemail: isVoicemail || undefined,
+        isVoicemail,
         source: 'manual',
       } as any))
 
@@ -385,7 +386,10 @@ export async function POST(request: Request) {
         if (JSON.stringify(nextLead) !== JSON.stringify(updatedLead)) {
           updatedLead = await saveSalesLead(nextLead).catch(() => updatedLead)
         }
+        if (transcript) updatedLead = await recordConversationSignal(updatedLead || nextLead, transcript, currentCallLog?.date || new Date().toISOString(), `call:${persistedRecordingSid || callSid}`)
       }
+
+      if (transcript && !isVoicemail && callDirection === 'outbound' && updatedLead && currentCallLog?.date) await completeCallback(updatedLead, currentCallLog.date, `Connected conversation recorded as ${persistedRecordingSid || callSid}`)
 
       void logEvent(isVoicemail ? 'voicemail_left' : 'call_completed', {
         leadId,

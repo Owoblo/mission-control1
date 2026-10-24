@@ -1330,6 +1330,13 @@ export function FloatingDialer() {
     }
 
     try {
+      const commitmentResponse = await fetch(`/api/sales/conversation-check?phone=${encodeURIComponent(e164)}`, { credentials: 'include', cache: 'no-store' })
+      if (!commitmentResponse.ok) throw new Error('Customer callback timing could not be checked. Refresh before calling.')
+      const commitment = await commitmentResponse.json()
+      if (commitment.hold) {
+        setError(`Customer requested contact after ${new Date(commitment.hold.notBefore).toLocaleString('en-CA', { timeZone: 'America/Toronto' })}. Review the callback commitment on their lead.`)
+        return
+      }
       const resolvedCallerProfile = await resolveCallerProfileNow({
         phone: e164,
         leadId: activeLeadIdRef.current,

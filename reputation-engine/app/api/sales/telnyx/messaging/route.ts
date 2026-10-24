@@ -5,6 +5,7 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { isTelnyxNumber } from '@/lib/telephony-providers'
 
 export const runtime = 'nodejs'
+export const maxDuration = 120
 
 export async function POST(request: Request) {
   const raw = await request.text()

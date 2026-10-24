@@ -402,6 +402,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     // follow-up fields.
     if (nextLead.stage === 'lost') {
       nextLead = { ...nextLead, followUpDate: undefined, followUpNote: undefined, followUpStatus: undefined }
+      if (nextLead.conversationReview) nextLead.conversationReview = { ...nextLead.conversationReview, status: 'resolved' }
     }
 
     // A reopened lead must receive a fresh decision, not silently reuse an old loss reason.

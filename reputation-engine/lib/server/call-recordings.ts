@@ -22,6 +22,8 @@ export type CallRecordingRecord = {
   duration_seconds?: number | null
   city?: string | null
   recording_status: CallRecordingStatus
+  transcription_status?: 'pending' | 'processing' | 'retry' | 'completed' | 'failed' | null
+  transcription_error?: string | null
   recording_size?: number | null
   content_type?: string | null
   storage_provider?: string | null

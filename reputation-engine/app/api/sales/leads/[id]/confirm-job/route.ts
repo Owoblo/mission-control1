@@ -1,3 +1,4 @@
+import { canHandleLeadCommunications } from '@/lib/server/sales-permissions'
 import { NextResponse } from 'next/server'
 import { deriveOpsChecklist, getQuotedTruckCount } from '@/lib/operations'
 import { deriveLeadBranch, generateCrewBrief, mergeCrewBrief, pickAutoAssignedCrewIds } from '@/lib/server/crew-dispatch'
@@ -76,8 +77,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     const session = await getSessionUser().catch(() => null)
 
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const lead = await getSalesLead(id)
-    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (!lead || !canHandleLeadCommunications(session, lead)) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    if (lead.moveDateConfirmation === 'unconfirmed') return NextResponse.json({ error: 'Confirm the customer move date before booking.' }, { status: 409 })
 
     const now = new Date().toISOString()
     const explicitDepositAmount = Number(body.depositAmount || 0) > 0 ? Number(body.depositAmount) : undefined

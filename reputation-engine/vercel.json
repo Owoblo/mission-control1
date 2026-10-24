@@ -1,5 +1,6 @@
 {
   "crons": [
+    { "path": "/api/sales/recordings/process", "schedule": "* * * * *" },
     {
       "path": "/api/ops/database-health",
       "schedule": "*/2 * * * *"

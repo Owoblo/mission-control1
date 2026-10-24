@@ -1,4 +1,5 @@
 'use client'
+import { smsDeliveryLabel } from '@/lib/conversation-integrity'
 
 import React, { Suspense, useEffect, useDeferredValue, useMemo, useState, useTransition, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1753,6 +1754,7 @@ function SalesInboxPageInner() {
                               <p className="whitespace-pre-wrap break-words">{msg.body}</p>
                               <p className={`mt-1 text-[11px] ${msg.direction === 'outbound' ? 'text-white/60' : 'text-[#8e8e93]'}`}>
                                 {new Date(msg.created_at).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                {msg.direction === 'outbound' ? <span className="ml-2 font-semibold">{smsDeliveryLabel(msg.delivery_status)}</span> : null}
                               </p>
                             </div>
                           </div>

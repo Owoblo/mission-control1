@@ -96,14 +96,14 @@ export function leadNeedsAccessBeforeAutomatedQuote(
 
 export function getAutomationMissingFields(lead: CRMLead) {
   const missing: string[] = []
-  const moveDateKnown = !!lead.moveDate || !!lead.moveDateFlexible
+  const moveDateKnown = lead.moveDateConfirmation !== 'unconfirmed' && (!!lead.moveDate || !!lead.moveDateFlexible)
   const routeKnown = hasCompleteRouteAddresses(lead)
   const inventoryKnown =
     (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&
     !hasMlsDraftInventoryNeedingConfirmation(lead)
   const accessKnown = hasAnyAccessDetails(lead)
 
-  if (!lead.moveDate && !lead.moveDateFlexible) missing.push('move_date')
+  if (!moveDateKnown) missing.push('move_date')
   if (!lead.originCity && !lead.originAddress) missing.push('origin')
   else if (!hasCompleteMoveAddress(lead.originAddress)) missing.push('origin_address')
   if (!lead.destCity && !lead.destAddress) missing.push('destination')
@@ -138,7 +138,7 @@ export function getFastLaneReadinessIssues(lead: CRMLead, now = new Date()) {
   const issues: FastLaneReadinessIssue[] = []
   const moveDate = lead.moveDate ? new Date(`${lead.moveDate}T12:00:00`) : null
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  if (!moveDate || Number.isNaN(moveDate.getTime()) || moveDate < today) issues.push('move_date')
+  if (lead.moveDateConfirmation === 'unconfirmed' || !moveDate || Number.isNaN(moveDate.getTime()) || moveDate < today) issues.push('move_date')
   if (!hasCompleteMoveAddress(lead.originAddress) || addressContainsScheduleText(lead.originAddress)) issues.push('origin_address')
   if (!lead.originCity?.trim()) issues.push('origin_city')
   if (!hasCompleteMoveAddress(lead.destAddress) || addressContainsScheduleText(lead.destAddress)) issues.push('destination_address')
@@ -214,7 +214,7 @@ export function buildLeadQualificationState(
       : getAutomationMissingFields(lead)
 
   return {
-    moveDateKnown: !!lead.moveDate || !!lead.moveDateFlexible,
+    moveDateKnown: lead.moveDateConfirmation !== 'unconfirmed' && (!!lead.moveDate || !!lead.moveDateFlexible),
     routeKnown: hasCompleteRouteAddresses(lead),
     inventoryKnown:
       (!!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt) &&

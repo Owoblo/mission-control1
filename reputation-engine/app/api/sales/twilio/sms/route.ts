@@ -1,4 +1,5 @@
 import { handleInboundSms } from '@/lib/server/inbound-sms'
+export const maxDuration = 120
 import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { isAutomatedLeasingNotice, needsPartnershipRoutingReview, savePartnershipRoutingReview } from '@/lib/server/partnership-routing-review'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'

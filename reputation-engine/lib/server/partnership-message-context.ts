@@ -54,6 +54,14 @@ export async function getSalesSmsReplyLeadId(phone: string, businessPhone: strin
   const business = normalizePhone(businessPhone)
   if (!normalized || !business) return null
   const { url, headers } = requireSupabaseEnv()
+  async function customerLeadId(id?: string | null) {
+    if (!id || id.startsWith('partner-handoff-')) return null
+    const response = await fetch(`${url}/rest/v1/crm_leads?${new URLSearchParams({ id: `eq.${id}`, select: 'id,data,deleted', limit: '1' })}`, { headers, cache: 'no-store' })
+    if (!response.ok) throw new Error('Unable to verify customer conversation ownership')
+    const [row] = await response.json() as Array<{ id: string; deleted: boolean; data: { leadKind?: string; conversationReview?: { kind?: string; status?: string } } }>
+    if (!row || row.deleted || row.data.leadKind && row.data.leadKind !== 'customer' || row.data.conversationReview?.kind === 'no_active_move' && row.data.conversationReview.status === 'open') return null
+    return id
+  }
   const query = new URLSearchParams({
     select: 'twilio_sid,lead_id,from_number,to_number,direction',
     to_number: `in.(${normalized},${normalized.replace(/^\+1/, '')})`,
@@ -71,10 +79,10 @@ export async function getSalesSmsReplyLeadId(phone: string, businessPhone: strin
     const linkedResponse = await fetch(`${url}/rest/v1/sms_messages?${query}`, { headers, cache: 'no-store' })
     if (!linkedResponse.ok) throw new Error('Unable to resolve SMS reply context')
     const linked = await linkedResponse.json() as Message[]
-    return (await excludePartnershipMessages(linked))[0]?.lead_id || null
+    return customerLeadId((await excludePartnershipMessages(linked))[0]?.lead_id)
   }
-  if (!rows[0]?.lead_id) return null
-  return (await excludePartnershipMessages(rows)).length === 1 ? rows[0].lead_id : null
+  if (!rows[0]?.lead_id || rows[0].lead_id.startsWith('partner-handoff-')) return null
+  return (await excludePartnershipMessages(rows)).length === 1 ? customerLeadId(rows[0].lead_id) : null
 }
 
 export async function isReplyToSalesSms(phone: string, businessPhone: string): Promise<boolean> {
