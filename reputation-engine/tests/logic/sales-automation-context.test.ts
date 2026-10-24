@@ -5,6 +5,7 @@ import {
   extractDeterministicReplyFields,
   extractStructuredInboundLeadFields,
   resolveInboundSalesContext,
+  resolveCustomerMoveDate,
 } from '../../lib/sales-automation-context'
 import { getAutomationMissingFields } from '../../lib/sales-automation-qualification'
 import type { CRMLead } from '../../lib/types'
@@ -83,6 +84,23 @@ test('flexible scheduling replies advance qualification without AI extraction', 
 
   assert.equal(fields.moveDateFlexible, true)
   assert.match(fields.moveDateFlexibleReason || '', /weekend is preferred/i)
+})
+
+test('same-day SMS uses the Toronto message date and overrides a hallucinated model date', () => {
+  assert.equal(extractDeterministicReplyFields('Today, this afternoon', '2026-10-24T16:17:33Z').moveDate, '2026-10-24')
+  assert.equal(resolveCustomerMoveDate('Today, this afternoon', '2026-10-24T16:17:33Z', '2023-10-06'), '2026-10-24')
+  assert.equal(resolveCustomerMoveDate('Today', '2026-10-25T01:00:00Z'), '2026-10-24')
+  assert.equal(resolveCustomerMoveDate('Tomorrow', '2026-12-31T23:00:00Z'), '2027-01-01')
+  assert.equal(resolveCustomerMoveDate('Tomorrow', '2026-11-01T04:30:00Z'), '2026-11-02')
+})
+
+test('date extraction rejects past/impossible model dates and ambiguous relative dates', () => {
+  assert.equal(resolveCustomerMoveDate('This afternoon', '2026-10-24T16:17:33Z', '2023-10-06'), undefined)
+  assert.equal(resolveCustomerMoveDate('I called today', '2026-10-24T16:17:33Z'), undefined)
+  assert.equal(resolveCustomerMoveDate('Not today', '2026-10-24T16:17:33Z'), undefined)
+  assert.equal(resolveCustomerMoveDate('Today or tomorrow', '2026-10-24T16:17:33Z'), undefined)
+  assert.equal(resolveCustomerMoveDate('Date is 2027-02-30', '2026-10-24T16:17:33Z'), undefined)
+  assert.equal(resolveCustomerMoveDate('November 2', '2026-10-24T16:17:33Z', '2026-11-02'), '2026-11-02')
 })
 
 test('inbound context resolver splits two customer addresses and overwrites stale partial pickup', () => {

@@ -1,8 +1,12 @@
+import { after } from 'next/server'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
-import { requireSupabaseEnv } from '@/lib/server/runtime'
+import { getInboundLeadByCallSid, saveInboundLead } from '@/lib/server/sales-repository'
+import { persistInboundCallEvent } from '@/lib/server/inbound-call-history'
 import { sendRepAlertEmail, voicemailNotificationEmail } from '@/lib/server/internal-notifications'
+import { archiveTwilioRecording } from '@/lib/server/recording-archive'
+import { getTwilioCredentials } from '@/lib/server/runtime'
 
 function xmlResponse(twiml: string) {
   return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
@@ -10,31 +14,16 @@ function xmlResponse(twiml: string) {
 
 async function patchInboundLeadVoicemail(
   from: string,
+  to: string,
+  callSid: string,
   voicemailUrl: string,
   voicemailDuration: number,
   voicemailAt: string,
 ) {
   try {
-    const { url, headers } = requireSupabaseEnv()
-    const res = await fetch(
-      `${url}/rest/v1/inbound_leads?phone=eq.${encodeURIComponent(from)}&order=created_at.desc&limit=1`,
-      { headers, cache: 'no-store' }
-    )
-    const leads = await res.json() as Array<{ id: string; raw_data: Record<string, unknown> }>
-    if (!leads[0]) return null
-    await fetch(`${url}/rest/v1/inbound_leads?id=eq.${leads[0].id}`, {
-      method: 'PATCH',
-      headers: { ...headers, Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        raw_data: {
-          ...leads[0].raw_data,
-          voicemailUrl,
-          voicemailDuration,
-          voicemailAt,
-        },
-      }),
-    })
-    return leads[0].id
+    await saveInboundLead({ id: crypto.randomUUID(), source: 'twilio_call', phone: from, message: `Inbound call from ${from}`, raw_data: { from, to, callSid, voicemailUrl, voicemailDuration, voicemailAt } })
+    const inbound = await getInboundLeadByCallSid(callSid)
+    return typeof inbound?.raw_data === 'object' ? String(inbound.raw_data?.linkedLeadId || '') || null : null
   } catch {
     return null
   }
@@ -61,17 +50,22 @@ export async function POST(request: Request) {
       const voicemailAt = new Date().toISOString()
 
       // Save to Supabase in background — never block TwiML on DB latency
-      void (async () => {
+      after(async () => {
         try {
-          const leadId = await patchInboundLeadVoicemail(from, recordingUrl, recordingDuration, voicemailAt)
-          await sendRepAlertEmail(
-            `New Voicemail from ${from}`,
-            voicemailNotificationEmail(from, recordingDuration, recordingUrl, leadId)
-          )
+          const leadId = await patchInboundLeadVoicemail(from, to, callSid, recordingUrl, recordingDuration, voicemailAt)
+          await Promise.all([
+            persistInboundCallEvent({ source: 'twilio_voicemail', channel: 'voicemail', sender: from, recipient: to, occurredAt: voicemailAt, raw: rawBody }).then(async mapping => {
+              if (!mapping) return
+              const { accountSid, authToken } = getTwilioCredentials()
+              await archiveTwilioRecording({ ...mapping, accountSid, authToken, callSid, recordingUrl, recordingSid: formData.get('RecordingSid'), durationSeconds: recordingDuration, phoneNumber: from, createdAt: voicemailAt })
+            })
+              .catch(error => console.error('Voicemail history projection failed', { callSid, error: String(error) })),
+            sendRepAlertEmail(`New Voicemail from ${from}`, voicemailNotificationEmail(from, recordingDuration, recordingUrl, leadId)),
+          ])
         } catch {
           // best-effort
         }
-      })()
+      })
     }
 
     void callSid

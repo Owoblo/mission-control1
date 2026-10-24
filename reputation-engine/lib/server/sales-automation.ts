@@ -1,3 +1,4 @@
+import { getSalesBranchFromSaturnPhone } from '@/lib/sales-phones'
 import { blocksAutomatedFollowUp } from '../follow-up-radar'
 import { detectLostFeedbackDetail, detectMovedOnIntent, shouldRequestMovedOnFeedback } from '../moved-on-feedback'
 import { inventoryMeasurementIssues, buildCustomerInventoryList, planCustomerInventoryReply } from '@/lib/customer-inventory-review'
@@ -54,6 +55,8 @@ import {
 } from '@/lib/sales-automation-qualification'
 import {
   extractDeterministicReplyFields,
+  customerLocalDate,
+  resolveCustomerMoveDate,
   extractStructuredInboundLeadFields,
   resolveInboundSalesContext,
 } from '@/lib/sales-automation-context'
@@ -930,6 +933,7 @@ async function extractLeadSignals(lead: CRMLead, event: InboundAutomationEvent):
           content:
             'Extract moving-lead details from customer messages for Saturn Star Moving. Return JSON only. ' +
             'Use ISO date YYYY-MM-DD only when explicit enough. Never invent missing details. ' +
+            `The customer message date is ${customerLocalDate(event.receivedAt)} in America/Toronto. Resolve today/tomorrow relative to that date. Never infer a past move date. ` +
             'Set shouldHandoff or wantsHuman only when the customer explicitly asks to speak to a person or requests a callback. ' +
             'Do not set shouldHandoff or wantsHuman for quote, estimate, pricing, scheduling, or general service requests. ' +
             'moveType must be exactly one of: residential, long-distance, commercial, senior, labor-only, packing. No other values allowed. ' +
@@ -966,7 +970,9 @@ async function extractLeadSignals(lead: CRMLead, event: InboundAutomationEvent):
   const content = payload.choices?.[0]?.message?.content || ''
   if (!content) return null
   try {
-    return JSON.parse(content) as ExtractedLeadSignals
+    const signals = JSON.parse(content) as ExtractedLeadSignals
+    signals.moveDate = resolveCustomerMoveDate(message, event.receivedAt, signals.moveDate)
+    return signals
   } catch {
     return null
   }
@@ -1598,13 +1604,13 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
     { ...inboundRaw, ...(event.raw || {}) },
     event.message || inbound?.message,
   )
-  const deterministicReplyFields = extractDeterministicReplyFields(event.message || inbound?.message)
+  const deterministicReplyFields = extractDeterministicReplyFields(event.message || inbound?.message, now)
   const structuredOrigin = structuredFields.originAddress
   const structuredDestination = structuredFields.destAddress
   lead = normalizeLead({
     ...lead,
     ...deterministicReplyFields,
-    moveDate: lead.moveDate || structuredFields.moveDate,
+    moveDate: deterministicReplyFields.moveDate || lead.moveDate || structuredFields.moveDate,
     moveType: lead.moveType || structuredFields.moveType,
     propertyBedrooms: lead.propertyBedrooms || structuredFields.propertyBedrooms,
     originAddress:
@@ -1625,7 +1631,7 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
       structuredFields.destCity,
       lead.originCity,
       lead.destCity,
-    ),
+    ) || getSalesBranchFromSaturnPhone(String(event.raw?.to || event.raw?.To || inboundRaw.to || inboundRaw.To || '')),
   })
 
   const extractedSignals = await extractLeadSignals(lead, {
@@ -3832,6 +3838,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     body: copy.reply || fallbackCopy(job.kind, workingLead, contact.channel, inboundMessage).reply || '',
     leadId: workingLead.id,
     notes: `Automation ${job.kind} sent to ${contact.to}`,
+    replyToInboundAt: String(job.payload?.receivedAt || workingLead.lastInboundAt || ''),
   })
 
   if (!wasSalesMessageDelivered(sendResult)) {

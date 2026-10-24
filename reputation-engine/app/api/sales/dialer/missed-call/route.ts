@@ -1,62 +1,28 @@
+import { after } from 'next/server'
 import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
-import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
-import { getTwilioCredentials, requireSupabaseEnv, getAppBaseUrl } from '@/lib/server/runtime'
-import { outboundSmsRecentlySent, recordOutboundSmsToSupabase } from '@/lib/server/sales-messaging'
-import { twilioAuth } from '@/lib/server/twilio-recordings'
+import { getAppBaseUrl } from '@/lib/server/runtime'
 import { getSaturnBranchLabel } from '@/lib/sales-phones'
 import { sendRepAlertEmail, missedCallNotificationEmail } from '@/lib/server/internal-notifications'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
+import { persistInboundCallEvent, reserveMissedCallResponse } from '@/lib/server/inbound-call-history'
+import { saveInboundLead } from '@/lib/server/sales-repository'
 
 // Twilio calls this action URL when <Dial> completes for ANY reason:
 // completed = someone answered, no-answer = nobody answered, busy/failed = other failure
 // We update the inbound lead status accordingly so the CRM shows the right thing.
 
 const BUSINESS_NAME = 'Saturn Star Moving'
-const SMS_COOLDOWN_MS = 5 * 60 * 1000  // don't send duplicate missed-call SMS within 5 min
-
-// In-memory cooldown — resets on cold start but good enough for dedup within a session
-const recentMissedSmsSent = new Map<string, number>()
+export const maxDuration = 120
 
 function xmlResponse(twiml: string) {
   return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
 }
 
-async function sendSms(accountSid: string, authToken: string, to: string, from: string, body: string) {
-  const response = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: twilioAuth(accountSid, authToken),
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({ To: to, From: from, Body: body }).toString(),
-  })
-
-  const payload = await response.json().catch(() => ({})) as { sid?: string; message?: string }
-  if (!response.ok || !payload.sid) {
-    throw new Error(payload.message || 'Missed-call SMS failed')
-  }
-
-  return payload.sid
-}
-
-async function updateInboundLead(from: string, patch: Record<string, unknown>) {
-  try {
-    const { url, headers } = requireSupabaseEnv()
-    const res = await fetch(
-      `${url}/rest/v1/inbound_leads?phone=eq.${encodeURIComponent(from)}&order=created_at.desc&limit=1`,
-      { headers, cache: 'no-store' }
-    )
-    const leads = await res.json() as Array<{ id: string; raw_data: Record<string, unknown> }>
-    if (!leads[0]) return
-    await fetch(`${url}/rest/v1/inbound_leads?id=eq.${leads[0].id}`, {
-      method: 'PATCH',
-      headers: { ...headers, Prefer: 'return=minimal' },
-      body: JSON.stringify({ raw_data: { ...leads[0].raw_data, ...patch } }),
-    })
-  } catch { /* non-fatal */ }
+async function updateInboundLead(from: string, to: string, callSid: string, patch: Record<string, unknown>) {
+  await saveInboundLead({ id: crypto.randomUUID(), source: 'twilio_call', phone: from, message: `Inbound call from ${from}`, raw_data: { from, to, callSid, ...patch } })
 }
 
 function answeredBy(dialCallStatus: string, dialCallDuration: number): 'browser' | 'rep' | 'nobody' {
@@ -95,63 +61,49 @@ export async function POST(request: Request) {
     const branchLabel   = getSaturnBranchLabel(to) || BUSINESS_NAME
     const businessNumber = to || '+12267732993'
 
-    // Dedup: don't send missed-call SMS to same number twice within cooldown window
-    const lastSent = recentMissedSmsSent.get(from) || 0
-    const withinCooldown = (Date.now() - lastSent) < SMS_COOLDOWN_MS
-
     if (who !== 'nobody') {
       // Call was answered by someone on the team — update CRM to reflect that
-      void updateInboundLead(from, {
+      await updateInboundLead(from, to, callSid, {
         missedCall: false,
         answeredAt: now,
         answeredByRep: true,
         dialCallDuration,
         dialCallSid: dialCallSid || undefined,
         answeredCallSid: callSid,
-      }).catch(() => {})
+      })
     } else {
       // Nobody answered — mark missed and send auto-text to caller (with dedup)
-      void updateInboundLead(from, {
+      await updateInboundLead(from, to, callSid, {
         missedCall: true,
         missedCallAt: now,
         missedCallReason: dialCallStatus || 'no-answer',
         callSid,
-      }).catch(() => {})
+      })
 
-      const recentlySent = await outboundSmsRecentlySent({
-        to: from,
-        from: businessNumber,
-      }).catch(() => false)
-
-      if (!withinCooldown && !recentlySent) {
-        recentMissedSmsSent.set(from, Date.now())
-
-        // Fire automation — it picks up context from any existing lead and sends a
-        // proper response (quote, info collection, etc.) instead of a generic text.
-        const automationHandled = await processInboundAutomationEvent({
-          source: 'missed_call',
-          channel: 'sms',
-          phone: from,
-          message: '',
-          receivedAt: now,
-          raw: { callSid, from, to, dialCallStatus, missedCall: true },
-        }).then(() => true).catch(() => false)
-
-        // Fallback only if automation fails entirely
-        if (!automationHandled) {
-          const { accountSid, authToken } = getTwilioCredentials()
-          const callerSms = `Hi! You just called Saturn Star Moving. We missed you — reply here to get a moving estimate or we'll call you right back.`
-          void sendSms(accountSid, authToken, from, businessNumber, callerSms)
-            .then(sid => recordOutboundSmsToSupabase(businessNumber, from, callerSms, undefined, sid))
-            .catch(() => {})
+      // Return the voicemail prompt promptly; Next keeps this work alive after the response.
+      after(async () => {
+        try {
+          if (await reserveMissedCallResponse(from, businessNumber, callSid)) {
+            await processInboundAutomationEvent({
+              source: 'missed_call',
+              channel: 'sms',
+              phone: from,
+              message: '',
+              receivedAt: now,
+              raw: { callSid, from, to, dialCallStatus, missedCall: true },
+            }).catch(error => console.error('Missed-call automation failed; staff alert retained', { callSid, error: String(error) }))
+          }
+        } catch (error) {
+          console.error('Missed-call response reservation failed', { callSid, error: String(error) })
         }
-      }
-
-      await sendRepAlertEmail(
-        `Missed Call — ${from}`,
-        missedCallNotificationEmail(from, branchLabel)
-      )
+        await Promise.all([
+          sendRepAlertEmail(`Missed Call — ${from}`, missedCallNotificationEmail(from, branchLabel)),
+          persistInboundCallEvent({ source: 'twilio_missed_call', channel: 'call', sender: from, recipient: to, occurredAt: now, raw: rawBody })
+            .catch(error => console.error('Inbound call history projection failed', { callSid, error: String(error) })),
+        ])
+      })
     }
+    if (who !== 'nobody') after(() => persistInboundCallEvent({ source: 'twilio_missed_call', channel: 'call', sender: from, recipient: to, occurredAt: now, raw: rawBody }).catch(error => console.error('Inbound call history projection failed', { callSid, error: String(error) })))
   } catch { /* always return valid TwiML */ }
 
   // If nobody answered, offer voicemail prompt

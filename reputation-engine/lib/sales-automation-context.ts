@@ -99,16 +99,40 @@ export function extractStructuredInboundLeadFields(
   }
 }
 
-export function extractDeterministicReplyFields(message?: string | null): Partial<CRMLead> {
+export function customerLocalDate(receivedAt = new Date().toISOString()) {
+  const date = new Date(receivedAt)
+  if (!Number.isFinite(date.getTime())) throw new Error('Invalid customer message timestamp')
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+}
+
+/** Relative move dates are grounded in the customer message's local date, never a model's clock. */
+export function resolveCustomerMoveDate(message: string, receivedAt = new Date().toISOString(), suggested?: string) {
+  const text = cleanLine(message)
+  const relative = text.match(/^(today|tonight|tomorrow)\b/i)?.[1]
+    || text.match(/\b(?:move|moving|delivery|deliver|pickup|pick up|date)\b.{0,30}?\b(today|tonight|tomorrow)\b/i)?.[1]
+  const today = customerLocalDate(receivedAt)
+  if (relative && !/\b(?:not|can't|cannot|won't)\b/i.test(text) && new Set(text.match(/\b(today|tonight|tomorrow)\b/gi)?.map(x => x.toLowerCase()) || []).size === 1) {
+    if (relative.toLowerCase() !== 'tomorrow') return today
+    return new Date(Date.parse(today + 'T12:00:00Z') + 86_400_000).toISOString().slice(0, 10)
+  }
+  const candidate = text.match(/\b20\d{2}-\d{2}-\d{2}\b/)?.[0] || suggested
+  if (!candidate || !/^20\d{2}-\d{2}-\d{2}$/.test(candidate) || candidate < today) return undefined
+  const parsed = new Date(candidate + 'T12:00:00Z')
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === candidate ? candidate : undefined
+}
+
+export function extractDeterministicReplyFields(message?: string | null, receivedAt = new Date().toISOString()): Partial<CRMLead> {
   const text = cleanLine(message)
   if (!text) return {}
   const flexible = /\b(date|day|timing)\b.{0,35}\b(flexible|any day|whenever)\b|\b(any day|weekend|monday|friday)\b/i.test(text)
-  return flexible
-    ? {
+  const moveDate = resolveCustomerMoveDate(text, receivedAt)
+  return {
+    ...(moveDate ? { moveDate } : {}),
+    ...(flexible && !moveDate ? {
         moveDateFlexible: true,
         moveDateFlexibleReason: text.slice(0, 240),
-      }
-    : {}
+      } : {}),
+  }
 }
 
 function cleanInventoryText(value?: string | null) {
