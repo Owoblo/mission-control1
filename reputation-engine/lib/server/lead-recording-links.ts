@@ -2,6 +2,8 @@ import type { CRMLead } from '@/lib/types'
 import { attachArchivedRecordings } from '@/lib/call-recording-links'
 import { requireSupabaseEnv } from './runtime'
 import type { CallRecordingRecord } from './call-recordings'
+import { attachInboundCallHistory } from '@/lib/inbound-call-history'
+import { listInboundCallEvents } from './inbound-call-history'
 export async function hydrateLeadRecordings(lead: CRMLead) {
   const { url, headers } = requireSupabaseEnv()
   const recordings: CallRecordingRecord[] = []
@@ -12,5 +14,6 @@ export async function hydrateLeadRecordings(lead: CRMLead) {
     recordings.push(...page)
     if (page.length < 500) break
   }
-  return attachArchivedRecordings(lead, recordings)
+  const events = await listInboundCallEvents(lead.id)
+  return attachArchivedRecordings(attachInboundCallHistory(lead, events), recordings)
 }

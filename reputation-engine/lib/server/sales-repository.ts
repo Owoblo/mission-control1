@@ -1170,6 +1170,14 @@ export async function saveInboundLead(lead: {
   raw_data?: Record<string, unknown>
 }) {
   const { url, headers } = requireSupabase()
+  if (lead.source === 'twilio_call' && lead.raw_data?.callSid) {
+    const response = await fetch(`${url}/rest/v1/rpc/capture_inbound_call`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ p_id: lead.id, p_phone: lead.phone, p_message: lead.message, p_raw: lead.raw_data }),
+    })
+    if (!response.ok) throw new Error('Failed to preserve inbound call')
+    return
+  }
   const response = await fetch(`${url}/rest/v1/inbound_leads`, {
     method: 'POST',
     headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' },

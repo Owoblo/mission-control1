@@ -15,6 +15,8 @@ import {
 } from '@/lib/server/twilio-recordings'
 import { getStorageService } from '@/lib/server/storage-service'
 import { getCallRecordingByObjectKey, getCallRecordingBySid } from '@/lib/server/call-recordings'
+import { listInboundCallEvents } from '@/lib/server/inbound-call-history'
+import { attachInboundCallHistory } from '@/lib/inbound-call-history'
 
 // Proxy Twilio recording audio — prevents browser from showing Basic Auth dialog
 export async function GET(request: Request) {
@@ -61,6 +63,17 @@ export async function GET(request: Request) {
 
   const resolvedSid = recordingSid || extractTwilioRecordingSidFromUrl(normalizedUrl)
   let recordLeadId = resolvedSid ? (await getCallRecordingBySid(resolvedSid))?.lead_id : null
+  const hintedLeadId = searchParams.get('leadId')
+  if (!recordLeadId && resolvedSid && hintedLeadId && await canRead(hintedLeadId)) {
+    const hintedLead = await getSalesLead(hintedLeadId)
+    if (hintedLead) {
+      // A caller-supplied lead ID alone grants nothing. Require immutable ingress
+      // evidence for this exact recording, including legacy calls lacking mappings.
+      const events = await listInboundCallEvents(hintedLeadId)
+      const evidence = attachInboundCallHistory({ ...hintedLead, callLogs: [] }, events)
+      if (evidence.callLogs?.some(entry => entry.recordingSid === resolvedSid)) recordLeadId = hintedLeadId
+    }
+  }
   if (!recordLeadId && session.role !== 'owner' && !(session.role === 'manager' && !session.branch)) {
     const providerRecord = resolvedSid ? await getTwilioRecordingBySid({ accountSid, authToken, recordingSid: resolvedSid }) : null
     const mapping = providerRecord?.callSid ? await getCrmCallSidMapping(providerRecord.callSid) : null

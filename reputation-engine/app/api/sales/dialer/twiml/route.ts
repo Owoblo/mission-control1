@@ -1,16 +1,17 @@
 import { partnershipCellForwardTarget } from '@/lib/partnership-call-forwarding'
+import { after } from 'next/server'
+import { persistInboundCallEvent } from '@/lib/server/inbound-call-history'
 import { POST as partnershipVoice } from '@/app/api/marketing/dialer/twiml/route'
 import { carrierVoiceForm, carrierDialTarget } from '@/lib/server/carrier-voice'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
-import { getSalesLeadByContact, saveInboundLead, listSalesLeads, saveSalesLead, saveCrmCallSidMapping } from '@/lib/server/sales-repository'
+import { getSalesLeadByContact, saveInboundLead, listSalesLeads } from '@/lib/server/sales-repository'
 import { notifyPartnershipCustomerContact, pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
 import { getAppBaseUrl, requireSupabaseEnv } from '@/lib/server/runtime'
 import { getHealthyBrowserPresence } from '@/lib/server/telephony-monitoring'
 import { findBlockedCaller, getDialerSettings, isWithinBusinessHoursSettings } from '@/lib/server/dialer-settings'
 import { sendCallerIdSms } from '@/lib/server/internal-notifications'
 import { resolveVoiceCallerId } from '@/lib/server/voice-caller-id'
-import { uid } from '@/lib/sales'
 import { getDefaultSaturnBranchNumber, getSaturnBranchLabel, getSaturnTrackingLabel, getSaturnTrackingSource, pickSaturnBranchPhoneNumber } from '@/lib/sales-phones'
 import type { CRMLead } from '@/lib/types'
 
@@ -391,7 +392,7 @@ export async function POST(request: Request) {
         // Fire all CRM writes in the background — never block TwiML response on DB latency.
         // The recording-callback has its own fallback (ensureInboundLeadCallMapping) if
         // the mapping isn't ready yet when recording arrives.
-        void (async () => {
+        after(async () => {
           try {
           const now = new Date().toISOString()
           // Caller-name lookup has a short UI timeout; resolve ownership again
@@ -449,46 +450,14 @@ export async function POST(request: Request) {
                 void sendCallerIdSms(from, crmLead.name, branchCity, repPhones, biz)
               }
 
-              const existingCallLog = (crmLead.callLogs || []).find(entry => entry.callSid === callSid)
-              const callLogId = existingCallLog?.id || uid('cl')
-              const nextLead: CRMLead = existingCallLog
-                ? {
-                    ...crmLead,
-                    inboundId: crmLead.inboundId || inboundId,
-                    lastInboundAt: now,
-                  }
-                : {
-                    ...crmLead,
-                    inboundId: crmLead.inboundId || inboundId,
-                    stage: crmLead.stage === 'new' || crmLead.stage === 'nurture' ? 'contacted' : crmLead.stage,
-                    lastInboundAt: now,
-                    callLogs: [
-                      {
-                        id: callLogId,
-                        type: 'call',
-                        notes: `Incoming call from ${from} → ${branchCity} line — routing to rep…`,
-                        date: now,
-                        phone: from,
-                        branchNumber: normalizedTo || to || undefined,
-                        direction: 'inbound',
-                        callSid,
-                        source: 'inbound',
-                      } as any,
-                      ...(crmLead.callLogs || []),
-                    ],
-                  }
-
-              const saved = await saveSalesLead(nextLead).catch(() => null)
-              if (saved) {
-                await saveCrmCallSidMapping(callSid, saved.id, callLogId).catch(() => {})
-              }
+              await persistInboundCallEvent({ source: 'twilio_call', channel: 'call', sender: from, recipient: normalizedTo || to, occurredAt: now, provenance: { CallSid: callSid } })
             }
             // No existing lead found → recording-callback will handle it when recording arrives
           }
         } catch {
           // best-effort
           }
-        })()
+        })
       }
 
       const dialStatusParams = new URLSearchParams()
