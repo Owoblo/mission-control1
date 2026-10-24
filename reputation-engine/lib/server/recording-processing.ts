@@ -60,7 +60,7 @@ export async function processRecordingJobs(limit = 1, sid?: string) {
       let transcript = recording.transcript || entry.transcript?.replace(/^\[Voicemail\]\s*/i, '')
       if (!transcript) {
         const audio = await getStorageService().getObject(recording.cloudflare_object_key)
-        transcript = await transcribeAudioBuffer(audio.buffer, audio.contentType, 'call') || undefined
+        transcript = await transcribeAudioBuffer(audio.buffer, audio.contentType, 'call', { timeoutMs: 120_000, attempts: 1 }) || undefined
       }
       if (!transcript?.trim()) throw new Error('No transcript returned; the recording may be silent or transcription is not configured')
       const voicemail = isVoicemailTranscript(transcript, entry.isVoicemail && entry.source === 'inbound' && !entry.aiSummary ? 'RecordVerb' : undefined)
