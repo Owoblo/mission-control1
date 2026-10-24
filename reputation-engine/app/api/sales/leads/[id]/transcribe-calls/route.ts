@@ -1,106 +1,21 @@
 import { getRequestSessionUser } from '@/lib/server/request-session'
 import { canHandleLeadCommunications } from '@/lib/server/sales-permissions'
+import { getSalesLead } from '@/lib/server/sales-repository'
 import { hydrateLeadRecordings } from '@/lib/server/lead-recording-links'
-/**
- * POST /api/sales/leads/[id]/transcribe-calls
- * Transcribes call logs that have a recordingUrl but no transcript.
- * Webhooks handle new recordings; this route is for explicit/manual backfill.
- */
-export const maxDuration = 120
+import { processRecordingJobs, queueRecordingTranscription } from '@/lib/server/recording-processing'
+export const maxDuration = 300
 
-import { NextResponse } from 'next/server'
-import { getSalesLead, saveSalesLead } from '@/lib/server/sales-repository'
-import { applyPhoneCallSummaryToLead, transcribeFromUrl, summarizePhoneCall } from '@/lib/server/call-intelligence'
-import { getTwilioCredentials } from '@/lib/server/runtime'
-
-export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const { id } = await props.params
+  const session = await getRequestSessionUser(request)
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const lead = await getSalesLead(id)
+  if (!lead || !canHandleLeadCommunications(session, lead)) return Response.json({ error: 'Not found' }, { status: 404 })
   try {
-    const session = await getRequestSessionUser(_req)
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    let lead = await getSalesLead(params.id)
-    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-
-    if (!canHandleLeadCommunications(session, lead)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    lead = await hydrateLeadRecordings(lead)
-    const { accountSid, authToken } = getTwilioCredentials()
-
-    // Find all call logs with a recording reference but no transcript yet.
-    // R2-backed recordings use the internal playback endpoint; legacy rows may still use Twilio URLs.
-    const pending = (lead.callLogs || []).filter(
-      c => c.recordingUrl &&
-        (c.recordingUrl.startsWith('https://api.twilio.com/') || c.recordingUrl.startsWith('/api/sales/dialer/recording?key=')) &&
-        !c.transcript
-    )
-
-    if (pending.length === 0) {
-      return NextResponse.json({ ok: true, transcribed: 0 })
-    }
-
-    let updatedLogs = [...(lead.callLogs || [])]
-    let nextLeadState = lead
-    let transcribed = 0
-
-    for (const entry of pending) {
-      try {
-        const transcript = await transcribeFromUrl(entry.recordingUrl!, accountSid, authToken, entry.recordingSid)
-        if (!transcript) continue
-
-        const isVoicemail = entry.isVoicemail || transcript.toLowerCase().includes('leave a message') || transcript.toLowerCase().includes('not available')
-        const aiSummary = await summarizePhoneCall(
-          lead,
-          transcript,
-          (entry as any).direction === 'inbound' ? 'inbound' : 'outbound'
-        ).catch(() => null)
-
-        updatedLogs = updatedLogs.map(c => {
-          if (c.id !== entry.id) return c
-          const notes = (c.notes || '')
-            .replace(' Recording processing…', ' Recording transcribed.')
-            .replace(' Recording saved.', ' Recording transcribed.')
-            .replace(' Recording available.', ' Recording transcribed.')
-          return {
-            ...c,
-            transcript: isVoicemail ? `[Voicemail] ${transcript}` : transcript,
-            aiSummary: aiSummary || c.aiSummary,
-            isVoicemail: isVoicemail || c.isVoicemail,
-            notes,
-          }
-        })
-        nextLeadState = {
-          ...nextLeadState,
-          callLogs: updatedLogs,
-        }
-        if (aiSummary) {
-          nextLeadState = applyPhoneCallSummaryToLead(nextLeadState, aiSummary as any)
-        }
-        transcribed++
-      } catch {
-        // best-effort per entry — continue to next
-      }
-    }
-
-    if (transcribed > 0) {
-      const saved = await saveSalesLead({ ...nextLeadState, callLogs: updatedLogs })
-
-      // Fire intelligence synthesis in background after new transcripts are ready
-      const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.APP_BASE_URL || ''
-      if (baseUrl) {
-        void fetch(`${baseUrl}/api/sales/leads/${params.id}/intelligence`, {
-          method: 'POST',
-          headers: { 'x-internal-secret': process.env.WORKER_SHARED_SECRET || '' },
-          credentials: 'omit',
-        }).catch(() => {})
-      }
-
-      return NextResponse.json({ ok: true, transcribed, lead: saved })
-    }
-
-    return NextResponse.json({ ok: true, transcribed: 0 })
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed' },
-      { status: 500 }
-    )
-  }
+    const hydrated = await hydrateLeadRecordings(lead)
+    const pending = hydrated.callLogs?.filter(c => c.recordingSid && !c.transcript) || []
+    for (const entry of pending) await queueRecordingTranscription(entry.recordingSid!, true)
+    const jobs = pending[0] ? await processRecordingJobs(1, pending[0].recordingSid) : []
+    return Response.json({ ok: true, transcribed: jobs.filter(j => j.status === 'completed').length, queued: pending.length, jobs, lead: await hydrateLeadRecordings(await getSalesLead(id) || lead) })
+  } catch (error) { return Response.json({ error: error instanceof Error ? error.message : 'Transcription could not be queued. The audio was preserved.' }, { status: 503 }) }
 }

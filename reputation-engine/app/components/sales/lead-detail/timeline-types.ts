@@ -12,6 +12,8 @@ export type TimelineItem = {
   recordingSid?: string
   recordingStatus?: 'received' | 'uploaded' | 'verified' | 'transcribed' | 'failed' | 'twilio_deleted' | 'unavailable'
   recordingUnavailable?: boolean
+  transcriptionStatus?: 'pending' | 'processing' | 'retry' | 'completed' | 'failed'
+  transcriptionError?: string
   recordingUnavailableReason?: string
   transcript?: string
   aiSummary?: AISummary

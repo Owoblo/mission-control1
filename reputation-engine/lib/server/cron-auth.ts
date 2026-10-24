@@ -18,6 +18,7 @@ export const CRON_API_PATHS = new Set([
   '/api/sales/automation/process',
   '/api/sales/quote-send-jobs/process',
   '/api/sales/recordings/cleanup',
+  '/api/sales/recordings/process',
 ])
 
 export function isCronApiPath(pathname: string) {

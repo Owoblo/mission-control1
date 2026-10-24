@@ -1,5 +1,5 @@
 import type { CallLogEntry, CRMLead } from './types'
-type Archive = { recording_sid?: string | null; twilio_call_sid: string; call_log_id?: string | null; cloudflare_object_key?: string | null; cloudflare_url?: string | null; recording_status?: CallLogEntry['recordingStatus']; duration_seconds?: number | null; transcript?: string | null; created_at?: string }
+type Archive = { recording_sid?: string | null; twilio_call_sid: string; call_log_id?: string | null; cloudflare_object_key?: string | null; cloudflare_url?: string | null; recording_status?: CallLogEntry['recordingStatus']; transcription_status?: CallLogEntry['transcriptionStatus'] | null; transcription_error?: string | null; duration_seconds?: number | null; transcript?: string | null; created_at?: string }
 export function attachArchivedRecordings(lead: CRMLead, archives: Archive[]): CRMLead {
   const logs = [...(lead.callLogs || [])]
   for (const recording of archives) {
@@ -19,6 +19,8 @@ export function attachArchivedRecordings(lead: CRMLead, archives: Archive[]): CR
       recordingSid: recording.recording_sid,
       recordingUrl: recording.cloudflare_object_key ? `/api/sales/dialer/recording?key=${encodeURIComponent(recording.cloudflare_object_key)}` : recording.cloudflare_url!,
       recordingStatus: recording.recording_status,
+      transcriptionStatus: recording.transcription_status || undefined,
+      transcriptionError: recording.transcription_error || undefined,
       recordingUnavailable: false,
       duration: existing?.duration || (recording.duration_seconds ? `${Math.floor(recording.duration_seconds / 60)}m ${recording.duration_seconds % 60}s` : undefined),
       transcript: existing?.transcript || recording.transcript || undefined,

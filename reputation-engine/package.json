@@ -13,7 +13,7 @@
     "test:partner-handoff-db": "node tests/database/partner-sales-handoff.mjs",
     "prebuild": "node scripts/check-release-contracts.mjs",
     "postbuild": "node scripts/check-release-contracts.mjs --built",
-    "test:crm-remediation": "node --test tests/integration/crm-remediation.mjs tests/database/crm-financial-commands.mjs tests/database/crm-lifecycle-event-ledger.mjs tests/integration/inbound-lead-handling.mjs tests/database/inbound-call-handling.mjs",
+    "test:crm-remediation": "node --test tests/integration/crm-remediation.mjs tests/database/crm-financial-commands.mjs tests/database/crm-lifecycle-event-ledger.mjs tests/integration/inbound-lead-handling.mjs tests/database/inbound-call-handling.mjs tests/integration/conversation-integrity.mjs tests/database/conversation-integrity.mjs",
     "test:browser:session": "node tests/browser/session-recovery.mjs",
     "test:relationship-next-step": "node --test tests/integration/relationship-next-step.mjs tests/database/relationship-next-step.mjs",
     "test:browser:next-step": "node tests/browser/relationship-next-step.mjs"

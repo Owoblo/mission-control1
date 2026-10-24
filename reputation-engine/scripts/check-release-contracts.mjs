@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process'
 const root = resolve('.')
 const requiredMobile = ['auth/login','auth/me','caller-id','calls','contact-profile','contacts','conversations','lines','upload-media','partner-handoff']
 const cron = JSON.parse(readFileSync('vercel.json', 'utf8')).crons
-const routes = [...requiredMobile.map(route => `/api/mobile/${route}`), ...cron.map(job => job.path), '/api/marketing/email-events/ses', '/api/marketing/next-steps']
-const requiredFiles = ['supabase/migrations/20261024000200_inbound_call_handling.sql','supabase/migrations/20261024000100_relationship_next_step_journal.sql','lib/server/financial-command.ts','lib/server/dialer-access.ts','lib/server/alert-outbox.ts','lib/twilio-call-matching.ts','supabase/migrations/20261023000100_durable_financial_commands.sql','supabase/migrations/20261023000200_internal_alert_outbox.sql']
+const routes = [...requiredMobile.map(route => `/api/mobile/${route}`), ...cron.map(job => job.path), '/api/marketing/email-events/ses', '/api/marketing/next-steps', '/api/sales/twilio/sms-status', '/api/sales/recordings/process']
+const requiredFiles = ['supabase/migrations/20261024000300_conversation_integrity.sql','supabase/migrations/20261024000200_inbound_call_handling.sql','supabase/migrations/20261024000100_relationship_next_step_journal.sql','lib/server/financial-command.ts','lib/server/dialer-access.ts','lib/server/alert-outbox.ts','lib/twilio-call-matching.ts','supabase/migrations/20261023000100_durable_financial_commands.sql','supabase/migrations/20261023000200_internal_alert_outbox.sql']
 for (const route of routes) if (!existsSync(`app${route}/route.ts`)) throw new Error(`Scheduled/mobile route missing: ${route}`)
 for (const file of requiredFiles) if (!existsSync(file)) throw new Error(`Release dependency missing: ${file}`)
 if (process.argv.includes('--built')) {

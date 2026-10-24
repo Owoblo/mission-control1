@@ -6,7 +6,10 @@ import { getAppBaseUrl, requireEnv } from './runtime'
 export async function sendSmsProviderRequest(url: string, init: RequestInit, request: typeof fetch = fetch): Promise<Response> {
   const form = new URLSearchParams(String(init.body || ''))
   const from = form.get('From') || ''
-  if (!isTelnyxNumber(from)) return request(url, init)
+  if (!isTelnyxNumber(from)) {
+    if (getAppBaseUrl() && !form.has('StatusCallback') && /\/Messages\.json$/.test(url)) form.set('StatusCallback', `${getAppBaseUrl()}/api/sales/twilio/sms-status`)
+    return request(url, { ...init, body: form.toString() })
+  }
   if (/^whatsapp:/i.test(from)) throw new Error('WhatsApp is not configured for the Toronto lines')
   const response = await request('https://api.telnyx.com/v2/messages', {
     method: 'POST',

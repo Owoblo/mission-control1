@@ -322,7 +322,7 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
             {item.kind === 'sms' ? 'SMS' : 'Email'}
           </span>
           <span>{formatDateTime(item.date)}</span>
-          {isOutbound ? <span className="text-[var(--app-muted)]">Sent ✓</span> : <span className="text-stone-400">Received</span>}
+          {isOutbound ? <span className="text-[var(--app-muted)]">Submitted</span> : <span className="text-stone-400">Received</span>}
           {item.aiSummary && (
             <button
               type="button"
@@ -569,9 +569,11 @@ export function TimelineEventCard({ item, expandedByDefault = false, quote, inve
               summary={item.aiSummary?.summary}
               moveReadiness={item.aiSummary?.moveReadiness}
               processingMessage={needsTranscription
-                ? item.recordingStatus === 'failed'
+                ? item.transcriptionStatus === 'failed' || item.recordingStatus === 'failed'
                   ? 'The automatic transcript failed. The recording is safe and can be retried.'
-                  : 'Recording saved. Transcript is not ready yet.'
+                  : item.transcriptionStatus === 'retry'
+                    ? 'Audio is saved and playable. Transcription was interrupted; a retry is scheduled.'
+                    : item.transcriptionStatus === 'processing' ? 'Audio is saved and playable. Transcribing now.' : 'Audio is saved and playable. Awaiting transcription.'
                 : undefined}
             />
           ) : null}

@@ -23,6 +23,9 @@ export interface SmsMessageRecord {
   direction: 'inbound' | 'outbound'
   lead_id: string | null
   twilio_sid: string | null
+  delivery_status?: string | null
+  delivery_error?: string | null
+  delivery_updated_at?: string | null
   media_count?: number | null
   created_at: string
 }
@@ -143,7 +146,7 @@ export async function listSmsMessages(filterPhone?: string, filterLeadId?: strin
   let messages: SmsMessageRecord[] = []
   // Keep this projection compatible with databases that predate MMS metadata.
   // `media_count` is optional and is not needed to assemble the inbox thread.
-  const select = 'id,from_number,to_number,body,direction,lead_id,twilio_sid,created_at'
+  const select = 'id,from_number,to_number,body,direction,lead_id,twilio_sid,created_at,delivery_status,delivery_error,delivery_updated_at'
 
   if (normalizedPhone) {
       const endpoint = `${url}/rest/v1/sms_messages?select=${select}&or=(from_number.eq.${encodeURIComponent(normalizedPhone)},to_number.eq.${encodeURIComponent(normalizedPhone)},from_number.eq.${encodeURIComponent(digits10)},to_number.eq.${encodeURIComponent(digits10)})&order=created_at.asc&limit=2000`
@@ -201,7 +204,7 @@ async function readSalesSmsSnapshot() {
   const partnerSids = await listPartnershipMessageSids()
   for (let offset = 0; ; offset += 1000) {
     const query = new URLSearchParams({
-      select: 'id,from_number,to_number,body,direction,lead_id,twilio_sid,created_at',
+      select: 'id,from_number,to_number,body,direction,lead_id,twilio_sid,created_at,delivery_status,delivery_error,delivery_updated_at',
       order: 'created_at.desc,id.desc', limit: '1000', offset: String(offset),
     })
     const response = await fetch(`${url}/rest/v1/sms_messages?${query}`, { headers, cache: 'no-store' })

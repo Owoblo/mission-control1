@@ -1,5 +1,6 @@
 import { partnershipCellForwardTarget } from '@/lib/partnership-call-forwarding'
 import { after } from 'next/server'
+import { callbackHold } from '@/lib/conversation-integrity'
 import { persistInboundCallEvent } from '@/lib/server/inbound-call-history'
 import { POST as partnershipVoice } from '@/app/api/marketing/dialer/twiml/route'
 import { carrierVoiceForm, carrierDialTarget } from '@/lib/server/carrier-voice'
@@ -525,6 +526,9 @@ export async function POST(request: Request) {
 
     const dialTarget = sipDialTarget || to || ''
     if (!dialTarget) return fallbackTwiml(getRequestOrigin(request) || getAppUrl())
+    const customerContext = await getSalesLeadByContact(normalizePhoneTarget(dialTarget), null, null, { includeClosed: true })
+    const requestedWindow = customerContext ? callbackHold(customerContext) : null
+    if (requestedWindow) return xmlResponse(`<Response><Say>The customer requested a later callback. Review the callback commitment in the CRM before calling.</Say><Hangup /></Response>`)
 
     const requestedOutboundLeadId =
       ((formData.get('leadId') as string | null) || (formData.get('LeadId') as string | null) || '').trim() || null

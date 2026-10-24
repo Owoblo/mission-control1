@@ -6,6 +6,8 @@ import { downloadTwilioRecording } from '@/lib/server/twilio-recordings'
 import { extractRecordingObjectKey } from '@/lib/server/recording-archive'
 import { getStorageService } from '@/lib/server/storage-service'
 import { sanitizeAutomatedStageSuggestion } from '@/lib/lead-stage-safety'
+import { extractConversationSignal } from '@/lib/conversation-integrity'
+import { customerLocalDate, resolveCustomerMoveDate } from '@/lib/sales-automation-context'
 
 function getOpenAIKey() {
   return readEnv('OPENAI_API_KEY')
@@ -128,8 +130,9 @@ export async function transcribeAudioBuffer(buffer: Buffer, contentType: string,
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
     if (response.status === 429) {
-      const err = new Error(`Transcription quota exceeded — add OpenAI credits to re-enable.`) as Error & { isQuotaError: boolean }
-      err.isQuotaError = true
+      const quota = /insufficient_quota|billing_hard_limit|exceeded.*quota/i.test(detail)
+      const err = new Error(quota ? 'Transcription quota exceeded — add OpenAI credits to re-enable.' : 'Transcription temporarily rate limited; retry scheduled.') as Error & { isQuotaError: boolean }
+      err.isQuotaError = quota
       throw err
     }
     throw new Error(`Phone call transcription failed: ${response.status}${detail ? ` ${detail}` : ''}`)
@@ -235,7 +238,7 @@ function mergeLeadField<T>(current: T | undefined, incoming: T | undefined, allo
 export function applyPhoneCallSummaryToLead(lead: CRMLead, summary: AISummary | null) {
   if (!summary) return lead
 
-  const allowOverwriteMoveDetails = lead.stage !== 'booked'
+  const allowOverwriteMoveDetails = lead.stage !== 'booked' && !lead.lastTouchedByUserId
   const next = normalizeLead({
     ...lead,
     name: mergeLeadField(lead.name, summary.capturedName, allowOverwriteMoveDetails) || lead.name,
@@ -266,14 +269,15 @@ export function applyPhoneCallSummaryToLead(lead: CRMLead, summary: AISummary | 
   return next
 }
 
-export async function summarizePhoneCall(lead: CRMLead, transcript: string, direction: 'inbound' | 'outbound' = 'outbound') {
+export async function summarizePhoneCall(lead: CRMLead, transcript: string, direction: 'inbound' | 'outbound' = 'outbound', occurredAt = new Date().toISOString()) {
   const apiKey = getOpenAIKey()
   if (!apiKey || !transcript.trim()) return null
   if (isMeaninglessTranscript(transcript)) return NO_CONVERSATION
 
   const systemPrompt = `You are an AI moving-sales assistant for Saturn Star Moving. Analyze this phone call transcript and return JSON only.
+The call took place on ${customerLocalDate(occurredAt)} in America/Toronto. Ground relative dates in that date. A callback date or promise to reply is not a move date. Do not treat "no current move" as an active moving request.
 
-Today's date: ${new Date().toISOString().slice(0, 10)}. Use this to resolve relative dates like "next Tuesday" or "June 7" into YYYY-MM-DD format.
+Use the call date above to resolve relative dates like "next Tuesday" or "June 7" into YYYY-MM-DD format.
 
 Return:
 {
@@ -349,7 +353,10 @@ Focus on: move scope, objections, budget signals, timeline, route details, and c
   if (!content) return null
 
   try {
-    return normalizePhoneCallSummary(JSON.parse(content) as Record<string, unknown>)
+    const summary = normalizePhoneCallSummary(JSON.parse(content) as Record<string, unknown>)
+    const signal = extractConversationSignal(transcript, occurredAt)
+    summary.moveDate = signal.callback || signal.kind ? undefined : resolveCustomerMoveDate(transcript, occurredAt, summary.moveDate)
+    return summary
   } catch {
     return { summary: content }
   }

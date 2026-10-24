@@ -1,4 +1,6 @@
 import { getSalesBranchFromSaturnPhone } from '@/lib/sales-phones'
+import { extractConversationSignal, salesQualificationBlocked } from '@/lib/conversation-integrity'
+import { recordConversationSignal } from './conversation-integrity'
 import { blocksAutomatedFollowUp } from '../follow-up-radar'
 import { detectLostFeedbackDetail, detectMovedOnIntent, shouldRequestMovedOnFeedback } from '../moved-on-feedback'
 import { inventoryMeasurementIssues, buildCustomerInventoryList, planCustomerInventoryReply } from '@/lib/customer-inventory-review'
@@ -1068,7 +1070,7 @@ function buildEstimateMissingReasons(lead: CRMLead) {
   const reasons: string[] = []
   // Need email OR phone — SMS delivery covers the email gap
   if (!lead.email && !lead.phone) reasons.push('customer_email')
-  if (!lead.moveDate && !lead.moveDateFlexible) reasons.push('move_date')
+  if (lead.moveDateConfirmation === 'unconfirmed' || (!lead.moveDate && !lead.moveDateFlexible)) reasons.push('move_date')
   if (!(lead.originAddress || lead.originCity)) reasons.push('origin')
   else if (!hasCompleteMoveAddress(lead.originAddress)) reasons.push('origin_address')
   if (!(lead.destAddress || lead.destCity)) reasons.push('destination')
@@ -1438,7 +1440,7 @@ function buildQualificationState(lead: CRMLead, overrides: Partial<LeadQualifica
       ? overrides.missingFields || []
       : getMissingFields(lead)
   return {
-    moveDateKnown: !!lead.moveDate || !!lead.moveDateFlexible,
+    moveDateKnown: lead.moveDateConfirmation !== 'unconfirmed' && (!!lead.moveDate || !!lead.moveDateFlexible),
     routeKnown: hasCompleteRouteAddresses(lead),
     inventoryKnown: !!lead.totalItems || !!lead.totalCubicFeet || !!(lead.inventory || []).length || !!lead.surveyCompletedAt,
     accessKnown:
@@ -1523,6 +1525,7 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
   const phone = normalizePhone(event.phone || inbound?.phone)
   const email = normalizeEmail(event.email || inbound?.email)
   const message = previewText(event.message || inbound?.message, 500)
+  const timingSignal = extractConversationSignal(message, now)
   const attribution = extractEventAttribution(event, inbound)
   const source = deriveLeadSource(event, inbound, attribution)
   const collapsedLead = await collapseDuplicateSalesLeadsByIdentity(
@@ -1537,6 +1540,7 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
   const identityLead = collapsedLead || await findLeadByInboundIdentity(phone || event.phone, email || event.email, event.inboundLeadId)
   const inboundLead = event.inboundLeadId ? await getSalesLeadByInboundId(event.inboundLeadId) : null
   let lead = identityLead || inboundLead
+
 
   if (!lead) {
     const createdLead = normalizeLead({
@@ -1605,6 +1609,7 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
     event.message || inbound?.message,
   )
   const deterministicReplyFields = extractDeterministicReplyFields(event.message || inbound?.message, now)
+  if (timingSignal.callback || timingSignal.kind) delete deterministicReplyFields.moveDate
   const structuredOrigin = structuredFields.originAddress
   const structuredDestination = structuredFields.destAddress
   lead = normalizeLead({
@@ -1639,6 +1644,7 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
     message: event.message || inbound?.message,
     receivedAt: now,
   }).catch(() => null)
+  if (extractedSignals && (timingSignal.callback || timingSignal.kind)) extractedSignals.moveDate = undefined
 
   // Resolve single-address replies against the prior route before AI extraction
   // can assign the same destination to both ends of the move.
@@ -1694,7 +1700,12 @@ async function ensureLeadForInbound(event: InboundAutomationEvent): Promise<CRML
     void linkSmsMessagesToLead(lead.id, lead.phone)
   }
 
-  return lead
+  return hasConversationSignalForEvent(lead, message, now, event)
+}
+
+async function hasConversationSignalForEvent(lead: CRMLead, message: string, now: string, event: InboundAutomationEvent) {
+  const providerId = event.raw?.messageSid || event.raw?.MessageSid
+  return recordConversationSignal(lead, message, now, providerId ? `sms:${String(providerId)}` : undefined)
 }
 
 async function upsertConversationThreadForInbound(
@@ -2374,6 +2385,7 @@ async function resolveCanonicalLeadForAutomationJob(job: CRMAutomationJob, lead:
 }
 
 function shouldSkipAutomation(lead: CRMLead, job: CRMAutomationJob) {
+  if (salesQualificationBlocked(lead)) return 'Customer outcome or callback commitment requires representative handling.'
   const queueExclusion = salesAutomationExclusion(lead)
   if (queueExclusion) return queueExclusion
   if (lead.stage === 'nurture' && job.kind !== 'lead_response') return 'Nurture check-ins are handled by the assigned representative.'
@@ -3082,6 +3094,7 @@ async function handleListingInventoryScanJob(job: CRMAutomationJob, lead: CRMLea
 }
 
 async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
+  if (salesQualificationBlocked(lead)) return { status: 'cancelled' as const, reason: 'Customer timing or outcome is awaiting representative review.' }
   if (blocksAutomatedFollowUp(lead, job.kind)) {
     return { status: 'cancelled' as const, reason: 'A reviewed follow-up plan owns the next contact. Review the radar task.' }
   }

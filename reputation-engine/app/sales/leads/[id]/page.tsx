@@ -1,4 +1,5 @@
 'use client'
+import { CustomerCommunicationStatus } from '@/app/components/sales/customer-communication-status'
 
 import { CustomerFeedbackPanel } from '@/app/components/sales/customer-feedback-panel'
 import { PartnerHandoffPanel } from '@/app/components/sales/partner-handoff-panel'
@@ -1046,6 +1047,8 @@ export default function SalesLeadDetailPage() {
         recordingUrl: item.recordingUrl,
         recordingSid: item.recordingSid,
         recordingStatus: item.recordingStatus,
+        transcriptionStatus: item.transcriptionStatus,
+        transcriptionError: item.transcriptionError,
         recordingUnavailable: item.recordingUnavailable,
         recordingUnavailableReason: item.recordingUnavailableReason,
         transcript: item.transcript,
@@ -5819,6 +5822,7 @@ export default function SalesLeadDetailPage() {
           </CRMRecordWidget>
 
           <CRMRecordMain id="section-timeline">
+            <CustomerCommunicationStatus lead={lead} canEdit={canHandleCurrentLeadCommunication} onSaved={saved => applyLeadSnapshot(saved, { hydrateForm: false })} />
             <VerificationPanel lead={lead} readOnly={!canEditCurrentLead} onSaved={saved => applyLeadSnapshot(saved, { hydrateForm: false })} />
             <LeadCommunicationsPanel
               lead={lead}

@@ -460,6 +460,8 @@ export interface CallLogEntry {
   recordingSid?: string
   recordingDuration?: number
   recordingStatus?: 'received' | 'uploaded' | 'verified' | 'transcribed' | 'failed' | 'twilio_deleted' | 'unavailable'
+  transcriptionStatus?: 'pending' | 'processing' | 'retry' | 'completed' | 'failed'
+  transcriptionError?: string
   recordingSize?: number
   recordingContentType?: string
   storageProvider?: 'r2' | 's3' | 'supabase' | string
@@ -1338,6 +1340,10 @@ export interface CRMLead {
   depositDate?: string
   paymentStatus?: PaymentStatus
   promises?: CustomerPromise[]
+  callbackCommitment?: { key: string; notBefore: string; dueAt: string; requestedDay: string; customerWillReply: boolean; evidence: string; status: 'open' | 'completed'; occurredAt: string }
+  conversationReview?: { key: string; kind: 'declined' | 'date_unconfirmed' | 'no_active_move'; evidence: string; occurredAt: string; status: 'open' | 'resolved' }
+  moveDateConfirmation?: 'unconfirmed' | 'confirmed'
+  deliveryFailureReview?: { messageKey: string; status: 'open' | 'resolved'; occurredAt: string }
   // Cancellation
   cancelledAt?: string
   cancelReason?: string
