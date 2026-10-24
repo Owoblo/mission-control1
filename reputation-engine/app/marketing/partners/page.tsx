@@ -8,6 +8,7 @@ import { loadContactDirectory } from '@/lib/contact-directory-loader'
 import gtaCities from '@/lib/data/gta-service-cities.json'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { MaterialRequestQueue, RelationshipNextStep } from '@/app/components/partnership/relationship-next-step'
 import { RelationshipRecord } from '@/app/components/partnership/RelationshipRecord'
 import { PARTNERSHIP_STAGE_META } from '@/lib/marketing'
 import { MessageText } from '@/app/components/partnership/message-text'
@@ -1857,6 +1858,7 @@ function RelationshipLobby({ contacts, marketSummary, loading, onSelect, onOpenI
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(310px,.75fr)]">
         <div className="space-y-8">
+          <MaterialRequestQueue />
           <section>
             <div className="mb-3 flex items-baseline justify-between border-b border-[var(--app-line)] pb-3">
               <h3 className="text-lg font-semibold text-[#14213d]">Today</h3>
@@ -5023,8 +5025,8 @@ function PhoneTab({
         <div className={`${mobileListOpen ? 'hidden lg:flex' : 'flex'} min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white`}>
           {/* Header */}
           <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-5">
-            <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:flex-nowrap">
+            <div className="flex min-w-0 flex-1 basis-full items-center gap-2.5 sm:basis-auto">
               <button onClick={() => setMobileListOpen(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl leading-none text-[#071421] lg:hidden">
                 ‹
               </button>
@@ -5037,7 +5039,7 @@ function PhoneTab({
                 <div className="mt-0.5 truncate text-sm text-slate-500">{selected.phone || selected.company || selected.city || 'Partner contact'} · Assigned: {partnershipManagerLabel(selected)}</div>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
               <button
                 type="button"
                 onClick={togglePriority}
@@ -5072,6 +5074,12 @@ function PhoneTab({
             </div>
             </div>
           </div>
+
+          <RelationshipNextStep key={selected.id} contactId={selected.id} revision={`${selected.latest_inbound_at || ''}:${touches[0]?.id || ''}`} onReview={kind => {
+            if (kind === 'physical_card') setActionPanelOpen(true)
+            else if (kind === 'email' && selected.email) setComposeChannel('email')
+            else { setComposeChannel('sms'); smsTextareaRef.current?.focus() }
+          }} />
 
           {selected && recentSalesByContact.has(selected.id) && (
             <div className="shrink-0 border-b border-slate-200 bg-[#fbfaf7] px-3 py-3 sm:px-5">
@@ -6970,6 +6978,12 @@ function PartnershipEngineInner() {
   const router = useRouter()
   const initialTab = (searchParams.get('tab') as Tab) || 'today'
   const [tab, setTab] = useState<Tab>(initialTab === 'replies' ? 'phone' : initialTab)
+  useEffect(() => {
+    const requested = searchParams.get('tab') || 'today'
+    if (requested === 'replies') setTab('phone')
+    else if (TABS.some(item => item.key === requested)) setTab(requested as Tab)
+  }, [searchParams])
+
   const [currentUser, setCurrentUser] = useState<{ role?: string; branch?: string | null; name?: string; userId?: string | null } | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
