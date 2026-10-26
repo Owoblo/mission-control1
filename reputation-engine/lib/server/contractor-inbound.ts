@@ -1,6 +1,6 @@
 import { normalizePhone } from '../sales-phones'
 import { requireSupabaseEnv, getAppBaseUrl } from './runtime'
-import { sendProviderEmail } from './email-provider'
+import { enqueueInternalAlert } from './alert-outbox'
 
 type Contractor = { id: string; company_name: string; contact_name?: string; phone: string }
 type Inbound = { from: string; to: string; body: string; sid: string; at: string }
@@ -38,7 +38,7 @@ export function contractorInboundEmail(contractor: Contractor, input: Inbound) {
   }
 }
 
-export async function notifyContractorInbound(contractor: Contractor, input: Inbound, send = sendProviderEmail) {
+export async function notifyContractorInbound(contractor: Contractor, input: Inbound, enqueue = enqueueInternalAlert) {
   if (!input.sid) throw new Error('Provider message ID required for contractor alert')
   const { url, headers } = requireSupabaseEnv()
   const response = await fetch(`${url}/rest/v1/crm_tasks?on_conflict=source_key`, {
@@ -46,9 +46,10 @@ export async function notifyContractorInbound(contractor: Contractor, input: Inb
     body: JSON.stringify({ id: `contractor-sms-${input.sid}`, source_key: `contractor-sms:${input.sid}`, title: `Contractor SMS: ${contractor.company_name}`, description: `From: ${input.from}\nTo: ${input.to}\nReceived: ${input.at}\nProvider ID: ${input.sid}\n\n${input.body}`, category: 'operations', status: 'open', priority: 'normal', owner_name: 'John', related_type: null, related_id: contractor.id, related_label: contractor.company_name, source: 'condition', created_by_name: 'Contractor inbound SMS' }),
   })
   if (!response.ok) throw new Error('Could not preserve contractor inbound SMS task')
-  if (!(await response.json()).length) return false
+  const created = Boolean((await response.json()).length)
   const email = contractorInboundEmail(contractor, input)
-  const receipt = await send({ from: 'Saturn Star OS <notifications@saturnstarmovers.ca>', to: 'business@starmovers.ca', replyTo: 'business@starmovers.ca', ...email, trackingMode: 'deliverability' })
-  if (!receipt.accepted) throw new Error('Contractor SMS notification was not accepted')
-  return true
+  // A provider retry must repair a previously saved task whose alert failed.
+  // The durable event key prevents re-emailing an already queued notification.
+  await enqueue(`contractor-sms:${input.sid}`, { recipients: ['business@starmovers.ca'], ...email })
+  return created
 }

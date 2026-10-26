@@ -46,7 +46,8 @@ test('contractor notification shows full escaped text, phone, Eastern time and d
 
 test('replayed webhook creates one contractor task and one email, never a customer or realtor record', async () => {
   const original = globalThis.fetch
-  let persisted = false, emails = 0
+  let persisted = false
+  const queued = new Map<string, unknown>()
   globalThis.fetch = async (input, init) => {
     assert.match(String(input), /crm_tasks\?on_conflict=source_key/)
     const body = JSON.parse(String(init?.body))
@@ -58,18 +59,17 @@ test('replayed webhook creates one contractor task and one email, never a custom
     persisted = true
     return Response.json([body])
   }
-  const send = async (payload: any) => {
-    emails++
-    assert.equal(payload.to, 'business@starmovers.ca')
-    assert.equal(payload.replyTo, 'business@starmovers.ca')
+  const send = async (key: string, payload: any) => {
+    queued.set(key, payload)
+    assert.deepEqual(payload.recipients, ['business@starmovers.ca'])
     assert.match(payload.subject, /^Contractor inbound SMS/)
-    return { provider: 'ses' as const, messageId: 'email-1', accepted: true }
   }
+
   const input = { from: contractor.phone, to: '+14374650584', body: 'Yes', at: '2026-10-14T20:00:00Z', sid: 'telnyx:abc' }
   try {
     assert.equal(await notifyContractorInbound(contractor, input, send), true)
     assert.equal(await notifyContractorInbound(contractor, input, send), false)
-    assert.equal(emails, 1)
+    assert.equal(queued.size, 1)
   } finally { globalThis.fetch = original }
 })
 

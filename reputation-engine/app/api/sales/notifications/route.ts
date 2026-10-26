@@ -8,16 +8,18 @@ import {
   getSaturnBranchLabel,
   getSaturnBranchNumberFromRawData,
   getSaturnTrackingLabel,
+  getSalesBranchFromSaturnPhone,
 } from '@/lib/sales-phones'
 import { findMatchingActiveLead } from '@/lib/server/lead-identity'
 import { canAccessSalesWorkspace } from '@/lib/server/sales-permissions'
+import type { CRMLead } from '@/lib/types'
 import { parseSalesAlertNote } from '@/lib/server/sales-alerts'
 import { isInboundLeadUnread, isSalesEmailUnread } from '@/lib/server/inbox-state'
 import { getSessionUser } from '@/lib/server/session'
 import { listAllInboundLeads, listNurtureNotificationLeads, listFollowUpLogs, listSalesEmails, listSalesLeadInboxSnapshots, listContractorPriceResponseLeads } from '@/lib/server/sales-repository'
 import { buildSmsThreads, listSmsMessages } from '@/lib/server/sms-threads'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
-import { uid } from '@/lib/sales'
+import { uid, detectSalesBranchFromLocation } from '@/lib/sales'
 
 export interface NotificationItem {
   id: string
@@ -35,6 +37,7 @@ export interface NotificationItem {
   reason: string
   requiredAction: string
   dedupeKey: string
+  branch?: CRMLead['branch']
 }
 
 type NotificationsPayload = {
@@ -49,7 +52,27 @@ let sourceSnapshot: { expiresAt: number; value: Awaited<ReturnType<typeof readNo
 let sourcePending: ReturnType<typeof readNotificationSources> | undefined
 let sourceRetryAfter = 0
 async function readNotificationSources() {
-  return Promise.all([listAllInboundLeads(), listSalesLeadInboxSnapshots(), listSalesEmails(), listFollowUpLogs(), listSmsMessages(), listNurtureNotificationLeads().then(leads => leads.filter(lead => nurtureReminderDue(lead))), listContractorPriceResponseLeads(new Date(Date.now() - 48 * 60 * 60 * 1000)).catch(error => { console.error('Contractor price alerts unavailable', String(error)); return [] })])
+  const sources = await Promise.all([listAllInboundLeads(), listSalesLeadInboxSnapshots(), listSalesEmails(), listFollowUpLogs(), listSmsMessages(), listNurtureNotificationLeads().then(leads => leads.filter(lead => nurtureReminderDue(lead))), listContractorPriceResponseLeads(new Date(Date.now() - 48 * 60 * 60 * 1000))])
+  // The inbox projection intentionally contains only the latest 300 leads.
+  // Resolve the scope of older alert subjects before applying permissions.
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000
+  const known = new Set(sources[1].map(lead => lead.id))
+  const ids = [...new Set([
+    ...sources[2].filter(email => Date.parse(email.sentAt) > cutoff).map(email => email.leadId),
+    ...sources[3].filter(log => Date.parse(log.date || log.createdAt) > cutoff).map(log => log.leadId),
+    ...sources[4].filter(message => Date.parse(message.created_at) > cutoff).map(message => message.lead_id),
+    ...sources[5].map(lead => lead.id), ...sources[6].map(row => row.id),
+  ].filter((id): id is string => typeof id === 'string' && !known.has(id)))]
+  const { url, headers } = requireSupabaseEnv()
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const fields = ['name','phone','email','stage','branch','assignedRep','assignedRepName','assignedRepUserId','originCity','originAddress','destCity','destAddress','mergedIntoLeadId']
+    const query = new URLSearchParams({ select: ['id', ...fields.map(field => `${field}:data->>${field}`)].join(','), id: `in.(${ids.slice(offset, offset + 100).join(',')})`, deleted: 'eq.false', limit: '100' })
+    const response = await fetch(`${url}/rest/v1/crm_leads?${query}`, { headers, cache: 'no-store' })
+    if (!response.ok) throw Error('Notification permissions could not be verified')
+    const leads = await response.json() as CRMLead[]
+    sources[1].push(...leads.filter(lead => !lead.mergedIntoLeadId))
+  }
+  return sources
 }
 async function getNotificationSources() {
   if (sourceSnapshot && sourceSnapshot.expiresAt > Date.now()) return sourceSnapshot.value
@@ -206,6 +229,7 @@ async function loadNotifications() {
         reason: missedCall ? 'A customer attempted to call and did not reach the team.' : 'New incoming demand has not been handled.',
         requiredAction: missedCall ? 'Return the call' : 'Review and assign',
         dedupeKey: `inbound:${l.id}`,
+        branch: getSalesBranchFromSaturnPhone(branchNumber),
       }
     })
 
@@ -215,7 +239,7 @@ async function loadNotifications() {
     .filter(thread => new Date(thread.lastAt) > cutoff)
     .filter(thread => !openSmsLeadPhones.has((thread.contactPhone || '').replace(/\D/g, '')))
     .map(thread => ({
-      id: `sms-${thread.contactPhone}`,
+      id: `sms-${thread.contactPhone}:${thread.messages.filter(message => message.direction === 'inbound').at(-1)?.id || thread.lastAt}`,
       type: 'sms' as const,
       source: 'twilio_sms',
       title: thread.leadName || formatNotificationPhone(thread.contactPhone) || thread.contactPhone,
@@ -229,12 +253,15 @@ async function loadNotifications() {
       priority: 'today' as const,
       reason: 'The latest customer message has no later team response.',
       requiredAction: 'Reply to customer',
-      dedupeKey: `sms:${thread.contactPhone}`,
+      dedupeKey: `sms:${thread.contactPhone}:${thread.messages.filter(message => message.direction === 'inbound').at(-1)?.id || thread.lastAt}`,
+      branch: getSalesBranchFromSaturnPhone(thread.businessNumber),
     }))
 
   // ── 3. Inbound emails from last 48 h ────────────────────────────────────
   const emailItems: NotificationItem[] = allEmails
     .filter(em => em.direction === 'inbound' && new Date(em.sentAt) > cutoff)
+    .filter(em => em.templateType !== 'health_check' && em.templateType !== 'partnership_inbound')
+    .filter(em => em.from?.trim().toLowerCase() !== 'leadflow.health@system.invalid')
     .filter(isSalesEmailUnread)
     .filter(em => !openEmailContacts.has((em.from || '').trim().toLowerCase()))
     .map(em => ({
@@ -317,7 +344,8 @@ async function loadNotifications() {
   const leadById = new Map(crmLeads.map(lead => [lead.id, lead]))
   const visibleToSession = (item: NotificationItem) => {
     const lead = item.leadId ? leadById.get(item.leadId) : null
-    if (session?.branch && lead?.branch && lead.branch !== session.branch) return false
+    const branch = lead ? lead.branch || detectSalesBranchFromLocation(lead.originCity, lead.originAddress, lead.destCity, lead.destAddress) : item.branch
+    if (session.branch && branch !== session.branch) return false
     if (session?.role !== 'sales_rep' || !lead) return true
     const ownerId = lead.assignedRepUserId
     const ownerName = lead.assignedRepName || lead.assignedRep

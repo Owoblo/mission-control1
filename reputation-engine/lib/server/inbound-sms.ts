@@ -259,7 +259,9 @@ export async function handleInboundSms(formData: URLSearchParams, isHealthCheck 
         if (resolvedLeadId) triggerIntelligence(resolvedLeadId)
         await sendRepAlertEmail(
           `Sales inbound SMS — ${automation?.lead?.name || from}`,
-          smsNotificationEmail(from, messageText, resolvedLeadId)
+          smsNotificationEmail(from, messageText, resolvedLeadId),
+          undefined,
+          `sales-sms:${messageSid}`,
         )
         })
       }

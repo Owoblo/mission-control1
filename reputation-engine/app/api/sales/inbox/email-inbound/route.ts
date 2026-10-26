@@ -12,6 +12,11 @@ import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
 import { getWorkerSharedSecret, requireSupabaseEnv } from '@/lib/server/runtime'
 import { saveSalesEmail, saveFollowUpLog } from '@/lib/server/sales-repository'
 
+async function queueCustomerEmailAlert(emailId: string, from: string, subject: string | undefined, body: string) {
+  const escapedBody = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  await sendRepAlertEmail(`New customer email — ${subject || '(no subject)'}`, `<p>From: ${from.replace(/[<>&]/g, '')}</p><pre style="white-space:pre-wrap">${escapedBody}</pre>`, undefined, `customer-email:${emailId}`)
+}
+
 export async function POST(request: Request) {
   const workerSecret = request.headers.get('x-internal-secret')
   const expectedWorkerSecret = getWorkerSharedSecret()
@@ -74,9 +79,13 @@ export async function POST(request: Request) {
     const emailId = providerMessageId ? 'em_ses_' + createHash('sha256').update(providerMessageId).digest('hex').slice(0, 32) : uid('em')
     if (providerMessageId) {
       const { url, headers } = requireSupabaseEnv()
-      const existing = await fetch(`${url}/rest/v1/crm_emails?id=eq.${emailId}&select=id&limit=1`, { headers, cache: 'no-store' })
+      const existing = await fetch(`${url}/rest/v1/crm_emails?id=eq.${emailId}&select=id,templateType:data->>templateType&limit=1`, { headers, cache: 'no-store' })
       if (!existing.ok) throw new Error('Inbound email deduplication lookup failed')
-      if ((await existing.json()).length) return NextResponse.json({ ok: true, duplicate: true, emailId })
+      const [prior] = await existing.json() as Array<{ id: string; templateType?: string }>
+      if (prior) {
+        if (!isHealthCheck && prior.templateType === 'inbound_reply') await queueCustomerEmailAlert(emailId, from, subject, body)
+        return NextResponse.json({ ok: true, duplicate: true, emailId })
+      }
     }
     if (isHealthCheck) {
       await saveSalesEmail({
@@ -152,8 +161,7 @@ export async function POST(request: Request) {
       queueLeadIntelligenceRefresh(leadId, new URL(request.url).origin)
     }
 
-    const escapedBody = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    await sendRepAlertEmail(`New customer email — ${subject || '(no subject)'}`, `<p>From: ${from.replace(/[<>&]/g, '')}</p><pre style="white-space:pre-wrap">${escapedBody}</pre>`)
+    await queueCustomerEmailAlert(emailId, from, subject, body)
     return NextResponse.json({ ok: true, matched: !!leadId, leadId })
   } catch (error) {
     return NextResponse.json(
