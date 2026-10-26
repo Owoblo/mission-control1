@@ -138,10 +138,18 @@ function isRecentTimestamp(value?: string | null) {
   return Date.now() - timestamp <= RECENT_HANDOFF_WINDOW_MS
 }
 
+export function needsHumanInboundAttention(raw?: Record<string, any> | null) {
+  if (raw?.requiresHumanAttention !== true) return false
+  if (raw.humanClaimedAt && (raw.humanClaimedByUserId || raw.humanClaimedByName)) return false
+  const channels = raw.inboxState && typeof raw.inboxState === 'object' ? Object.values(raw.inboxState) : []
+  return !channels.some((state: any) => state?.lastActionAt && (state.lastActionByUserId || state.lastActionByName))
+}
+
 export function getInboundStatus(item: InboundLead, rawInput?: Record<string, any> | null): InboundLeadStatus {
   const raw = rawInput ?? parseInboundRawData(item.raw_data)
   const disposition = getInboundDisposition(item, raw)
   if (disposition !== 'open') return 'closed'
+  if (needsHumanInboundAttention(raw)) return 'needs_action'
 
   if (getInboundLinkedLeadId(item, raw) || item.claimed) {
     return isRecentTimestamp(getInboundActionTimestamp(item, raw)) ? 'recent_handoff' : 'archived'

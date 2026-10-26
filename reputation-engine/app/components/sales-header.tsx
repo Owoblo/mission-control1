@@ -155,6 +155,7 @@ export function SalesHeader() {
   const [notifBreakdown, setNotifBreakdown] = useState({ leads: 0, sms: 0, emails: 0, alerts: 0 })
   const [notifTotal, setNotifTotal] = useState(0)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [notifReceiptError, setNotifReceiptError] = useState('')
   const notifRef = useRef<HTMLDivElement>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
   const notificationsLoadedRef = useRef(false)
@@ -162,10 +163,18 @@ export function SalesHeader() {
     return parseInt(readLocalStorageItem('ss_notif_snoozed') || '0', 10) || 0
   })
 
-  function markAllRead() {
-    const now = Date.now()
+  async function saveNotificationDisposition(keys: string[], action: 'opened' | 'acknowledged') {
+    if (!keys.length) return true
+    try {
+      const response = await fetch('/api/sales/notifications', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dedupeKeys: keys, action }) })
+      if (!response.ok) throw Error('Notification acknowledgement could not be saved.')
+      setNotifReceiptError(''); return true
+    } catch { setNotifReceiptError('Acknowledgement was not saved. Try again.'); return false }
+  }
+  async function markAllRead() {
     const keys = notifItems.map(item => item.dedupeKey)
-    if (keys.length) void fetch('/api/sales/notifications', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dedupeKeys: keys, action: 'acknowledged' }) })
+    if (!await saveNotificationDisposition(keys, 'acknowledged')) return
+    const now = Date.now()
     setSnoozedBefore(now)
     writeLocalStorageItem('ss_notif_snoozed', String(now))
     setNotifOpen(false)
@@ -201,19 +210,32 @@ export function SalesHeader() {
     } catch { /* audio not available */ }
   }
 
+  // Recorded only after the toast renders in a visible tab. This is display
+  // evidence reported by the browser, never proof that a person read it.
+  useEffect(() => {
+    if (!toast || document.visibilityState !== 'visible') return
+    void fetch('/api/sales/notifications', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dedupeKeys: [toast.dedupeKey], action: 'displayed', surface: 'toast', notificationPermission: 'Notification' in window ? Notification.permission : 'unsupported', audioState: audioCtxRef.current?.state || 'unavailable' }) }).catch(() => {})
+  }, [toast])
+
   // ── Browser push notification ────────────────────────────────────────────
-  function showPushNotification(title: string, body: string) {
+  function showPushNotification(title: string, body: string, item?: NotificationItem) {
     if (typeof window === 'undefined') return
     if (!('Notification' in window)) return
     if (Notification.permission !== 'granted') return
     try {
-      new Notification(title, { body, icon: '/favicon.ico', tag: 'saturn-lead' })
+      const notification = new Notification(title, { body, icon: '/favicon.ico', tag: 'saturn-lead' })
+      notification.onclick = () => { window.focus(); notification.close(); if (item) void handleNotifClick(item) }
     } catch { /* non-fatal */ }
   }
 
   // Request push permission once (called on user interaction)
   function requestPushPermission() {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (typeof window === 'undefined') return
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') audioCtxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      void audioCtxRef.current.resume().catch(() => {})
+    } catch { /* Browser audio may be unavailable. */ }
+    if (!('Notification' in window)) return
     if (Notification.permission === 'default') {
       void Notification.requestPermission()
     }
@@ -273,8 +295,8 @@ export function SalesHeader() {
         const data = await res.json() as { items: NotificationItem[]; totalCount: number; breakdown: { leads: number; sms: number; emails: number; alerts: number } }
 
         // Detect new items for toast + chime + push
-        if (notificationsLoadedRef.current) {
-          const newItems = data.items.filter(item => !seenIdsRef.current.has(item.id))
+        if (data.items.length) {
+          const newItems = data.items.filter(item => !seenIdsRef.current.has(item.id) && (notificationsLoadedRef.current || (item.type === 'lead' && item.priority === 'interrupt')))
           const newest = chooseInterruptingNotification(newItems)
           if (newest) {
             if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -287,11 +309,12 @@ export function SalesHeader() {
               newest.source === 'contractor_price'
                 ? `Contractor price update — ${newest.title}`
                 : isDexaView ? 'Dexa — Needs attention' : 'Saturn Star — Needs attention',
-              newest.preview || 'Open Mission Control to respond'
+              newest.preview || 'Open Mission Control to respond',
+              newest
             )
           }
         }
-        data.items.forEach(item => seenIdsRef.current.add(item.id))
+        if (document.visibilityState === 'visible') data.items.forEach(item => seenIdsRef.current.add(item.id))
         notificationsLoadedRef.current = true
 
         const visibleItems = snoozedBefore > 0
@@ -361,11 +384,12 @@ export function SalesHeader() {
     router.push(`/sales/leads/${lead.id}`)
   }
 
-  function handleNotifClick(item: NotificationItem) {
-    void fetch('/api/sales/notifications', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dedupeKeys: [item.dedupeKey], action: 'acknowledged' }) })
-    setNotifItems(current => current.filter(candidate => candidate.dedupeKey !== item.dedupeKey))
-    setNotifTotal(current => Math.max(0, current - 1))
-    setNotifOpen(false)
+  async function handleNotifClick(item: NotificationItem) {
+    if (await saveNotificationDisposition([item.dedupeKey], 'opened')) {
+      setNotifItems(current => current.filter(candidate => candidate.dedupeKey !== item.dedupeKey))
+      setNotifTotal(current => Math.max(0, current - 1))
+      setNotifOpen(false)
+    }
     router.push(item.href)
   }
 
@@ -396,7 +420,7 @@ export function SalesHeader() {
               {toast.branchLabel ? `${toast.branchLabel} • ` : ''}{toast.preview}
             </div>
             <button
-              onClick={() => { setToast(null); router.push(toast.href) }}
+              onClick={() => { const item = toast; setToast(null); void handleNotifClick(item) }}
               className="mt-2 rounded-[6px] bg-[var(--app-ink)] px-3 py-1 text-xs font-semibold text-white hover:bg-[#071421]"
             >
               View →
@@ -509,6 +533,7 @@ export function SalesHeader() {
               </button>
 
                 {/* ── Notification Panel — fixed so it clears the sidebar ── */}
+                {notifReceiptError ? <span role="alert" className="text-xs text-red-700">{notifReceiptError}</span> : null}
                 {notifOpen && (
                   <div className="fixed left-4 right-4 top-4 z-[60] mx-auto max-w-sm max-h-[80vh] overflow-hidden rounded-[12px] border border-[var(--app-line)] bg-white shadow-none flex flex-col lg:left-auto lg:right-6 lg:top-6 lg:w-[400px]">
                     {/* Panel header */}

@@ -1,4 +1,5 @@
 'use client'
+import { LeadAttentionEvidence } from '@/app/components/sales/lead-attention-evidence'
 import { CustomerCommunicationStatus } from '@/app/components/sales/customer-communication-status'
 
 import { CustomerFeedbackPanel } from '@/app/components/sales/customer-feedback-panel'
@@ -5823,6 +5824,7 @@ export default function SalesLeadDetailPage() {
 
           <CRMRecordMain id="section-timeline">
             <CustomerCommunicationStatus lead={lead} canEdit={canHandleCurrentLeadCommunication} onSaved={saved => applyLeadSnapshot(saved, { hydrateForm: false })} />
+            <LeadAttentionEvidence leadId={lead.id} role={currentUser?.role} />
             <VerificationPanel lead={lead} readOnly={!canEditCurrentLead} onSaved={saved => applyLeadSnapshot(saved, { hydrateForm: false })} />
             <LeadCommunicationsPanel
               lead={lead}
