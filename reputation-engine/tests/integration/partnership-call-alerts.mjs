@@ -5,13 +5,18 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 const require = createRequire(import.meta.url), createLoader = require('../helpers/load-typescript.cjs'), root = path.resolve('.')
 const caller = '+14165550199', line = '+14374650584', sid = 'CA' + 'a'.repeat(32)
-function fixture({ contacts = [], lookupFailed = false, fallback = false, approvedSip = true } = {}) {
-  const original = globalThis.fetch, alerts = new Map(), touches = new Map(), receipts = [], tasks = [], markets = [], writes = []
+const { partnershipInboundNotificationEmail } = createLoader(root, {
+  '@/lib/server/runtime': { readEnv: () => '' }, '@/lib/server/sms-provider': {},
+  './email-sms-reply-store': {}, '@/lib/partnership-core/ottawa.mjs': {}, '@/lib/server/email-provider': {},
+})(path.join(root, 'lib/server/internal-notifications.ts'))
+function fixture({ contacts = [], contractors = [], lookupFailed = false, contractorLookupFailed = false, fallback = false, approvedSip = true } = {}) {
+  const original = globalThis.fetch, alerts = new Map(), touches = new Map(), receipts = [], tasks = [], markets = [], writes = [], reads = []
   let alertFailure = false
   globalThis.fetch = async (endpoint, options = {}) => {
     const u = new URL(endpoint), table = u.pathname.split('/').at(-1)
     assert.equal(u.hostname, 'database.fixture', 'No email or phone provider may be contacted by this test')
     if (options.method) writes.push(table)
+    else reads.push(table)
     if (table === 'enqueue_internal_alert') {
       if (alertFailure) return Response.json({ error: 'Fixture outbox unavailable' }, { status: 503 })
       const body = JSON.parse(options.body)
@@ -19,6 +24,7 @@ function fixture({ contacts = [], lookupFailed = false, fallback = false, approv
       return Response.json(null)
     }
     if (table === 'market_contacts') return lookupFailed && !options.method ? Response.json({}, { status: 503 }) : Response.json(contacts)
+    if (table === 'subcontractors') return contractorLookupFailed ? Response.json({}, { status: 503 }) : Response.json(contractors)
     if (table === 'market_touches') { const body = JSON.parse(options.body); if (!touches.has(body.id)) touches.set(body.id, body); return Response.json([]) }
     throw Error(`Unexpected storage path ${u.pathname}`)
   }
@@ -29,7 +35,7 @@ function fixture({ contacts = [], lookupFailed = false, fallback = false, approv
     '@/lib/server/partner-call-fallback': { partnershipSalesFallbackXml: async () => fallback ? '<Response><Dial><Client>fixture-rep</Client></Dial></Response>' : null },
     '@/lib/server/partner-sales-handoff': { queueMissedPartnershipCall: async (...args) => tasks.push(args) },
     '@/lib/server/partnership-inbound': { pausePartnershipSequenceForInbound: async () => {} },
-    './internal-notifications': { getPartnershipAlertRecipients: market => { markets.push(market); return ['owner@example.test'] } },
+    './internal-notifications': { partnershipInboundNotificationEmail, getPartnershipAlertRecipients: market => { markets.push(market); return ['owner@example.test'] } },
   })
   const route = load(path.join(root, 'app/api/marketing/dialer/call-status/route.ts'))
   const callback = async (extra = {}, query = '') => {
@@ -39,7 +45,7 @@ function fixture({ contacts = [], lookupFailed = false, fallback = false, approv
     const signature = createHmac('sha1', 'fixture-secret').update(url + suffix).digest('base64')
     return route.POST(new Request(url, { method: 'POST', headers: { 'x-twilio-signature': signature }, body: form.toString() }))
   }
-  return { callback, route, alerts, touches, receipts, tasks, markets, writes, failAlerts: value => { alertFailure = value }, close: () => { globalThis.fetch = original } }
+  return { callback, route, alerts, touches, receipts, tasks, markets, writes, reads, failAlerts: value => { alertFailure = value }, close: () => { globalThis.fetch = original } }
 }
 test('signed Toronto SIP callback queues an unsaved caller alert without manufacturing a contact or sales lead', async () => {
   const f = fixture()
@@ -51,6 +57,7 @@ test('signed Toronto SIP callback queues an unsaved caller alert without manufac
     assert.match(alert.subject, /Partner inbound call/); assert.match(alert.subject, /14165550199/)
     assert.match(alert.html, /Unsaved caller/); assert.match(alert.html, /38 seconds/)
     assert.match(alert.html, /sales\/interactions/); assert.deepEqual(f.markets, ['toronto'])
+    assert.match(alert.html, /background:#1a2744/); assert.match(alert.html, /Review Call Intake/)
     assert.equal(alert.context.callSid, sid); assert.equal(alert.context.identity, 'unknown'); assert.equal(alert.context.contactId, null)
     assert.ok(f.writes.every(table => table === 'enqueue_internal_alert'))
     assert.match(f.receipts[0].raw, /sip%3A/); assert.equal(f.receipts[0].source, 'partnership_call_status')
@@ -65,7 +72,46 @@ test('normalized phone identity works for imported formatting and a partner in a
     const alert = [...f.alerts.values()][0]
     assert.match(alert.html, /Caller &amp; Co/); assert.doesNotMatch(alert.html, /<Caller/)
     assert.match(alert.html, /contact=partner/); assert.deepEqual(f.markets, ['toronto', 'toronto'])
+    assert.match(alert.html, /Open Partner Thread/); assert.ok(!f.reads.includes('subcontractors'))
   } finally { f.close() }
+})
+test('saved subcontractor caller uses the established email layout and its own record without creating a partner or lead', async () => {
+  const f = fixture({ contractors: [{ id: 'paradise', company_name: 'Paradise Movers', contact_name: 'John', phone: '(416) 555-0199' }] })
+  try {
+    await f.callback(); await f.callback()
+    assert.equal(f.alerts.size, 1); assert.equal(f.touches.size, 0)
+    const alert = [...f.alerts.values()][0]
+    assert.match(alert.subject, /John — Paradise Movers/)
+    assert.match(alert.html, /<strong>Contact:<\/strong> John/); assert.match(alert.html, /<strong>Company:<\/strong> Paradise Movers/)
+    assert.match(alert.html, /background:#1a2744/); assert.match(alert.html, /Open Subcontractor/)
+    assert.match(alert.html, /sales\/contractors\/paradise/); assert.match(alert.html, /0m 38s/)
+    assert.doesNotMatch(alert.html, /Unsaved caller|identity is not confirmed|marketing\/partners/)
+    assert.equal(alert.context.contactId, null); assert.equal(alert.context.subcontractorId, 'paradise'); assert.equal(alert.context.identity, 'matched')
+    assert.ok(f.writes.every(table => table === 'enqueue_internal_alert'))
+  } finally { f.close() }
+})
+test('subcontractor placeholders do not become a personal name, and email labels remain escaped', async () => {
+  const f = fixture({ contractors: [{ id: 'crew', company_name: '<Crew & Co>', contact_name: 'Owner / crew manager (not yet confirmed)', phone: caller }] })
+  try {
+    await f.callback()
+    const alert = [...f.alerts.values()][0]
+    assert.match(alert.html, /&lt;Crew &amp; Co&gt;/); assert.doesNotMatch(alert.html, /<Crew|Owner \/ crew manager/)
+    assert.match(alert.html, /Open Subcontractor/)
+  } finally { f.close() }
+})
+test('ambiguous, failed and partial subcontractor matches keep identity uncertainty instead of guessing', async () => {
+  for (const [options, expected] of [
+    [{ contractors: [{ id: 'a', phone: caller }, { id: 'b', phone: caller }] }, /Caller identity needs review/],
+    [{ contractorLookupFailed: true }, /Contact lookup unavailable/],
+    [{ contractors: [{ id: 'wrong', phone: '+16475550199', company_name: 'Wrong company' }] }, /Unsaved caller/],
+  ]) {
+    const f = fixture(options)
+    try {
+      await f.callback(); const alert = [...f.alerts.values()][0]
+      assert.match(alert.html, expected); assert.equal(alert.context.subcontractorId, null); assert.equal(f.touches.size, 0)
+      assert.match(alert.html, /sales\/interactions/); assert.doesNotMatch(alert.html, /Wrong company|Open Subcontractor/)
+    } finally { f.close() }
+  }
 })
 test('unknown, ambiguous and failed identity reads still notify with explicit uncertainty', async () => {
   for (const [options, label] of [[{ lookupFailed: true }, /Contact lookup unavailable/], [{ contacts: [{ id: 'a', phone: caller }, { id: 'b', phone: caller }] }, /Caller identity needs review/]]) {
@@ -113,5 +159,14 @@ test('outbox failure is not acknowledged as a successful notification, and retry
     assert.equal(f.alerts.size, 0); assert.equal(f.touches.size, 1)
     f.failAlerts(false); assert.equal((await f.callback()).status, 200)
     assert.equal(f.touches.size, 1); assert.equal(f.alerts.size, 1)
+  } finally { f.close() }
+})
+test('subcontractor alert storage failure also propagates and retries retain one durable alert', async () => {
+  const f = fixture({ contractors: [{ id: 'crew', company_name: 'Saved Crew', phone: caller }] })
+  try {
+    f.failAlerts(true); await assert.rejects(() => f.callback(), /Internal alert delivery storage unavailable/)
+    assert.equal(f.alerts.size, 0)
+    f.failAlerts(false); await f.callback(); await f.callback()
+    assert.equal(f.alerts.size, 1); assert.equal(f.touches.size, 0)
   } finally { f.close() }
 })

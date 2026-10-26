@@ -1,7 +1,7 @@
 import { partnershipCallNeedsFallback } from '@/lib/partner-call-fallback'
 import { partnershipSalesFallbackXml } from '@/lib/server/partner-call-fallback'
 import { queueMissedPartnershipCall } from '@/lib/server/partner-sales-handoff'
-import { queuePartnershipCallAlert, type PartnershipCallContact } from '@/lib/server/partnership-call-alert'
+import { queuePartnershipCallAlert, type PartnershipCallContact, type PartnershipCallContractor } from '@/lib/server/partnership-call-alert'
 import { normalizePhone as normalizeAddress } from '@/lib/sales-phones'
 import { createHash } from 'node:crypto'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
@@ -58,13 +58,13 @@ export async function POST(request: Request) {
   const { label: lineLabel, market } = line
   const rawDuration = Number.parseInt(callDuration, 10)
   const durationSec = Number.isFinite(rawDuration) ? Math.max(0, rawDuration) : 0
-  async function completeResponse(contact: PartnershipCallContact | null = null, identity: 'matched' | 'unknown' | 'ambiguous' | 'lookup_failed' = 'unknown') {
+  async function completeResponse(contact: PartnershipCallContact | null = null, identity: 'matched' | 'unknown' | 'ambiguous' | 'lookup_failed' = 'unknown', contractor: PartnershipCallContractor | null = null) {
     if(shouldFallback){
       try{const xml=await partnershipSalesFallbackXml(contactPhone,partnershipNumber);if(xml)return new Response(xml,{headers:{'Content-Type':'text/xml; charset=utf-8'}})}catch(error){console.error('Partnership Sales fallback unavailable',error)}
     }
     if (!isOutbound) {
       await queuePartnershipCallAlert({ callSid, caller: contactPhone, line: partnershipNumber, lineLabel, market,
-        status: callStatus, durationSeconds: durationSec, occurredAt: now, contact, identity })
+        status: callStatus, durationSeconds: durationSec, occurredAt: now, contact, contractor, identity })
     }
     if(!isOutbound && ['no-answer','busy','failed','canceled'].includes(callStatus)) {
       await queueMissedPartnershipCall(contact?.id || null,callSid,contactPhone).catch(error=>console.error('Missed partnership callback task failed',error))
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
   let contacts: PartnershipCallContact[] = [], lookupFailed = false
   try {
     const contactRes = await fetch(
-      `${url}/rest/v1/market_contacts?phone=ilike.*${digits.slice(-4)}*&select=id,name,phone,city,stage,sequence_paused&limit=101`,
+      `${url}/rest/v1/market_contacts?phone=ilike.*${digits.slice(-4)}*&select=id,name,company,phone,city,stage,sequence_paused&limit=101`,
       { headers, cache: 'no-store' }
     )
     if (!contactRes.ok) throw Error('Contact lookup failed')
@@ -90,7 +90,22 @@ export async function POST(request: Request) {
   // establishes contact identity; neither line geography nor first result does.
   const exactMatches = contacts.filter(item => normalizePhone(item.phone) === contactPhone)
   const contact = !lookupFailed && contacts.length < 101 && exactMatches.length === 1 ? exactMatches[0] : null
-  if (!contact) return completeResponse(null, lookupFailed ? 'lookup_failed' : exactMatches.length > 1 || contacts.length >= 101 ? 'ambiguous' : 'unknown')
+  if (!contact) {
+    if (lookupFailed) return completeResponse(null, 'lookup_failed')
+    if (exactMatches.length > 1 || contacts.length >= 101) return completeResponse(null, 'ambiguous')
+    // Subcontractors have their own saved identity and workspace. Recognize
+    // those callers without creating a duplicate relationship contact or lead.
+    try {
+      const response = await fetch(`${url}/rest/v1/subcontractors?phone=ilike.*${digits.slice(-4)}*&select=id,company_name,contact_name,phone&limit=101`, { headers, cache: 'no-store' })
+      if (!response.ok) throw Error('Subcontractor lookup failed')
+      const rows = await response.json() as PartnershipCallContractor[]
+      if (!Array.isArray(rows)) throw Error('Invalid subcontractor lookup response')
+      const matches = rows.filter(item => normalizePhone(item.phone) === contactPhone)
+      if (rows.length >= 101 || matches.length > 1) return completeResponse(null, 'ambiguous')
+      if (matches.length === 1) return completeResponse(null, 'matched', matches[0])
+    } catch { return completeResponse(null, 'lookup_failed') }
+    return completeResponse(null, 'unknown')
+  }
 
   const connected = callStatus === 'completed' && (formData.get('DialBridged') === 'true' || durationSec > 0)
   const noAnswer = ['no-answer', 'busy', 'failed', 'canceled'].includes(callStatus)

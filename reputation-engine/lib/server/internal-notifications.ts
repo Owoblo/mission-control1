@@ -155,6 +155,8 @@ export function partnershipInboundNotificationEmail(options: {
   mediaUrls?: string[]
   eventLabel?: string
   subject?: string
+  crmPath?: string
+  ctaLabel?: string
 }) {
   const {
     contactId,
@@ -178,7 +180,10 @@ export function partnershipInboundNotificationEmail(options: {
         timeZone: 'America/Toronto',
       })
     : 'Just now'
-  const crmLink = `https://go.quote2move.com/marketing/partners?tab=phone&contact=${encodeURIComponent(contactId)}`
+  const crmPath = options.crmPath?.startsWith('/') && !options.crmPath.startsWith('//')
+    ? options.crmPath
+    : `/marketing/partners?tab=phone&contact=${encodeURIComponent(contactId)}`
+  const crmLink = `https://go.quote2move.com${crmPath}`
   const mediaLinks = mediaUrls
     .map((url, index) => `<li><a href="${escapeHtml(url)}" style="color:#1a2744">${escapeHtml(`Attachment ${index + 1}`)}</a></li>`)
     .join('')
@@ -200,7 +205,7 @@ export function partnershipInboundNotificationEmail(options: {
     <div style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${detail}</div>
     ${mediaLinks ? `<div style="margin-top:12px;font-size:13px;color:#1a2744"><strong>Media attached:</strong><ul style="margin:8px 0 0 18px;padding:0">${mediaLinks}</ul></div>` : ''}
     <div style="margin-top:16px">
-      <a href="${crmLink}" style="background:#1a2744;color:#d7f5e6;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open Partner Thread</a>
+      <a href="${escapeHtml(crmLink)}" style="background:#1a2744;color:#d7f5e6;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">${escapeHtml(options.ctaLabel || 'Open Partner Thread')}</a>
     </div>
     <div style="margin-top:16px;font-size:11px;color:#94a3b8">Saturn Star OS · Partnerships inbox alert</div>
   </div>
