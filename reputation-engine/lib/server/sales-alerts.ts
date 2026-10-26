@@ -21,10 +21,10 @@ export function buildSalesAlertNote(input: {
 
 export function parseSalesAlertNote(notes?: string | null) {
   const raw = (notes || '').trim()
-  const match = raw.match(/^\[SYSTEM ALERT\]\[(warning|critical)\]\s+(.+)$/i)
+  const [header, ...detailLines] = raw.split('\n')
+  const match = header.match(/^\[SYSTEM ALERT\]\[(warning|critical)\]\s+(.+)$/i)
   if (!match) return null
 
-  const [header, ...detailLines] = raw.split('\n')
   return {
     severity: match[1].toLowerCase() as SalesAlertSeverity,
     title: match[2].trim(),

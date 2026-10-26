@@ -1,3 +1,4 @@
+import { recordLeadAttention } from './lead-attention'
 import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import {
   buildSalesSummary,
@@ -1354,9 +1355,11 @@ export async function updateInboundLeadRawData(id: string, patch: Record<string,
 export async function markInboundLeadClaimed(id: string, actor?: { userId?: string | null; name?: string | null }) {
   const existing = await getInboundLead(id)
   const raw = typeof existing?.raw_data === 'object' && existing.raw_data ? existing.raw_data as Record<string, unknown> : {}
-  const nextRaw = existing
-    ? applyInboundLeadActionState(existing, raw, actor)
-    : raw
+  const human = Boolean(actor?.userId || actor?.name)
+  const now = new Date().toISOString()
+  const nextRaw = human && existing
+    ? { ...applyInboundLeadActionState(existing, raw, actor, undefined, now), humanClaimedAt: now, humanClaimedByUserId: actor?.userId, humanClaimedByName: actor?.name }
+    : { ...raw, requiresHumanAttention: true, automationClaimedAt: raw.automationClaimedAt || now }
   const { url, headers } = requireSupabase()
   const response = await fetch(`${url}/rest/v1/inbound_leads?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -1374,6 +1377,7 @@ export async function markInboundLeadClaimed(id: string, actor?: { userId?: stri
   if (!response.ok) {
     throw new Error(`Failed to claim inbound lead ${id}`)
   }
+  if (human) await recordLeadAttention({ inboundId: id, leadId: typeof raw.linkedLeadId === 'string' ? raw.linkedLeadId : undefined, action: 'inbound_claimed', activityAt: existing?.created_at }, actor)
 }
 
 export async function setInboundLeadDisposition(id: string, disposition: 'junk' | 'lost' | 'not_interested', actor?: { userId?: string | null; name?: string | null }) {
@@ -1468,6 +1472,7 @@ export async function markInboundLeadRead(id: string, actor?: { userId?: string 
   if (!response.ok) {
     throw new Error(`Failed to mark inbound lead ${id} as read`)
   }
+  await recordLeadAttention({ inboundId: id, leadId: typeof raw.linkedLeadId === 'string' ? raw.linkedLeadId : undefined, action: 'inbox_read', channel, activityAt: existing.created_at }, actor)
 }
 
 export async function markLeadInboxChannelRead(
@@ -1478,6 +1483,7 @@ export async function markLeadInboxChannelRead(
   const lead = await getSalesLead(leadId)
   if (!lead) throw new Error(`Lead ${leadId} not found`)
   await saveSalesLead(applyLeadInboxReadState(lead, channel, actor))
+  await recordLeadAttention({leadId,action:'inbox_read',channel,activityAt:lead.lastInboundAt||lead.createdAt},actor)
 }
 
 export async function markLeadInboxChannelActioned(

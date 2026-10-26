@@ -1,0 +1,17 @@
+'use client'
+import{useEffect,useState}from'react'
+type Evidence={assignedTo:string|null;createdAt:string;alerts:Array<{recipient:string;state:string;events:Array<{event_type:string;occurred_at:string}>}>;receipts:Array<{id:string;at:string;actor:string;action:string;evidenceSource:string;notificationPermission?:string;audioState?:string}>;humanContact:Array<{at:string;actor:string;channel:string;outcome?:string|null}>;limits:string[]}
+const labels:Record<string,string>={lead_detail_displayed:'Lead displayed (browser report)',displayed:'Alert displayed (browser report)',opened:'Notification opened',acknowledged:'Notification acknowledged',resolved:'Notification resolved',inbox_read:'Inbox marked read',inbound_claimed:'Lead claimed'}
+const time=(at:string)=>new Date(at).toLocaleString('en-CA',{timeZone:'America/Toronto'})
+export function LeadAttentionEvidence({leadId,role}:{leadId:string;role?:string}){
+ const[data,setData]=useState<Evidence|null>(null),[error,setError]=useState(''),[open,setOpen]=useState(false)
+ useEffect(()=>{
+  let sent=false,cancelled=false
+  const capture=async()=>{if(sent||document.visibilityState!=='visible')return;try{const r=await fetch(`/api/sales/leads/${encodeURIComponent(leadId)}/attention`,{method:'POST',credentials:'include'});if(r.ok)sent=true}catch{}}
+  const load=async()=>{if(role!=='owner'||!open)return;try{const r=await fetch(`/api/sales/leads/${encodeURIComponent(leadId)}/attention`,{credentials:'include',cache:'no-store'});if(!r.ok)throw Error('Follow-up evidence could not refresh.');const d=await r.json();if(!cancelled){setData(d);setError('')}}catch(e){if(!cancelled)setError(String(e instanceof Error?e.message:e))}}
+  void capture();void load();const timer=setInterval(()=>{void capture();void load()},30000);document.addEventListener('visibilitychange',capture)
+  return()=>{cancelled=true;clearInterval(timer);document.removeEventListener('visibilitychange',capture)}
+ },[leadId,role,open])
+ if(role!=='owner')return null
+ return <details className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm" onToggle={e=>setOpen(e.currentTarget.open)}><summary className="cursor-pointer font-semibold">Follow-up evidence</summary>{error?<p role="alert" className="mt-2 text-red-700">{error}</p>:null}{data?<div className="mt-3 space-y-3"><p>Lead received: {time(data.createdAt)} · Responsible rep: {data.assignedTo||'Unassigned'}</p><div><strong>Email notifications</strong>{data.alerts.length?data.alerts.map(a=><p key={a.recipient}>{a.recipient}: {a.events.some(e=>e.event_type==='email_delivered')?'Delivered':a.state}{a.events.filter(e=>e.event_type==='email_delivered').map(e=>` · ${time(e.occurred_at)}`)}</p>):<p>No matching delivery evidence recorded.</p>}</div><div><strong>Per-user evidence</strong>{data.receipts.length?data.receipts.map(r=><p key={r.id}>{time(r.at)} · {r.actor} · {labels[r.action]||r.action}{r.notificationPermission?` · Desktop alerts: ${r.notificationPermission}`:''}{r.audioState?` · Sound: ${r.audioState==='running'?'enabled':'not active'}`:''}</p>):<p>No per-user evidence recorded. This does not prove the alert was unseen.</p>}</div><div><strong>Recorded human contact</strong>{data.humanContact.length?data.humanContact.map((c,i)=><p key={i}>{time(c.at)} · {c.actor} · {c.channel}{c.outcome?` · ${c.outcome}`:''}</p>):<p>No human contact recorded in the CRM.</p>}</div><p className="text-xs text-slate-500">{data.limits.join(' ')}</p></div>:!error?<p className="mt-2">Loading evidence…</p>:null}</details>
+}

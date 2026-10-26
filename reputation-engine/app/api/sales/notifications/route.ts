@@ -1,8 +1,9 @@
+import { createHash } from 'node:crypto'
 import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import { nurtureReminderDue } from '@/lib/nurture-policy'
 import { NextResponse } from 'next/server'
 import { displayEmailSubject } from '@/lib/email-display'
-import { decorateInboundLead, getInboundStatus, parseInboundRawData } from '@/lib/inbound-inbox'
+import { decorateInboundLead, getInboundStatus, parseInboundRawData, needsHumanInboundAttention } from '@/lib/inbound-inbox'
 import {
   getSaturnBranchLabel,
   getSaturnBranchNumberFromRawData,
@@ -162,7 +163,7 @@ async function loadNotifications() {
 
   const leadItems: NotificationItem[] = hydratedInbound
     .filter(l => getInboundStatus(l) === 'needs_action' && isRealCustomerPhone(l.phone))
-    .filter(l => isInboundLeadUnread(l))
+    .filter(l => needsHumanInboundAttention(parseInboundRawData(l.raw_data)) || isInboundLeadUnread(l))
     .filter(l => new Date(l.created_at) > cutoff)
     .map(l => {
       const raw = parseInboundRawData(l.raw_data)
@@ -188,6 +189,7 @@ async function loadNotifications() {
       // Don't include branchLabel here — the component already prepends it to avoid duplication
       const previewParts = [getLeadPreviewLabel(l.source, raw), trackingLabel].filter(Boolean)
       const missedCall = getLeadPreviewLabel(l.source, raw) === 'Missed call'
+      const humanAttention = needsHumanInboundAttention(raw)
       return {
         id: l.id,
         type: 'lead' as const,
@@ -200,7 +202,7 @@ async function loadNotifications() {
         branchLabel,
         trackingLabel,
         href: matchedLead?.id ? `/sales/leads/${matchedLead.id}` : '/sales/inbox',
-        priority: missedCall ? 'interrupt' as const : 'today' as const,
+        priority: missedCall || humanAttention ? 'interrupt' as const : 'today' as const,
         reason: missedCall ? 'A customer attempted to call and did not reach the team.' : 'New incoming demand has not been handled.',
         requiredAction: missedCall ? 'Return the call' : 'Review and assign',
         dedupeKey: `inbound:${l.id}`,
@@ -268,7 +270,7 @@ async function loadNotifications() {
         phone: null,
         branchLabel: parsed.title.match(/—\s+(.+?)\s+line$/)?.[1],
         href: log.leadId ? `/sales/leads/${log.leadId}` : '/sales/inbox',
-        priority: 'interrupt' as const,
+        priority: parsed.severity === 'critical' ? 'interrupt' as const : 'today' as const,
         reason: parsed.preview,
         requiredAction: 'Resolve alert',
         dedupeKey: `alert:${log.id}`,
@@ -347,16 +349,18 @@ async function loadNotifications() {
 export async function POST(request: Request) {
   const session = await getSessionUser()
   if (!session || !canAccessSalesWorkspace(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const body = await request.json().catch(() => ({})) as { dedupeKeys?: string[]; action?: 'acknowledged' | 'resolved' }
-  const dedupeKeys = Array.from(new Set((body.dedupeKeys || []).map(key => key.trim()).filter(Boolean))).slice(0, 100)
+  const body = await request.json().catch(() => ({})) as { dedupeKeys?: string[]; action?: 'displayed' | 'opened' | 'acknowledged' | 'resolved'; surface?: string; notificationPermission?: string; audioState?: string }
+  const action = body.action || 'acknowledged'
+  if (!['displayed','opened','acknowledged','resolved'].includes(action)) return NextResponse.json({ error: 'Invalid notification action' }, { status: 400 })
+  const dedupeKeys = Array.from(new Set((Array.isArray(body.dedupeKeys) ? body.dedupeKeys : []).filter((key): key is string => typeof key === 'string').map(key => key.trim()).filter(key => key && key.length <= 300))).slice(0, 100)
   if (!dedupeKeys.length) return NextResponse.json({ error: 'At least one notification key is required' }, { status: 400 })
   const now = new Date().toISOString()
   const { url, headers } = requireSupabaseEnv()
   const rows = dedupeKeys.map(dedupeKey => ({
-    id: uid('ev'), event_type: NOTIFICATION_DISPOSITION_TYPE, rep_id: session.userId || session.name,
-    ts: now, created_at: now, properties: { dedupeKey, action: body.action || 'acknowledged', userName: session.name },
+    id: `notif_${createHash('sha256').update(`${session.userId || session.name}:${action}:${dedupeKey}`).digest('hex')}`, event_type: action === 'displayed' ? 'notification_displayed' : NOTIFICATION_DISPOSITION_TYPE, rep_id: session.userId || session.name,
+    ts: now, created_at: now, properties: { dedupeKey, action, userName: session.name, ...(action === 'displayed' ? { surface: body.surface === 'toast' ? 'toast' : 'bell', notificationPermission: ['granted','denied','default','unsupported'].includes(body.notificationPermission || '') ? body.notificationPermission : 'unknown', audioState: ['running','suspended','closed','unavailable'].includes(body.audioState || '') ? body.audioState : 'unknown', evidenceSource: 'authenticated_browser_report' } : {}) },
   }))
-  const response = await fetch(`${url}/rest/v1/analytics_events`, { method: 'POST', headers: { ...headers, Prefer: 'return=minimal' }, body: JSON.stringify(rows), cache: 'no-store' })
+  const response = await fetch(`${url}/rest/v1/analytics_events?on_conflict=id`, { method: 'POST', headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify(rows), cache: 'no-store' })
   if (!response.ok) return NextResponse.json({ error: 'Notification acknowledgement could not be saved' }, { status: 502 })
   notificationsCache.clear()
   return NextResponse.json({ ok: true, count: rows.length })
