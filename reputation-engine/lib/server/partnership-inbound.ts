@@ -120,6 +120,18 @@ function metadataMediaUrls(metadata?: Record<string, unknown>) {
   return raw.map(url => String(url || '').trim()).filter(Boolean).slice(0, 10)
 }
 
+async function queueInboundPartnerAlert(contact: MarketContactMatch, input: PausePartnershipSequenceInput, occurredAt: string) {
+  const providerKey = String(input.metadata?.messageSid || input.metadata?.callSid || input.metadata?.call_sid || occurredAt)
+  await sendRepAlertEmail(
+    `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
+    partnershipInboundNotificationEmail({ contactId: contact.id, contactName: contact.name, company: contact.company,
+      channel: input.channel, occurredAt, notes: input.notes, phone: contact.phone || input.phone || null,
+      email: contact.email || input.email || null, mediaUrls: metadataMediaUrls(input.metadata) }),
+    getPartnershipAlertRecipients(contact.city),
+    `partner-inbound:${contact.id}:${input.channel}:${providerKey}`,
+  )
+}
+
 export function isAutomatedSmsUnavailableReply(channel: InboundChannel, notes?: string | null) {
   if (channel !== 'sms') return false
   const text = String(notes || '').toLowerCase()
@@ -213,6 +225,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   if (!contact) return { matched: false as const }
 
   const occurredAt = input.occurredAt || new Date().toISOString()
+  let existingInbound = false
   if (ignoresPartnershipInbound(contact)) {
     await archiveIgnoredPartnershipInbound({ ...requireSupabaseEnv(), contactId: contact.id, channel: input.channel, occurredAt, notes: input.notes, metadata: input.metadata })
     return { matched: true as const, contactId: contact.id, contactName: contact.name, ignoredAutomatedSender: true as const }
@@ -241,6 +254,8 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     const prior = await fetch(`${url}/rest/v1/market_touches?${new URLSearchParams({contact_id:'eq.'+contact.id,direction:'eq.inbound','metadata->>messageSid':'eq.'+inboundSid,select:'id',limit:'1'})}`, {headers,cache:'no-store'})
     if (!prior.ok) throw new Error('Inbound replay lookup failed')
     if ((await prior.json()).length) {
+      existingInbound = true
+      if (!isAutomatedSmsUnavailableReply(input.channel, input.notes)) await queueInboundPartnerAlert(contact, input, occurredAt)
       await queueRequestedOttawaCard(contact.id,inboundSid)
       return {matched:true as const,contactId:contact.id,contactName:contact.name,duplicate:true}
     }
@@ -388,21 +403,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
     }),
   ])
 
-  await sendRepAlertEmail(
-    `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
-    partnershipInboundNotificationEmail({
-      contactId: contact.id,
-      contactName: contact.name,
-      company: contact.company,
-      channel: input.channel,
-      occurredAt,
-      notes: input.notes,
-      phone: contact.phone || input.phone || null,
-      email: contact.email || input.email || null,
-      mediaUrls: metadataMediaUrls(input.metadata),
-    }),
-    getPartnershipAlertRecipients(contact.city)
-  )
+  await queueInboundPartnerAlert(contact, input, occurredAt)
 
   if (!optedOut) await queueHandoffInbound(contact.id, String(input.metadata?.messageSid || input.metadata?.callSid || input.metadata?.call_sid || ''), touchNotes).catch(error => console.error('Handoff follow-up task failed', error))
 
@@ -412,6 +413,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   }
   return { matched: true as const, contactId: contact.id, contactName: contact.name }
   } catch (error) {
+    if (existingInbound) throw error
     // Once identity has matched a relationship contact, never reinterpret a
     // processing failure as a new Sales lead. Persist a minimal recovery touch
     // so the partnership team still sees and owns the reply.
@@ -458,21 +460,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
       }),
     ])
 
-    await sendRepAlertEmail(
-      `Partner inbound ${input.channel.toUpperCase()} — ${contact.name || contact.company || 'Unknown contact'}`,
-      partnershipInboundNotificationEmail({
-        contactId: contact.id,
-        contactName: contact.name,
-        company: contact.company,
-        channel: input.channel,
-        occurredAt,
-        notes: input.notes,
-        phone: contact.phone || input.phone || null,
-        email: contact.email || input.email || null,
-        mediaUrls: metadataMediaUrls(input.metadata),
-      }),
-      getPartnershipAlertRecipients(contact.city)
-    )
+    await queueInboundPartnerAlert(contact, input, occurredAt)
 
     return {
       matched: true as const,

@@ -156,12 +156,10 @@ export function SalesHeader() {
   const [notifTotal, setNotifTotal] = useState(0)
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifReceiptError, setNotifReceiptError] = useState('')
+  const [notifLoadError, setNotifLoadError] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
   const notificationsLoadedRef = useRef(false)
-  const [snoozedBefore, setSnoozedBefore] = useState<number>(() => {
-    return parseInt(readLocalStorageItem('ss_notif_snoozed') || '0', 10) || 0
-  })
 
   async function saveNotificationDisposition(keys: string[], action: 'opened' | 'acknowledged') {
     if (!keys.length) return true
@@ -174,9 +172,9 @@ export function SalesHeader() {
   async function markAllRead() {
     const keys = notifItems.map(item => item.dedupeKey)
     if (!await saveNotificationDisposition(keys, 'acknowledged')) return
-    const now = Date.now()
-    setSnoozedBefore(now)
-    writeLocalStorageItem('ss_notif_snoozed', String(now))
+    const acknowledged = new Set(keys)
+    setNotifItems(current => current.filter(item => !acknowledged.has(item.dedupeKey)))
+    setNotifTotal(current => Math.max(0, current - keys.length))
     setNotifOpen(false)
   }
   const [toast, setToast] = useState<NotificationItem | null>(null)
@@ -291,8 +289,10 @@ export function SalesHeader() {
   // ── Fetch notifications (poll every 30s) ───────────────────────────────
   useEffect(() => {
     async function fetchNotifications(signal: AbortSignal) {
+      try {
         const res = await fetchRead('/api/sales/notifications', { credentials: 'include', signal }, { timeoutMs: 12_000 })
         const data = await res.json() as { items: NotificationItem[]; totalCount: number; breakdown: { leads: number; sms: number; emails: number; alerts: number } }
+        setNotifLoadError(false)
 
         // Detect new items for toast + chime + push
         if (data.items.length) {
@@ -317,9 +317,7 @@ export function SalesHeader() {
         if (document.visibilityState === 'visible') data.items.forEach(item => seenIdsRef.current.add(item.id))
         notificationsLoadedRef.current = true
 
-        const visibleItems = snoozedBefore > 0
-          ? data.items.filter(item => new Date(item.time).getTime() > snoozedBefore)
-          : data.items
+        const visibleItems = data.items
         setNotifItems(visibleItems)
         setNotifTotal(visibleItems.length)
         setNotifBreakdown({
@@ -328,6 +326,10 @@ export function SalesHeader() {
           emails: visibleItems.filter(i => i.type === 'email').length,
           alerts: visibleItems.filter(i => i.type === 'alert').length,
         })
+      } catch (error) {
+        if (!signal.aborted) setNotifLoadError(true)
+        throw error
+      }
     }
 
     return startReadPolling(fetchNotifications, {
@@ -522,9 +524,11 @@ export function SalesHeader() {
               <button
                 onClick={() => { setNotifOpen(v => !v); requestPushPermission() }}
                 className={`relative flex h-9 items-center justify-center rounded-[8px] border text-lg transition ${sidebarCollapsed ? 'w-10' : 'w-9'} ${notifOpen ? 'border-[var(--app-ink)] bg-[var(--app-ink)] text-white' : 'border-[var(--app-line)] bg-[var(--app-bg)] text-[var(--app-ink)] hover:border-[var(--app-ink)]'}`}
-                title="Notifications — click to enable alert sounds"
+                title={notifLoadError ? 'Notifications could not refresh — retrying' : 'Notifications — click to enable alert sounds'}
+                aria-label={notifLoadError ? 'Notifications could not refresh — retrying' : 'Notifications — click to enable alert sounds'}
               >
                 🔔
+                {notifLoadError && <span aria-label="Notification refresh failed" className="absolute -left-1 -top-1 rounded-full bg-amber-600 px-1 text-xs text-white">!</span>}
                 {notifTotal > 0 && (
                   <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
                     {notifTotal > 9 ? '9+' : notifTotal}
@@ -545,7 +549,7 @@ export function SalesHeader() {
                           {notifBreakdown.leads > 0 && <span>🆕 {notifBreakdown.leads} lead{notifBreakdown.leads !== 1 ? 's' : ''}</span>}
                           {notifBreakdown.sms > 0 && <span>💬 {notifBreakdown.sms} SMS</span>}
                           {notifBreakdown.emails > 0 && <span>📧 {notifBreakdown.emails} email{notifBreakdown.emails !== 1 ? 's' : ''}</span>}
-                          {notifTotal === 0 && <span>All clear</span>}
+                          {notifTotal === 0 && !notifLoadError && <span>All clear</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -567,9 +571,11 @@ export function SalesHeader() {
                       </div>
                     </div>
 
+                    {notifLoadError && <div role="alert" className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Notifications could not refresh. Retrying automatically; check the Inbox for new messages.</div>}
+
                     {/* Items */}
                     <div className="flex-1 overflow-y-auto divide-y divide-[var(--app-line)]">
-                      {notifItems.length === 0 ? (
+                      {notifItems.length === 0 && notifLoadError ? null : notifItems.length === 0 ? (
                         <div className="px-4 py-10 text-center">
                           <div className="text-3xl">✅</div>
                           <div className="mt-2 text-sm font-medium text-[var(--app-ink)]">All caught up</div>

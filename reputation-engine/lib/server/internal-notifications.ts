@@ -1,9 +1,10 @@
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
-import { createSmsReplyAddress } from './email-sms-reply-store'
 import { getTwilioCredentials, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
-import { sendSesProviderEmail } from '@/lib/server/email-provider'
+import { randomUUID } from 'node:crypto'
+import { enqueueInternalAlert } from './alert-outbox'
+import { requireSupabaseEnv } from './runtime'
 
 // Per-caller cooldown so reps don't get spammed on repeat calls
 const _callerIdCooldown = new Map<string, number>()
@@ -38,7 +39,6 @@ export async function sendCallerIdSms(
   ))
 }
 
-const NOTIFY_FROM = 'Saturn Star OS <notifications@starmovers.ca>'
 const NOTIFY_TO = ['business@starmovers.ca', 'thelma.ufot@starmovers.ca']
 const PARTNERSHIP_DEFAULT_NOTIFY_TO = ['business@starmovers.ca']
 const PARTNERSHIP_MARKET_NOTIFY_TO: Record<string, string[]> = {
@@ -130,17 +130,10 @@ export async function sendInternalAlertSms(to: string, body: string, from: strin
   }).catch(() => {})
 }
 
-export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients = NOTIFY_TO) {
-  const to = uniqueEmails(recipients)
+export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients?: string[], eventKey?: string) {
+  const to = uniqueEmails(recipients ?? await getRepAlertRecipients())
   if (!to.length) return
-  await Promise.all(to.map(recipient => sendSesProviderEmail({
-    from: NOTIFY_FROM,
-    to: recipient,
-    subject,
-    html: htmlBody,
-    replyTo: 'business@starmovers.ca',
-    trackingMode: 'deliverability',
-  }).catch(error => console.error('Internal email alert failed', { subject, recipient, error: String(error) }))))
+  await enqueueInternalAlert(eventKey || `internal-alert:${randomUUID()}`, { recipients: to, subject, html: htmlBody })
 }
 
 export function partnershipInboundNotificationEmail(options: {
@@ -223,7 +216,7 @@ export function smsNotificationEmail(from: string, body: string, leadId?: string
     Sales inbound SMS — ${escapeHtml(from)}
   </div>
   <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px">
-    <div style="background:#f0f2f5;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${body}</div>
+    <div style="background:#f0f2f5;border-radius:8px;padding:14px;font-size:14px;color:#1a2744;white-space:pre-wrap">${escapeHtml(body)}</div>
     <div style="margin-top:16px">
       <a href="${crmLink}" style="background:#1a2744;color:#f5a623;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open Sales Conversation</a>
     </div>
@@ -277,7 +270,7 @@ export function missedCallNotificationEmail(from: string, branchLabel: string, l
     <div style="margin-top:16px">
       <a href="${crmLink}" style="background:#1a2744;color:#f5a623;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">Open in CRM</a>
     </div>
-    <div style="margin-top:16px;font-size:11px;color:#94a3b8">Saturn Star Moving · An auto-text has been sent to the caller</div>
+    <div style="margin-top:16px;font-size:11px;color:#94a3b8">Saturn Star Moving · Review the call and verify any follow-up message</div>
   </div>
 </div>`
 }
@@ -392,4 +385,11 @@ export function depositReceivedEmail(leadName: string, leadId: string, amount: n
   })
 }
 
-export function getRepAlertRecipients() { return uniqueEmails(NOTIFY_TO) }
+export async function getRepAlertRecipients(branch?: string) {
+  const { url, headers } = requireSupabaseEnv()
+  const response = await fetch(`${url}/rest/v1/rpc/crm_sales_alert_recipients`, {
+    method: 'POST', headers, body: JSON.stringify({ p_branch: branch || null }), cache: 'no-store', signal: AbortSignal.timeout(8_000),
+  })
+  if (!response.ok) throw Error('Sales alert recipients could not be verified')
+  return uniqueEmails([...NOTIFY_TO, ...await response.json() as string[]])
+}

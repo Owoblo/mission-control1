@@ -6,9 +6,10 @@ import ts from 'typescript'
 import { smsNotificationEmail } from '../../lib/server/internal-notifications'
 
 function harness(leadId: string | null) {
-  const saved: any[] = [], alerts: any[] = []
+  const saved: any[] = [], alerts: any[] = [], pending: Array<() => Promise<void>> = []
   let partnershipCalls = 0
   const modules: Record<string, unknown> = {
+    'next/server': { after: (fn: () => Promise<void>) => pending.push(fn) },
     '@/lib/server/dialer-settings': { getDialerSettings: async () => ({}), findBlockedCaller: () => false },
     '@/lib/server/contractor-inbound': { findInboundContractor: async () => null },
     '@/lib/server/interactions': { captureTwilioInteraction: async () => {} },
@@ -30,7 +31,7 @@ function harness(leadId: string | null) {
     Response, URLSearchParams, crypto, console,
     fetch: async (_url: string, init: any) => { if (init?.method === 'POST') saved.push(JSON.parse(init.body)); return Response.json([]) },
   })
-  return { saved, alerts, partnershipCalls: () => partnershipCalls, run: (to: string) => exports.handleInboundSms(new URLSearchParams({ From: '+16477126210', To: to, Body: 'Thanks, it includes 1 driver +1 men?', MessageSid: 'telnyx:reply' })) }
+  return { saved, alerts, partnershipCalls: () => partnershipCalls, run: async (to: string) => { const result = await exports.handleInboundSms(new URLSearchParams({ From: '+16477126210', To: to, Body: 'Thanks, it includes 1 driver +1 men?', MessageSid: 'telnyx:reply' })); for (const fn of pending) await fn(); return result } }
 }
 
 test('Sales-number reply is saved to the exact existing lead and sends one Sales alert', async () => {
@@ -46,12 +47,12 @@ test('Sales-number reply is saved to the exact existing lead and sends one Sales
   assert.doesNotMatch(h.alerts[0][1], /Open Partner Thread/)
 })
 
-test('a partner texting a Sales number without previous linked messages still enters Sales', async () => {
+test('a known partner texting a Sales number without customer ownership stays in Partnerships', async () => {
   const h = harness(null)
   assert.equal((await h.run('+14377823004')).status, 200)
-  assert.equal(h.partnershipCalls(), 0)
-  assert.equal(h.saved.length, 1)
-  assert.equal(h.alerts.length, 1)
+  assert.equal(h.partnershipCalls(), 1)
+  assert.equal(h.saved.length, 0)
+  assert.equal(h.alerts.length, 0)
 })
 
 test('partnership-number reply retains the partnership handler', async () => {

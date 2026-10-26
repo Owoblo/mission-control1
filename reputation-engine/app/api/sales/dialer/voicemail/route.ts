@@ -60,7 +60,7 @@ export async function POST(request: Request) {
               await archiveTwilioRecording({ ...mapping, accountSid, authToken, callSid, recordingUrl, recordingSid: formData.get('RecordingSid'), durationSeconds: recordingDuration, phoneNumber: from, createdAt: voicemailAt })
             })
               .catch(error => console.error('Voicemail history projection failed', { callSid, error: String(error) })),
-            sendRepAlertEmail(`New Voicemail from ${from}`, voicemailNotificationEmail(from, recordingDuration, recordingUrl, leadId)),
+            sendRepAlertEmail(`New Voicemail from ${from}`, voicemailNotificationEmail(from, recordingDuration, recordingUrl, leadId), undefined, `voicemail:${formData.get('RecordingSid') || callSid}`),
           ])
         } catch {
           // best-effort

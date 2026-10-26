@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       const amount = event.price ? priceLabel(event.price) : 'No price included'
       const href = `https://go.quote2move.com/sales/contractors?leadId=${encodeURIComponent(row.id)}`
       const alert = [`Contractor update — ${review.scope.contactName} ${action}`, `<h2>${escapeHtml(review.scope.contactName)} ${escapeHtml(action)}</h2><p><strong>Job:</strong> ${escapeHtml(review.scope.origin)} to ${escapeHtml(review.scope.destination)} on ${escapeHtml(review.scope.date)}</p><p><strong>Status:</strong> ${escapeHtml(pricing.status)}</p><p><strong>Price:</strong> ${escapeHtml(amount)}</p>${event.notes ? `<p><strong>Notes:</strong><br>${escapeHtml(event.notes).replace(/\n/g, '<br>')}</p>` : ''}<p><a href="${href}">Open contractor price responses in Mission Control</a></p><p>A price agreement is not an assignment or dispatch approval.</p>`] as const
-      await saveScopeReviews(row, row.data.contractorScopeReviews!.map(r => r.id === review.id ? { ...r, pricing } : r), { eventKey: `contractor:${review.id}:${event.id}`, payload: { subject: alert[0], html: alert[1], recipients: getRepAlertRecipients() } })
+      await saveScopeReviews(row, row.data.contractorScopeReviews!.map(r => r.id === review.id ? { ...r, pricing } : r), { eventKey: `contractor:${review.id}:${event.id}`, payload: { subject: alert[0], html: alert[1], recipients: await getRepAlertRecipients(row.data.branch) } })
     }
     return Response.json({ pricing }, { headers })
   } catch (error) {

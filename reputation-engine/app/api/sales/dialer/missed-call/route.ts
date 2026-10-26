@@ -97,7 +97,7 @@ export async function POST(request: Request) {
           console.error('Missed-call response reservation failed', { callSid, error: String(error) })
         }
         await Promise.all([
-          sendRepAlertEmail(`Missed Call — ${from}`, missedCallNotificationEmail(from, branchLabel)),
+          sendRepAlertEmail(`Missed Call — ${from}`, missedCallNotificationEmail(from, branchLabel), undefined, `missed-call:${callSid}`),
           persistInboundCallEvent({ source: 'twilio_missed_call', channel: 'call', sender: from, recipient: to, occurredAt: now, raw: rawBody })
             .catch(error => console.error('Inbound call history projection failed', { callSid, error: String(error) })),
         ])
