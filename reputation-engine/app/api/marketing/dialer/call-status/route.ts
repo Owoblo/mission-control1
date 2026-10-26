@@ -1,12 +1,15 @@
 import { partnershipCallNeedsFallback } from '@/lib/partner-call-fallback'
 import { partnershipSalesFallbackXml } from '@/lib/server/partner-call-fallback'
 import { queueMissedPartnershipCall } from '@/lib/server/partner-sales-handoff'
+import { queuePartnershipCallAlert, type PartnershipCallContact } from '@/lib/server/partnership-call-alert'
+import { normalizePhone as normalizeAddress } from '@/lib/sales-phones'
+import { createHash } from 'node:crypto'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
 import { authorizeTwilioWebhook } from '@/lib/server/security'
 import { captureTwilioInteraction } from '@/lib/server/interactions'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { pausePartnershipSequenceForInbound } from '@/lib/server/partnership-inbound'
-import { PARTNERSHIP_LINES, isPartnershipSenderNumber, normalizePartnershipCityKey } from '@/lib/partnership-lines'
+import { PARTNERSHIP_LINES, isPartnershipSenderNumber } from '@/lib/partnership-lines'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,18 +26,8 @@ function partnershipLineForNumber(value?: string | null) {
   return PARTNERSHIP_LINES.find(line => line.number === e164) || null
 }
 
-function contactMatchesLine(contact: { city?: string | null }, dialedNumber?: string | null) {
-  const line = partnershipLineForNumber(dialedNumber)
-  if (!line) return true
-  const cityKey = normalizePartnershipCityKey(contact.city)
-  return line.cityKeys.some(city => normalizePartnershipCityKey(city) === cityKey)
-}
-
 function normalizePhone(value?: string | null) {
-  const digits = String(value || '').replace(/\D/g, '')
-  if (digits.length === 10) return `+1${digits}`
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
-  return ''
+  try { const phone = normalizeAddress(value); return /^\+1\d{10}$/.test(phone) ? phone : '' } catch { return '' }
 }
 
 export async function POST(request: Request) {
@@ -51,21 +44,30 @@ export async function POST(request: Request) {
   const direction = (formData.get('Direction') as string | null) ?? ''
 
   const now = new Date().toISOString()
-  const isOutbound = direction === 'outbound-api' || direction === 'outbound-dial'
+  const isOutbound = direction.startsWith('outbound')
   const contactPhone = normalizePhone(isOutbound ? to : from)
   const partnershipNumber = normalizePhone(isOutbound ? from : to)
 
-  if (!contactPhone || !isPartnershipSenderNumber(partnershipNumber) || callStatus === 'initiated' || callStatus === 'ringing') {
+  if (!callSid || !contactPhone || !isPartnershipSenderNumber(partnershipNumber) || !['completed', 'no-answer', 'busy', 'failed', 'canceled'].includes(callStatus)) {
     return twimlCompleteResponse()
   }
 
   const shouldFallback = partnershipCallNeedsFallback({dialStatus:formData.get('DialCallStatus') || '',direction,alreadyFallback:new URL(request.url).searchParams.get('salesFallback')==='1'})
-  async function completeResponse(contactId: string | null = null) {
+  const line = partnershipLineForNumber(partnershipNumber)
+  if (!line) return twimlCompleteResponse()
+  const { label: lineLabel, market } = line
+  const rawDuration = Number.parseInt(callDuration, 10)
+  const durationSec = Number.isFinite(rawDuration) ? Math.max(0, rawDuration) : 0
+  async function completeResponse(contact: PartnershipCallContact | null = null, identity: 'matched' | 'unknown' | 'ambiguous' | 'lookup_failed' = 'unknown') {
     if(shouldFallback){
       try{const xml=await partnershipSalesFallbackXml(contactPhone,partnershipNumber);if(xml)return new Response(xml,{headers:{'Content-Type':'text/xml; charset=utf-8'}})}catch(error){console.error('Partnership Sales fallback unavailable',error)}
     }
+    if (!isOutbound) {
+      await queuePartnershipCallAlert({ callSid, caller: contactPhone, line: partnershipNumber, lineLabel, market,
+        status: callStatus, durationSeconds: durationSec, occurredAt: now, contact, identity })
+    }
     if(!isOutbound && ['no-answer','busy','failed','canceled'].includes(callStatus)) {
-      await queueMissedPartnershipCall(contactId,callSid,contactPhone).catch(error=>console.error('Missed partnership callback task failed',error))
+      await queueMissedPartnershipCall(contact?.id || null,callSid,contactPhone).catch(error=>console.error('Missed partnership callback task failed',error))
     }
     return twimlCompleteResponse()
   }
@@ -73,29 +75,37 @@ export async function POST(request: Request) {
 
   // Find the contact by phone
   const digits = contactPhone.replace(/\D/g, '').slice(-10)
-  const contactRes = await fetch(
-    `${url}/rest/v1/market_contacts?phone=ilike.*${digits}&select=id,name,phone,city,stage,sequence_paused&limit=20`,
-    { headers, cache: 'no-store' }
-  )
-  const contacts = (contactRes.ok ? await contactRes.json() : []) as Array<{ id: string; name: string; phone: string | null; city: string | null; stage: string; sequence_paused: boolean }>
-  const exactMatches = contacts.filter(item => normalizePhone(item.phone) === contactPhone && contactMatchesLine(item, partnershipNumber))
-  const contact = exactMatches.length === 1 ? exactMatches[0] : null
+  let contacts: PartnershipCallContact[] = [], lookupFailed = false
+  try {
+    const contactRes = await fetch(
+      `${url}/rest/v1/market_contacts?phone=ilike.*${digits.slice(-4)}*&select=id,name,phone,city,stage,sequence_paused&limit=101`,
+      { headers, cache: 'no-store' }
+    )
+    if (!contactRes.ok) throw Error('Contact lookup failed')
+    const result = await contactRes.json()
+    if (!Array.isArray(result)) throw Error('Invalid contact lookup response')
+    contacts = result
+  } catch { lookupFailed = true }
+  // The caller can live in another market. Only a unique normalized phone match
+  // establishes contact identity; neither line geography nor first result does.
+  const exactMatches = contacts.filter(item => normalizePhone(item.phone) === contactPhone)
+  const contact = !lookupFailed && contacts.length < 101 && exactMatches.length === 1 ? exactMatches[0] : null
+  if (!contact) return completeResponse(null, lookupFailed ? 'lookup_failed' : exactMatches.length > 1 || contacts.length >= 101 ? 'ambiguous' : 'unknown')
 
-  if (!contact) return completeResponse()
-
-  const durationSec = parseInt(callDuration, 10)
-  const connected = callStatus === 'completed' && durationSec > 5
+  const connected = callStatus === 'completed' && (formData.get('DialBridged') === 'true' || durationSec > 0)
   const noAnswer = ['no-answer', 'busy', 'failed', 'canceled'].includes(callStatus)
 
   const notes = connected
     ? `Partnership call — ${durationSec}s · ${isOutbound ? 'Outbound' : 'Inbound'} · ${callSid}`
     : `Partnership call attempt — ${callStatus} · ${isOutbound ? 'Outbound' : 'Inbound'}`
 
-  await fetch(`${url}/rest/v1/market_touches`, {
+  const touchKey = createHash('sha256').update(`${callSid}:${formData.get('DialCallSid') || 'root'}:${callStatus}`).digest('hex')
+  const touchId = `${touchKey.slice(0,8)}-${touchKey.slice(8,12)}-4${touchKey.slice(13,16)}-a${touchKey.slice(17,20)}-${touchKey.slice(20,32)}`
+  await fetch(`${url}/rest/v1/market_touches?on_conflict=id`, {
     method: 'POST',
-    headers: { ...headers, Prefer: 'return=minimal' },
+    headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify({
-      contact_id: contact.id,
+      id: touchId, contact_id: contact.id,
       channel: 'phone',
       direction: isOutbound ? 'outbound' : 'inbound',
       notes,
@@ -116,7 +126,7 @@ export async function POST(request: Request) {
   if (!isOutbound && connected) {
     void pausePartnershipSequenceForInbound({
       channel: 'phone',
-      phone: from,
+      phone: contactPhone,
       occurredAt: now,
       notes,
     }).catch(() => {})
@@ -125,5 +135,5 @@ export async function POST(request: Request) {
   // This route is also the <Dial action>. Twilio expects valid TwiML here;
   // an empty 204 makes it announce "An application error has occurred"
   // after an otherwise successful call.
-  return completeResponse(contact.id)
+  return completeResponse(contact, 'matched')
 }
