@@ -1,3 +1,4 @@
+import { customerInventoryText } from './sales-discovery-policy'
 import type { CRMLead, InventoryItem } from './types'
 
 export function inventoryReviewFingerprint(inventory: InventoryItem[] = []) {
@@ -36,7 +37,8 @@ export function isInventoryListConfirmation(message: string) {
 }
 
 export function requestsInventoryQuote(message: string) {
-  return /\b(?:quote|estimate|price|pricing)\b/i.test(message) && !/\b(?:don't|do not|not ready|cancel)\b/i.test(message)
+  const request = customerInventoryText(message)
+  return /\b(?:quote|estimate|price|pricing)\b/i.test(request) && !/\b(?:don't|do not|not ready|cancel|no price|no quote)\b/i.test(request)
 }
 
 export function planCustomerInventoryReply(lead: CRMLead, message: string, now: string) {
@@ -53,8 +55,8 @@ export function planCustomerInventoryReply(lead: CRMLead, message: string, now: 
       handoff: true,
       review: { ...review, ...(confirmed ? { confirmedFingerprint: fingerprint, confirmedAt: now } : {}) },
       body: unresolved.length
-        ? `Thanks. I have your list and have flagged the unclear items for our coordinator to confirm with you before pricing. They will review the move details and prepare your quote.`
-        : `Thanks. ${confirmed ? 'Your item list is confirmed.' : 'I have your item list and quote request.'} Our coordinator will review the move details to prepare your quote.`,
+        ? `Thanks. I have your item list. We’ll confirm the unclear items before preparing an accurate estimate.`
+        : `Thanks. ${confirmed ? 'Your item list is confirmed.' : 'I have your item list and quote request.'} We’ll use these details to prepare your estimate.`,
     }
   }
   if (review.confirmedFingerprint === fingerprint) return null

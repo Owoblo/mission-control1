@@ -1,3 +1,4 @@
+import { customerInventoryText } from './sales-discovery-policy'
 import { deriveInventoryMetrics } from './sales'
 import { hasCanadianPostalCode, hasCompleteMoveAddress, hasStreetType } from './sales-automation-qualification'
 import { INVENTORY_PRESETS, matchInventoryPreset } from './item-presets'
@@ -279,7 +280,7 @@ function parseInventoryCandidate(value: string) {
 }
 
 export function extractCustomerInventoryItems(message?: string | null): InventoryItem[] {
-  const text = cleanInventoryText(message)
+  const text = cleanInventoryText(customerInventoryText(message))
   if (!text || (!INVENTORY_HINT_RE.test(text) && !INVENTORY_ITEM_RE.test(text))) return []
   if (/\b(address|pick\s*up|pickup|drop\s*off|dropoff|postal|zip)\b/i.test(text) && !/\b(sofa|couch|chair|table|boxes|closet|packing|pack)\b/i.test(text)) return []
 
@@ -354,6 +355,7 @@ export function extractCustomerInventoryItems(message?: string | null): Inventor
       item: name,
       qty,
       included: true,
+      ...(/^(?:washer|washing machine|dryer|(?:chest )?freezer|fridge|refrigerator)\b/i.test(name) ? { policyOverride: 'include' as const } : {}),
       status,
       confirmReason,
       source: 'customer_verification' as const,

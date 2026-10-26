@@ -1,3 +1,4 @@
+import { interruptsNormalSalesDiscovery } from '@/lib/sales-discovery-policy'
 import { getSalesBranchFromSaturnPhone } from '@/lib/sales-phones'
 import { extractConversationSignal, salesQualificationBlocked } from '@/lib/conversation-integrity'
 import { recordConversationSignal } from './conversation-integrity'
@@ -1916,14 +1917,17 @@ HARD RULES — NEVER DO THESE
 - Never sound generic — reference the customer's actual route, date, or last interaction.
 - Never ask a booked or deposit-paid customer for basic sales-intake details already in the lead, such as move date, origin, destination, or whether they want to book.
 - Never try to close, quote, or sell a booked or deposit-paid customer. They are already closed.
-- Never guess on parking, access, furniture handling, crew arrival, or mover count. If the answer is not explicit in the lead context, say the coordinator will confirm and ask for one specific missing detail if needed.
+- Never guess on parking, access, furniture handling, crew arrival, or mover count. If the answer is not explicit in the lead context, say you will check that detail and ask for one specific missing fact if needed.
 - Never interpret a date written inside an address as a confirmed move date. Never reuse an old or past move date for a new inquiry.
 - Never describe the customer as ready to book while route, date, inventory, or access remains missing.
-- Automated estimate sending is paused. Never generate, promise, announce, or send a price or estimate. Continue discovery and preserve the details for a human coordinator.
+- Automated estimate sending is paused. Never generate, promise, announce, or send a price or estimate. Continue discovery and preserve the details for internal pricing review.
 - Never behave like a form. Do not ask two addresses, two locations, or multiple inventory/logistics categories in one turn.
 - Never move directly from the customer's answer to another demand. First acknowledge it and explain why it helps or reduce their uncertainty.
 
 ALWAYS DO THESE
+- Respond to customer-initiated messages and form submissions at any hour, including nights and weekends. Arrival time is never a reason to stop discovery or promise a later response.
+- Keep the conversation in the normal sales flow. Never mention a coordinator, internal handoff, office opening hours, or waiting until tomorrow. Collect the next missing customer detail naturally. Internal pricing review does not need a customer-facing process announcement.
+- Website text saying "No price, crew or booking was confirmed by this form" is an operational disclaimer, not a customer request for pricing or a human.
 - Open with context that proves you remember them (their route, date, what was said).
 - Mention binding-estimate protection only after the route, date, inventory, and access are confirmed. During intake, collect the next missing fact without implying that a quote is ready.
 - Create one honest reason to act now. Never manufacture false urgency.
@@ -2357,9 +2361,12 @@ async function buildCopyForJob(job: CRMAutomationJob, lead: CRMLead, channel: Co
     conversationMemory,
   }).catch(() => null)
 
-  if (ai?.reply) {
+  if (ai?.reply && !interruptsNormalSalesDiscovery(ai.reply)) {
     const quality = evaluateConversationMessage(ai.reply, previousMemory)
-    if (quality.score >= 64 && !quality.bundledQuestion && !quality.repeatedQuestion) return ai
+    if (quality.score >= 64 && !quality.bundledQuestion && !quality.repeatedQuestion) {
+      const continueDiscovery = job.kind === 'lead_response' && !detectHumanHandoff(inboundMessage) && getMissingFields(lead).length > 0
+      return continueDiscovery ? { ...ai, shouldHandoff: false } : ai
+    }
   }
   const fallback = fallbackCopy(job.kind, lead, channel, inboundMessage)
   if (fallback.reply && evaluateConversationMessage(fallback.reply, previousMemory).repeatedQuestion) {
@@ -3504,7 +3511,8 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     }
   }
 
-  const customerInventoryReply = job.kind === 'lead_response'
+  const readyForInventoryReview = Boolean(addressCheckedLead.moveDate || addressCheckedLead.moveDateFlexible) && hasCompleteRouteAddresses(addressCheckedLead)
+  const customerInventoryReply = job.kind === 'lead_response' && readyForInventoryReview
     ? planCustomerInventoryReply(addressCheckedLead, inboundMessage || '', new Date().toISOString())
     : null
   if (customerInventoryReply) {
@@ -3594,8 +3602,8 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
       const firstName = (quoteCandidateLead.name || 'there').trim().split(/\s+/)[0]
       const correctionLike = /\b(no|not|don'?t|do not|correction|instead|oversized|fragile|pack|disassembl|staying|leaving)\b/i.test(inboundMessage || '')
       const acknowledgement = correctionLike
-        ? `Thanks, ${firstName} — I updated that detail on your move file. A coordinator will use the corrected scope when preparing the estimate.`
-        : `Thanks, ${firstName} — I added that to your move file. A coordinator will review the scope before preparing the estimate.`
+        ? `Thanks, ${firstName} — I updated that detail on your move file. We’ll use the corrected details when preparing your estimate.`
+        : `Thanks, ${firstName} — I added that to your move file. We’ll use these details when preparing your estimate.`
       const acknowledgedLead = await saveSalesLead({
         ...quoteCandidateLead,
         qualificationState: buildQualificationState(quoteCandidateLead, {
@@ -3692,7 +3700,7 @@ async function handleLeadResponseJob(job: CRMAutomationJob, lead: CRMLead) {
     )
 
     if (contact.channel === 'sms') {
-      const handoffMessage = `I've got the details for your move. I'm handing this to a coordinator now so your written estimate goes out correctly. If anything changed with access or inventory, text it here.`
+      const handoffMessage = `I have the details for your move. We’ll check the scope before preparing your written estimate. Is there anything you need to correct or add?`
 
       const sendResult = await sendSalesMessage({
         actor: 'automation',
