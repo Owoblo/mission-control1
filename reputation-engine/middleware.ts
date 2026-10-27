@@ -17,6 +17,7 @@ const PUBLIC_API_PATHS = new Set([
   // AWS SNS authenticates inside the handler using its signed envelope.
   '/api/sales/inbox/ses-inbound',
   '/api/marketing/email-events/ses',
+  '/api/marketing/email-unsubscribe',
   '/api/sales/operations/sms',
   '/api/sales/operations/twiml',
   '/api/sales/emails/backfill',

@@ -1,5 +1,6 @@
 import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2'
 import { readEnv } from '@/lib/server/runtime'
+import { reserveEmail, beginEmailAttempt, finishEmailAttempt, addOutreachFooter, emailHash, EmailOutcomeUnknownError, EmailPreflightError, type EmailPurpose, type EmailContext } from './email-delivery'
 
 type EmailProviderName = 'ses'
 
@@ -14,6 +15,9 @@ export interface ProviderEmailPayload {
   attachments?: Array<{ filename: string; content: string }>
   tags?: Record<string, string>
   trackingMode?: 'deliverability' | 'engagement'
+  purpose?: EmailPurpose
+  idempotencyKey?: string
+  context?: EmailContext
 }
 
 export interface ProviderEmailReceipt {
@@ -21,6 +25,7 @@ export interface ProviderEmailReceipt {
   messageId: string | null
   accepted: boolean
   raw?: unknown
+  auditState?: 'recorded' | 'pending_reconciliation'
 }
 
 function selectedProvider(): EmailProviderName { return 'ses' }
@@ -35,7 +40,7 @@ function sesClient() {
   const secretAccessKey = readEnv('AWS_SECRET_ACCESS_KEY')
 
   if (!accessKeyId || !secretAccessKey) {
-    throw new Error('AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for SES sending')
+    throw new EmailPreflightError('AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for SES sending')
   }
 
   return new SESv2Client({
@@ -50,28 +55,31 @@ function sesProductionAccessConfirmed() {
 }
 
 function sesConfigurationSetForPayload(payload: ProviderEmailPayload) {
-  if (payload.trackingMode === 'deliverability') {
-    return readEnv('AWS_SES_DELIVERABILITY_CONFIGURATION_SET') || readEnv('AWS_SES_CONFIGURATION_SET') || undefined
+  if (payload.trackingMode !== 'engagement' || payload.purpose === 'outreach') {
+    return readEnv('AWS_SES_DELIVERABILITY_CONFIGURATION_SET') || 'saturn-crm-deliverability'
   }
   return readEnv('AWS_SES_CONFIGURATION_SET') || undefined
 }
 
 async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
   if (!sesProductionAccessConfirmed()) {
-    throw new Error('SES production access is not confirmed. Verify AWS approval and SES_PRODUCTION_ACCESS_CONFIRMED before sending outreach.')
+    throw new EmailPreflightError('SES production access is not confirmed. Verify AWS approval and SES_PRODUCTION_ACCESS_CONFIRMED before sending outreach.')
   }
 
   const client = sesClient()
   const configurationSetName = sesConfigurationSetForPayload(payload)
-
-  const result = await client.send(new SendEmailCommand({
+  const reservation = await reserveEmail(payload)
+  if (reservation.accepted && reservation.messageId) return {provider:'ses',messageId:reservation.messageId,accepted:true,auditState:'recorded'}
+  if (reservation.unsubscribeUrl) payload = await addOutreachFooter(payload,reservation.from.split('@')[1],reservation.unsubscribeUrl)
+  const transportFingerprint=emailHash(JSON.stringify({from:payload.from,to:reservation.recipients,subject:payload.subject,html:payload.html||'',text:payload.text||'',headers:payload.headers||{},replyTo:payload.replyTo||'',configurationSetName,attachments:(payload.attachments||[]).map(a=>[a.filename,emailHash(a.content)])}))
+  await beginEmailAttempt(reservation.attemptId,transportFingerprint)
+  let result: { MessageId?: string }
+  try { result = await client.send(new SendEmailCommand({
     FromEmailAddress: payload.from,
-    Destination: { ToAddresses: Array.isArray(payload.to) ? payload.to : [payload.to] },
+    Destination: { ToAddresses: reservation.recipients },
     ReplyToAddresses: payload.replyTo ? [payload.replyTo] : undefined,
     ConfigurationSetName: configurationSetName,
-    EmailTags: payload.tags
-      ? Object.entries(payload.tags).map(([Name, Value]) => ({ Name, Value }))
-      : undefined,
+    EmailTags: Object.entries({...payload.tags,...(payload.context?.contactId ? {contact_id:payload.context.contactId} : {}),crm_send_id:reservation.attemptId}).map(([Name,Value])=>({Name,Value})),
     Content: {
       Simple: {
         Subject: { Data: payload.subject, Charset: 'UTF-8' },
@@ -85,13 +93,28 @@ async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmail
         },
       },
     },
-  }))
+  })) } catch (error) {
+    const failure = error as { $metadata?: {httpStatusCode?:number}; name?:string }
+    const status = failure.$metadata?.httpStatusCode
+    const rejected = Boolean(status && status >= 400 && status < 500)
+    await finishEmailAttempt(reservation.attemptId,rejected?'rejected':'unknown',undefined,failure.name || 'provider_error').catch(()=>{})
+    if (!rejected) throw new EmailOutcomeUnknownError('SES outcome is unknown. Check the send ledger before retrying.')
+    throw error
+  }
+  if (!result.MessageId) {
+    await finishEmailAttempt(reservation.attemptId,'unknown',undefined,'missing_provider_receipt').catch(()=>{})
+    throw new EmailOutcomeUnknownError('SES did not return an acceptance receipt. Reconcile before retrying.')
+  }
+  let auditState: 'recorded' | 'pending_reconciliation' = 'recorded'
+  try { await finishEmailAttempt(reservation.attemptId,'accepted',result.MessageId) }
+  catch { auditState='pending_reconciliation'; console.error('SES accepted an email; send ledger requires reconciliation',{attemptId:reservation.attemptId,messageId:result.MessageId}) }
 
   return {
     provider: 'ses',
     messageId: result.MessageId ?? null,
     accepted: Boolean(result.MessageId),
     raw: result,
+    auditState,
   }
 }
 
@@ -105,7 +128,7 @@ export async function sendProviderEmail(payload: ProviderEmailPayload): Promise<
 /** Use SES for operational alerts even when another provider is configured for other mail. */
 export async function sendSesProviderEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
   requireEmailBody(payload)
-  return sendWithSes(payload)
+  return sendWithSes({...payload,purpose:payload.purpose || 'internal'})
 }
 
 export function getConfiguredEmailProvider(): EmailProviderName {
@@ -117,14 +140,14 @@ export function getSesLaunchReadiness() {
     provider: selectedProvider(),
     productionAccessConfirmed: sesProductionAccessConfirmed(),
     engagementConfigurationSet: readEnv('AWS_SES_CONFIGURATION_SET') || null,
-    deliverabilityConfigurationSet: readEnv('AWS_SES_DELIVERABILITY_CONFIGURATION_SET') || readEnv('AWS_SES_CONFIGURATION_SET') || null,
+    deliverabilityConfigurationSet: readEnv('AWS_SES_DELIVERABILITY_CONFIGURATION_SET') || 'saturn-crm-deliverability',
   }
 }
 
 /** Partnership sequence email is SES; never fall back to a transactional provider. */
 export async function sendOutreachEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
   requireEmailBody(payload)
-  const receipt = await sendWithSes(payload)
+  const receipt = await sendWithSes({...payload,purpose:'outreach',trackingMode:'deliverability'})
   if (!receipt.accepted || !receipt.messageId) throw new Error("SES did not return an acceptance receipt")
   return receipt
 }

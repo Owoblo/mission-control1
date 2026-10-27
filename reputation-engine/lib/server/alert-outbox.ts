@@ -16,7 +16,7 @@ export function retryableAlertFailure(error: unknown) {
   // Explicit rejection means SES did not accept the mail. Timeouts, 5xx and
   // connection errors have unknown outcomes and require provider reconciliation.
   const status = candidate?.$metadata?.httpStatusCode
-  return Boolean(status && status >= 400 && status < 500) || /required for SES|production access is not confirmed/.test(candidate?.message || '')
+  return (error as {beforeSend?:boolean})?.beforeSend === true || Boolean(status && status >= 400 && status < 500) || /required for SES|production access is not confirmed/.test(candidate?.message || '')
 }
 export async function processInternalAlerts() {
   const jobs = await db<Array<{ id: string; attempts: number; payload: { to: string; subject: string; html: string } }>>('rpc/claim_internal_alerts', { p_limit: 10 })
@@ -24,7 +24,7 @@ export async function processInternalAlerts() {
   for (const job of jobs) {
     let values: Record<string, unknown>
     try {
-      const receipt = await sendSesProviderEmail({ from: 'Saturn Star OS <notifications@starmovers.ca>', to: job.payload.to, subject: job.payload.subject, html: job.payload.html, replyTo: 'business@starmovers.ca', trackingMode: 'deliverability', tags: { alert_id: job.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 200) } })
+      const receipt = await sendSesProviderEmail({ from: 'Saturn Star OS <notifications@starmovers.ca>', to: job.payload.to, subject: job.payload.subject, html: job.payload.html, replyTo: 'business@starmovers.ca', trackingMode: 'deliverability', idempotencyKey:`internal:${job.id}`, context:{source:'internal_alert'}, tags: { alert_id: job.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 200) } })
       if (!receipt.accepted || !receipt.messageId) throw new Error('Provider acceptance was not confirmed')
       values = { state: 'accepted', provider_message_id: receipt.messageId, last_error: null }; accepted++
     } catch (error) {

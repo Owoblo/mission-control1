@@ -1,6 +1,9 @@
 {
   "crons": [
-    { "path": "/api/sales/recordings/process", "schedule": "* * * * *" },
+    {
+      "path": "/api/sales/recordings/process",
+      "schedule": "* * * * *"
+    },
     {
       "path": "/api/ops/database-health",
       "schedule": "*/2 * * * *"
@@ -68,6 +71,10 @@
     {
       "path": "/api/ops/internal-alerts/process",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/ops/email-health/process",
+      "schedule": "*/5 * * * *"
     }
   ],
   "regions": [

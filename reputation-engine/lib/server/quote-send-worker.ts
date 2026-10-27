@@ -70,6 +70,7 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
     }
     const result = await sendSalesMessage({
       channel: claimed.channel,
+      idempotencyKey: `quote-send:${claimed.id}`,
       to: claimed.recipient,
       subject: claimed.subject || undefined,
       body: claimed.body,
@@ -100,7 +101,8 @@ export async function processQuoteSendJob(job: QuoteSendJob) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Quote send failed'
-    const failed = attempts >= claimed.maxAttempts
+    const outcomeUnknown = (error as {outcomeUnknown?:boolean})?.outcomeUnknown === true
+    const failed = outcomeUnknown || attempts >= claimed.maxAttempts
     const updated = await patchQuoteSendJob(claimed.id, {
       status: failed ? 'failed' : 'pending',
       lockedAt: null,

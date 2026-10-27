@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { recordSesReceipts } from '@/lib/server/email-receipts'
+import { emailHash } from '@/lib/server/email-delivery'
 import { verifySesInboundSns } from '@/lib/server/ses-inbound-signature'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { sendPartnershipEmailAlert } from '@/lib/server/partnership-email-alerts'
@@ -47,31 +49,6 @@ function firstTag(tags: Record<string, string[]> | undefined, key: string) {
   return value || null
 }
 
-function normalizeSesEventType(eventType: string) {
-  const normalized = eventType.toLowerCase()
-  if (normalized === 'send') return 'email_provider_accepted'
-  if (normalized === 'delivery') return 'email_delivered'
-  if (normalized === 'open') return 'email_opened'
-  if (normalized === 'click') return 'email_clicked'
-  if (normalized === 'bounce') return 'email_bounced'
-  if (normalized === 'complaint') return 'email_complained'
-  if (normalized === 'reject') return 'email_rejected'
-  if (normalized === 'deliverydelay') return 'email_delivery_delayed'
-  if (normalized === 'subscription') return 'email_unsubscribed'
-  return `email_${normalized}`
-}
-
-function recipients(message: SesMessage) {
-  if (message.bounce?.bouncedRecipients?.length) {
-    return message.bounce.bouncedRecipients.map(item => item.emailAddress).filter(Boolean) as string[]
-  }
-  if (message.complaint?.complainedRecipients?.length) {
-    return message.complaint.complainedRecipients.map(item => item.emailAddress).filter(Boolean) as string[]
-  }
-  if (message.delivery?.recipients?.length) return message.delivery.recipients
-  return message.mail?.destination || []
-}
-
 async function requireSupabaseWrite(
   request: Promise<Response>,
   operation: string,
@@ -84,23 +61,28 @@ async function requireSupabaseWrite(
   }
 }
 
-async function handleSesEvent(message: SesMessage, raw: unknown) {
-  const eventType = normalizeSesEventType(message.eventType || 'unknown')
+async function handleSesEvent(message: SesMessage, raw: unknown, recipientEmail: string, receiptKey: string, receiptAt: string, eventType: string) {
   const messageId = message.mail?.messageId || null
   const tags = message.mail?.tags || {}
-  const contactId = firstTag(tags, 'contact_id')
-  const recipientEmail = recipients(message)[0] || null
-  const occurredAt = message.open?.timestamp || message.click?.timestamp || message.delivery?.timestamp || message.mail?.timestamp || new Date().toISOString()
+  let contactId = firstTag(tags, 'contact_id')
+  const occurredAt = receiptAt
   const subject = message.mail?.commonHeaders?.subject || ''
 
   const { url, headers } = requireSupabaseEnv()
+  if(contactId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(contactId))contactId=null
+  if (contactId) {
+    const lookup=await fetch(`${url}/rest/v1/market_contacts?id=eq.${encodeURIComponent(contactId)}&select=id,email&limit=1`,{headers,cache:'no-store'})
+    if(!lookup.ok) throw new Error('Recipient contact lookup failed')
+    const [candidate]=await lookup.json()
+    if(!candidate?.email || candidate.email.trim().toLowerCase()!==recipientEmail) contactId=null
+  }
 
   await requireSupabaseWrite(fetch(`${url}/rest/v1/email_provider_events`, {
     method: 'POST',
     headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify({
       provider: 'ses',
-      provider_event_id: messageId ? `${messageId}:${eventType}:${occurredAt}` : null,
+      provider_event_id: messageId ? `${messageId}:${eventType}:${occurredAt}:${recipientEmail}` : null,
       provider_message_id: messageId,
       contact_id: contactId,
       event_type: eventType,
@@ -154,11 +136,13 @@ async function handleSesEvent(message: SesMessage, raw: unknown) {
       body: JSON.stringify(contactUpdates),
     }), 'Updating email contact status')
 
-    await fetch(`${url}/rest/v1/market_touches`, {
+    const touchHash=emailHash(receiptKey)
+    const touchId=`${touchHash.slice(0,8)}-${touchHash.slice(8,12)}-4${touchHash.slice(13,16)}-a${touchHash.slice(17,20)}-${touchHash.slice(20,32)}`
+    await fetch(`${url}/rest/v1/market_touches?on_conflict=id`, {
       method: 'POST',
-      headers: { ...headers, Prefer: 'return=minimal' },
+      headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=minimal' },
       body: JSON.stringify({
-        contact_id: contactId,
+        id:touchId,contact_id: contactId,
         channel: 'email',
         direction: 'system',
         notes: `SES event: ${eventType}${subject ? ` — "${subject}"` : ''}`,
@@ -211,7 +195,8 @@ export async function POST(request: Request) {
 
   if (snsEnvelope?.Type === 'Notification' && typeof snsEnvelope.Message === 'string') {
     const message = JSON.parse(snsEnvelope.Message) as SesMessage
-    await handleSesEvent(message, snsEnvelope)
+    const events=await recordSesReceipts(message)
+    for(const event of events) await handleSesEvent(message,snsEnvelope,event.recipient,event.eventKey,event.occurredAt,event.eventType)
     return NextResponse.json({ ok: true, type: 'Notification', eventType: message.eventType })
   }
 
