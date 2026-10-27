@@ -1577,3 +1577,68 @@ The handoff record must remain visible to sales with the partner source, city, p
 The automatic partner reply for a live opportunity is deliberately short: acknowledge the potential job, tell the partner that sales will follow up to collect the client details and scope, and ask for the missing partner or client contact detail. It must not quote, promise a price, send a generic postcard package, or treat the partner as the consumer. A business-only record receives a neutral greeting and a request such as “What name should I save this number under?” A verified person record skips that question and asks for the client’s best contact number or other missing scope detail. The reply is stored as a suggestion and remains subject to the normal send gate when a human review is required.
 
 Sales owns the next conversation after the handoff. The CRM notification must include the full inbound message, exact partner city, signal rationale, the fixed introduction script, and the call checklist. Sales records `handoffStatus` as `new`, `in_progress`, `completed`, or `needs_partner_follow_up`; rerunning the detector may refresh evidence but must not reset a completed handoff. The partner sequence remains paused until sales records the outcome.
+
+
+<!-- email-foundation-20261027:start -->
+## October 27, 2026 — managed outreach sender addresses and evidence
+
+Owner clarified that the proposed expansion is additional sender addresses such as `jo@saturnstarmovers.ca`, primarily for outreach and cold email, rather than purchasing 10–20 domains. Infrastructure work is authorized; this is not authorization to launch a campaign or manufacture warm-up conversations.
+
+**Release state:** foundation implemented and validated; sender profiles remain in setup pending owner review. Do not describe a draft alias as a created mailbox, an active campaign, or a warmed sender.
+
+### Sender identity and reply ownership
+
+- Register a sender address with a real display name, a named owner, and a verified reply route. Aliases are communication addresses, not invented employees. The example `jo@` belongs to John and starts in setup; it does not imply a new person or mailbox.
+- Outreach uses the approved outreach domain `saturnstarmovers.ca`. Customer quotes, receipts, and operational alerts retain their own purposes. Preserve existing market/brand authorization, shared account context, and consent/review gates.
+- All aliases on a domain share that domain's reputation and budget. Adding addresses does not multiply the SES account quota or create independent domain reputations.
+- Replies route to the real shared `business@starmovers.ca` mailbox and existing CRM reply processing. Verify mailbox authorization/read access, not only DNS or SES sending verification. Do not claim that an arbitrary From address can receive mail just because SES can send it.
+- Both `john@` and example `jo@` are registered in setup initially. Enabling gradual sending is an explicit owner action after readiness checks; it schedules no email on its own.
+
+### Evidence before transport; no blind retries
+
+- Each application send gets a durable request key, content fingerprint, purpose, normalized recipients, sender/domain, and safe context before the SES call. Private bodies and attachment bytes stay out of the transport journal; the existing authorized conversation keeps message content.
+- An attempt must be claimed once before transport. A saved accepted receipt is reused for the same key and content. The same key cannot silently send different content.
+- Explicit provider rejection may support a bounded retry with a separate attempt record. Timeouts, missing provider IDs, and uncertain outcomes stop for reconciliation. Never switch carriers/providers or rerun a send because the UI lacks a receipt.
+- SES retries are disabled at the provider boundary. Quote-send jobs and internal alerts carry stable keys; unknown quote sends stop automatic retry.
+- Record provider events for every recipient, including multi-recipient mail. Retain bounce type/subtype and SMTP diagnostic; distinguish list failures from provider or reputation failures during review. Event callbacks are system evidence, never new human replies.
+- Source requests and delivery receipts are immutable. Service-only storage and authenticated owner controls protect sender settings and email history. A signed callback can reconcile an unknown attempt only when its attempt, sender, subject, recipient, and provider identity agree.
+
+### Readiness, gradual sending and stops
+
+- The initial configuration is a shared 50-recipient rolling-24-hour domain budget, a 25-recipient sender budget, and at least 120 seconds between domain reservations. These are conservative starting controls, not evidence that a particular volume is safe or profitable.
+- Account and domain health must be fresh. Outreach reservations expire after five minutes and account health is checked again at the final send claim. Verify production sending, account health, domain verification, DKIM/SPF/DMARC, custom MAIL FROM, a working reply inbox, and the signed delivery-event route.
+- Reserve 1,000 recipient sends of account capacity for customer and operational mail. Account-wide usage can include non-CRM identities; label this scope explicitly.
+- A paused sender/domain, suppressed address, stale health, exhausted budget, missing ownership/reply route, or unresolved attempt blocks outreach. All aliases share the stop conditions. Stop requests must not be bypassed by changing sender address.
+- Legacy automated email jobs do not bypass the managed-send requirements; they remain held without an exact reviewed contact, registered reply route, and stable key. Enabling a sender does not release old jobs.
+- Cold outreach still requires the established review and policy reservation for the exact contact and message. The new sender controls do not replace consent evidence, geography/brand restrictions, company contact planning, or full-thread review.
+- Use genuine, relevant, authorized traffic for gradual sending. Do not generate fake conversations, automatically buy aged domains, or replace domains because an arbitrary 2% reply threshold was crossed.
+- The mailing footer is sourced from the official Saturn contact page checked October 27: 3608 Seminole Street, Unit 3, Windsor, ON N8Y 1Y4. Update it when the business address changes: https://starmovers.ca/contact/ .
+
+### Tracking and recipient control
+
+- Default to delivery-and-reply evidence. Outreach does not enable open/click tracking. The deliverability-only SES configuration publishes sends, deliveries, delivery delays, rejects, rendering failures, bounces, complaints, and unsubscribe events without adding engagement tracking.
+- Outreach has a working one-click unsubscribe header and a visible unsubscribe route. GET link previews do not change preferences; token-authenticated POST records suppression and cancels pending outreach. Operational mail about a move the recipient requested remains a separate purpose.
+- Provider acceptance is not delivery, delivery to a receiving server is not verified inbox placement, and opens/clicks are not proof of human interest. Preserve these labels throughout reporting.
+- On October 26/27 SES reported 32 sends, while available CRM receipts identified 20 internal notifications. Twelve remain unattributed; do not invent recipient records or assert that all 12 were lost CRM messages. The SES account also contains personal/non-CRM identities. Preserve account-wide and CRM-specific counts separately.
+
+### Learning discipline adopted from the reviewed 87-lessons article
+
+- Keep short, relevant messages with one clear next step; test audience/offer angles before cosmetic copy changes. Follow-ups add useful context or evidence.
+- Separate human replies, automated acknowledgements/out-of-office messages, qualified interest, introductions/referrals, booked work, and completed outcomes. A vague “send information” is not a live moving lead.
+- Use unique eligible prospects for prospects-per-positive calculations; exclude internal notifications, transport retries, and provider telemetry. Compare like-for-like roles, markets, offers, sender domains, and observation windows.
+- The journal accepts source/contact/campaign/cohort/variant context to support future analysis. Complete automatic experiment analysis, confidence thresholds, OOO return scheduling, and revenue attribution are later work; do not claim them implemented merely because fields exist.
+- Treat 2% reply rate, one positive per 500 prospects, 1,000 prospects per variant, and 20 messages per inbox as hypotheses requiring local evidence. Never automatically replace a domain or change the offer from one weak metric.
+- Prioritize genuine positive replies in the existing conversation/task workflow with a clear owner and elapsed response time. Verify actual response handling; task creation alone is not fulfilment.
+
+Primary references: AWS SES sending quotas https://docs.aws.amazon.com/ses/latest/dg/manage-sending-quotas.html ; Gmail sender guidance https://support.google.com/mail/answer/81126?hl=en ; CRTC consent guidance https://web.crtc.gc.ca/eng/com500/guide.htm .
+### Google Postmaster review — October 27, 2026
+
+- Completed Google ownership verification for `saturnstarmovers.ca` by adding its account-specific TXT record through Cloudflare; existing SPF, MX, DKIM, DMARC and other verification records were preserved. Domain registration/verification does not prove inbox placement.
+- Google’s visible compliance report at this review was last updated October 9, 8:00 p.m. It marked SPF/DKIM, From alignment, DMARC, encryption, user-reported spam-rate compliance, DNS, and honoring unsubscribe as compliant; **one-click unsubscribe remained “Needs work.”** Keep the timestamp: these are historical observations, not live measurements of the new release.
+- Google also reported insufficient outgoing personal-Gmail traffic to determine deliverability. Missing/low-volume metrics are unknown, never zero spam or healthy reputation. Do not manufacture traffic to populate a chart.
+- The managed outreach release adds HTTPS List-Unsubscribe and RFC 8058 List-Unsubscribe-Post headers, a token-authenticated public POST endpoint, visible opt-out links, immutable preference evidence, shared suppression, and queued-follow-up cancellation. GET previews do not opt anyone out. Validate real delivered-message DKIM/header coverage and subsequent Google reporting when genuine authorized outreach resumes; do not claim Google has cleared the flag from unit tests alone.
+- Review Gmail spam rate, reputation, authentication, encryption and delivery errors alongside SES receipts and human replies. The Settings panel links to Google Postmaster and explicitly states that a live Google metrics feed is not connected. Future API ingestion needs Google Postmaster authorization; no browser-session credentials belong in the application.
+- The Google account inspected currently lists only `saturnstarmovers.ca`. `starmovers.ca` registration/metrics in another Google account remain unverified; its public Google TXT record alone does not establish Postmaster access.
+- Official setup: https://support.google.com/mail/answer/9981691 ; dashboard scope and low-volume limits: https://support.google.com/mail/answer/14668346 ; AWS one-click implementation: https://aws.amazon.com/blogs/messaging-and-targeting/using-one-click-unsubscribe-with-amazon-ses/ .
+
+<!-- email-foundation-20261027:end -->

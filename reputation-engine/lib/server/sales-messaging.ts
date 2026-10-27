@@ -4,6 +4,7 @@ import { normalizeAutomatedCustomerText } from '@/lib/customer-message-style'
 import { sendSalesEmail } from '@/lib/server/email-provider'
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { uid } from '@/lib/sales'
+import { createHash } from 'node:crypto'
 import {
   getSaturnBranchLabel,
   normalizePhone,
@@ -80,6 +81,7 @@ export interface SendSalesMessageInput {
   subject?: string
   body: string
   htmlBody?: string
+  idempotencyKey?: string
   leadId?: string
   quoteId?: string
   notes?: string
@@ -242,6 +244,8 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
       subject: input.subject || 'Saturn Star Movers',
       html: input.htmlBody || `<p>${input.body.replace(/\n/g, '<br>')}</p>`,
       text: input.body,
+      idempotencyKey: input.idempotencyKey,
+      context: { source:'sales_message', leadId:input.leadId, quoteId:input.quoteId, actorName:input.actorName },
     })
     result = { ok: true, id: receipt.messageId, provider: receipt.provider }
   } else {
@@ -339,8 +343,9 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
   }
 
   const now = new Date().toISOString()
+  const stableEmailId=input.channel==='email'&&input.idempotencyKey?createHash('sha256').update(input.idempotencyKey).digest('hex').slice(0,32):null
   const log: FollowUpLog = {
-    id: uid('fu'),
+    id: stableEmailId?`fu-email-${stableEmailId}`:uid('fu'),
     leadId: input.leadId,
     quoteId: input.quoteId,
     type: input.channel === 'whatsapp' ? 'sms' : input.channel,
@@ -358,7 +363,7 @@ export async function sendSalesMessage(input: SendSalesMessageInput): Promise<Se
   let emailRecord: CRMEmail | null = null
   if (input.channel === 'email') {
     emailRecord = await saveSalesEmail({
-      id: uid('em'),
+      id: stableEmailId?`em-${stableEmailId}`:uid('em'),
       leadId: input.leadId || null,
       quoteId: input.quoteId || null,
       to: input.to,

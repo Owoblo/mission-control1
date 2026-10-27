@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { EmailReadiness } from '@/app/components/sales/email-readiness'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import type { DialerSettings } from '@/lib/server/dialer-settings'
 
@@ -167,7 +168,7 @@ export default function DialerSettingsPage() {
           <h1 className="text-xl font-bold text-[var(--app-ink)]">Dialer Settings</h1>
           <div className="mt-1 text-sm text-[var(--app-muted)]">Configure call routing, business hours, notifications and more. Owner-only.</div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {saving && <span className="text-xs text-[var(--app-muted)]">Saving…</span>}
           {saved && <span className="text-xs font-semibold text-emerald-600">✓ Saved</span>}
           {error && <span className="text-xs text-rose-600">{error}</span>}
@@ -210,6 +211,8 @@ export default function DialerSettingsPage() {
         </div>
       )}
 
+      {isOwner && <EmailReadiness />}
+
       {/* Business Hours */}
       <SectionCard title="Spam & Blocked Numbers" description="Blocked callers are rejected by Twilio before any CRM browser, SIP phone, IVR, voicemail, or missed-call workflow rings.">
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_1.4fr_auto]">
@@ -220,7 +223,7 @@ export default function DialerSettingsPage() {
           <button onClick={() => void addBlockedCaller()} disabled={!newBlockedPhone.trim() || saving} className="rounded-[8px] bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-40">Tag & block</button>
         </div>
         {(settings.blockedCallers || []).length > 0 ? (
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-2 sm:gap-3">
             <input
               value={blockedSearch}
               onChange={event => setBlockedSearch(event.target.value)}
@@ -264,13 +267,13 @@ export default function DialerSettingsPage() {
         </div>
         {settings.businessHours.enabled && (
           <div className="mt-5 space-y-3">
-            <div className="grid grid-cols-[100px_1fr_1fr_40px] gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
+            <div className="grid grid-cols-[64px_minmax(0,1fr)_minmax(0,1fr)_44px] sm:grid-cols-[100px_1fr_1fr_44px] gap-2 sm:gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-muted)]">
               <div>Day</div><div>Opens</div><div>Closes</div><div>Open</div>
             </div>
             {DAYS.map(({ key, label }) => {
               const sched = settings.businessHours.schedule[key]
               return (
-                <div key={key} className="grid grid-cols-[100px_1fr_1fr_40px] items-center gap-3">
+                <div key={key} className="grid grid-cols-[64px_minmax(0,1fr)_minmax(0,1fr)_44px] sm:grid-cols-[100px_1fr_1fr_44px] items-center gap-2 sm:gap-3">
                   <div className="text-sm text-[var(--app-ink)]">{label}</div>
                   <input
                     type="time"
@@ -281,7 +284,7 @@ export default function DialerSettingsPage() {
                       ...settings.businessHours,
                       schedule: { ...settings.businessHours.schedule, [key]: { ...sched, open: e.target.value } },
                     })}
-                    className="crm-input disabled:opacity-40"
+                    className="crm-input min-w-0 w-full px-1 text-xs sm:px-3 sm:text-sm disabled:opacity-40"
                   />
                   <input
                     type="time"
@@ -292,7 +295,7 @@ export default function DialerSettingsPage() {
                       ...settings.businessHours,
                       schedule: { ...settings.businessHours.schedule, [key]: { ...sched, close: e.target.value } },
                     })}
-                    className="crm-input disabled:opacity-40"
+                    className="crm-input min-w-0 w-full px-1 text-xs sm:px-3 sm:text-sm disabled:opacity-40"
                   />
                   <div className="flex justify-center">
                     <Toggle
@@ -341,7 +344,7 @@ export default function DialerSettingsPage() {
           <Toggle checked={settings.queue.enabled} onChange={v => patch('queue', { ...settings.queue, enabled: v })} />
         </div>
         {settings.queue.enabled && (
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-2 sm:gap-3">
             <label className="text-sm text-[var(--app-muted)]">Max hold time</label>
             <input
               type="number"
@@ -567,7 +570,7 @@ export default function DialerSettingsPage() {
         <div className="space-y-2">
           {settings.sipUsers.map((user, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="flex flex-1 items-center gap-2 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[8px] border border-[var(--app-line)] bg-[var(--app-bg)] px-3 py-2">
                 <span className="text-xs text-[var(--app-muted)]">sip:</span>
                 <input
                   value={user}
@@ -582,7 +585,7 @@ export default function DialerSettingsPage() {
                     next[i] = e.target.value
                     patch('sipUsers', next)
                   }}
-                  className="flex-1 bg-transparent text-sm text-[var(--app-ink)] outline-none"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--app-ink)] outline-none"
                 />
                 <span className="text-xs text-[var(--app-muted)]">@saturn.sip.twilio.com</span>
               </div>
