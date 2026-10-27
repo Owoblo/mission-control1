@@ -1534,4 +1534,13 @@ Primary references: AWS SES sending quotas https://docs.aws.amazon.com/ses/lates
 - The Google account inspected currently lists only `saturnstarmovers.ca`. `starmovers.ca` registration/metrics in another Google account remain unverified; its public Google TXT record alone does not establish Postmaster access.
 - Official setup: https://support.google.com/mail/answer/9981691 ; dashboard scope and low-volume limits: https://support.google.com/mail/answer/14668346 ; AWS one-click implementation: https://aws.amazon.com/blogs/messaging-and-targeting/using-one-click-unsubscribe-with-amazon-ses/ .
 
+### Website-form content rejection and quarantine — October 27, 2026
+
+- Gmail rejected an internal “New website enquiry — Edwardfreex” notification to a staff Gmail address with SMTP 550 5.7.1. SES classified it as Transient / ContentRejected; the business and Thelma copies were delivered. This is evidence of a message-content rejection, not an invalid recipient address or a demonstrated system-wide outage. It is separate from Google’s historical one-click-unsubscribe finding.
+- The saved submission repeated an observed earnings-link campaign advertising $50,000,000 per month. HTML escaping prevented injected markup but still relayed the scam text and URL through our authenticated sender. Authentication alone does not make submitted content safe to forward.
+- Website notification emails use a trusted, fixed subject and short message linking to the sales inbox. Original submitted names, numbers, messages, URLs and markup remain in the authorized CRM record; they are not copied into email notifications. Call and SMS alert formats remain unchanged.
+- The narrow `earnings_link_v1` rule matches the observed campaign URL pattern. Matches are preserved, marked junk/held with a reason and timestamp, and recorded in analytics evidence. Linked leads require human review, and pending automation/notifications are cancelled or held. Name, nationality, phone prefix, international routes, old dates and ordinary links do not qualify on their own.
+- The database checks both intake and automation-job creation/claiming. The application checks before creating a lead and again before processing an old response job. An authenticated ingestion request that is held returns an acknowledgement rather than scheduling retries.
+- Quarantine is reviewable evidence, not deletion. Do not resend rejected content, rotate domains, remove a legitimate staff address, or claim Gmail reputation recovered from this event. Unknown spam still cannot be relayed in the website notification because the template contains no submitted content.
+
 <!-- email-foundation-20261027:end -->

@@ -1,3 +1,4 @@
+import { WebsiteSubmissionHeldError } from '@/lib/website-submission-guard'
 import { NextResponse } from 'next/server'
 import { isAutomationRequestAuthorized } from '@/lib/server/automation-auth'
 import { processInboundAutomationEvent } from '@/lib/server/sales-automation'
@@ -12,6 +13,7 @@ export async function POST(request: Request) {
     const result = await processInboundAutomationEvent(body)
     return NextResponse.json({ ok: true, ...result })
   } catch (error) {
+    if (error instanceof WebsiteSubmissionHeldError) return NextResponse.json({ok:true,held:true,reason:error.message},{status:202})
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to ingest automation event' },
       { status: 400 }

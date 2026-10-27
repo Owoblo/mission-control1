@@ -1,3 +1,4 @@
+import { websiteSubmissionSpamReason, WebsiteSubmissionHeldError } from '@/lib/website-submission-guard'
 import { interruptsNormalSalesDiscovery } from '@/lib/sales-discovery-policy'
 import { getSalesBranchFromSaturnPhone } from '@/lib/sales-phones'
 import { extractConversationSignal, salesQualificationBlocked } from '@/lib/conversation-integrity'
@@ -4019,6 +4020,9 @@ async function handleLostFeedbackJob(job: CRMAutomationJob, lead: CRMLead) {
 export async function processAutomationJob(job: CRMAutomationJob) {
   const running = await claimAutomationJob(job)
   if (!running) return job
+  if (running.status !== 'running') return running
+  const spamReason = websiteSubmissionSpamReason(running.payload?.source, running.payload?.message)
+  if (spamReason) return await patchAutomationJob(running.id, {status:'cancelled',lockedAt:null,lastError:spamReason,result:{reason:spamReason},completedAt:new Date().toISOString()}) || {...running,status:'cancelled' as const}
 
   try {
     let lead = await getSalesLead(job.leadId)
@@ -4149,6 +4153,8 @@ export async function reconcileNurtureLeads(now = new Date()) {
 }
 
 export async function processInboundAutomationEvent(event: InboundAutomationEvent) {
+  const spamReason = websiteSubmissionSpamReason(event.source, [event.message, event.raw?.message].filter(Boolean).join(' '))
+  if (spamReason) throw new WebsiteSubmissionHeldError(spamReason)
   const receivedAt = event.receivedAt || new Date().toISOString()
   const lead = await ensureLeadForInbound({ ...event, receivedAt })
   const channel = inferChannel(event)
