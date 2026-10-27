@@ -24,14 +24,14 @@ export function emailContext(context: EmailContext = {}) {
   return Object.fromEntries(['source','contactId','leadId','quoteId','campaignId','variantId','cohortId','actorName','policyActionKey']
     .filter(key => typeof context[key as keyof EmailContext] === 'string').map(key => [key, String(context[key as keyof EmailContext]).slice(0,240)]))
 }
-export async function reserveEmail(payload: { from: string; to: string | string[]; subject: string; html?: string; text?: string; replyTo?: string; attachments?: Array<{filename:string;content:string}>; headers?: Record<string,string>; tags?: Record<string,string>; purpose?: EmailPurpose; idempotencyKey?: string; context?: EmailContext }) {
+export async function reserveEmail(payload: { from: string; to: string | string[]; subject: string; html?: string; text?: string; replyTo?: string; attachments?: Array<{filename:string;content:string}>; headers?: Record<string,string>; tags?: Record<string,string>; purpose?: EmailPurpose; idempotencyKey?: string; context?: EmailContext; reviewedBody?: {text?:string;html?:string} }) {
   const from = emailAddress(payload.from), recipients = [...new Set((Array.isArray(payload.to) ? payload.to : [payload.to]).map(emailAddress))].sort()
   if (!recipients.length || recipients.length > 50 || /[\r\n]/.test(payload.subject)) throw new EmailPreflightError('Invalid email recipients or subject')
   const purpose = payload.purpose || 'transactional', key = payload.idempotencyKey || `email:${randomUUID()}`
   if (!key || key.length > 240) throw new EmailPreflightError('Invalid email request key')
   if (purpose === 'outreach' && (!payload.idempotencyKey || recipients.length !== 1 || !payload.context?.contactId || !payload.context?.policyActionKey)) throw new EmailPreflightError('Outreach requires a reviewed contact and a stable request key')
   const fingerprint = emailHash(JSON.stringify({ from: payload.from, recipients, subject: payload.subject, html: payload.html || '', text: payload.text || '', replyTo: payload.replyTo || '',
-    headers: payload.headers || {}, tags: payload.tags || {}, purpose, context: emailContext(payload.context), attachments: (payload.attachments || []).map(a => [a.filename,emailHash(a.content)]) }))
+    headers: payload.headers || {}, tags: payload.tags || {}, purpose, context: emailContext(payload.context), reviewedBody: payload.reviewedBody || null, attachments: (payload.attachments || []).map(a => [a.filename,emailHash(a.content)]) }))
   let unsubscribeUrl: string | undefined
   if (purpose === 'outreach') {
     const secret = readEnv('AUTH_SECRET'); if (!secret) throw new EmailPreflightError('Outreach unsubscribe signing is unavailable')
@@ -61,4 +61,16 @@ export async function addOutreachFooter<T extends { html?:string; text?:string; 
   return {...payload,text:payload.text ? `${payload.text}\n\n${footer}` : undefined,
     html:payload.html ? `${payload.html}<p style="font:12px Arial;color:#64748b">Saturn Star Movers · ${escape(row.postal_address)}<br>${escape(payload.replyTo || 'business@starmovers.ca')}<br><a href="${escape(unsubscribeUrl)}">Unsubscribe from outreach</a></p>` : undefined,
     headers:{...payload.headers,'List-Unsubscribe':`<${unsubscribeUrl}>`,'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'} }
+}
+
+/** Server-owned prepared campaigns approve the whole plain-text body in advance. */
+export async function prepareReviewedOutreach<T extends { text?:string; html?:string; headers?:Record<string,string>; replyTo?:string; reviewedBody?:{text?:string;html?:string}; context?:EmailContext; idempotencyKey?:string }>(payload:T,domain:string,unsubscribeUrl:string) {
+  if (payload.context?.source !== 'prepared-email' || !payload.context.contactId || !payload.context.policyActionKey || !payload.idempotencyKey?.startsWith('prepared-email:')) throw new EmailPreflightError('Reviewed outreach requires the trusted prepared campaign context')
+  if (!payload.text || payload.html || payload.reviewedBody?.html || payload.reviewedBody?.text !== payload.text) throw new EmailPreflightError('Reviewed outreach must preserve the approved plain-text body')
+  // Preserve the owner's approved body exactly; do not inject a postal address
+  // or reuse the legacy footer. Sender registration remains separate.
+  if (!/Saturn Star Movers/.test(payload.text)) throw new EmailPreflightError('Approved outreach body must identify Saturn Star Movers')
+  if (!/reply[^\n]{0,30}no thanks[^\n]{0,100}(?:honou?r|stop|won.t|will not|no further)/i.test(payload.text)) throw new EmailPreflightError('Approved outreach body must explain the reply opt-out')
+  if (/https?:\/\/|www\./i.test(payload.text)) throw new EmailPreflightError('Prepared campaign body must remain free of web links')
+  return {...payload, headers:{...payload.headers,'List-Unsubscribe':`<${unsubscribeUrl}>`,'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'}}
 }

@@ -14,9 +14,16 @@ export function currentEmailReply(body: string) {
 
 export function classifyPartnershipEmail(subject: string, body: string): PartnershipEmailKind {
   const text = subject + '\n' + currentEmailReply(body)
+  // A signature does not qualify an otherwise explicit opt-out. Only remove
+  // recognized signature boundaries; keep substantive objections for review.
+  const explicitReply = currentEmailReply(body).replace(/\n\s*(?:--\s*\n|(?:best(?: regards)?|kind regards|regards|sincerely)[,!]?\s*\n|sent from my [^\n]*(?:\n|$))[\s\S]*$/i, '').trim()
   if (/verification was received|added to.{0,100}review inbox|white listed pending/i.test(text)) return 'verification_pending_review'
   if (/requires? (?:that you )?verif|verify#|sender.verification|white.?list|verify that you are a real/i.test(text)) return 'verification'
   if (/undeliverable|delivery (?:status notification|failure)|mail delivery failed|recipient not found/i.test(subject)) return 'delivery_failure'
+  if (/^no\s+(?:thanks|thank\s+you)[.!\s]*$/i.test(explicitReply)) return 'opt_out'
+  // Honour the explicit reply phrase offered in partnership copy. Keep this
+  // anchored so a qualified objection ("not interested in X, but Y") is reviewed.
+  if (/^(?:(?:no\s+thanks|thanks|thank\s+you)[,.!\s]+)?not\s+interested[.!\s]*(?:(?:thanks|thank\s+you)[.!\s]*)?$/i.test(explicitReply)) return 'opt_out'
   if (/\b(?:remove me|unsubscribe me|stop (?:emailing|contacting|sending)|do not (?:email|contact)|don't (?:email|contact))\b/i.test(currentEmailReply(body))) return 'opt_out'
   if (/automatic (?:reply|response)|auto.?reply|out of (?:the )?office|away from (?:the )?office/i.test(text)) return 'automatic_reply'
   if (/reach out to|contact (?:our|the)|speak (?:with|to)|forward(?:ed|ing).{0,50}(?:to|team)|right (?:person|department)/i.test(currentEmailReply(body))) return 'handoff'

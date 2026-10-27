@@ -1,5 +1,6 @@
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
 import { executePreparedSmsJob, PreparedSmsProviderError } from '@/lib/server/prepared-sms-worker'
+import { executePreparedEmailJob } from '@/lib/server/prepared-email-worker'
 import { campaignWindow } from '@/lib/partner-context'
 import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
@@ -162,6 +163,10 @@ function jobAttempts(job: Record<string, unknown>) {
   return Math.max(0, Number(job.attempts || 0))
 }
 
+function isPreparedEmailJob(job: Record<string, unknown>) {
+  return job.email_payload != null || job.template_key === 'prepared_email_v1'
+}
+
 function jobMaxAttempts(job: Record<string, unknown>) {
   return Math.max(1, Number(job.max_attempts || DEFAULT_MAX_ATTEMPTS))
 }
@@ -221,7 +226,7 @@ async function releaseFailedSequenceJob(
   const retry = retryAt(attempts)
   const coldSend = job.channel === 'sms' && !parseScheduledReplyTemplateKey(job.template_key) && !job.provider_sid
   const retryWindow = campaignWindow(campaignNotes, String(job.scheduled_at), new Date(retry))
-  const failed = attempts >= jobMaxAttempts(job) || (coldSend && !retryWindow.allowed)
+  const failed = isPreparedEmailJob(job) || attempts >= jobMaxAttempts(job) || (coldSend && !retryWindow.allowed)
   await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${encodeURIComponent(String(job.id))}`, {
     method: 'PATCH',
     headers,
@@ -454,7 +459,7 @@ async function processSequence(request: Request) {
 
   // Fetch context before claiming. Jobs we cannot start within this invocation
   // remain pending instead of being stranded as running until stale recovery.
-  const eligibleJobs = jobs.filter(job => !job.sms_payload || readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true')
+  const eligibleJobs = jobs.filter(job => (!job.sms_payload || readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true') && (!isPreparedEmailJob(job) || readEnv('PREPARED_EMAIL_EXECUTION_ENABLED') === 'true'))
   if (!eligibleJobs.length) return NextResponse.json({ok:true,processed:0,skipped:0,disabled:jobs.length})
   const contactIds = Array.from(new Set(eligibleJobs.map(j => j.contact_id as string)))
   const batchIds = Array.from(new Set(eligibleJobs.map(j => j.batch_id as string).filter(Boolean)))
@@ -492,11 +497,14 @@ async function processSequence(request: Request) {
   let raced = 0
   let processed = 0
   let skipped = 0
+  let preparedEmailClaimed = false
 
   for (const candidate of eligibleJobs) {
     if (Date.now() - runStarted >= 40000) break
+    if (isPreparedEmailJob(candidate) && preparedEmailClaimed) continue
     const job = await claimSequenceJob(url, headers, candidate)
     if (!job) { raced++; continue }
+    if (isPreparedEmailJob(job)) preparedEmailClaimed = true
     claimedCount++
     const contact = contactMap.get(job.contact_id as string)
     const batch = batchMap.get(job.batch_id as string) ?? (job.batch_id ? { notes: "missing_campaign_context" } : {})
@@ -580,6 +588,11 @@ async function processSequence(request: Request) {
     }
 
     try {
+      if (isPreparedEmailJob(job)) {
+        await executePreparedEmailJob({job, contact, url, headers, enabled: readEnv('PREPARED_EMAIL_EXECUTION_ENABLED') === 'true'})
+        processed++
+        continue
+      }
       if (job.channel === 'email') {
         if (!contact.email) {
           await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {

@@ -29,6 +29,23 @@ function fixture({outcome='accepted',failReservation=false,failFinish=false}={})
  return {api:load(path.join(root,'lib/server/email-provider.ts')),load,transport,requests,attempts,writes,calls,close:()=>{globalThis.fetch=original}}
 }
 const payload={from:'John <john@saturnstarmovers.ca>',to:'client@example.test',subject:'A relevant question',text:'A short message',idempotencyKey:'request-1'}
+test('trusted prepared outreach transports approved exact text with unsubscribe headers and no added body link',async()=>{const f=fixture();try{
+ const text='I run Saturn Star Movers.\nJust reply “no thanks” and I will happily honour that.'
+ await f.api.sendOutreachEmail({...payload,text,reviewedBody:{text},idempotencyKey:'prepared-email:exact',replyTo:'business@starmovers.ca',context:{source:'prepared-email',contactId:'contact-1',policyActionKey:'review-1'}})
+ assert.equal(f.transport.length,1)
+ assert.equal(f.transport[0].Content.Simple.Body.Text.Data,text)
+ assert.ok(!f.transport[0].Content.Simple.Body.Text.Data.includes('123 Example Street'))
+ const headers=Object.fromEntries(f.transport[0].Content.Simple.Headers.map(h=>[h.Name,h.Value]))
+ assert.equal(headers['List-Unsubscribe-Post'],'List-Unsubscribe=One-Click')
+ assert.match(headers['List-Unsubscribe'],/^<https:/)
+ assert.deepEqual(f.calls.filter(x=>['start_crm_email','finish_crm_email'].includes(x)),['start_crm_email','finish_crm_email'])
+}finally{f.close()}})
+test('prepared body missing sender identity or opt-out never starts a provider attempt',async()=>{
+ for(const text of ['Example Company. Reply no thanks and I will honour that.','Saturn Star Movers.']){const f=fixture();try{
+  await assert.rejects(f.api.sendOutreachEmail({...payload,text,reviewedBody:{text},idempotencyKey:'prepared-email:hold',replyTo:'business@starmovers.ca',context:{source:'prepared-email',contactId:'contact-1',policyActionKey:'review-1'}}),/identify Saturn|reply opt-out/)
+  assert.equal(f.transport.length,0);assert.ok(!f.calls.includes('start_crm_email'))
+ }finally{f.close()}}
+})
 test('all SES entrypoints persist a reservation and claim before calling the provider; accepted replays do not resend',async()=>{const f=fixture();try{
  const r=await f.api.sendProviderEmail(payload);const again=await f.api.sendProviderEmail(payload)
  assert.equal(r.messageId,again.messageId);assert.equal(f.transport.length,1);assert.deepEqual(f.calls.slice(0,3),['reserve_crm_email','start_crm_email','finish_crm_email'])

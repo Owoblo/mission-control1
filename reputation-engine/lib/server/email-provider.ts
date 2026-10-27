@@ -1,6 +1,6 @@
 import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2'
 import { readEnv } from '@/lib/server/runtime'
-import { reserveEmail, beginEmailAttempt, finishEmailAttempt, addOutreachFooter, emailHash, EmailOutcomeUnknownError, EmailPreflightError, type EmailPurpose, type EmailContext } from './email-delivery'
+import { reserveEmail, beginEmailAttempt, finishEmailAttempt, addOutreachFooter, prepareReviewedOutreach, emailHash, EmailOutcomeUnknownError, EmailPreflightError, type EmailPurpose, type EmailContext } from './email-delivery'
 
 type EmailProviderName = 'ses'
 
@@ -18,6 +18,8 @@ export interface ProviderEmailPayload {
   purpose?: EmailPurpose
   idempotencyKey?: string
   context?: EmailContext
+  /** Prepared campaigns must approve the final body after all provider transformations. */
+  reviewedBody?: { text?: string; html?: string }
 }
 
 export interface ProviderEmailReceipt {
@@ -70,8 +72,15 @@ async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmail
   const configurationSetName = sesConfigurationSetForPayload(payload)
   const reservation = await reserveEmail(payload)
   if (reservation.accepted && reservation.messageId) return {provider:'ses',messageId:reservation.messageId,accepted:true,auditState:'recorded'}
-  if (reservation.unsubscribeUrl) payload = await addOutreachFooter(payload,reservation.from.split('@')[1],reservation.unsubscribeUrl)
-  const transportFingerprint=emailHash(JSON.stringify({from:payload.from,to:reservation.recipients,subject:payload.subject,html:payload.html||'',text:payload.text||'',headers:payload.headers||{},replyTo:payload.replyTo||'',configurationSetName,attachments:(payload.attachments||[]).map(a=>[a.filename,emailHash(a.content)])}))
+  if (reservation.unsubscribeUrl) {
+    payload = payload.reviewedBody
+      ? await prepareReviewedOutreach(payload,reservation.from.split('@')[1],reservation.unsubscribeUrl)
+      : await addOutreachFooter(payload,reservation.from.split('@')[1],reservation.unsubscribeUrl)
+  }
+  if (payload.reviewedBody && ((payload.text || '') !== (payload.reviewedBody.text || '') || (payload.html || '') !== (payload.reviewedBody.html || ''))) {
+    throw new EmailPreflightError('Final outreach body differs from the approved prepared message; review the required footer before sending')
+  }
+  const transportFingerprint=emailHash(JSON.stringify({from:payload.from,to:reservation.recipients,subject:payload.subject,html:payload.html||'',text:payload.text||'',headers:payload.headers||{},replyTo:payload.replyTo||'',configurationSetName,reviewedBody:payload.reviewedBody||null,attachments:(payload.attachments||[]).map(a=>[a.filename,emailHash(a.content)])}))
   await beginEmailAttempt(reservation.attemptId,transportFingerprint)
   let result: { MessageId?: string }
   try { result = await client.send(new SendEmailCommand({

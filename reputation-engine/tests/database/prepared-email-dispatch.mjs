@@ -1,0 +1,42 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+test('prepared email admission and durable claim enforce review bindings and one provider attempt',async()=>{
+ const db=new PGlite();
+ try{
+  await db.exec(`create role anon;create role authenticated;create role service_role;
+   create table market_contacts(id uuid primary key,partner_company_id uuid,email text,city text,do_not_contact boolean,sequence_paused boolean,stage text);
+   create table sequence_jobs(id uuid primary key default gen_random_uuid(),contact_id uuid,batch_id uuid,channel text,scheduled_at timestamptz,status text,template_key text);
+  `);
+  await db.exec(await readFile('supabase/migrations/20261027000400_prepared_email_dispatch.sql','utf8'));
+  const cid='00000000-0000-0000-0000-000000000001',aid='00000000-0000-0000-0000-000000000002';
+  await db.query('insert into market_contacts(id,partner_company_id,email,city) values($1,$2,$3,$4)',[cid,aid,'info@example.ca','Brampton']);
+  const refs=['identity','mailbox','outreach_eligibility','shared_context','copy'].map((kind,i)=>({id:kind,kind,sha256:String(i+1).repeat(64)}));
+  const p={version:'ssm-prepared-email/1',candidateId:'candidate',contactId:cid,accountId:aid,actionKey:'action',city:'Brampton',recipient:'info@example.ca',contentHash:'a'.repeat(64),reviewId:'review',evidenceRefs:refs};
+  const times={reviewedAt:new Date(Date.now()-1000).toISOString(),expiresAt:new Date(Date.now()+60000).toISOString()};
+  const review={id:'review',eventType:'prepared_email.reviewed',status:'approved',reviewedBy:'reviewer',holds:[],...times,candidateId:p.candidateId,contactId:cid,accountId:aid,actionKey:p.actionKey,contentHash:p.contentHash,evidenceRefs:refs};
+  await db.query('insert into prepared_email_reviews(id,record) values($1,$2)',[review.id,JSON.stringify(review)]);
+  for(const ref of refs)await db.query('insert into prepared_email_evidence(id,record) values($1,$2)',[ref.id,JSON.stringify({...ref,status:'approved',reviewedBy:'reviewer',holds:[],candidateId:p.candidateId,contactId:cid,accountId:aid,recipient:p.recipient,observedAt:times.reviewedAt,validUntil:times.expiresAt})]);
+  const enqueue=async payload=>(await db.query('select enqueue_prepared_email($1,now()) as r',[JSON.stringify(payload)])).rows[0].r;
+  await assert.rejects(enqueue({...p,recipient:'wrong@example.ca'}),/binding mismatch/);
+  await db.exec('update market_contacts set do_not_contact=true');
+  await assert.rejects(enqueue(p),/suppressed/);
+  await db.exec('update market_contacts set do_not_contact=false');
+  await db.exec("update prepared_email_evidence set record=jsonb_set(record,'{status}','\"pending\"') where id='identity'");
+  await assert.rejects(enqueue(p),/not approved/);
+  await db.exec("update prepared_email_evidence set record=jsonb_set(record,'{status}','\"approved\"') where id='identity'");
+  const q=await enqueue(p);assert.equal(q.status,'pending');assert.equal(q.replay,false);
+  assert.equal((await enqueue(p)).id,q.id);assert.equal((await enqueue(p)).replay,true);
+  await assert.rejects(enqueue({...p,subject:'Changed'}),/content conflict/);
+  const claim=async hash=>(await db.query('select claim_prepared_email_dispatch($1,$2,$3,$4) as r',[p.actionKey,q.id,cid,hash])).rows[0].r;
+  assert.equal((await claim(p.contentHash)).claimed,true);
+  assert.equal((await claim(p.contentHash)).claimed,false);
+  await assert.rejects(claim('b'.repeat(64)),/binding mismatch/);
+  await db.exec("update prepared_email_dispatches set state='ambiguous'");
+  assert.equal((await claim(p.contentHash)).claimed,false);
+  await assert.rejects(db.exec("update prepared_email_dispatches set state='accepted'"),/check constraint/);
+  const permissions=await db.query("select has_function_privilege('authenticated','public.enqueue_prepared_email(jsonb,timestamp with time zone,uuid)','execute') as can_enqueue,has_table_privilege('authenticated','public.prepared_email_reviews','insert') as can_approve");
+  assert.deepEqual(permissions.rows[0],{can_enqueue:false,can_approve:false});
+ }finally{await db.close()}
+});
