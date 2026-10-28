@@ -40,7 +40,7 @@ export function classifyEmailIntent(kind: string, reply: string): PartnershipEma
   }
 
   // Do not classify quoted copy, signatures, forwarded text or reported requests.
-  const current = reply.split(/\n\s*(?:On .{8,200} wrote:|From:|Begin forwarded message:|[-_]{2,}\s*(?:Forwarded|Original) message|You wrote:|You said:)/i)[0]
+  const current = reply.split(/(?:^|\s)(?:On .{8,200} wrote:|From:\s|Begin forwarded message:|[-_]{2,}\s*(?:Forwarded|Original) message|You wrote:|You said:)/i)[0]
     .replace(/<blockquote\b[^>]*>[\s\S]*?(?:<\/blockquote>|$)/gi, '')
     .replace(/\n\s*(?:--\s*\n|(?:best(?: regards)?|kind regards|regards|sincerely)[,!]?\s*\n|sent from my [^\n]*(?:\n|$))[\s\S]*$/i, '')
   const sentences = current.split(/\n+|(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s && !/^(?:>|[“"]|you (?:wrote|said|asked)|your (?:email|message) (?:says|said)|(?:he|she|they) (?:said|wrote|asked))/i.test(s))

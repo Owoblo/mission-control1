@@ -44,6 +44,7 @@ test('quoted requests, forwarded copy, subject lines and signatures cannot creat
     'Received.\n\nFrom: John\nWe are interested.',
     'Received.\n\nBegin forwarded message:\nPlease send pricing.',
     'Received.\n\nYou wrote:\nPlease send your card.',
+    'Received. Regards, Jane From: John Sent: Tuesday Subject: Partnership We are interested.',
     'You asked "Please send your card." I am checking.',
     'Received.\n\nRegards,\nPlease send your card.',
     '> Please send your card.',
