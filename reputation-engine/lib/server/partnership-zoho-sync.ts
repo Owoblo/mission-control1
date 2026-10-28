@@ -41,7 +41,9 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
   async function db(table: string, q: Record<string,string> = {}, method = 'GET', body?: unknown, prefer = 'return=representation') {
     const response = await fetch(`${url}/rest/v1/${table}?${new URLSearchParams(q)}`, { method, headers: { ...headers, Prefer: prefer }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' })
     if (!response.ok) throw new Error(`Reply sync ${table} ${method} failed (${response.status})`)
-    return response.status === 204 ? [] : response.json()
+    // PostgREST POST with return=minimal succeeds with an empty 201 body.
+    // Parsing that as JSON aborts mailbox scanning after its first cache write.
+    return response.status === 204 || prefer.includes('return=minimal') ? [] : response.json()
   }
   // Contacts remain scoped to the authorized market. Different-address replies require exact recorded thread evidence.
   const contacts: Contact[] = []
