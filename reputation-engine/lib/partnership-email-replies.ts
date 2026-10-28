@@ -1,3 +1,6 @@
+import { classifyEmailIntent } from './partnership-email-intent'
+export type { PartnershipEmailIntent, PartnershipEmailIntentMetadata } from './partnership-email-intent'
+
 /** Mailbox events are distinct from human replies and provider delivery events. */
 export type PartnershipEmailKind = 'reply' | 'handoff' | 'verification' | 'verification_pending_review' | 'automatic_reply' | 'opt_out' | 'delivery_failure'
 
@@ -40,6 +43,12 @@ export function partnershipEmailAction(kind: PartnershipEmailKind) {
     opt_out: 'Stop outreach and retain the suppression.',
     delivery_failure: 'Hold this address and research a replacement; do not retry it.',
   }[kind]
+}
+
+/** Additive metadata; callers must still apply the existing kind/suppression rules. */
+export function analyzePartnershipEmailReply(subject: string, body: string) {
+  const kind = classifyPartnershipEmail(subject, body)
+  return { kind, ...classifyEmailIntent(kind, currentEmailReply(body)) }
 }
 
 export function extractEmailReferralContacts(body: string) {

@@ -1,10 +1,14 @@
 import { zohoProfile } from '@/lib/partnership-core/zoho.mjs'
 import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
 import { createHash } from 'node:crypto'
-import { accountContainsMailbox, zohoOrigin } from './zoho-mail'
+import { accountContainsMailbox } from './zoho-mail'
 import { readEnv, requireSupabaseEnv } from './runtime'
 import { sendPartnershipEmailAlert } from './partnership-email-alerts'
-import { classifyPartnershipEmail, currentEmailReply, emailText, partnershipEmailAction, extractEmailReferralContacts } from '../partnership-email-replies'
+import { classifyPartnershipEmail, currentEmailReply, emailText, partnershipEmailAction, extractEmailReferralContacts, analyzePartnershipEmailReply } from '../partnership-email-replies'
+
+import { matchPartnershipReply, mailboxAddress, recordedInternetMessageIds, providerEventInternetMessageIds, headerMessageIds, type OutboundThreadEvidence } from '../partnership-email-thread-match'
+
+import { replyScanDisposition, REPLY_SCAN_REVIEW_VERSION, REPLY_SCAN_HEADER_BUDGET, type ReplyScanCache } from '../partnership-email-scan-policy'
 
 type Mail = { messageId: string; folderId: string; fromAddress: string; toAddress?: string; subject?: string; receivedTime: string }
 type Contact = { id: string; name: string; company: string; city: string; email: string; partner_company_id?: string; website?: string; email_last_sent_at?: string; last_inbound_at?: string; do_not_contact?: boolean }
@@ -39,7 +43,7 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
     if (!response.ok) throw new Error(`Reply sync ${table} ${method} failed (${response.status})`)
     return response.status === 204 ? [] : response.json()
   }
-  // Exact email matches only. New senders are reviewed before assigning an existing company.
+  // Contacts remain scoped to the authorized market. Different-address replies require exact recorded thread evidence.
   const contacts: Contact[] = []
   for (let offset = 0; offset < 30000; offset += 1000) {
     const rows = await db('market_contacts', { select: 'id,name,company,city,email,partner_company_id,website,email_last_sent_at,last_inbound_at,do_not_contact', email: 'not.is.null', order: 'id', limit: '1000', offset: String(offset) }) as Contact[]
@@ -47,35 +51,104 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
     if (rows.length < 1000) break
     if (offset === 29000) throw new Error('Contact pagination limit reached')
   }
+  // Provider receipt IDs are used only to join recorded delivery events, never guessed into MIME IDs.
+  const outbound: OutboundThreadEvidence[] = []
+  const receipts = new Map<string, OutboundThreadEvidence[]>()
+  const contactIds = new Set(contacts.map(c => c.id))
+  for (let offset = 0; offset < 50000; offset += 1000) {
+    const rows = await db('market_touches', { select: 'contact_id,created_at,metadata', channel: 'eq.email', direction: 'eq.outbound', created_at: 'gte.2026-09-15T19:15:00Z', order: 'id', limit: '1000', offset: String(offset) })
+    for (const row of rows) {
+      if (!contactIds.has(row.contact_id)) continue
+      const metadata = row.metadata || {}
+      const evidence = { contactId: row.contact_id, sentAt: row.created_at, messageIds: recordedInternetMessageIds(metadata) }
+      outbound.push(evidence)
+      const receipt = metadata.provider_message_id || metadata.sesMessageId
+      const provider = metadata.provider || (metadata.sesMessageId ? 'ses' : null)
+      if (typeof receipt === 'string' && provider) {
+        const key = provider + ':' + receipt
+        receipts.set(key, [...(receipts.get(key) || []), evidence])
+      }
+    }
+    if (rows.length < 1000) break
+    if (offset === 49000) throw new Error('Outbound thread evidence pagination limit reached')
+  }
+  const receiptIds = [...new Set([...receipts.keys()].map(key => key.slice(key.indexOf(':') + 1)))]
+  for (let i = 0; i < receiptIds.length; i += 60) {
+    // Quote PostgREST list values; identifiers are data, not query syntax.
+    const ids = receiptIds.slice(i, i + 60).map(id => JSON.stringify(id)).join(',')
+    for (let offset = 0; offset < 10000; offset += 1000) {
+      const events = await db('email_provider_events', { select: 'provider,provider_message_id,payload', provider_message_id: 'in.(' + ids + ')', order: 'id', limit: '1000', offset: String(offset) })
+      for (const event of events) {
+        for (const evidence of receipts.get(event.provider + ':' + event.provider_message_id) || []) {
+          evidence.messageIds = [...new Set([...evidence.messageIds, ...providerEventInternetMessageIds(event.payload)])]
+        }
+      }
+      if (events.length < 1000) break
+      if (offset === 9000) throw new Error('Provider thread evidence pagination limit reached')
+    }
+  }
   // A rolling seven-day overlap catches delays and retries. Never imports historical sales mail.
   const lower = Math.max(Date.parse('2026-09-15T19:15:00Z'), Date.now() - 7 * 86400000)
-  let scanned = 0, imported = 0, alerted = 0, completed = false
+  let scanned = 0, imported = 0, alerted = 0, unresolved = 0, completed = false
+  let headersRead = 0, cachedSkipped = 0, budgetExhausted = false
+  async function markScanned(messageId: string, result: 'ignored' | 'unresolved_queued') {
+    const key = `partnership-reply-scan:${account!.accountId}:${messageId}`
+    const checkedAt = new Date().toISOString()
+    // Unrelated mail cache deliberately excludes sender, subject, headers and body.
+    await db('email_provider_events', { on_conflict: 'id' }, 'POST', { id: eventId(key), provider: 'zoho', provider_event_id: key, provider_message_id: messageId, event_type: 'partnership_reply_scan', occurred_at: checkedAt, payload: { review_version: REPLY_SCAN_REVIEW_VERSION, checked_at: checkedAt, result } }, 'resolution=merge-duplicates,return=minimal')
+  }
+  mailboxPages:
   for (let start = 1; start <= 4000; start += 200) {
     const rows = await zoho<Mail[]>(`/accounts/${account.accountId}/messages/view?start=${start}&limit=200&includeto=true`)
+    const priorTouches = new Map<string, { metadata?: { alert_sent_at?: string } }>()
+    const scanCache = new Map<string, ReplyScanCache>()
+    // Batch lookups by page, keeping URI size bounded. Every invocation walks from the newest page;
+    // persisted completed scans let subsequent polls reach the older, not-yet-read messages.
+    for (let i = 0; i < rows.length; i += 60) {
+      const page = rows.slice(i, i + 60)
+      const touchIds = page.map(mail => eventId(`zoho:${account.accountId}:${mail.messageId}`))
+      const cacheIds = page.map(mail => eventId(`partnership-reply-scan:${account.accountId}:${mail.messageId}`))
+      const [touches, caches] = await Promise.all([
+        db('market_touches', { id: 'in.(' + touchIds.join(',') + ')', select: 'id,metadata', limit: '60' }),
+        db('email_provider_events', { id: 'in.(' + cacheIds.join(',') + ')', provider: 'eq.zoho', event_type: 'eq.partnership_reply_scan', select: 'id,payload', limit: '60' }),
+      ])
+      for (const touch of touches) priorTouches.set(touch.id, touch)
+      for (const cache of caches) scanCache.set(cache.id, cache.payload)
+    }
     for (const mail of rows) {
       scanned++
       const timestamp = Number(mail.receivedTime)
       if (!Number.isFinite(timestamp) || timestamp < lower) continue
-      const from = mail.fromAddress?.trim().toLowerCase()
+      const from = mailboxAddress(mail.fromAddress || '')
       if (!from || /@(?:starmovers|saturnstarmovers|dexamovers)\.ca$/.test(from)) continue
-      const matches = contacts.filter(c => c.email.toLowerCase() === from && c.email_last_sent_at)
-      if (matches.length !== 1) continue
-      const contact = matches[0]
-      if (Date.parse(contact.email_last_sent_at || '') > timestamp) {
-        const earlier = await db('market_touches', { contact_id: 'eq.' + contact.id, channel: 'eq.email', direction: 'eq.outbound', created_at: 'lte.' + new Date(timestamp).toISOString(), select: 'id', limit: '1' })
-        if (!earlier.length) continue
-      }
       const id = eventId(`zoho:${account.accountId}:${mail.messageId}`)
-      const [prior] = await db('market_touches', { id: 'eq.' + id, select: 'id,metadata' })
-      if (prior?.metadata?.alert_sent_at) continue
-      const content = await zoho<{ content?: string }>(`/accounts/${account.accountId}/folders/${mail.folderId}/messages/${mail.messageId}/content`)
+      const prior = priorTouches.get(id)
+      const disposition = replyScanDisposition({ alerted: !!prior?.metadata?.alert_sent_at, cache: scanCache.get(eventId(`partnership-reply-scan:${account.accountId}:${mail.messageId}`)), now: Date.now(), headersRead })
+      if (disposition === 'skip') { cachedSkipped++; continue }
+      if (disposition === 'budget_exhausted') { budgetExhausted = true; break mailboxPages }
+      headersRead++
       const header = await zoho<{ headerContent?: string }>(`/accounts/${account.accountId}/folders/${mail.folderId}/messages/${mail.messageId}/header`)
-      const internetMessageId = header.headerContent?.match(/^Message-I[Dd]:\s*(<[^>\r\n]+>)/mi)?.[1] || null
+      const match = matchPartnershipReply({ from, receivedAt: timestamp, headers: header.headerContent || '', contacts, outbound })
+      if (match.status === 'ignore') { await markScanned(mail.messageId, 'ignored'); continue }
+      const internetMessageId = headerMessageIds(header.headerContent || '', 'message-id')[0] || null
+      const content = await zoho<{ content?: string }>(`/accounts/${account.accountId}/folders/${mail.folderId}/messages/${mail.messageId}/content`)
+      if (match.status === 'unresolved') {
+        const occurredAt = new Date(timestamp).toISOString()
+        const preview = currentEmailReply(emailText(content.content || '')).slice(0, 2000)
+        const payload = { source: 'zoho', zoho_message_id: mail.messageId, zoho_account_id: account.accountId, market, from, to: mailbox, subject: mail.subject || '', internet_message_id: internetMessageId, match, reply_preview: preview, review_status: 'pending', automatic_contact_attribution: false }
+        await db('email_provider_events', {}, 'POST', { id, provider: 'zoho', provider_event_id: `partnership-unresolved:${account.accountId}:${mail.messageId}`, provider_message_id: mail.messageId, event_type: 'partnership_reply_unresolved', occurred_at: occurredAt, payload }, 'resolution=ignore-duplicates,return=representation')
+        // An unlinked CRM task is visible to operators without attaching the mail to the wrong company.
+        await db('crm_tasks', {}, 'POST', { id: 'partnership-reply-review:' + id, source_key: 'partnership-reply-review:' + id, source: 'condition', title: 'Review unmatched partnership email reply', description: JSON.stringify(payload), category: 'partnerships', priority: 'high', status: 'open', owner_name: market === 'ottawa' ? 'Courage' : 'John', branch: market, created_by_name: 'Zoho reply sync', due_at: occurredAt }, 'resolution=ignore-duplicates,return=representation')
+        await markScanned(mail.messageId, 'unresolved_queued')
+        unresolved++
+        continue
+      }
+      const contact = contacts.find(c => c.id === match.contactId)!
       const body = emailText(content.content || '')
       const reply = currentEmailReply(body), kind = classifyPartnershipEmail(mail.subject || '', body)
       const human = kind === 'reply' || kind === 'handoff' || kind === 'opt_out'
       const occurredAt = new Date(timestamp).toISOString()
-      const metadata = { source: 'zoho', zoho_message_id: mail.messageId, zoho_account_id: account.accountId, subject: mail.subject || '', from, to: mailbox, email_kind: kind, human_reply: human, internet_message_id: internetMessageId, body, reply_preview: reply }
+      const metadata = { source: 'zoho', zoho_message_id: mail.messageId, zoho_account_id: account.accountId, subject: mail.subject || '', from, to: mailbox, email_kind: kind, human_reply: human, internet_message_id: internetMessageId, reply_match: match, reply_analysis: analyzePartnershipEmailReply(mail.subject || '', body), body, reply_preview: reply }
       if (!prior) {
         await db('market_touches', {}, 'POST', { id, contact_id: contact.id, channel: 'email', direction: 'inbound', notes: `Subject: ${mail.subject || '(no subject)'}\n\n${body}`, created_by: 'Zoho reply sync', created_at: occurredAt, outcome_code: kind === 'opt_out' ? 'opt_out' : kind === 'handoff' ? 'referred_contact' : kind === 'reply' ? 'email_replied' : 'email_' + kind, next_step: partnershipEmailAction(kind), metadata }, 'resolution=ignore-duplicates,return=representation')
         imported++
@@ -107,8 +180,8 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
     }
     if (rows.length < 200 || rows.every(m => Number(m.receivedTime) < lower)) { completed = true; break }
   }
-  if (!completed) throw new Error('Mailbox pagination limit reached; increase coverage before advancing')
-  return { ok: true, scanned, imported, alerted }
+  const paginationLimitReached = !completed && !budgetExhausted
+  return { ok: true, scanned, imported, alerted, unresolved, headersRead, headerBudget: REPLY_SCAN_HEADER_BUDGET, cachedSkipped, completed, partial: !completed, budgetExhausted, paginationLimitReached }
 }
 
 export async function syncAllPartnershipZohoReplies() {
