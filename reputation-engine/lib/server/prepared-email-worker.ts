@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { preparedEmailContentHash, validatePreparedEmail } from '../partnership-core/prepared-email.mjs'
 import { reserveAction } from '../partnership-core/reserve.mjs'
 import { sendOutreachEmail } from './email-provider'
+import { readEnv } from './runtime'
 
 type Row = Record<string, any>
 type Dependencies = {
@@ -12,7 +13,7 @@ type Dependencies = {
 
 /** Exact copy only. Any uncertain send remains locked for reconciliation. */
 export async function executePreparedEmailJob(input: {
-  job: Row; contact: Row; url: string; headers: HeadersInit; enabled: boolean
+  job: Row; contact: Row; url: string; headers: HeadersInit; enabled: boolean; ottawaEnabled?: boolean
 }, deps: Dependencies = {}) {
   if (!input.enabled) throw new Error('Prepared email execution disabled')
   const request = deps.request || fetch
@@ -56,28 +57,35 @@ export async function executePreparedEmailJob(input: {
     const contact = await one('market_contacts', { id: 'eq.' + payload.contactId })
     if (!contact || contact.email !== payload.recipient || contact.city !== payload.city || contact.partner_company_id !== payload.accountId) throw new Error('Prepared recipient context changed')
     if (contact.do_not_contact || contact.sequence_paused || contact.cross_channel_suppressed_at || contact.email_unsubscribed_at || ['dnc','do_not_contact','closed_lost'].includes(contact.stage) || ['bounced','complained','unsubscribed'].includes(contact.email_status)) throw new Error('Prepared recipient suppressed or paused')
-    // Do not silently change Courage's provider or drop his approved From name.
-    if (payload.market === 'ottawa') throw new Error('Ottawa prepared email held: Zoho dispatch ledger integration required')
+    // Both approved brands use the canonical SES ledger and delivery-event path.
+    // Ottawa activation remains explicit until its sender identity is verified.
+    const provider = 'ses'
+    if (payload.market === 'ottawa' && !(input.ottawaEnabled ?? (readEnv('PREPARED_OTTAWA_EXECUTION_ENABLED') === 'true'))) throw new Error('Ottawa rollout held: provider limits and confirmed-delivery telemetry require verification')
+    if (payload.market === 'ottawa') {
+      const suppressed = await db('crm_email_suppressions', { recipient: 'eq.' + payload.recipient.toLowerCase(), limit: '1' })
+      if (!Array.isArray(suppressed) || suppressed.length) throw new Error('Prepared Ottawa recipient suppressed')
+    }
     const claim = await db('rpc/claim_prepared_email_dispatch', {}, 'POST', {
       p_action_key: payload.actionKey, p_job_id: job.id, p_contact_id: payload.contactId, p_content_hash: payload.contentHash,
     })
     if (claim.claimed !== true) throw new Error('Prepared email dispatch already claimed; reconcile before retry')
     try {
-      await reserve({ url, headers, contactId: payload.contactId, channel: 'email', key: payload.actionKey, content: payload.text, sender: payload.sender, emailProvider: 'ses' })
+      await reserve({ url, headers, contactId: payload.contactId, channel: 'email', key: payload.actionKey, content: payload.text, sender: payload.sender, emailProvider: provider })
     } catch (error) {
       await patch('prepared_email_dispatches', { action_key: 'eq.' + payload.actionKey, state: 'eq.dispatching' }, { state: 'held' })
       throw error
     }
     try {
-      const receipt = await send({
+      const sendPayload = {
         from: payload.sender, to: payload.recipient, replyTo: payload.replyTo,
         subject: payload.subject, text: payload.text, trackingMode: 'deliverability',
         idempotencyKey: 'prepared-email:' + payload.actionKey,
         context: { source: 'prepared-email', contactId: payload.contactId, policyActionKey: payload.actionKey, actorName: 'Prepared campaign' },
         reviewedBody: { text: payload.text },
         tags: { channel: 'partnership', contact_id: payload.contactId, sequence_job_id: String(job.id) },
-      })
-      if (receipt.provider !== 'ses' || !receipt.accepted || !receipt.messageId) throw new Error('Ambiguous provider acceptance')
+      }
+      const receipt = await send(sendPayload as Parameters<typeof sendOutreachEmail>[0])
+      if (receipt.provider !== provider || !receipt.accepted || !receipt.messageId) throw new Error('Ambiguous provider acceptance')
       dispatch = { state: 'accepted', provider: receipt.provider, message_id: receipt.messageId, accepted_at: new Date().toISOString() }
       await patch('prepared_email_dispatches', { action_key: 'eq.' + payload.actionKey, state: 'eq.dispatching' }, dispatch)
     } catch (error) {

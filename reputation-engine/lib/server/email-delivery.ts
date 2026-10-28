@@ -63,14 +63,28 @@ export async function addOutreachFooter<T extends { html?:string; text?:string; 
     headers:{...payload.headers,'List-Unsubscribe':`<${unsubscribeUrl}>`,'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'} }
 }
 
+/** Deterministic transport alternative; visible content is only the reviewed text. */
+export function reviewedTextHtml(text:string) {
+  const escaped=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+  return `<html><body><div style="white-space:pre-wrap;font-family:Arial,sans-serif;font-size:14px">${escaped}</div></body></html>`
+}
+export function assertReviewedTransportBody(payload:{text?:string;html?:string;reviewedBody?:{text?:string;html?:string};context?:EmailContext}) {
+  if(!payload.reviewedBody)return
+  const expectedHtml=payload.context?.source==='prepared-email'&&!payload.reviewedBody.html ? reviewedTextHtml(payload.reviewedBody.text||'') : payload.reviewedBody.html||''
+  if((payload.text||'')!==(payload.reviewedBody.text||'')||(payload.html||'')!==expectedHtml)throw new EmailPreflightError('Final outreach body differs from the approved prepared message')
+}
+
 /** Server-owned prepared campaigns approve the whole plain-text body in advance. */
 export async function prepareReviewedOutreach<T extends { text?:string; html?:string; headers?:Record<string,string>; replyTo?:string; reviewedBody?:{text?:string;html?:string}; context?:EmailContext; idempotencyKey?:string }>(payload:T,domain:string,unsubscribeUrl:string) {
   if (payload.context?.source !== 'prepared-email' || !payload.context.contactId || !payload.context.policyActionKey || !payload.idempotencyKey?.startsWith('prepared-email:')) throw new EmailPreflightError('Reviewed outreach requires the trusted prepared campaign context')
   if (!payload.text || payload.html || payload.reviewedBody?.html || payload.reviewedBody?.text !== payload.text) throw new EmailPreflightError('Reviewed outreach must preserve the approved plain-text body')
   // Preserve the owner's approved body exactly; do not inject a postal address
   // or reuse the legacy footer. Sender registration remains separate.
-  if (!/Saturn Star Movers/.test(payload.text)) throw new EmailPreflightError('Approved outreach body must identify Saturn Star Movers')
+  const brand = domain === 'dexamovers.ca' ? 'Dexa Movers' : domain === 'saturnstarmovers.ca' ? 'Saturn Star Movers' : null
+  const otherBrand = domain === 'dexamovers.ca' ? 'Saturn Star Movers' : 'Dexa Movers'
+  if (!brand || !payload.text.includes(brand) || payload.text.includes(otherBrand)) throw new EmailPreflightError('Approved outreach body must identify its registered regional brand')
+  if (domain === 'dexamovers.ca' && payload.replyTo !== 'hello@dexamovers.ca') throw new EmailPreflightError('Dexa outreach must route replies to the Ottawa mailbox')
   if (!/reply[^\n]{0,30}no thanks[^\n]{0,100}(?:honou?r|stop|won.t|will not|no further)/i.test(payload.text)) throw new EmailPreflightError('Approved outreach body must explain the reply opt-out')
   if (/https?:\/\/|www\./i.test(payload.text)) throw new EmailPreflightError('Prepared campaign body must remain free of web links')
-  return {...payload, headers:{...payload.headers,'List-Unsubscribe':`<${unsubscribeUrl}>`,'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'}}
+  return {...payload, html:reviewedTextHtml(payload.text), headers:{...payload.headers,'List-Unsubscribe':`<${unsubscribeUrl}>`,'List-Unsubscribe-Post':'List-Unsubscribe=One-Click'}}
 }

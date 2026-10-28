@@ -3,10 +3,11 @@ import assert from 'node:assert/strict'
 import { executePreparedEmailJob } from '../../lib/server/prepared-email-worker'
 import { preparedEmailContentHash } from '../../lib/partnership-core/prepared-email.mjs'
 
-function fixture() {
+function fixture(market = 'saturn') {
   const now = Date.now()
   const refs = ['identity','mailbox','outreach_eligibility','shared_context','copy'].map((kind, i) => ({ id: kind, kind, sha256: String(i+1).repeat(64) }))
   const payload: Record<string, any> = { version: 'ssm-prepared-email/1', candidateId: 'candidate', contactId: 'contact', accountId: 'account', actionKey: 'action', city: 'Brampton', market: 'saturn', recipient: 'info@example.ca', sender: 'John Owolabi <john@saturnstarmovers.ca>', replyTo: 'business@starmovers.ca', subject: 'Working with Example', text: 'Hi,\nI run Saturn Star Movers.\nReply no thanks to stop.', reviewId: 'review', evidenceRefs: refs }
+  if (market === 'ottawa') Object.assign(payload, {market:'ottawa',city:'Ottawa',sender:'Courage Eke <hello@dexamovers.ca>',replyTo:'hello@dexamovers.ca',text:'I run Dexa Movers. Reply no thanks to stop.'})
   payload.contentHash = preparedEmailContentHash(payload)
   const review = { id: 'review', eventType: 'prepared_email.reviewed', status: 'approved', reviewedBy: 'reviewer', reviewedAt: new Date(now-1000).toISOString(), expiresAt: new Date(now+60000).toISOString(), holds: [] as string[], candidateId: 'candidate', contactId: 'contact', accountId: 'account', actionKey: 'action', contentHash: payload.contentHash, evidenceRefs: refs }
   const evidence = refs.map(ref => ({ ...ref, status: 'approved', reviewedBy: 'reviewer', holds: [], candidateId: 'candidate', contactId: 'contact', accountId: 'account', recipient: payload.recipient, observedAt: review.reviewedAt, validUntil: review.expiresAt }))
@@ -19,11 +20,14 @@ function fixture() {
   let sendError = false
   let reserveError = false
   let touchError = false
+  let reservedProvider: string | undefined
+  let suppressed = false
   const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
   const request = (async (raw: any, init: RequestInit = {}) => {
     const url = new URL(String(raw)); const table = url.pathname.replace('/rest/v1/','')
     if (table === 'prepared_email_reviews') return reply([{ record: review }])
     if (table === 'prepared_email_evidence') return reply(evidence.filter(e => 'eq.'+e.id === url.searchParams.get('id')).map(record => ({ record })))
+    if (table === 'crm_email_suppressions') return reply(suppressed ? [{recipient:payload.recipient}] : [])
     if (table === 'market_contacts') return reply([contact])
     if (table === 'sequence_jobs') return reply([job])
     if (table === 'market_touches') return reply([], touchError ? 500 : 200)
@@ -41,8 +45,8 @@ function fixture() {
     }
     throw new Error('Unexpected request '+table)
   }) as typeof fetch
-  const deps = { request, reserve: async () => { reserved++; if (reserveError) throw Error('Policy hold'); return { allowed: true } }, send: async (p: any) => { sent++; sentPayload = p; if (sendError) throw Error('Network timeout'); return { provider: 'ses' as const, accepted: true, messageId: 'ses-123' } } }
-  return { payload, review, contact, job, deps, run: () => executePreparedEmailJob({ job, contact, url: 'https://db.example', headers: {}, enabled: true }, deps), stats: () => ({ sent, reserved, sentPayload, dispatch }), failSend: () => { sendError = true }, failReserve: () => { reserveError = true }, failTouch: (fail: boolean) => { touchError = fail } }
+  const deps = { request, reserve: async (input: any) => { reservedProvider=input.emailProvider; reserved++; if (reserveError) throw Error('Policy hold'); return { allowed: true } }, send: async (p: any) => { sent++; sentPayload = p; if (sendError) throw Error('Network timeout'); return { provider: 'ses' as const, accepted: true, messageId: 'ses-123' } } }
+  return { payload, review, contact, job, deps, run: () => executePreparedEmailJob({ job, contact, url: 'https://db.example', headers: {}, enabled: true, ottawaEnabled: market === 'ottawa' }, deps), stats: () => ({ sent, reserved, sentPayload, dispatch, reservedProvider }), suppress: () => { suppressed = true }, failSend: () => { sendError = true }, failReserve: () => { reserveError = true }, failTouch: (fail: boolean) => { touchError = fail } }
 }
 
 test('sends the approved exact text, identity and subject once; acceptance is not delivery', async () => {
@@ -94,4 +98,26 @@ test('concurrent workers share one durable dispatch claim', async () => {
   const outcomes = await Promise.allSettled([f.run(), f.run()])
   assert.equal(outcomes.filter(o => o.status === 'fulfilled').length, 1)
   assert.equal(f.stats().sent, 1)
+})
+
+test('Ottawa uses Courage and SES through the same durable claim and policy ledger', async () => {
+ const f=fixture('ottawa');const result=await f.run()
+ assert.equal(result.provider,'ses');assert.equal(result.status,'accepted')
+ assert.equal(f.stats().reservedProvider,'ses');assert.equal(f.stats().sentPayload.from,'Courage Eke <hello@dexamovers.ca>')
+ assert.equal(f.stats().sentPayload.replyTo,'hello@dexamovers.ca');assert.equal(f.stats().sentPayload.text,f.payload.text)
+ await f.run();assert.equal(f.stats().sent,1)
+})
+test('Ottawa suppressed recipients never reach policy or provider', async () => {
+ const f=fixture('ottawa');f.suppress();await assert.rejects(f.run(),/suppressed/)
+ assert.equal(f.stats().sent,0);assert.equal(f.stats().reserved,0)
+})
+test('Ottawa timeout remains ambiguous and cannot be blindly retried', async () => {
+ const f=fixture('ottawa');f.failSend();await assert.rejects(f.run(),/Network timeout/)
+ assert.equal(f.stats().dispatch.state,'ambiguous');await assert.rejects(f.run(),/already attempted/)
+ assert.equal(f.stats().sent,1)
+})
+
+test('Ottawa rollout remains disabled until delivery telemetry and provider limits are verified', async () => {
+ const f=fixture('ottawa');await assert.rejects(executePreparedEmailJob({job:f.job,contact:f.contact,url:'https://db.example',headers:{},enabled:true,ottawaEnabled:false},f.deps),/rollout held/)
+ assert.equal(f.stats().sent,0);assert.equal(f.stats().reserved,0)
 })

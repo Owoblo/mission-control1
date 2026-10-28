@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { prepareReviewedOutreach, addOutreachFooter, reserveEmail } from '../../lib/server/email-delivery'
+import { prepareReviewedOutreach, addOutreachFooter, reserveEmail, reviewedTextHtml, assertReviewedTransportBody } from '../../lib/server/email-delivery'
 
 test('prepared exact-body path preserves approved text and retains one-click headers', async () => {
   const original = global.fetch
@@ -40,4 +40,30 @@ test('prepared exact-body path preserves approved text and retains one-click hea
     global.fetch=original
     for(const [key,value]of Object.entries(before)){if(value===undefined)delete process.env[key];else process.env[key]=value}
   }
+})
+
+test('Dexa approved body retains Courage identity and exact copy under SES headers', async () => {
+ const text='My name is Courage, and I run Dexa Movers.\nYou can reach me on 548-290-8695.\nP.S. Just reply “no thanks” and I will happily honour that.'
+ const payload={text,replyTo:'hello@dexamovers.ca',reviewedBody:{text},idempotencyKey:'prepared-email:ottawa',context:{source:'prepared-email',contactId:'ottawa-contact',policyActionKey:'ottawa'}}
+ const prepared=await prepareReviewedOutreach(payload,'dexamovers.ca','https://app.invalid/unsubscribe')
+ assert.equal(prepared.text,text);assert.equal(prepared.replyTo,'hello@dexamovers.ca');assert.ok(prepared.headers['List-Unsubscribe'])
+ assert.equal(prepared.text.includes('Saturn'),false);assert.equal(prepared.text.includes('http'),false)
+ await assert.rejects(prepareReviewedOutreach({...payload,replyTo:'business@starmovers.ca'},'dexamovers.ca','https://app.invalid/unsubscribe'),/Ottawa mailbox/)
+ await assert.rejects(prepareReviewedOutreach(payload,'saturnstarmovers.ca','https://app.invalid/unsubscribe'),/regional brand/)
+})
+
+
+test('HTML alternative escapes markup, keeps approved text and rejects transport mutations',async()=>{
+ const text='Saturn Star Movers & <team> "hello"\n\nReply “no thanks” and I will honour that.'
+ const payload={text,reviewedBody:{text},context:{source:'prepared-email',contactId:'c',policyActionKey:'a'},idempotencyKey:'prepared-email:a'}
+ const prepared=await prepareReviewedOutreach(payload,'saturnstarmovers.ca','https://app.invalid/unsubscribe')
+ assert.equal(prepared.text,text)
+ assert.equal(prepared.html,reviewedTextHtml(text))
+ assert.ok(prepared.html.includes('&amp; &lt;team&gt; &quot;hello&quot;\n\n'))
+ assert.ok(!/<a\b|<img\b|http|postal/i.test(prepared.html))
+ assert.deepEqual(prepared.reviewedBody,{text})
+ assertReviewedTransportBody(prepared)
+ assert.throws(()=>assertReviewedTransportBody({...prepared,html:prepared.html+'extra'}),/differs/)
+ assert.throws(()=>assertReviewedTransportBody({...prepared,text:text+'extra'}),/differs/)
+ await assert.rejects(prepareReviewedOutreach({...payload,html:'<p>injected</p>'},'saturnstarmovers.ca','https://app.invalid/unsubscribe'),/approved plain-text/)
 })

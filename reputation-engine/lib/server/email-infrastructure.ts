@@ -15,15 +15,22 @@ export async function refreshEmailInfrastructure() {
     max24HourSend:account.SendQuota?.Max24HourSend || 0,sentLast24Hours:account.SendQuota?.SentLast24Hours || 0,maxSendRate:account.SendQuota?.MaxSendRate || 0,
     pricingPlan:account.PricingAttributes?.CurrentPlan || 'unknown',messageHistoryEnabled:account.VdmAttributes?.VdmEnabled==='ENABLED'}
   await emailStorage('crm_email_provider_health?on_conflict=region',{region,snapshot,checked_at:checkedAt},'POST')
-  let replyReady=false
-  try { const mailbox=await openZohoMailbox('saturn'); replyReady=mailbox.mailbox==='business@starmovers.ca' } catch {}
+  const replyHealth = new Map<string,boolean>()
   const configuration=readEnv('AWS_SES_DELIVERABILITY_CONFIGURATION_SET') || 'saturn-crm-deliverability'
   const events=await client.send(new GetConfigurationSetEventDestinationsCommand({ConfigurationSetName:configuration}),{abortSignal:AbortSignal.timeout(15000)}).catch(()=>null)
   const expectedTopic=readEnv('AWS_SES_SNS_TOPIC_ARN') || 'arn:aws:sns:us-east-2:322694470585:saturn-partnership-ses-events'
   const receiptRouteReady=!!events?.EventDestinations?.some(d=>d.Enabled && d.SnsDestination?.TopicArn===expectedTopic && ['SEND','DELIVERY','BOUNCE','COMPLAINT'].every(e=>d.MatchingEventTypes?.includes(e as any)))
   const domains=await emailStorage<Row[]>('crm_email_domains?select=domain,purpose')
   for(const domain of domains) {
-    let health:Row={ready:false,replyReady,receiptRouteReady,configuration}
+    const replyMarket = domain.domain === 'dexamovers.ca' ? 'ottawa' : 'saturn'
+    const replyMailbox = replyMarket === 'ottawa' ? 'hello@dexamovers.ca' : 'business@starmovers.ca'
+    if (!replyHealth.has(replyMarket)) {
+      let ready=false
+      try { const mailbox=await openZohoMailbox(replyMarket); ready=mailbox.mailbox===replyMailbox } catch {}
+      replyHealth.set(replyMarket,ready)
+    }
+    const replyReady=replyHealth.get(replyMarket)===true
+    let health:Row={ready:false,replyReady,replyMailbox,receiptRouteReady,configuration}
     try {
       const identity=await client.send(new GetEmailIdentityCommand({EmailIdentity:domain.domain}),{abortSignal:AbortSignal.timeout(15000)})
       const mailFrom=identity.MailFromAttributes?.MailFromDomain
@@ -44,7 +51,8 @@ export async function registerOutreachSender(input:Row) {
   if(!name||!owner||name.length>100||owner.length>100||/[<>\r\n]/.test(name))throw Error('Enter the real sender name and owner')
   const [exists]=await emailStorage<Row[]>(`email_sender_accounts?provider=eq.ses&from_email=eq.${encodeURIComponent(from)}&select=id&limit=1`)
   if(exists)throw Error('This sender address is already registered')
-  await emailStorage('email_sender_accounts',{provider:'ses',domain,from_email:from,from_name:name,reply_to_email:'business@starmovers.ca',region:readEnv('AWS_REGION')||'us-east-2',status:'setup',daily_cap:25,metadata:{owner_name:owner,purpose:'outreach',mailbox_created:false}})
+  if(domain==='dexamovers.ca'&&(from!=='hello@dexamovers.ca'||name!=='Courage Eke'))throw Error('Dexa outreach uses the approved Courage Eke sender')
+  await emailStorage('email_sender_accounts',{provider:'ses',domain,from_email:from,from_name:name,reply_to_email:domain==='dexamovers.ca'?'hello@dexamovers.ca':'business@starmovers.ca',region:readEnv('AWS_REGION')||'us-east-2',status:'setup',daily_cap:25,metadata:{owner_name:owner,purpose:'outreach',mailbox_created:false}})
   return getEmailInfrastructure()
 }
 export async function updateOutreachSender(input:Row) {
