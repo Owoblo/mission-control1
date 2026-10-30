@@ -16,6 +16,7 @@ import { partnershipMediaKind } from '@/lib/partnership-media'
 import { VideoAttachment } from '@/app/components/partnership/video-attachment'
 import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
 import { businessCardFirstName, appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
+import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
 import { sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
@@ -3788,6 +3789,7 @@ function PhoneTab({
   const [smsBody, setSmsBody] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  const [emailSender, setEmailSender] = useState('')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [mediaUploading, setMediaUploading] = useState(false)
   const [scheduleMode, setScheduleMode] = useState(false)
@@ -4122,6 +4124,7 @@ function PhoneTab({
     setSmsBody('')
     setEmailSubject('')
     setEmailBody('')
+    setEmailSender('')
     setMediaUrls([])
     setScheduleMode(false)
     setActionPanelOpen(false)
@@ -4354,6 +4357,7 @@ function PhoneTab({
     const currentSmsBody = smsDraftRef.current
     setSending(true)
     const replyFromNumber = selectedThreadFromNumber
+    let emailNeedsReconciliation = false
     try {
       if (composeChannel === 'sms' && scheduleMode) {
         const res = await fetch(`/api/marketing/contacts/${selected.id}/schedule-reply`, {
@@ -4395,6 +4399,15 @@ function PhoneTab({
         })
         const data = await res.json().catch(() => null) as { error?: string } | null
         if (!res.ok) throw new Error(data?.error || 'Could not send SMS')
+      } else if (!isOttawa(selected.city)) {
+        const res = await fetch(`/api/marketing/contacts/${selected.id}/send-email`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ sender: emailSender, subject: emailSubject, body: emailBody,
+            internalTest: selected.tags?.includes('internal-infrastructure-test') === true }),
+        })
+        const data = await res.json().catch(() => null) as { error?: string; reconciliationRequired?: boolean } | null
+        if (!res.ok) throw new Error(data?.error || 'Could not send email')
+        emailNeedsReconciliation = data?.reconciliationRequired === true
       } else {
         await sendSalesMessage({ channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody })
         await fetch('/api/marketing/touches', {
@@ -4407,7 +4420,7 @@ function PhoneTab({
           }),
         })
       }
-      showToast(composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
+      showToast(emailNeedsReconciliation ? 'Email accepted. Delivery records need reconciliation; do not resend.' : composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
       const outboundAt = new Date().toISOString()
       const updatedAfterSend = {
         ...selected,
@@ -4415,7 +4428,7 @@ function PhoneTab({
         latest_touch_channel: composeChannel,
         latest_touch_note: composeChannel === 'sms' ? currentSmsBody : emailBody,
         last_touch_at: outboundAt,
-        sequence_paused: false,
+        sequence_paused: composeChannel === 'email' && !isOttawa(selected.city) ? true : selected.sequence_paused,
         needs_follow_up: true,
       }
       setReplyContacts(curr => curr.some(c => c.id === selected.id)
@@ -5452,6 +5465,15 @@ function PhoneTab({
               </div>
             ) : (
               <div className="space-y-2">
+                {!isOttawa(selected.city) && <label className="block text-xs font-semibold text-slate-600">Send from
+                  <select aria-label="Send email from" value={emailSender} onChange={e => setEmailSender(e.target.value)} className="mt-1 min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+                    <option value="">Choose the address for this conversation</option>
+                    <option value="john">john@saturnstarmovers.ca</option>
+                    <option value="johnny">johnny@saturnstarmovers.ca</option>
+                    <option value="jhon">jhon@saturnstarmovers.ca</option>
+                    <option value="business">business@starmovers.ca</option>
+                  </select>
+                </label>}
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
                   className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
@@ -5465,7 +5487,7 @@ function PhoneTab({
                   </button>
                   <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder={selected.email ? 'Write a clear partnership email…' : 'No email'} disabled={!selected.email}
                     className="max-h-64 min-h-[120px] flex-1 resize-y rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
-                  <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
+                  <button onClick={handleSend} disabled={sending || !selected.email || !emailSubject.trim() || !emailBody.trim() || (!isOttawa(selected.city) && !emailSender)}
                     className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
