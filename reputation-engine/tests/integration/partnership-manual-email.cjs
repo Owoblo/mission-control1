@@ -1,9 +1,11 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+const threadExports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/partnership-email-thread-match.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:threadExports});
 function fixture(options={}) {
  const contact={id:'contact-1',email:'owner@example.com',city:'Toronto',sequence_paused:true,tags:['internal-infrastructure-test'],...options.contact};
  const calls=[],sent=[],touches=new Map();let reservations=0;
  const exports={};const runtime={readEnv:()=> 'owner@example.com',requireSupabaseEnv:()=>({url:'https://db.test',headers:{}})};
  const modules={
+  '@/lib/partnership-email-thread-match':threadExports,
   'next/server':{NextResponse:{json:(body,init)=>({status:init?.status||200,body})}},
   '@/lib/server/request-session':{getRequestSessionUser:async()=>options.session===null?null:options.session||{role:'owner',name:'Owner'}},
   '@/lib/server/partnership-access':{partnershipRecordMatchesSession:()=>options.scope!==false},
@@ -41,3 +43,5 @@ test('normal recipients require policy authorization and outreach ledger purpose
 test('test contact cannot enter normal outreach mode',async()=>{const f=fixture();assert.equal((await f.run({internalTest:false})).status,409);assert.equal(f.sent.length,0)});
 
 test('multiple sending identities require explicit selection',async()=>{const f=fixture({outbounds:[{metadata:{from:'john@saturnstarmovers.ca'}},{metadata:{from:'jhon@saturnstarmovers.ca'}}]});assert.equal((await f.run({sender:undefined})).status,400);assert.equal(f.sent.length,0)});
+
+test('Zoho normalized message IDs receive RFC brackets when replying',async()=>{const f=fixture({inbound:{id:'reply-zoho',metadata:{internet_message_id:'actual-message@mail.gmail.com'}}});assert.equal((await f.run()).status,200);assert.equal(f.sent[0].headers['In-Reply-To'],'<actual-message@mail.gmail.com>');assert.equal(f.sent[0].headers.References,'<actual-message@mail.gmail.com>')});

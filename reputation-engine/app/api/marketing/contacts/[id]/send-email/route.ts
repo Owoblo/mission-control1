@@ -6,6 +6,7 @@ import { readEnv, requireSupabaseEnv } from '@/lib/server/runtime'
 import { hasUnresolvedTemplateVariable } from '@/lib/server/saturn-send-gate'
 import { sendProviderEmail } from '@/lib/server/email-provider'
 import { reserveAction } from '@/lib/partnership-core/reserve.mjs'
+import { normalizeInternetMessageId } from '@/lib/partnership-email-thread-match'
 import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
 
 const addresses: Record<string, string> = {
@@ -66,7 +67,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!profile?.reply_to_email) return NextResponse.json({ error: 'Register this sender and its reply mailbox first' }, { status: 409 })
     const sender = `${profile.from_name || 'Saturn Star Movers'} <${address}>`
     const rawReplyId = inbound?.metadata?.internet_message_id
-    const replyId = typeof rawReplyId === 'string' && /^<[^<>\r\n]+>$/.test(rawReplyId) ? rawReplyId : undefined
+    const normalizedReplyId = typeof rawReplyId === 'string' ? normalizeInternetMessageId(rawReplyId) : null
+    const replyId = normalizedReplyId ? `<${normalizedReplyId}>` : undefined
     const hash = createHash('sha256').update(JSON.stringify([id, address, input.subject, input.body, inbound?.id || null, internalTest])).digest('hex')
     const touchId = uuid(hash), actionKey = `manual-email:${touchId}`
     const [prior] = await db('market_touches', { id: `eq.${touchId}`, select: 'metadata' })
