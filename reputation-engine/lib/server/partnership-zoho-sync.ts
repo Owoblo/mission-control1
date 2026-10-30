@@ -91,7 +91,10 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
   }
   // A rolling seven-day overlap catches delays and retries. Never imports historical sales mail.
   const lower = Math.max(Date.parse('2026-09-15T19:15:00Z'), Date.now() - 7 * 86400000)
-  let scanned = 0, imported = 0, alerted = 0, unresolved = 0, completed = false
+  const folders = await zoho<Array<{ folderId: string; folderName?: string; folderType?: string }>>(`/accounts/${account.accountId}/folders`)
+  const spamFolder = folders.find(folder => (folder.folderType || folder.folderName || '').toLowerCase() === 'spam')
+  if (!spamFolder) throw new Error('Spam folder coverage could not be verified')
+  let scanned = 0, imported = 0, alerted = 0, unresolved = 0, completed = true
   let headersRead = 0, cachedSkipped = 0, budgetExhausted = false
   async function markScanned(messageId: string, result: 'ignored' | 'unresolved_queued') {
     const key = `partnership-reply-scan:${account!.accountId}:${messageId}`
@@ -100,8 +103,10 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
     await db('email_provider_events', { on_conflict: 'id' }, 'POST', { id: eventId(key), provider: 'zoho', provider_event_id: key, provider_message_id: messageId, event_type: 'partnership_reply_scan', occurred_at: checkedAt, payload: { review_version: REPLY_SCAN_REVIEW_VERSION, checked_at: checkedAt, result } }, 'resolution=merge-duplicates,return=minimal')
   }
   mailboxPages:
-  for (let start = 1; start <= 4000; start += 200) {
-    const rows = await zoho<Mail[]>(`/accounts/${account.accountId}/messages/view?start=${start}&limit=200&includeto=true`)
+  for (const folderId of [spamFolder.folderId, undefined]) {
+   let folderComplete = false
+   for (let start = 1; start <= 4000; start += 200) {
+    const rows = await zoho<Mail[]>(`/accounts/${account.accountId}/messages/view?start=${start}&limit=200&includeto=true${folderId ? '&folderId=' + encodeURIComponent(folderId) : ''}`)
     const priorTouches = new Map<string, { metadata?: { alert_sent_at?: string } }>()
     const scanCache = new Map<string, ReplyScanCache>()
     // Batch lookups by page, keeping URI size bounded. Every invocation walks from the newest page;
@@ -127,7 +132,7 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
       const prior = priorTouches.get(id)
       const disposition = replyScanDisposition({ alerted: !!prior?.metadata?.alert_sent_at, cache: scanCache.get(eventId(`partnership-reply-scan:${account.accountId}:${mail.messageId}`)), now: Date.now(), headersRead })
       if (disposition === 'skip') { cachedSkipped++; continue }
-      if (disposition === 'budget_exhausted') { budgetExhausted = true; break mailboxPages }
+      if (disposition === 'budget_exhausted') { budgetExhausted = true; completed = false; break mailboxPages }
       headersRead++
       const header = await zoho<{ headerContent?: string }>(`/accounts/${account.accountId}/folders/${mail.folderId}/messages/${mail.messageId}/header`)
       const match = matchPartnershipReply({ from, receivedAt: timestamp, headers: header.headerContent || '', contacts, outbound })
@@ -150,7 +155,7 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
       const reply = currentEmailReply(body), kind = classifyPartnershipEmail(mail.subject || '', body)
       const human = kind === 'reply' || kind === 'handoff' || kind === 'opt_out'
       const occurredAt = new Date(timestamp).toISOString()
-      const metadata = { source: 'zoho', zoho_message_id: mail.messageId, zoho_account_id: account.accountId, subject: mail.subject || '', from, to: mailbox, email_kind: kind, human_reply: human, internet_message_id: internetMessageId, reply_match: match, reply_analysis: analyzePartnershipEmailReply(mail.subject || '', body), body, reply_preview: reply }
+      const metadata = { source: 'zoho', zoho_message_id: mail.messageId, zoho_account_id: account.accountId, zoho_folder_id: mail.folderId, found_in_spam: mail.folderId === spamFolder.folderId, subject: mail.subject || '', from, to: mailbox, email_kind: kind, human_reply: human, internet_message_id: internetMessageId, reply_match: match, reply_analysis: analyzePartnershipEmailReply(mail.subject || '', body), body, reply_preview: reply }
       if (!prior) {
         await db('market_touches', {}, 'POST', { id, contact_id: contact.id, channel: 'email', direction: 'inbound', notes: `Subject: ${mail.subject || '(no subject)'}\n\n${body}`, created_by: 'Zoho reply sync', created_at: occurredAt, outcome_code: kind === 'opt_out' ? 'opt_out' : kind === 'handoff' ? 'referred_contact' : kind === 'reply' ? 'email_replied' : 'email_' + kind, next_step: partnershipEmailAction(kind), metadata }, 'resolution=ignore-duplicates,return=representation')
         imported++
@@ -181,7 +186,9 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
       await db('market_touches', { id: 'eq.' + id }, 'PATCH', { metadata: { ...metadata, alert_sent_at: new Date().toISOString() } })
       alerted++
     }
-    if (rows.length < 200 || rows.every(m => Number(m.receivedTime) < lower)) { completed = true; break }
+    if (rows.length < 200 || rows.every(m => Number(m.receivedTime) < lower)) { folderComplete = true; break }
+   }
+   if (!folderComplete) completed = false
   }
   const paginationLimitReached = !completed && !budgetExhausted
   return { ok: true, scanned, imported, alerted, unresolved, headersRead, headerBudget: REPLY_SCAN_HEADER_BUDGET, cachedSkipped, completed, partial: !completed, budgetExhausted, paginationLimitReached }

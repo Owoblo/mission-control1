@@ -13,6 +13,7 @@ test('mailbox import retries failed alerts without duplicate touches or false hu
   const latest = new Map<string, string>()
   const cancelled: Record<string, any>[] = []
   const rows = contacts.map((c, i) => ({ messageId: 'm' + i, folderId: 'f', fromAddress: c.email, subject: i === 1 ? 'Your email requires verification verify#123' : 'RE: Moving support', receivedTime: String(Date.parse('2026-09-15T20:00:00Z')) }))
+  const spamRows: typeof rows = []
   const touches = new Map<string, Record<string, any>>()
   const patches: Record<string, any>[] = []
   let fail = true, notifications = 0
@@ -23,7 +24,8 @@ test('mailbox import retries failed alerts without duplicate touches or false hu
     if (u.hostname === 'mail.zohocloud.ca') {
       let data: unknown = []
       if (u.pathname === '/api/accounts') data = [{ accountId: 'a', primaryEmailAddress: 'business@starmovers.ca' }]
-      else if (u.pathname.endsWith('/messages/view')) data = rows
+      else if (u.pathname.endsWith('/folders')) data = [{folderId:'spam',folderType:'Spam'}]
+      else if (u.pathname.endsWith('/messages/view')) data = u.searchParams.get('folderId') === 'spam' ? spamRows : rows
       else if (u.pathname.endsWith('/header')) data = { headerContent: 'Message-ID: <reply@example.test>\r\n' }
       else if (u.pathname.endsWith('/content')) data = { content: u.pathname.includes('m0') ? '<p>Please reach out to Facility Department.</p><div>From: John</div><p>Original message</p>' : u.pathname.includes('m2') ? '<p>No thanks.</p><p>Kind regards,</p><p>Jane Smith</p>' : '<p>Verify that you are a real live human. Leslie will manually review it.</p>' }
       return Response.json({ status: { code: 200 }, data })
@@ -81,6 +83,13 @@ test('mailbox import retries failed alerts without duplicate touches or false hu
     rows.push({ ...rows[0], messageId: 'm0-older', receivedTime: String(Date.parse('2026-09-15T21:00:00Z')) })
     assert.equal((await syncPartnershipZohoReplies()).imported, 2)
     assert.equal(latest.get('c1'), '2026-09-15T22:00:00.000Z')
+    spamRows.push({ ...rows[0], folderId: 'spam', messageId: 'm0-spam', receivedTime: String(Date.parse('2026-09-15T23:00:00Z')) })
+    assert.equal((await syncPartnershipZohoReplies()).imported, 1)
+    const spamTouch = [...touches.values()].find(t => t.metadata.zoho_message_id === 'm0-spam')!
+    assert.equal(spamTouch.metadata.found_in_spam, true)
+    assert.equal(spamTouch.metadata.zoho_folder_id, 'spam')
+    assert.equal(latest.get('c1'), '2026-09-15T23:00:00.000Z')
+    assert.equal((await syncPartnershipZohoReplies()).imported, 0)
   } finally {
     global.fetch = oldFetch; Date.now = oldNow
     for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value }
