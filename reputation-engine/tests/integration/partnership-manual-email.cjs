@@ -21,7 +21,7 @@ function fixture(options={}) {
   if(table==='market_touches'){
    if(method==='POST'){if(touches.has(body.id))return {ok:false,status:409};touches.set(body.id,body);result=[body]}
    else if(method==='PATCH'){const id=u.searchParams.get('id').slice(3);touches.set(id,{...touches.get(id),...body})}
-   else if(u.searchParams.has('direction'))result=u.searchParams.get('direction')==='eq.inbound'?(options.inbound?[options.inbound]:[]):(options.outbound?[options.outbound]:[]);
+   else if(u.searchParams.has('direction'))result=u.searchParams.get('direction')==='eq.inbound'?(options.inbound?[options.inbound]:[]):(options.outbounds || (options.outbound?[options.outbound]:[]));
    else{const prior=touches.get(u.searchParams.get('id').slice(3));result=prior?[prior]:[]}
   }
   return {ok:true,status:200,json:async()=>result};
@@ -39,3 +39,5 @@ test('uncertain provider outcome blocks retries',async()=>{const f=fixture({send
 test('accepted send with failed CRM write reports reconciliation, not safe retry',async()=>{const f=fixture({patchError:true});const r=await f.run();assert.equal(r.status,202);assert.equal(r.body.reconciliationRequired,true);await f.run();assert.equal(f.sent.length,1)});
 test('normal recipients require policy authorization and outreach ledger purpose',async()=>{const f=fixture({contact:{tags:[]}});assert.equal((await f.run({internalTest:false})).status,200);assert.equal(f.reservations,1);assert.equal(f.sent[0].purpose,'outreach');assert.ok(f.sent[0].context.policyActionKey);const blocked=fixture({contact:{tags:[]},policyError:true});assert.equal((await blocked.run({internalTest:false})).status,409);assert.equal(blocked.sent.length,0)});
 test('test contact cannot enter normal outreach mode',async()=>{const f=fixture();assert.equal((await f.run({internalTest:false})).status,409);assert.equal(f.sent.length,0)});
+
+test('multiple sending identities require explicit selection',async()=>{const f=fixture({outbounds:[{metadata:{from:'john@saturnstarmovers.ca'}},{metadata:{from:'jhon@saturnstarmovers.ca'}}]});assert.equal((await f.run({sender:undefined})).status,400);assert.equal(f.sent.length,0)});

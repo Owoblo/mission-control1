@@ -10,6 +10,7 @@ test('mailbox import retries failed alerts without duplicate touches or false hu
   Date.now = () => Date.parse('2026-09-16T12:00:00Z')
   const contacts = [{ id: 'c1', name: 'Purchasing', company: 'City', city: 'Windsor', email: 'purchasing@example.test', email_last_sent_at: '2026-09-15T19:16:00Z' }, { id: 'c2', name: 'Info', company: 'Innomation', city: 'Windsor', email: 'info@example.test', email_last_sent_at: '2026-09-15T19:16:00Z' }]
   contacts.push({ id: 'c3', name: 'Owner', company: 'Example', city: 'Windsor', email: 'owner@example.test', email_last_sent_at: '2026-09-15T19:16:00Z' })
+  const latest = new Map<string, string>()
   const cancelled: Record<string, any>[] = []
   const rows = contacts.map((c, i) => ({ messageId: 'm' + i, folderId: 'f', fromAddress: c.email, subject: i === 1 ? 'Your email requires verification verify#123' : 'RE: Moving support', receivedTime: String(Date.parse('2026-09-15T20:00:00Z')) }))
   const touches = new Map<string, Record<string, any>>()
@@ -33,13 +34,23 @@ test('mailbox import retries failed alerts without duplicate touches or false hu
         if (fail) { fail = false; return Response.json({error:'temporary'}, {status:503}) }
         notifications++; return Response.json({id:'alert'})
       }
-      if (u.pathname.endsWith('/market_contacts')) { if (method === 'PATCH') { patches.push({ id: u.searchParams.get('id'), ...body }); return Response.json([]) } return Response.json(contacts) }
+      if (u.pathname.endsWith('/email_provider_events')) return Response.json([])
+      if (u.pathname.endsWith('/market_contacts')) {
+        if (method === 'PATCH') {
+          const id = u.searchParams.get('id')!.slice(3)
+          patches.push({ id: 'eq.' + id, ...body })
+          if (body.last_inbound_at && (!u.searchParams.has('or') || !latest.has(id) || latest.get(id)! < body.last_inbound_at)) latest.set(id, body.last_inbound_at)
+          return Response.json([])
+        }
+        return Response.json(contacts.map(c => ({ ...c, last_inbound_at: latest.get(c.id) })))
+      }
       if (u.pathname.endsWith('/sequence_jobs')) { cancelled.push({ contact_id: u.searchParams.get('contact_id'), status_filter: u.searchParams.get('status'), ...body }); return Response.json([]) }
       if (u.pathname.endsWith('/market_touches')) {
         if (method === 'POST') { touches.set(body.id, body); return Response.json([body]) }
         const id = u.searchParams.get('id')?.slice(3), row = id ? touches.get(id) : undefined
         if (method === 'PATCH') { Object.assign(row!, body); return Response.json([row]) }
-        return Response.json(row ? [row] : [])
+        const ids = u.searchParams.get('id')
+        return Response.json(ids?.startsWith('in.(') ? [...touches.values()].filter(t => ids.includes(t.id)) : row ? [row] : [])
       }
     }
     throw Error('Unexpected request ' + u)
@@ -65,6 +76,11 @@ test('mailbox import retries failed alerts without duplicate touches or false hu
     assert.equal(suppressed.cross_channel_suppression_reason, 'email_opt_out')
     assert.ok(suppressed.email_unsubscribed_at)
     assert.ok(cancelled.some(p => p.contact_id === 'eq.c3' && p.status_filter === 'eq.pending' && p.status === 'cancelled'))
+    // Multiple replies for one contact arrive newest first in a single scan.
+    rows.unshift({ ...rows[0], messageId: 'm0-new', receivedTime: String(Date.parse('2026-09-15T22:00:00Z')) })
+    rows.push({ ...rows[0], messageId: 'm0-older', receivedTime: String(Date.parse('2026-09-15T21:00:00Z')) })
+    assert.equal((await syncPartnershipZohoReplies()).imported, 2)
+    assert.equal(latest.get('c1'), '2026-09-15T22:00:00.000Z')
   } finally {
     global.fetch = oldFetch; Date.now = oldNow
     for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value }

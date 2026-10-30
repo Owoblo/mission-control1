@@ -171,9 +171,10 @@ export async function syncPartnershipZohoReplies(market: 'saturn' | 'ottawa' = '
       }
       // Keep automatic messages visible without inflating human response metrics.
       const updates: Record<string,unknown> = { sequence_paused: true, sequence_paused_reason: 'email_' + kind }
-      if (human && (!contact.last_inbound_at || Date.parse(contact.last_inbound_at) <= timestamp)) updates.last_inbound_at = occurredAt
       if (kind === 'opt_out') Object.assign(updates, { do_not_contact: true, email_status: 'unsubscribed', email_unsubscribed_at: occurredAt, cross_channel_suppressed_at: occurredAt, cross_channel_suppression_reason: 'email_opt_out' })
       await db('market_contacts', { id: 'eq.' + contact.id }, 'PATCH', updates)
+      // Pages arrive newest first; compare at the database so older replies and concurrent scans cannot move this clock backwards.
+      if (human) await db('market_contacts', { id: 'eq.' + contact.id, or: `(last_inbound_at.is.null,last_inbound_at.lt.${occurredAt})` }, 'PATCH', { last_inbound_at: occurredAt })
       await db('sequence_jobs', { contact_id: 'eq.' + contact.id, status: 'eq.pending' }, 'PATCH', { status: 'cancelled', error: 'Paused after Zoho email ' + kind })
       const labels = { reply: 'Partner email reply', handoff: 'Partner referral / routing reply', verification: 'Partner email verification required', verification_pending_review: 'Partner verification received — awaiting review', automatic_reply: 'Partner automatic email reply', opt_out: 'Partner email opt-out', delivery_failure: 'Partner email delivery failure' }
       await sendPartnershipEmailAlert({ id, contactId: contact.id, contactName: contact.name, company: contact.company, city: contact.city, email: from, occurredAt, label: labels[kind], subject: mail.subject, notes: reply + '\n\nNext action: ' + partnershipEmailAction(kind) })

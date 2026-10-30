@@ -52,9 +52,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     if (testContact && !internalTest) return NextResponse.json({ error: 'Internal test contacts cannot receive campaign email' }, { status: 409 })
     const [inbound] = await db('market_touches', { contact_id: `eq.${id}`, channel: 'eq.email', direction: 'eq.inbound', order: 'created_at.desc,id.desc', limit: '1', select: 'id,metadata' })
-    const [outbound] = await db('market_touches', { contact_id: `eq.${id}`, channel: 'eq.email', direction: 'eq.outbound', order: 'created_at.desc,id.desc', limit: '1', select: 'metadata' })
-    const previousFrom = String(outbound?.metadata?.from || '')
-    const previousAddress = (previousFrom.match(/<([^<>]+)>/)?.[1] || previousFrom).toLowerCase()
+    const outbound = await db('market_touches', { contact_id: `eq.${id}`, channel: 'eq.email', direction: 'eq.outbound', order: 'created_at.desc,id.desc', limit: '50', select: 'metadata' })
+    const previousAddresses = [...new Set(outbound.map((touch: {metadata?: {from?: string}}) => {
+      const from = String(touch.metadata?.from || '')
+      return (from.match(/<([^<>]+)>/)?.[1] || from).toLowerCase()
+    }).filter(Boolean))]
+    // A contact can have several independent threads. Never guess an identity across them.
+    const previousAddress = previousAddresses.length === 1 && outbound.length < 50 ? previousAddresses[0] : undefined
     const senderKey = input.sender || Object.keys(addresses).find(key => addresses[key] === previousAddress)
     if (!senderKey) return NextResponse.json({ error: 'Choose an authorized sender for this conversation' }, { status: 400 })
     const address = addresses[senderKey]
