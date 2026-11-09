@@ -1,3 +1,5 @@
+import { isOperationsVoice } from '@/lib/operations-phone'
+import { POST as operationsVoice } from '@/app/api/sales/operations/twiml/route'
 import { partnershipCellForwardTarget } from '@/lib/partnership-call-forwarding'
 import { after } from 'next/server'
 import { callbackHold } from '@/lib/conversation-integrity'
@@ -28,8 +30,6 @@ const INBOUND_RING_TIMEOUT = 28             // seconds before missed-call action
 const DIAL_RECORDING_MODE = 'record-from-answer'
 const DIAL_RECORDING_TRIM = 'do-not-trim'
 const DIAL_RECORDING_EVENTS = 'completed absent'
-const OPERATIONS_NUMBER = '+12267746581'
-const OPERATIONS_FORWARD_NUMBER = '+12267241730'
 
 const dialerRosterCache: Partial<Record<'sales' | 'partnership', {
   expiresAt: number
@@ -250,6 +250,7 @@ export async function POST(request: Request) {
     const rejection = await authorizeTwilioWebhook(request, rawBody)
     if (rejection) return rejection
     const formData = carrierVoiceForm(rawBody)
+    if (isOperationsVoice(formData)) return operationsVoice(new Request(request.url, {method:'POST',headers:request.headers,body:rawBody}))
     const to = (formData.get('To') as string | null)?.trim()
     const from = (formData.get('From') as string | null)?.trim()
     const direction = (formData.get('Direction') as string | null)?.trim()
@@ -289,16 +290,6 @@ export async function POST(request: Request) {
         }))
       }
       const appUrl = getRequestOrigin(request) || getAppUrl()
-
-      // The dedicated Operations line behaves like the partnership lines: calls
-      // follow the operator to their phone while preserving recording callbacks.
-      if (normalizePhoneTarget(normalizedTo) === OPERATIONS_NUMBER) {
-        const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
-        const dialAttrs = buildDialRecordingAttrs(recordingCallback)
-        return xmlResponse(
-          `<?xml version="1.0" encoding="UTF-8"?><Response><Dial ${dialAttrs}><Number>${OPERATIONS_FORWARD_NUMBER}</Number></Dial></Response>`
-        )
-      }
 
       // IVR menu — active when enabled in Settings UI (or env var override)
       const ivrEnabled = dialerSettings?.ivr?.enabled || process.env.ENABLE_IVR_MENU === 'true'

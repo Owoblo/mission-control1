@@ -1,3 +1,4 @@
+import { isOperationsCallAddress } from '@/lib/operations-phone'
 import { findBlockedCaller, getDialerSettings } from '@/lib/server/dialer-settings'
 import { isSmsProviderReceipt } from '@/lib/telephony-providers'
 import { carrierVoiceForm } from '@/lib/server/carrier-voice'
@@ -33,6 +34,8 @@ export async function POST(request: Request) {
     const rawBody = await request.text()
     const rejection = await authorizeTwilioWebhook(request, rawBody)
     if (rejection) return rejection
+    const operationsForm = new URLSearchParams(rawBody)
+    if ([operationsForm.get('From'),operationsForm.get('To'),searchParams.get('branchNumber')].some(isOperationsCallAddress)) return new Response(null,{status:204})
     await captureTwilioInteraction(rawBody, 'twilio_call_status', 'call')
     const form = carrierVoiceForm(rawBody)
     const callStatus = (form.get('CallStatus') as string || '').toLowerCase()

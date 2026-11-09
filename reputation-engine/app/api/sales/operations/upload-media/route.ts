@@ -1,3 +1,4 @@
+import { operationsSession } from '@/lib/server/operations-phone'
 /**
  * POST /api/sales/operations/upload-media
  * Accepts a file upload and stores it in Supabase ops-media bucket.
@@ -9,11 +10,13 @@ const SUPA_URL = 'https://idbyrtwdeeruiutoukct.supabase.co'
 const BUCKET = 'ops-media'
 
 export async function POST(request: Request) {
+  if (!await operationsSession(request)) return NextResponse.json({error:'Forbidden'},{status:403})
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
+    if (file.size > 5 * 1024 * 1024 || !['image/jpeg','image/png','image/gif','application/pdf'].includes(file.type)) return NextResponse.json({error:'Choose a JPG, PNG, GIF or PDF up to 5 MB.'},{status:400})
     const ext = file.name.split('.').pop() || 'bin'
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
