@@ -3,6 +3,7 @@ import { getTwilioCredentials, readEnv } from '@/lib/server/runtime'
 import { twilioAuth } from '@/lib/server/twilio-recordings'
 import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
 import { randomUUID } from 'node:crypto'
+import type { SmsReplyContext } from './alert-outbox'
 import { enqueueInternalAlert } from './alert-outbox'
 import { requireSupabaseEnv } from './runtime'
 
@@ -130,10 +131,10 @@ export async function sendInternalAlertSms(to: string, body: string, from: strin
   }).catch(() => {})
 }
 
-export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients?: string[], eventKey?: string) {
+export async function sendRepAlertEmail(subject: string, htmlBody: string, recipients?: string[], eventKey?: string, smsReply?: SmsReplyContext) {
   const to = uniqueEmails(recipients ?? await getRepAlertRecipients())
   if (!to.length) return
-  await enqueueInternalAlert(eventKey || `internal-alert:${randomUUID()}`, { recipients: to, subject, html: htmlBody })
+  await enqueueInternalAlert(eventKey || `internal-alert:${randomUUID()}`, { recipients: to, subject, html: htmlBody, ...(smsReply ? { smsReply } : {}) })
 }
 
 export function partnershipInboundNotificationEmail(options: {

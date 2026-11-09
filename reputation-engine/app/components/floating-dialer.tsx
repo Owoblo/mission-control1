@@ -16,6 +16,7 @@ import {
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { getSaturnBranchLabel, isSaturnBranchPhoneNumber, normalizePhone as normalizeSharedPhone } from '@/lib/sales-phones'
 import { loadTwilioVoiceSdk } from '@/lib/twilio-voice-sdk'
+import { InCallKeypad } from '@/app/components/in-call-keypad'
 import type { CRMLead } from '@/lib/types'
 
 declare global {
@@ -24,6 +25,8 @@ declare global {
     reject?: () => void
     disconnect: () => void
     mute: (value: boolean) => void
+    status: () => string
+    sendDigits: (digits: string) => void
     on: (event: string, handler: (...args: any[]) => void) => void
     parameters?: Record<string, string>
   }
@@ -2709,6 +2712,8 @@ export function FloatingDialer() {
                   </span>
                 </div>
               </div>
+
+              <InCallKeypad getCall={() => activeCallRef.current} blocked={customerOnHold || conferencing || Boolean(warmTransferSession)} />
 
               {/* Call Notes */}
               {status === 'active' && (

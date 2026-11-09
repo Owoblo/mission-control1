@@ -129,6 +129,10 @@ async function queueInboundPartnerAlert(contact: MarketContactMatch, input: Paus
       email: contact.email || input.email || null, mediaUrls: metadataMediaUrls(input.metadata) }),
     getPartnershipAlertRecipients(contact.city),
     `partner-inbound:${contact.id}:${input.channel}:${providerKey}`,
+    input.channel === 'sms' && input.metadata?.messageSid ? {
+      contactId: contact.id, fromNumber: String(input.metadata.to || ''),
+      toNumber: String(input.metadata.from || input.phone || ''), sourceMessageId: String(input.metadata.messageSid),
+    } : undefined,
   )
 }
 

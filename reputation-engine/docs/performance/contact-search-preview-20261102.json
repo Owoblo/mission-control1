@@ -1,0 +1,3379 @@
+{
+  "applicationCommit": "8faf1f1",
+  "deployment": "dpl_9M2gXmi7S1eEcEzZ2bEyjkpzFxjX",
+  "trials": [
+    {
+      "measuredAt": "2026-11-02T14:15:19.202Z",
+      "base": "https://mission-control1-reputation-engine-jtifb5p6h.vercel.app",
+      "dataset": "34,137 synthetic records; same preview build, legacy loader vs new contact lookup",
+      "results": [
+        {
+          "mode": "fast",
+          "browserRequestCount": 44,
+          "networkTotals": {
+            "transferBytes": 525784,
+            "encodedBytes": 513184,
+            "decodedBytes": 1615629
+          },
+          "inputToRenderedResultMs": 847,
+          "navigationToResultMs": 2955,
+          "responseEndToRenderedMs": 352,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "apiRequests": 14,
+          "responseJsonBytes": 3342,
+          "directoryPageRequests": 0,
+          "searchRequests": 1,
+          "resources": [
+            {
+              "path": "/api/auth/me",
+              "durationMs": 841.2000000029802,
+              "responseEnd": 1606.7999999970198,
+              "transferBytes": 383,
+              "encodedBytes": 83,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/sales/notifications",
+              "durationMs": 863.5,
+              "responseEnd": 1631.7999999970198,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/recent-sales",
+              "durationMs": 2116.9000000059605,
+              "responseEnd": 2885.5,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/sms/replies",
+              "durationMs": 1018.7999999970198,
+              "responseEnd": 1787.5999999940395,
+              "transferBytes": 741,
+              "encodedBytes": 441,
+              "decodedBytes": 1574
+            },
+            {
+              "path": "/api/auth/me",
+              "durationMs": 877.2000000029802,
+              "responseEnd": 1646.2000000029802,
+              "transferBytes": 383,
+              "encodedBytes": 83,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/marketing/batches",
+              "durationMs": 275.5,
+              "responseEnd": 1044.7000000029802,
+              "transferBytes": 439,
+              "encodedBytes": 139,
+              "decodedBytes": 294
+            },
+            {
+              "path": "/api/marketing/lists",
+              "durationMs": 292.1000000089407,
+              "responseEnd": 1061.5,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/relationship-summary",
+              "durationMs": 247.70000000298023,
+              "responseEnd": 1017.2000000029802,
+              "transferBytes": 322,
+              "encodedBytes": 22,
+              "decodedBytes": 16
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 142,
+              "responseEnd": 2032.7999999970198,
+              "transferBytes": 0,
+              "encodedBytes": 0,
+              "decodedBytes": 0
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/context",
+              "durationMs": 152.6000000089407,
+              "responseEnd": 2043.7000000029802,
+              "transferBytes": 465,
+              "encodedBytes": 165,
+              "decodedBytes": 224
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+              "durationMs": 102,
+              "responseEnd": 1993.2999999970198,
+              "transferBytes": 391,
+              "encodedBytes": 91,
+              "decodedBytes": 106
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 136.29999999701977,
+              "responseEnd": 2027.8999999910593,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 124.90000000596046,
+              "responseEnd": 2016.7000000029802,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 95.70000000298023,
+              "responseEnd": 2128.2999999970198,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts/search",
+              "durationMs": 212.30000001192093,
+              "responseEnd": 2599.2000000029802,
+              "transferBytes": 580,
+              "encodedBytes": 280,
+              "decodedBytes": 448
+            }
+          ],
+          "errors": []
+        },
+        {
+          "mode": "legacy",
+          "browserRequestCount": 112,
+          "networkTotals": {
+            "transferBytes": 900225,
+            "encodedBytes": 866925,
+            "decodedBytes": 54643832
+          },
+          "inputToRenderedResultMs": 15676,
+          "navigationToResultMs": 16300,
+          "responseEndToRenderedMs": 1697,
+          "longTaskCount": 1,
+          "longTaskMs": 1645,
+          "apiRequests": 83,
+          "responseJsonBytes": 53031545,
+          "directoryPageRequests": 69,
+          "searchRequests": 0,
+          "resources": [
+            {
+              "path": "/api/auth/me",
+              "durationMs": 222.40000000596046,
+              "responseEnd": 552.4000000059605,
+              "transferBytes": 384,
+              "encodedBytes": 84,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/sales/notifications",
+              "durationMs": 238.59999999403954,
+              "responseEnd": 569.0999999940395,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 374.69999998807907,
+              "responseEnd": 705.5999999940395,
+              "transferBytes": 6385,
+              "encodedBytes": 6085,
+              "decodedBytes": 774814
+            },
+            {
+              "path": "/api/marketing/recent-sales",
+              "durationMs": 513.5999999940395,
+              "responseEnd": 844.5999999940395,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/sms/replies",
+              "durationMs": 237.40000000596046,
+              "responseEnd": 568.7000000029802,
+              "transferBytes": 741,
+              "encodedBytes": 441,
+              "decodedBytes": 1574
+            },
+            {
+              "path": "/api/auth/me",
+              "durationMs": 178.90000000596046,
+              "responseEnd": 510.40000000596046,
+              "transferBytes": 384,
+              "encodedBytes": 84,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/marketing/batches",
+              "durationMs": 183.40000000596046,
+              "responseEnd": 515,
+              "transferBytes": 439,
+              "encodedBytes": 139,
+              "decodedBytes": 294
+            },
+            {
+              "path": "/api/marketing/lists",
+              "durationMs": 211.20000000298023,
+              "responseEnd": 543,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/relationship-summary",
+              "durationMs": 257.09999999403954,
+              "responseEnd": 589,
+              "transferBytes": 322,
+              "encodedBytes": 22,
+              "decodedBytes": 16
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 117,
+              "responseEnd": 725.4000000059605,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/context",
+              "durationMs": 117,
+              "responseEnd": 725.7000000029802,
+              "transferBytes": 465,
+              "encodedBytes": 165,
+              "decodedBytes": 224
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+              "durationMs": 110.1000000089407,
+              "responseEnd": 719.7000000029802,
+              "transferBytes": 391,
+              "encodedBytes": 91,
+              "decodedBytes": 106
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 116,
+              "responseEnd": 725.7999999970198,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 126.19999998807907,
+              "responseEnd": 736.0999999940395,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 193.79999999701977,
+              "responseEnd": 907.7999999970198,
+              "transferBytes": 5700,
+              "encodedBytes": 5400,
+              "decodedBytes": 775029
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 105.29999999701977,
+              "responseEnd": 859.0999999940395,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 188.3999999910593,
+              "responseEnd": 1101.2999999970198,
+              "transferBytes": 5398,
+              "encodedBytes": 5098,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 267.29999999701977,
+              "responseEnd": 1378.2000000029802,
+              "transferBytes": 5907,
+              "encodedBytes": 5607,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190.59999999403954,
+              "responseEnd": 1578.0999999940395,
+              "transferBytes": 5953,
+              "encodedBytes": 5653,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 189.40000000596046,
+              "responseEnd": 1772.4000000059605,
+              "transferBytes": 5324,
+              "encodedBytes": 5024,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 192.1000000089407,
+              "responseEnd": 1975.4000000059605,
+              "transferBytes": 5853,
+              "encodedBytes": 5553,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 177.79999999701977,
+              "responseEnd": 2163.2000000029802,
+              "transferBytes": 5903,
+              "encodedBytes": 5603,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 240.59999999403954,
+              "responseEnd": 2412.2999999970198,
+              "transferBytes": 5395,
+              "encodedBytes": 5095,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 196.09999999403954,
+              "responseEnd": 2618.5999999940395,
+              "transferBytes": 5862,
+              "encodedBytes": 5562,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184.29999999701977,
+              "responseEnd": 2809.7999999970198,
+              "transferBytes": 5964,
+              "encodedBytes": 5664,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 214.30000001192093,
+              "responseEnd": 3033.9000000059605,
+              "transferBytes": 5330,
+              "encodedBytes": 5030,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 194.59999999403954,
+              "responseEnd": 3239.2999999970198,
+              "transferBytes": 5884,
+              "encodedBytes": 5584,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186.79999999701977,
+              "responseEnd": 3431.0999999940395,
+              "transferBytes": 5953,
+              "encodedBytes": 5653,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 229.70000000298023,
+              "responseEnd": 3665.5,
+              "transferBytes": 5941,
+              "encodedBytes": 5641,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 220.30000001192093,
+              "responseEnd": 3890.4000000059605,
+              "transferBytes": 5872,
+              "encodedBytes": 5572,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 197.5,
+              "responseEnd": 4092.5999999940395,
+              "transferBytes": 5960,
+              "encodedBytes": 5660,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 213.59999999403954,
+              "responseEnd": 4307.79999999702,
+              "transferBytes": 5239,
+              "encodedBytes": 4939,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 219,
+              "responseEnd": 4531.5,
+              "transferBytes": 5862,
+              "encodedBytes": 5562,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 167.3999999910593,
+              "responseEnd": 4703.79999999702,
+              "transferBytes": 5958,
+              "encodedBytes": 5658,
+              "decodedBytes": 776029
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184.09999999403954,
+              "responseEnd": 4897.29999999702,
+              "transferBytes": 5297,
+              "encodedBytes": 4997,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 250.6000000089407,
+              "responseEnd": 5156.9000000059605,
+              "transferBytes": 5738,
+              "encodedBytes": 5438,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 179.40000000596046,
+              "responseEnd": 5344.20000000298,
+              "transferBytes": 5410,
+              "encodedBytes": 5110,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186.70000000298023,
+              "responseEnd": 5535.20000000298,
+              "transferBytes": 5170,
+              "encodedBytes": 4870,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 181.70000000298023,
+              "responseEnd": 5722,
+              "transferBytes": 5062,
+              "encodedBytes": 4762,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 188.70000000298023,
+              "responseEnd": 5916.9000000059605,
+              "transferBytes": 5323,
+              "encodedBytes": 5023,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 178.29999999701977,
+              "responseEnd": 6105.5999999940395,
+              "transferBytes": 5434,
+              "encodedBytes": 5134,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 171.40000000596046,
+              "responseEnd": 6287,
+              "transferBytes": 5308,
+              "encodedBytes": 5008,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 171.90000000596046,
+              "responseEnd": 6464,
+              "transferBytes": 5780,
+              "encodedBytes": 5480,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 181.5,
+              "responseEnd": 6654.20000000298,
+              "transferBytes": 5169,
+              "encodedBytes": 4869,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190,
+              "responseEnd": 6855,
+              "transferBytes": 5068,
+              "encodedBytes": 4768,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 197.59999999403954,
+              "responseEnd": 7057.0999999940395,
+              "transferBytes": 5344,
+              "encodedBytes": 5044,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 196.40000000596046,
+              "responseEnd": 7264.5,
+              "transferBytes": 5430,
+              "encodedBytes": 5130,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 193,
+              "responseEnd": 7563.20000000298,
+              "transferBytes": 5311,
+              "encodedBytes": 5011,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 179.19999998807907,
+              "responseEnd": 7751.0999999940395,
+              "transferBytes": 5502,
+              "encodedBytes": 5202,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 179.79999999701977,
+              "responseEnd": 7940.5,
+              "transferBytes": 5268,
+              "encodedBytes": 4968,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 174.80000001192093,
+              "responseEnd": 8120.9000000059605,
+              "transferBytes": 5068,
+              "encodedBytes": 4768,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 255.70000000298023,
+              "responseEnd": 8379.5,
+              "transferBytes": 5460,
+              "encodedBytes": 5160,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190.5,
+              "responseEnd": 8580.40000000596,
+              "transferBytes": 5416,
+              "encodedBytes": 5116,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 172.59999999403954,
+              "responseEnd": 8758.29999999702,
+              "transferBytes": 5338,
+              "encodedBytes": 5038,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184.5,
+              "responseEnd": 8952.90000000596,
+              "transferBytes": 5580,
+              "encodedBytes": 5280,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 176,
+              "responseEnd": 9138.59999999404,
+              "transferBytes": 5273,
+              "encodedBytes": 4973,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 174.1000000089407,
+              "responseEnd": 9319.70000000298,
+              "transferBytes": 5084,
+              "encodedBytes": 4784,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 194,
+              "responseEnd": 9517.40000000596,
+              "transferBytes": 5444,
+              "encodedBytes": 5144,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 355.5,
+              "responseEnd": 9882.5,
+              "transferBytes": 5267,
+              "encodedBytes": 4967,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186.40000000596046,
+              "responseEnd": 10080.20000000298,
+              "transferBytes": 5302,
+              "encodedBytes": 5002,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 166.5,
+              "responseEnd": 10257.09999999404,
+              "transferBytes": 5514,
+              "encodedBytes": 5214,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 178.40000000596046,
+              "responseEnd": 10439.90000000596,
+              "transferBytes": 5174,
+              "encodedBytes": 4874,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 185.8999999910593,
+              "responseEnd": 10636.09999999404,
+              "transferBytes": 5052,
+              "encodedBytes": 4752,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 175.40000000596046,
+              "responseEnd": 10820.90000000596,
+              "transferBytes": 5388,
+              "encodedBytes": 5088,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184.90000000596046,
+              "responseEnd": 11012.90000000596,
+              "transferBytes": 5899,
+              "encodedBytes": 5599,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 182,
+              "responseEnd": 11208.59999999404,
+              "transferBytes": 5350,
+              "encodedBytes": 5050,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 200.29999999701977,
+              "responseEnd": 11418.70000000298,
+              "transferBytes": 5425,
+              "encodedBytes": 5125,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190.1000000089407,
+              "responseEnd": 11615.20000000298,
+              "transferBytes": 5265,
+              "encodedBytes": 4965,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 187.20000000298023,
+              "responseEnd": 11812.70000000298,
+              "transferBytes": 5203,
+              "encodedBytes": 4903,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 195.79999999701977,
+              "responseEnd": 12019,
+              "transferBytes": 5402,
+              "encodedBytes": 5102,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 202.29999999701977,
+              "responseEnd": 12226.29999999702,
+              "transferBytes": 5313,
+              "encodedBytes": 5013,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190.70000000298023,
+              "responseEnd": 12426.40000000596,
+              "transferBytes": 5754,
+              "encodedBytes": 5454,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 166.29999999701977,
+              "responseEnd": 12598,
+              "transferBytes": 5428,
+              "encodedBytes": 5128,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 182,
+              "responseEnd": 12787.20000000298,
+              "transferBytes": 5174,
+              "encodedBytes": 4874,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 201.40000000596046,
+              "responseEnd": 12998.5,
+              "transferBytes": 5085,
+              "encodedBytes": 4785,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 235.5,
+              "responseEnd": 13243.70000000298,
+              "transferBytes": 5393,
+              "encodedBytes": 5093,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 212.8999999910593,
+              "responseEnd": 13463.79999999702,
+              "transferBytes": 5468,
+              "encodedBytes": 5168,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 223.09999999403954,
+              "responseEnd": 13697.29999999702,
+              "transferBytes": 5216,
+              "encodedBytes": 4916,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 173,
+              "responseEnd": 13878.70000000298,
+              "transferBytes": 5780,
+              "encodedBytes": 5480,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 173.20000000298023,
+              "responseEnd": 14064.79999999702,
+              "transferBytes": 5178,
+              "encodedBytes": 4878,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 180.40000000596046,
+              "responseEnd": 14257.20000000298,
+              "transferBytes": 5028,
+              "encodedBytes": 4728,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 165.70000000298023,
+              "responseEnd": 14427.70000000298,
+              "transferBytes": 5405,
+              "encodedBytes": 5105,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 166.40000000596046,
+              "responseEnd": 14600.90000000596,
+              "transferBytes": 2279,
+              "encodedBytes": 1979,
+              "decodedBytes": 212906
+            }
+          ],
+          "errors": []
+        }
+      ]
+    },
+    {
+      "measuredAt": "2026-11-02T14:28:11.202Z",
+      "base": "https://mission-control1-reputation-engine-jtifb5p6h.vercel.app",
+      "dataset": "34,137 synthetic records; same preview build, legacy loader vs new contact lookup",
+      "results": [
+        {
+          "mode": "fast",
+          "browserRequestCount": 44,
+          "networkTotals": {
+            "transferBytes": 525319,
+            "encodedBytes": 513019,
+            "decodedBytes": 1615405
+          },
+          "inputToRenderedResultMs": 858,
+          "navigationToResultMs": 2301,
+          "responseEndToRenderedMs": 300,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "apiRequests": 13,
+          "responseJsonBytes": 3118,
+          "directoryPageRequests": 0,
+          "searchRequests": 1,
+          "resources": [
+            {
+              "path": "/api/auth/me",
+              "durationMs": 986.2999999970198,
+              "responseEnd": 1587.2999999970198,
+              "transferBytes": 383,
+              "encodedBytes": 83,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/sales/notifications",
+              "durationMs": 445.5,
+              "responseEnd": 1047.0999999940395,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/recent-sales",
+              "durationMs": 984.5,
+              "responseEnd": 1586.3999999910593,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/sms/replies",
+              "durationMs": 415.40000000596046,
+              "responseEnd": 1017.5,
+              "transferBytes": 741,
+              "encodedBytes": 441,
+              "decodedBytes": 1574
+            },
+            {
+              "path": "/api/auth/me",
+              "durationMs": 902.2999999970198,
+              "responseEnd": 1505.3999999910593,
+              "transferBytes": 383,
+              "encodedBytes": 83,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/marketing/batches",
+              "durationMs": 981.5,
+              "responseEnd": 1584.7999999970198,
+              "transferBytes": 439,
+              "encodedBytes": 139,
+              "decodedBytes": 294
+            },
+            {
+              "path": "/api/marketing/lists",
+              "durationMs": 877.7000000029802,
+              "responseEnd": 1481.2999999970198,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/relationship-summary",
+              "durationMs": 816.4000000059605,
+              "responseEnd": 1420.0999999940395,
+              "transferBytes": 322,
+              "encodedBytes": 22,
+              "decodedBytes": 16
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 156.79999999701977,
+              "responseEnd": 1294.2999999970198,
+              "transferBytes": 0,
+              "encodedBytes": 0,
+              "decodedBytes": 0
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+              "durationMs": 107.40000000596046,
+              "responseEnd": 1245.5,
+              "transferBytes": 391,
+              "encodedBytes": 91,
+              "decodedBytes": 106
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 154,
+              "responseEnd": 1292.2999999970198,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 141.29999999701977,
+              "responseEnd": 1279.7999999970198,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 111.20000000298023,
+              "responseEnd": 1405.2999999970198,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts/search",
+              "durationMs": 263.80000001192093,
+              "responseEnd": 1998.5,
+              "transferBytes": 580,
+              "encodedBytes": 280,
+              "decodedBytes": 448
+            }
+          ],
+          "errors": []
+        },
+        {
+          "mode": "legacy",
+          "browserRequestCount": 112,
+          "networkTotals": {
+            "transferBytes": 900112,
+            "encodedBytes": 866812,
+            "decodedBytes": 54643832
+          },
+          "inputToRenderedResultMs": 16433,
+          "navigationToResultMs": 17140,
+          "responseEndToRenderedMs": 1648,
+          "longTaskCount": 1,
+          "longTaskMs": 1596,
+          "apiRequests": 83,
+          "responseJsonBytes": 53031545,
+          "directoryPageRequests": 69,
+          "searchRequests": 0,
+          "resources": [
+            {
+              "path": "/api/auth/me",
+              "durationMs": 195.59999999403954,
+              "responseEnd": 566,
+              "transferBytes": 382,
+              "encodedBytes": 82,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/sales/notifications",
+              "durationMs": 356.40000000596046,
+              "responseEnd": 727.4000000059605,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 320.5,
+              "responseEnd": 692,
+              "transferBytes": 6361,
+              "encodedBytes": 6061,
+              "decodedBytes": 774814
+            },
+            {
+              "path": "/api/marketing/recent-sales",
+              "durationMs": 581.5,
+              "responseEnd": 953.1000000089407,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/sms/replies",
+              "durationMs": 280.8999999910593,
+              "responseEnd": 652.7999999970198,
+              "transferBytes": 741,
+              "encodedBytes": 441,
+              "decodedBytes": 1574
+            },
+            {
+              "path": "/api/auth/me",
+              "durationMs": 177,
+              "responseEnd": 549.1000000089407,
+              "transferBytes": 382,
+              "encodedBytes": 82,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/marketing/batches",
+              "durationMs": 553.7999999970198,
+              "responseEnd": 926.2000000029802,
+              "transferBytes": 439,
+              "encodedBytes": 139,
+              "decodedBytes": 294
+            },
+            {
+              "path": "/api/marketing/lists",
+              "durationMs": 178.1000000089407,
+              "responseEnd": 550.6000000089407,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/relationship-summary",
+              "durationMs": 195.79999999701977,
+              "responseEnd": 568.5,
+              "transferBytes": 322,
+              "encodedBytes": 22,
+              "decodedBytes": 16
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 113.09999999403954,
+              "responseEnd": 805,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/context",
+              "durationMs": 128.09999999403954,
+              "responseEnd": 820.2000000029802,
+              "transferBytes": 465,
+              "encodedBytes": 165,
+              "decodedBytes": 224
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+              "durationMs": 136.59999999403954,
+              "responseEnd": 829,
+              "transferBytes": 391,
+              "encodedBytes": 91,
+              "decodedBytes": 106
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 119.5,
+              "responseEnd": 812.2000000029802,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 1126.2000000029802,
+              "responseEnd": 1819,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 187.90000000596046,
+              "responseEnd": 884.2000000029802,
+              "transferBytes": 5700,
+              "encodedBytes": 5400,
+              "decodedBytes": 775029
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 360.70000000298023,
+              "responseEnd": 1250.1000000089407,
+              "transferBytes": 5302,
+              "encodedBytes": 5002,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 239.70000000298023,
+              "responseEnd": 1496.5,
+              "transferBytes": 5907,
+              "encodedBytes": 5607,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 199.29999999701977,
+              "responseEnd": 1707.7000000029802,
+              "transferBytes": 5953,
+              "encodedBytes": 5653,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 179.70000000298023,
+              "responseEnd": 1894.9000000059605,
+              "transferBytes": 5324,
+              "encodedBytes": 5024,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 107,
+              "responseEnd": 1931.1000000089407,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190.5,
+              "responseEnd": 2092.5,
+              "transferBytes": 5853,
+              "encodedBytes": 5553,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186,
+              "responseEnd": 2288,
+              "transferBytes": 5938,
+              "encodedBytes": 5638,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 245.29999999701977,
+              "responseEnd": 2537.7000000029802,
+              "transferBytes": 5201,
+              "encodedBytes": 4901,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 172.09999999403954,
+              "responseEnd": 2715.2999999970198,
+              "transferBytes": 5862,
+              "encodedBytes": 5562,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 225.6000000089407,
+              "responseEnd": 2949.6000000089407,
+              "transferBytes": 5964,
+              "encodedBytes": 5664,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 191,
+              "responseEnd": 3146.7000000029802,
+              "transferBytes": 5239,
+              "encodedBytes": 4939,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 195,
+              "responseEnd": 3352.2000000029802,
+              "transferBytes": 5884,
+              "encodedBytes": 5584,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 199.29999999701977,
+              "responseEnd": 3561.7999999970198,
+              "transferBytes": 5953,
+              "encodedBytes": 5653,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 197.5,
+              "responseEnd": 3767.6000000089407,
+              "transferBytes": 5941,
+              "encodedBytes": 5641,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 199,
+              "responseEnd": 3974.4000000059605,
+              "transferBytes": 5872,
+              "encodedBytes": 5572,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 182.40000000596046,
+              "responseEnd": 4162.4000000059605,
+              "transferBytes": 5979,
+              "encodedBytes": 5679,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 205.59999999403954,
+              "responseEnd": 4377.29999999702,
+              "transferBytes": 5331,
+              "encodedBytes": 5031,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190.5,
+              "responseEnd": 4577.70000000298,
+              "transferBytes": 5862,
+              "encodedBytes": 5562,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 314.29999999701977,
+              "responseEnd": 4896.4000000059605,
+              "transferBytes": 5994,
+              "encodedBytes": 5694,
+              "decodedBytes": 776029
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 223.29999999701977,
+              "responseEnd": 5130,
+              "transferBytes": 5446,
+              "encodedBytes": 5146,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 179.90000000596046,
+              "responseEnd": 5314.70000000298,
+              "transferBytes": 5738,
+              "encodedBytes": 5438,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 191.30000001192093,
+              "responseEnd": 5517.100000008941,
+              "transferBytes": 5480,
+              "encodedBytes": 5180,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 201.29999999701977,
+              "responseEnd": 5727.4000000059605,
+              "transferBytes": 5265,
+              "encodedBytes": 4965,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 188.79999999701977,
+              "responseEnd": 5921.29999999702,
+              "transferBytes": 5092,
+              "encodedBytes": 4792,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 177,
+              "responseEnd": 6108.9000000059605,
+              "transferBytes": 5297,
+              "encodedBytes": 4997,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 200.79999999701977,
+              "responseEnd": 6319.79999999702,
+              "transferBytes": 5434,
+              "encodedBytes": 5134,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 203,
+              "responseEnd": 6528.100000008941,
+              "transferBytes": 5308,
+              "encodedBytes": 5008,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 200,
+              "responseEnd": 6738,
+              "transferBytes": 5778,
+              "encodedBytes": 5478,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 204.69999998807907,
+              "responseEnd": 6952.79999999702,
+              "transferBytes": 5169,
+              "encodedBytes": 4869,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 198.90000000596046,
+              "responseEnd": 7158.70000000298,
+              "transferBytes": 5185,
+              "encodedBytes": 4885,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 200.09999999403954,
+              "responseEnd": 7368.79999999702,
+              "transferBytes": 5353,
+              "encodedBytes": 5053,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 200.29999999701977,
+              "responseEnd": 7573.29999999702,
+              "transferBytes": 5366,
+              "encodedBytes": 5066,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 210.40000000596046,
+              "responseEnd": 7794.100000008941,
+              "transferBytes": 5312,
+              "encodedBytes": 5012,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 201.09999999403954,
+              "responseEnd": 8004.79999999702,
+              "transferBytes": 5576,
+              "encodedBytes": 5276,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 171.20000000298023,
+              "responseEnd": 8180.4000000059605,
+              "transferBytes": 5178,
+              "encodedBytes": 4878,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 242.5,
+              "responseEnd": 8432.70000000298,
+              "transferBytes": 5068,
+              "encodedBytes": 4768,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 195.20000000298023,
+              "responseEnd": 8641.60000000894,
+              "transferBytes": 5460,
+              "encodedBytes": 5160,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 298.8999999910593,
+              "responseEnd": 8946,
+              "transferBytes": 5265,
+              "encodedBytes": 4965,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 204.3999999910593,
+              "responseEnd": 9159.79999999702,
+              "transferBytes": 5242,
+              "encodedBytes": 4942,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186.29999999701977,
+              "responseEnd": 9351.40000000596,
+              "transferBytes": 5472,
+              "encodedBytes": 5172,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186,
+              "responseEnd": 9539.70000000298,
+              "transferBytes": 5173,
+              "encodedBytes": 4873,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 209.29999999701977,
+              "responseEnd": 9758.79999999702,
+              "transferBytes": 5084,
+              "encodedBytes": 4784,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 185.09999999403954,
+              "responseEnd": 9945.20000000298,
+              "transferBytes": 5471,
+              "encodedBytes": 5171,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 196.6000000089407,
+              "responseEnd": 10151.10000000894,
+              "transferBytes": 5267,
+              "encodedBytes": 4967,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 188.5,
+              "responseEnd": 10350,
+              "transferBytes": 5209,
+              "encodedBytes": 4909,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 212.20000000298023,
+              "responseEnd": 10567.5,
+              "transferBytes": 5447,
+              "encodedBytes": 5147,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 216.8999999910593,
+              "responseEnd": 10795.29999999702,
+              "transferBytes": 5273,
+              "encodedBytes": 4973,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 360.79999999701977,
+              "responseEnd": 11166.40000000596,
+              "transferBytes": 5193,
+              "encodedBytes": 4893,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 228.59999999403954,
+              "responseEnd": 11405.5,
+              "transferBytes": 5388,
+              "encodedBytes": 5088,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 178.20000000298023,
+              "responseEnd": 11590.70000000298,
+              "transferBytes": 5899,
+              "encodedBytes": 5599,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 189.20000000298023,
+              "responseEnd": 11785.40000000596,
+              "transferBytes": 5258,
+              "encodedBytes": 4958,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 179.79999999701977,
+              "responseEnd": 11975.79999999702,
+              "transferBytes": 5425,
+              "encodedBytes": 5125,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186,
+              "responseEnd": 12166.40000000596,
+              "transferBytes": 5265,
+              "encodedBytes": 4965,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184.09999999403954,
+              "responseEnd": 12359.70000000298,
+              "transferBytes": 5088,
+              "encodedBytes": 4788,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 276.5,
+              "responseEnd": 12641.40000000596,
+              "transferBytes": 5402,
+              "encodedBytes": 5102,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 198.59999999403954,
+              "responseEnd": 12850,
+              "transferBytes": 5313,
+              "encodedBytes": 5013,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 205.20000000298023,
+              "responseEnd": 13065.40000000596,
+              "transferBytes": 5757,
+              "encodedBytes": 5457,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 216.69999998807907,
+              "responseEnd": 13286.29999999702,
+              "transferBytes": 5572,
+              "encodedBytes": 5272,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 222.1000000089407,
+              "responseEnd": 13518.10000000894,
+              "transferBytes": 5271,
+              "encodedBytes": 4971,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 372.70000000298023,
+              "responseEnd": 13900.5,
+              "transferBytes": 5076,
+              "encodedBytes": 4776,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 242.70000000298023,
+              "responseEnd": 14155.70000000298,
+              "transferBytes": 5306,
+              "encodedBytes": 5006,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 189.59999999403954,
+              "responseEnd": 14356,
+              "transferBytes": 5468,
+              "encodedBytes": 5168,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 171.40000000596046,
+              "responseEnd": 14535.20000000298,
+              "transferBytes": 5218,
+              "encodedBytes": 4918,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186.29999999701977,
+              "responseEnd": 14731.40000000596,
+              "transferBytes": 5792,
+              "encodedBytes": 5492,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 187.09999999403954,
+              "responseEnd": 14920.29999999702,
+              "transferBytes": 5276,
+              "encodedBytes": 4976,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 180.5,
+              "responseEnd": 15109.5,
+              "transferBytes": 5074,
+              "encodedBytes": 4774,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 193.90000000596046,
+              "responseEnd": 15313.90000000596,
+              "transferBytes": 5405,
+              "encodedBytes": 5105,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 168.40000000596046,
+              "responseEnd": 15486.10000000894,
+              "transferBytes": 2279,
+              "encodedBytes": 1979,
+              "decodedBytes": 212906
+            }
+          ],
+          "errors": []
+        }
+      ]
+    },
+    {
+      "measuredAt": "2026-11-02T14:29:22.176Z",
+      "base": "https://mission-control1-reputation-engine-jtifb5p6h.vercel.app",
+      "dataset": "34,137 synthetic records; same preview build, legacy loader vs new contact lookup",
+      "results": [
+        {
+          "mode": "fast",
+          "browserRequestCount": 44,
+          "networkTotals": {
+            "transferBytes": 526143,
+            "encodedBytes": 513243,
+            "decodedBytes": 1615681
+          },
+          "inputToRenderedResultMs": 827,
+          "navigationToResultMs": 1991,
+          "responseEndToRenderedMs": 335,
+          "longTaskCount": 0,
+          "longTaskMs": 0,
+          "apiRequests": 15,
+          "responseJsonBytes": 3394,
+          "directoryPageRequests": 0,
+          "searchRequests": 1,
+          "resources": [
+            {
+              "path": "/api/auth/me",
+              "durationMs": 215.3999999910593,
+              "responseEnd": 552.3999999910593,
+              "transferBytes": 384,
+              "encodedBytes": 84,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/sales/notifications",
+              "durationMs": 208.40000000596046,
+              "responseEnd": 545.7999999970198,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/recent-sales",
+              "durationMs": 240.70000000298023,
+              "responseEnd": 578.3999999910593,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/sms/replies",
+              "durationMs": 371.6000000089407,
+              "responseEnd": 709.5,
+              "transferBytes": 741,
+              "encodedBytes": 441,
+              "decodedBytes": 1574
+            },
+            {
+              "path": "/api/auth/me",
+              "durationMs": 168.5,
+              "responseEnd": 506.59999999403954,
+              "transferBytes": 384,
+              "encodedBytes": 84,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/marketing/batches",
+              "durationMs": 207.90000000596046,
+              "responseEnd": 546.7999999970198,
+              "transferBytes": 439,
+              "encodedBytes": 139,
+              "decodedBytes": 294
+            },
+            {
+              "path": "/api/marketing/lists",
+              "durationMs": 203.09999999403954,
+              "responseEnd": 542.1999999880791,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/relationship-summary",
+              "durationMs": 260.5,
+              "responseEnd": 599.7999999970198,
+              "transferBytes": 322,
+              "encodedBytes": 22,
+              "decodedBytes": 16
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 104.29999999701977,
+              "responseEnd": 863.3999999910593,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/context",
+              "durationMs": 108.20000000298023,
+              "responseEnd": 867.5,
+              "transferBytes": 465,
+              "encodedBytes": 165,
+              "decodedBytes": 224
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+              "durationMs": 196.09999999403954,
+              "responseEnd": 955.5999999940395,
+              "transferBytes": 391,
+              "encodedBytes": 91,
+              "decodedBytes": 106
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 120,
+              "responseEnd": 879.6999999880791,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 126.8999999910593,
+              "responseEnd": 886.8999999910593,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 105.8999999910593,
+              "responseEnd": 998.1999999880791,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts/search",
+              "durationMs": 229.29999999701977,
+              "responseEnd": 1650.5999999940395,
+              "transferBytes": 580,
+              "encodedBytes": 280,
+              "decodedBytes": 448
+            }
+          ],
+          "errors": []
+        },
+        {
+          "mode": "legacy",
+          "browserRequestCount": 112,
+          "networkTotals": {
+            "transferBytes": 901064,
+            "encodedBytes": 867764,
+            "decodedBytes": 54643832
+          },
+          "inputToRenderedResultMs": 16595,
+          "navigationToResultMs": 17771,
+          "responseEndToRenderedMs": 1672,
+          "longTaskCount": 1,
+          "longTaskMs": 1628,
+          "apiRequests": 83,
+          "responseJsonBytes": 53031545,
+          "directoryPageRequests": 69,
+          "searchRequests": 0,
+          "resources": [
+            {
+              "path": "/api/auth/me",
+              "durationMs": 205.5,
+              "responseEnd": 564.6000000089407,
+              "transferBytes": 383,
+              "encodedBytes": 83,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/sales/notifications",
+              "durationMs": 218.8999999910593,
+              "responseEnd": 578.5,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 299.70000000298023,
+              "responseEnd": 659.7000000029802,
+              "transferBytes": 6347,
+              "encodedBytes": 6047,
+              "decodedBytes": 774814
+            },
+            {
+              "path": "/api/marketing/recent-sales",
+              "durationMs": 201.79999999701977,
+              "responseEnd": 562,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/sms/replies",
+              "durationMs": 298.20000000298023,
+              "responseEnd": 658.7000000029802,
+              "transferBytes": 741,
+              "encodedBytes": 441,
+              "decodedBytes": 1574
+            },
+            {
+              "path": "/api/auth/me",
+              "durationMs": 186.19999998807907,
+              "responseEnd": 546.7999999970198,
+              "transferBytes": 383,
+              "encodedBytes": 83,
+              "decodedBytes": 86
+            },
+            {
+              "path": "/api/marketing/batches",
+              "durationMs": 177.59999999403954,
+              "responseEnd": 538.5,
+              "transferBytes": 439,
+              "encodedBytes": 139,
+              "decodedBytes": 294
+            },
+            {
+              "path": "/api/marketing/lists",
+              "durationMs": 221.5,
+              "responseEnd": 582.4000000059605,
+              "transferBytes": 308,
+              "encodedBytes": 8,
+              "decodedBytes": 2
+            },
+            {
+              "path": "/api/marketing/relationship-summary",
+              "durationMs": 175.8999999910593,
+              "responseEnd": 537,
+              "transferBytes": 322,
+              "encodedBytes": 22,
+              "decodedBytes": 16
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 376.19999998807907,
+              "responseEnd": 1077.2999999970198,
+              "transferBytes": 5700,
+              "encodedBytes": 5400,
+              "decodedBytes": 775029
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 154.1000000089407,
+              "responseEnd": 858.4000000059605,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/context",
+              "durationMs": 145,
+              "responseEnd": 849.6000000089407,
+              "transferBytes": 465,
+              "encodedBytes": 165,
+              "decodedBytes": 224
+            },
+            {
+              "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+              "durationMs": 162.30000001192093,
+              "responseEnd": 867.1000000089407,
+              "transferBytes": 391,
+              "encodedBytes": 91,
+              "decodedBytes": 106
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 148.8999999910593,
+              "responseEnd": 854,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/touches",
+              "durationMs": 147.5,
+              "responseEnd": 852.7000000029802,
+              "transferBytes": 447,
+              "encodedBytes": 147,
+              "decodedBytes": 225
+            },
+            {
+              "path": "/api/marketing/next-steps",
+              "durationMs": 105,
+              "responseEnd": 969,
+              "transferBytes": 357,
+              "encodedBytes": 57,
+              "decodedBytes": 52
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 233.79999999701977,
+              "responseEnd": 1318.9000000059605,
+              "transferBytes": 5237,
+              "encodedBytes": 4937,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 258.5,
+              "responseEnd": 1586.2000000029802,
+              "transferBytes": 5870,
+              "encodedBytes": 5570,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 227.69999998807907,
+              "responseEnd": 1822.7999999970198,
+              "transferBytes": 5953,
+              "encodedBytes": 5653,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 246.8999999910593,
+              "responseEnd": 2077.2999999970198,
+              "transferBytes": 5233,
+              "encodedBytes": 4933,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 212.30000001192093,
+              "responseEnd": 2294.6000000089407,
+              "transferBytes": 5853,
+              "encodedBytes": 5553,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 285,
+              "responseEnd": 2591.4000000059605,
+              "transferBytes": 5903,
+              "encodedBytes": 5603,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 249.90000000596046,
+              "responseEnd": 2846.4000000059605,
+              "transferBytes": 5395,
+              "encodedBytes": 5095,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 235.90000000596046,
+              "responseEnd": 3091.9000000059605,
+              "transferBytes": 5862,
+              "encodedBytes": 5562,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 208.70000000298023,
+              "responseEnd": 3305.1000000089407,
+              "transferBytes": 5964,
+              "encodedBytes": 5664,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 196.1000000089407,
+              "responseEnd": 3513.4000000059605,
+              "transferBytes": 5330,
+              "encodedBytes": 5030,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 258.5,
+              "responseEnd": 3781.7999999970198,
+              "transferBytes": 5783,
+              "encodedBytes": 5483,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 243.3999999910593,
+              "responseEnd": 4036.2999999970198,
+              "transferBytes": 5953,
+              "encodedBytes": 5653,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 182.90000000596046,
+              "responseEnd": 4225.70000000298,
+              "transferBytes": 5968,
+              "encodedBytes": 5668,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 206.20000000298023,
+              "responseEnd": 4438,
+              "transferBytes": 5909,
+              "encodedBytes": 5609,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 199.8999999910593,
+              "responseEnd": 4647.79999999702,
+              "transferBytes": 5960,
+              "encodedBytes": 5660,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 190.3999999910593,
+              "responseEnd": 4847.29999999702,
+              "transferBytes": 5331,
+              "encodedBytes": 5031,
+              "decodedBytes": 776027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184,
+              "responseEnd": 5038.79999999702,
+              "transferBytes": 5862,
+              "encodedBytes": 5562,
+              "decodedBytes": 776030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 183.79999999701977,
+              "responseEnd": 5231.70000000298,
+              "transferBytes": 5958,
+              "encodedBytes": 5658,
+              "decodedBytes": 776029
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 194.29999999701977,
+              "responseEnd": 5427.4000000059605,
+              "transferBytes": 5314,
+              "encodedBytes": 5014,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 230.70000000298023,
+              "responseEnd": 5667.4000000059605,
+              "transferBytes": 5738,
+              "encodedBytes": 5438,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 222.5,
+              "responseEnd": 5900.70000000298,
+              "transferBytes": 5562,
+              "encodedBytes": 5262,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 195.70000000298023,
+              "responseEnd": 6101.5,
+              "transferBytes": 5265,
+              "encodedBytes": 4965,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 199.80000001192093,
+              "responseEnd": 6311.100000008941,
+              "transferBytes": 5208,
+              "encodedBytes": 4908,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 205.09999999403954,
+              "responseEnd": 6521.70000000298,
+              "transferBytes": 5389,
+              "encodedBytes": 5089,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184.5,
+              "responseEnd": 6711.70000000298,
+              "transferBytes": 5312,
+              "encodedBytes": 5012,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 193.20000000298023,
+              "responseEnd": 6911.70000000298,
+              "transferBytes": 5308,
+              "encodedBytes": 5008,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 188.70000000298023,
+              "responseEnd": 7105.4000000059605,
+              "transferBytes": 5780,
+              "encodedBytes": 5480,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 202.5,
+              "responseEnd": 7309.79999999702,
+              "transferBytes": 5264,
+              "encodedBytes": 4964,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 345.29999999701977,
+              "responseEnd": 7665.4000000059605,
+              "transferBytes": 5185,
+              "encodedBytes": 4885,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 201.59999999403954,
+              "responseEnd": 7872,
+              "transferBytes": 5344,
+              "encodedBytes": 5044,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 217.1000000089407,
+              "responseEnd": 8093.4000000059605,
+              "transferBytes": 5430,
+              "encodedBytes": 5130,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 209,
+              "responseEnd": 8308.20000000298,
+              "transferBytes": 5393,
+              "encodedBytes": 5093,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 205.40000000596046,
+              "responseEnd": 8523.10000000894,
+              "transferBytes": 5576,
+              "encodedBytes": 5276,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 212.59999999403954,
+              "responseEnd": 8742.79999999702,
+              "transferBytes": 5268,
+              "encodedBytes": 4968,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 223.29999999701977,
+              "responseEnd": 8976.5,
+              "transferBytes": 5185,
+              "encodedBytes": 4885,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 184.20000000298023,
+              "responseEnd": 9169.90000000596,
+              "transferBytes": 5421,
+              "encodedBytes": 5121,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 296.79999999701977,
+              "responseEnd": 9471.70000000298,
+              "transferBytes": 5416,
+              "encodedBytes": 5116,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 204.5,
+              "responseEnd": 9687.5,
+              "transferBytes": 5338,
+              "encodedBytes": 5038,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 191.8999999910593,
+              "responseEnd": 9884,
+              "transferBytes": 5580,
+              "encodedBytes": 5280,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 205,
+              "responseEnd": 10100.10000000894,
+              "transferBytes": 5273,
+              "encodedBytes": 4973,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 183,
+              "responseEnd": 10290.10000000894,
+              "transferBytes": 5200,
+              "encodedBytes": 4900,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 203,
+              "responseEnd": 10503.79999999702,
+              "transferBytes": 5501,
+              "encodedBytes": 5201,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 191.29999999701977,
+              "responseEnd": 10699.5,
+              "transferBytes": 5267,
+              "encodedBytes": 4967,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 186,
+              "responseEnd": 10890.40000000596,
+              "transferBytes": 5302,
+              "encodedBytes": 5002,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 191.5,
+              "responseEnd": 11090.79999999702,
+              "transferBytes": 5561,
+              "encodedBytes": 5261,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 201,
+              "responseEnd": 11303.20000000298,
+              "transferBytes": 5174,
+              "encodedBytes": 4874,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 192.40000000596046,
+              "responseEnd": 11500.90000000596,
+              "transferBytes": 5077,
+              "encodedBytes": 4777,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 203.5,
+              "responseEnd": 11714.20000000298,
+              "transferBytes": 5388,
+              "encodedBytes": 5088,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 240.5,
+              "responseEnd": 11957.5,
+              "transferBytes": 5880,
+              "encodedBytes": 5580,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 325.09999999403954,
+              "responseEnd": 12294.20000000298,
+              "transferBytes": 5191,
+              "encodedBytes": 4891,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 194.20000000298023,
+              "responseEnd": 12498.90000000596,
+              "transferBytes": 5425,
+              "encodedBytes": 5125,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 224.29999999701977,
+              "responseEnd": 12729.90000000596,
+              "transferBytes": 5265,
+              "encodedBytes": 4965,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 201.59999999403954,
+              "responseEnd": 12943.29999999702,
+              "transferBytes": 5060,
+              "encodedBytes": 4760,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 220,
+              "responseEnd": 13167.79999999702,
+              "transferBytes": 5402,
+              "encodedBytes": 5102,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 185.8999999910593,
+              "responseEnd": 13363.5,
+              "transferBytes": 5445,
+              "encodedBytes": 5145,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 198.30000001192093,
+              "responseEnd": 13573.10000000894,
+              "transferBytes": 5715,
+              "encodedBytes": 5415,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 211.70000000298023,
+              "responseEnd": 13794.10000000894,
+              "transferBytes": 5491,
+              "encodedBytes": 5191,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 171.29999999701977,
+              "responseEnd": 13969.79999999702,
+              "transferBytes": 5271,
+              "encodedBytes": 4971,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 211.79999999701977,
+              "responseEnd": 14193,
+              "transferBytes": 5057,
+              "encodedBytes": 4757,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 197.59999999403954,
+              "responseEnd": 14398.70000000298,
+              "transferBytes": 5393,
+              "encodedBytes": 5093,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 212.09999999403954,
+              "responseEnd": 14621,
+              "transferBytes": 5367,
+              "encodedBytes": 5067,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 198.59999999403954,
+              "responseEnd": 14824.20000000298,
+              "transferBytes": 5307,
+              "encodedBytes": 5007,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 198.19999998807907,
+              "responseEnd": 15032.29999999702,
+              "transferBytes": 5792,
+              "encodedBytes": 5492,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 192.29999999701977,
+              "responseEnd": 15234.90000000596,
+              "transferBytes": 5178,
+              "encodedBytes": 4878,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 234.40000000596046,
+              "responseEnd": 15473.60000000894,
+              "transferBytes": 5190,
+              "encodedBytes": 4890,
+              "decodedBytes": 777030
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 378.09999999403954,
+              "responseEnd": 15863,
+              "transferBytes": 5405,
+              "encodedBytes": 5105,
+              "decodedBytes": 777027
+            },
+            {
+              "path": "/api/marketing/contacts",
+              "durationMs": 229.30000001192093,
+              "responseEnd": 16097.10000000894,
+              "transferBytes": 2279,
+              "encodedBytes": 1979,
+              "decodedBytes": 212906
+            }
+          ],
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "protection": {
+    "public": {
+      "status": 302,
+      "basicChallenge": false,
+      "connectSelf": false
+    },
+    "platform": {
+      "status": 401,
+      "basicChallenge": true,
+      "connectSelf": true
+    },
+    "authenticated": {
+      "status": 200,
+      "basicChallenge": false,
+      "connectSelf": true
+    },
+    "safety": {
+      "synthetic": true,
+      "deploymentTarget": "preview",
+      "configuredIntegrationKeys": [
+        "AWS_DEFAULT_REGION",
+        "AWS_REGION"
+      ],
+      "networkBlocked": true,
+      "writesEnabled": false
+    },
+    "webhookWrite": 405
+  },
+  "additionalFailedAttempt": {
+    "workflow": "legacy",
+    "resultVisibilityTimeoutMs": 180000,
+    "fastInputToResultMs": 830,
+    "retryPassed": true,
+    "rootCause": "UNKNOWN; failed browser context closed before diagnostic instrumentation was added",
+    "includedInTimingMedians": false
+  },
+  "boundedRequestLogReview": {
+    "deployment": "dpl_9M2gXmi7S1eEcEzZ2bEyjkpzFxjX",
+    "records": 500,
+    "statusCounts": {
+      "405": 4,
+      "200": 414,
+      "401": 68,
+      "302": 6,
+      "404": 2,
+      "307": 6
+    },
+    "limitation": "No 5xx in returned 500 records; no client-side cause or response-body completeness established. 401 Basic challenges and intentional 404/405 checks are included."
+  },
+  "requestedConfirmationRun": {
+    "measuredAt": "2026-11-02T14:35:08.770Z",
+    "base": "https://mission-control1-reputation-engine-jtifb5p6h.vercel.app",
+    "dataset": "34,137 synthetic records; same preview build, legacy loader vs new contact lookup",
+    "results": [
+      {
+        "mode": "fast",
+        "browserRequestCount": 44,
+        "networkTotals": {
+          "transferBytes": 526141,
+          "encodedBytes": 513241,
+          "decodedBytes": 1615681
+        },
+        "inputToRenderedResultMs": 883,
+        "navigationToResultMs": 2271,
+        "responseEndToRenderedMs": 337,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "apiRequests": 15,
+        "responseJsonBytes": 3394,
+        "directoryPageRequests": 0,
+        "searchRequests": 1,
+        "resources": [
+          {
+            "path": "/api/auth/me",
+            "durationMs": 262,
+            "responseEnd": 762.8999999910593,
+            "transferBytes": 383,
+            "encodedBytes": 83,
+            "decodedBytes": 86
+          },
+          {
+            "path": "/api/sales/notifications",
+            "durationMs": 572.2000000029802,
+            "responseEnd": 1074,
+            "transferBytes": 308,
+            "encodedBytes": 8,
+            "decodedBytes": 2
+          },
+          {
+            "path": "/api/marketing/recent-sales",
+            "durationMs": 210.90000000596046,
+            "responseEnd": 713.7999999970198,
+            "transferBytes": 308,
+            "encodedBytes": 8,
+            "decodedBytes": 2
+          },
+          {
+            "path": "/api/marketing/sms/replies",
+            "durationMs": 391.6000000089407,
+            "responseEnd": 895,
+            "transferBytes": 741,
+            "encodedBytes": 441,
+            "decodedBytes": 1574
+          },
+          {
+            "path": "/api/auth/me",
+            "durationMs": 220.59999999403954,
+            "responseEnd": 724.3999999910593,
+            "transferBytes": 383,
+            "encodedBytes": 83,
+            "decodedBytes": 86
+          },
+          {
+            "path": "/api/marketing/batches",
+            "durationMs": 225.29999999701977,
+            "responseEnd": 729.2999999970198,
+            "transferBytes": 439,
+            "encodedBytes": 139,
+            "decodedBytes": 294
+          },
+          {
+            "path": "/api/marketing/lists",
+            "durationMs": 214.5,
+            "responseEnd": 718.6999999880791,
+            "transferBytes": 308,
+            "encodedBytes": 8,
+            "decodedBytes": 2
+          },
+          {
+            "path": "/api/marketing/relationship-summary",
+            "durationMs": 222,
+            "responseEnd": 726.2999999970198,
+            "transferBytes": 322,
+            "encodedBytes": 22,
+            "decodedBytes": 16
+          },
+          {
+            "path": "/api/marketing/next-steps",
+            "durationMs": 109.40000000596046,
+            "responseEnd": 1092.2999999970198,
+            "transferBytes": 357,
+            "encodedBytes": 57,
+            "decodedBytes": 52
+          },
+          {
+            "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/context",
+            "durationMs": 118.79999999701977,
+            "responseEnd": 1101.8999999910593,
+            "transferBytes": 465,
+            "encodedBytes": 165,
+            "decodedBytes": 224
+          },
+          {
+            "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+            "durationMs": 96.40000000596046,
+            "responseEnd": 1079.7999999970198,
+            "transferBytes": 391,
+            "encodedBytes": 91,
+            "decodedBytes": 106
+          },
+          {
+            "path": "/api/marketing/touches",
+            "durationMs": 103.20000000298023,
+            "responseEnd": 1086.7999999970198,
+            "transferBytes": 447,
+            "encodedBytes": 147,
+            "decodedBytes": 225
+          },
+          {
+            "path": "/api/marketing/touches",
+            "durationMs": 108.3999999910593,
+            "responseEnd": 1092.199999988079,
+            "transferBytes": 447,
+            "encodedBytes": 147,
+            "decodedBytes": 225
+          },
+          {
+            "path": "/api/marketing/next-steps",
+            "durationMs": 148,
+            "responseEnd": 1276.0999999940395,
+            "transferBytes": 357,
+            "encodedBytes": 57,
+            "decodedBytes": 52
+          },
+          {
+            "path": "/api/marketing/contacts/search",
+            "durationMs": 248.59999999403954,
+            "responseEnd": 1926.699999988079,
+            "transferBytes": 580,
+            "encodedBytes": 280,
+            "decodedBytes": 448
+          }
+        ],
+        "errors": []
+      },
+      {
+        "mode": "legacy",
+        "browserRequestCount": 112,
+        "networkTotals": {
+          "transferBytes": 900729,
+          "encodedBytes": 867429,
+          "decodedBytes": 54643832
+        },
+        "inputToRenderedResultMs": 15849,
+        "navigationToResultMs": 16670,
+        "responseEndToRenderedMs": 1652,
+        "longTaskCount": 1,
+        "longTaskMs": 1609,
+        "apiRequests": 83,
+        "responseJsonBytes": 53031545,
+        "directoryPageRequests": 69,
+        "searchRequests": 0,
+        "resources": [
+          {
+            "path": "/api/auth/me",
+            "durationMs": 178.79999999701977,
+            "responseEnd": 572.7999999970198,
+            "transferBytes": 383,
+            "encodedBytes": 83,
+            "decodedBytes": 86
+          },
+          {
+            "path": "/api/sales/notifications",
+            "durationMs": 210.09999999403954,
+            "responseEnd": 604.5999999940395,
+            "transferBytes": 308,
+            "encodedBytes": 8,
+            "decodedBytes": 2
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 285.29999999701977,
+            "responseEnd": 680.2999999970198,
+            "transferBytes": 6238,
+            "encodedBytes": 5938,
+            "decodedBytes": 774814
+          },
+          {
+            "path": "/api/marketing/recent-sales",
+            "durationMs": 172.70000000298023,
+            "responseEnd": 567.8999999910593,
+            "transferBytes": 308,
+            "encodedBytes": 8,
+            "decodedBytes": 2
+          },
+          {
+            "path": "/api/marketing/sms/replies",
+            "durationMs": 303.6000000089407,
+            "responseEnd": 699,
+            "transferBytes": 741,
+            "encodedBytes": 441,
+            "decodedBytes": 1574
+          },
+          {
+            "path": "/api/auth/me",
+            "durationMs": 167.20000000298023,
+            "responseEnd": 562.8999999910593,
+            "transferBytes": 383,
+            "encodedBytes": 83,
+            "decodedBytes": 86
+          },
+          {
+            "path": "/api/marketing/batches",
+            "durationMs": 183.79999999701977,
+            "responseEnd": 579.5999999940395,
+            "transferBytes": 439,
+            "encodedBytes": 139,
+            "decodedBytes": 294
+          },
+          {
+            "path": "/api/marketing/lists",
+            "durationMs": 176.20000000298023,
+            "responseEnd": 572.2999999970198,
+            "transferBytes": 308,
+            "encodedBytes": 8,
+            "decodedBytes": 2
+          },
+          {
+            "path": "/api/marketing/relationship-summary",
+            "durationMs": 177.20000000298023,
+            "responseEnd": 573.3999999910593,
+            "transferBytes": 322,
+            "encodedBytes": 22,
+            "decodedBytes": 16
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 200.6000000089407,
+            "responseEnd": 890.7999999970198,
+            "transferBytes": 5700,
+            "encodedBytes": 5400,
+            "decodedBytes": 775029
+          },
+          {
+            "path": "/api/marketing/next-steps",
+            "durationMs": 146.8999999910593,
+            "responseEnd": 966.3999999910593,
+            "transferBytes": 357,
+            "encodedBytes": 57,
+            "decodedBytes": 52
+          },
+          {
+            "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/context",
+            "durationMs": 137.59999999403954,
+            "responseEnd": 957.3999999910593,
+            "transferBytes": 465,
+            "encodedBytes": 165,
+            "decodedBytes": 224
+          },
+          {
+            "path": "/api/marketing/contacts/00000000-0000-4000-8000-000000000001/relationship-record",
+            "durationMs": 137.20000000298023,
+            "responseEnd": 957.2999999970198,
+            "transferBytes": 391,
+            "encodedBytes": 91,
+            "decodedBytes": 106
+          },
+          {
+            "path": "/api/marketing/touches",
+            "durationMs": 132.70000000298023,
+            "responseEnd": 953.0999999940395,
+            "transferBytes": 447,
+            "encodedBytes": 147,
+            "decodedBytes": 225
+          },
+          {
+            "path": "/api/marketing/touches",
+            "durationMs": 157,
+            "responseEnd": 977.5,
+            "transferBytes": 447,
+            "encodedBytes": 147,
+            "decodedBytes": 225
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 198,
+            "responseEnd": 1103.0999999940395,
+            "transferBytes": 5398,
+            "encodedBytes": 5098,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/next-steps",
+            "durationMs": 102.20000000298023,
+            "responseEnd": 1084.5999999940395,
+            "transferBytes": 357,
+            "encodedBytes": 57,
+            "decodedBytes": 52
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 217.09999999403954,
+            "responseEnd": 1328.0999999940395,
+            "transferBytes": 5870,
+            "encodedBytes": 5570,
+            "decodedBytes": 776030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 241.79999999701977,
+            "responseEnd": 1580.699999988079,
+            "transferBytes": 5953,
+            "encodedBytes": 5653,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 219.59999999403954,
+            "responseEnd": 1810.8999999910593,
+            "transferBytes": 5233,
+            "encodedBytes": 4933,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 302.90000000596046,
+            "responseEnd": 2123.2999999970198,
+            "transferBytes": 5881,
+            "encodedBytes": 5581,
+            "decodedBytes": 776030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 240.6000000089407,
+            "responseEnd": 2372,
+            "transferBytes": 5903,
+            "encodedBytes": 5603,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 231.6000000089407,
+            "responseEnd": 2613.5,
+            "transferBytes": 5395,
+            "encodedBytes": 5095,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 189.40000000596046,
+            "responseEnd": 2809.2999999970198,
+            "transferBytes": 5862,
+            "encodedBytes": 5562,
+            "decodedBytes": 776030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 215.90000000596046,
+            "responseEnd": 3035.5999999940395,
+            "transferBytes": 5875,
+            "encodedBytes": 5575,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 227.29999999701977,
+            "responseEnd": 3273.5999999940395,
+            "transferBytes": 5330,
+            "encodedBytes": 5030,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 195,
+            "responseEnd": 3478.3999999910593,
+            "transferBytes": 5884,
+            "encodedBytes": 5584,
+            "decodedBytes": 776030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 205.69999998807907,
+            "responseEnd": 3693.699999988079,
+            "transferBytes": 5873,
+            "encodedBytes": 5573,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 239.6000000089407,
+            "responseEnd": 3937.7999999970198,
+            "transferBytes": 5968,
+            "encodedBytes": 5668,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 207.20000000298023,
+            "responseEnd": 4153.79999999702,
+            "transferBytes": 5872,
+            "encodedBytes": 5572,
+            "decodedBytes": 776030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 183.30000001192093,
+            "responseEnd": 4347,
+            "transferBytes": 5960,
+            "encodedBytes": 5660,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 201.8999999910593,
+            "responseEnd": 4558.399999991059,
+            "transferBytes": 5239,
+            "encodedBytes": 4939,
+            "decodedBytes": 776027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 214.29999999701977,
+            "responseEnd": 4782.199999988079,
+            "transferBytes": 5862,
+            "encodedBytes": 5562,
+            "decodedBytes": 776030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 173.40000000596046,
+            "responseEnd": 4960.29999999702,
+            "transferBytes": 5958,
+            "encodedBytes": 5658,
+            "decodedBytes": 776029
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 178.59999999403954,
+            "responseEnd": 5148.5999999940395,
+            "transferBytes": 5446,
+            "encodedBytes": 5146,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 196,
+            "responseEnd": 5354.0999999940395,
+            "transferBytes": 5738,
+            "encodedBytes": 5438,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 170.70000000298023,
+            "responseEnd": 5529.29999999702,
+            "transferBytes": 5562,
+            "encodedBytes": 5262,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 181.90000000596046,
+            "responseEnd": 5721,
+            "transferBytes": 5125,
+            "encodedBytes": 4825,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 211.20000000298023,
+            "responseEnd": 5937.29999999702,
+            "transferBytes": 5208,
+            "encodedBytes": 4908,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 205.19999998807907,
+            "responseEnd": 6150.699999988079,
+            "transferBytes": 5389,
+            "encodedBytes": 5089,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 198.80000001192093,
+            "responseEnd": 6359.5,
+            "transferBytes": 5434,
+            "encodedBytes": 5134,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 203.20000000298023,
+            "responseEnd": 6571.899999991059,
+            "transferBytes": 5308,
+            "encodedBytes": 5008,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 181.5,
+            "responseEnd": 6762.899999991059,
+            "transferBytes": 5780,
+            "encodedBytes": 5480,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 165.59999999403954,
+            "responseEnd": 6938.199999988079,
+            "transferBytes": 5169,
+            "encodedBytes": 4869,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 192.5,
+            "responseEnd": 7134.899999991059,
+            "transferBytes": 5185,
+            "encodedBytes": 4885,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 182.59999999403954,
+            "responseEnd": 7326.899999991059,
+            "transferBytes": 5344,
+            "encodedBytes": 5044,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 197.8999999910593,
+            "responseEnd": 7538.699999988079,
+            "transferBytes": 5430,
+            "encodedBytes": 5130,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 191.40000000596046,
+            "responseEnd": 7734.5999999940395,
+            "transferBytes": 5311,
+            "encodedBytes": 5011,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 201.29999999701977,
+            "responseEnd": 7946.5999999940395,
+            "transferBytes": 5434,
+            "encodedBytes": 5134,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 207.5,
+            "responseEnd": 8164.5999999940395,
+            "transferBytes": 5268,
+            "encodedBytes": 4968,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 198.59999999403954,
+            "responseEnd": 8368.39999999106,
+            "transferBytes": 5185,
+            "encodedBytes": 4885,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 183.30000001192093,
+            "responseEnd": 8561,
+            "transferBytes": 5460,
+            "encodedBytes": 5160,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 224.70000000298023,
+            "responseEnd": 8795.39999999106,
+            "transferBytes": 5416,
+            "encodedBytes": 5116,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 197.09999999403954,
+            "responseEnd": 8997.89999999106,
+            "transferBytes": 5338,
+            "encodedBytes": 5038,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 191.8999999910593,
+            "responseEnd": 9196.699999988079,
+            "transferBytes": 5472,
+            "encodedBytes": 5172,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 186.5,
+            "responseEnd": 9391.29999999702,
+            "transferBytes": 5273,
+            "encodedBytes": 4973,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 200.79999999701977,
+            "responseEnd": 9601.39999999106,
+            "transferBytes": 5055,
+            "encodedBytes": 4755,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 192.29999999701977,
+            "responseEnd": 9803.59999999404,
+            "transferBytes": 5418,
+            "encodedBytes": 5118,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 194.5,
+            "responseEnd": 10003.5,
+            "transferBytes": 5405,
+            "encodedBytes": 5105,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 225.40000000596046,
+            "responseEnd": 10238.5,
+            "transferBytes": 5209,
+            "encodedBytes": 4909,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 185.70000000298023,
+            "responseEnd": 10434.59999999404,
+            "transferBytes": 5447,
+            "encodedBytes": 5147,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 223.20000000298023,
+            "responseEnd": 10662,
+            "transferBytes": 5273,
+            "encodedBytes": 4973,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 222,
+            "responseEnd": 10894.09999999404,
+            "transferBytes": 5077,
+            "encodedBytes": 4777,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 196.20000000298023,
+            "responseEnd": 11100.59999999404,
+            "transferBytes": 5388,
+            "encodedBytes": 5088,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 199.79999999701977,
+            "responseEnd": 11302.199999988079,
+            "transferBytes": 5895,
+            "encodedBytes": 5595,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 210.09999999403954,
+            "responseEnd": 11521.89999999106,
+            "transferBytes": 5258,
+            "encodedBytes": 4958,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 222.70000000298023,
+            "responseEnd": 11754,
+            "transferBytes": 5547,
+            "encodedBytes": 5247,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 271.5,
+            "responseEnd": 12034.39999999106,
+            "transferBytes": 5265,
+            "encodedBytes": 4965,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 190.20000000298023,
+            "responseEnd": 12234.59999999404,
+            "transferBytes": 5203,
+            "encodedBytes": 4903,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 184.3999999910593,
+            "responseEnd": 12423.199999988079,
+            "transferBytes": 5402,
+            "encodedBytes": 5102,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 206.69999998807907,
+            "responseEnd": 12638.699999988079,
+            "transferBytes": 5445,
+            "encodedBytes": 5145,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 185.09999999403954,
+            "responseEnd": 12833.199999988079,
+            "transferBytes": 5757,
+            "encodedBytes": 5457,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 183.3999999910593,
+            "responseEnd": 13020.89999999106,
+            "transferBytes": 5425,
+            "encodedBytes": 5125,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 178.20000000298023,
+            "responseEnd": 13208.59999999404,
+            "transferBytes": 5174,
+            "encodedBytes": 4874,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 181.6000000089407,
+            "responseEnd": 13400.29999999702,
+            "transferBytes": 5201,
+            "encodedBytes": 4901,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 197.59999999403954,
+            "responseEnd": 13602.89999999106,
+            "transferBytes": 5393,
+            "encodedBytes": 5093,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 198.70000000298023,
+            "responseEnd": 13811.59999999404,
+            "transferBytes": 5468,
+            "encodedBytes": 5168,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 187.6000000089407,
+            "responseEnd": 14009.5,
+            "transferBytes": 5307,
+            "encodedBytes": 5007,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 193.59999999403954,
+            "responseEnd": 14209.199999988079,
+            "transferBytes": 5780,
+            "encodedBytes": 5480,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 192,
+            "responseEnd": 14411.09999999404,
+            "transferBytes": 5176,
+            "encodedBytes": 4876,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 196.59999999403954,
+            "responseEnd": 14617.89999999106,
+            "transferBytes": 5073,
+            "encodedBytes": 4773,
+            "decodedBytes": 777030
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 199.20000000298023,
+            "responseEnd": 14823.29999999702,
+            "transferBytes": 5319,
+            "encodedBytes": 5019,
+            "decodedBytes": 777027
+          },
+          {
+            "path": "/api/marketing/contacts",
+            "durationMs": 178.79999999701977,
+            "responseEnd": 15012.29999999702,
+            "transferBytes": 2279,
+            "encodedBytes": 1979,
+            "decodedBytes": 212906
+          }
+        ],
+        "errors": []
+      }
+    ]
+  }
+}

@@ -26,6 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (pathname.startsWith('/sales') || pathname.startsWith('/admin') || pathname.startsWith('/marketing')) {
     return (
       <CRMAppFrame>
+        {process.env.NEXT_PUBLIC_CRM_SYNTHETIC_PREVIEW === '1' && <div className="pointer-events-none fixed right-3 top-2 z-[100] rounded bg-amber-100 px-3 py-1 text-xs text-amber-950">Synthetic preview · no real data or sending</div>}
         <SessionRecovery />
         <SalesHeader />
         <CRMMainViewport fixed={partnershipInbox}>

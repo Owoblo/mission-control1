@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCurrentUser } from '@/lib/hooks/use-current-user'
 import { compareLeadsByGuidance, formatRelativeTime, getLeadGuidance } from '@/lib/lead-guidance'
-import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesOverview, restoreDeletedSalesLead, updateSalesLead } from '@/lib/sales-api'
+import { deleteSalesLead, fetchDeletedSalesLeads, fetchSalesLead, fetchSalesOverview, restoreDeletedSalesLead, updateSalesLead } from '@/lib/sales-api'
 import { formatDate, getLeadAssignedRepName, isBookedLikeStage, isClosedLeadStage } from '@/lib/sales'
 import type { CRMLead, CRMQuote, FollowUpLog } from '@/lib/types'
 import { LostLeadDialog } from '@/app/components/sales/lost-lead-dialog'
@@ -84,6 +84,9 @@ function SalesLeadsIndexContent() {
   const searchParams = useSearchParams()
   const currentUser = useCurrentUser()
   const query = searchParams.get('q')?.trim().toLowerCase() ?? ''
+  const refreshVersion = useRef(0)
+  const dialogVersion = useRef(0)
+  useEffect(() => () => { refreshVersion.current++; dialogVersion.current++ }, [])
   const [leads, setLeads] = useState<CRMLead[]>([])
   const [quotes, setQuotes] = useState<CRMQuote[]>([])
   const [followUps, setFollowUps] = useState<FollowUpLog[]>([])
@@ -112,10 +115,12 @@ function SalesLeadsIndexContent() {
     }
   }
 
-  async function refresh(options?: { includeDeleted?: boolean }) {
+  async function refresh(options?: { includeDeleted?: boolean; fresh?: boolean }) {
+    const version = ++refreshVersion.current
     try {
       setLoading(true)
-      const data = await fetchSalesOverview()
+      const data = await fetchSalesOverview({ leadList: true, fresh: options?.fresh })
+      if (version !== refreshVersion.current) return
       setLeads(data.leads)
       setQuotes(data.quotes)
       setFollowUps(data.followUps)
@@ -124,9 +129,9 @@ function SalesLeadsIndexContent() {
       }
       setError(null)
     } catch (err) {
-      setError((err as Error).message)
+      if (version === refreshVersion.current) setError((err as Error).message)
     } finally {
-      setLoading(false)
+      if (version === refreshVersion.current) setLoading(false)
     }
   }
 
@@ -158,6 +163,7 @@ function SalesLeadsIndexContent() {
       setError('Only a manager or the owner can delete leads.')
       return
     }
+    dialogVersion.current++
     setPendingRowAction({ kind: 'delete', lead })
   }
 
@@ -167,6 +173,8 @@ function SalesLeadsIndexContent() {
     try {
       setRowActionId(lead.id)
       await deleteSalesLead(lead.id)
+      refreshVersion.current++
+      setLoading(false)
       setLeads(current => current.filter(item => item.id !== lead.id))
       if (viewMode === 'deleted') {
         await loadDeletedLeads()
@@ -188,7 +196,7 @@ function SalesLeadsIndexContent() {
       setRowActionId(lead.id)
       await restoreDeletedSalesLead(lead.id)
       setDeletedLeads(current => current.filter(item => item.id !== lead.id))
-      await refresh()
+      await refresh({ fresh: true })
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -197,13 +205,24 @@ function SalesLeadsIndexContent() {
   }
 
   async function handleMarkNotInterested(lead: CRMLead) {
-    setPendingRowAction({ kind: 'not-interested', lead })
+    const version = ++dialogVersion.current
+    try {
+      setRowActionId(lead.id)
+      const fullLead = await fetchSalesLead(lead.id)
+      if (version !== dialogVersion.current) return
+      if (!fullLead) throw new Error('This lead is no longer available.')
+      setPendingRowAction({ kind: 'not-interested', lead: fullLead })
+    } catch (err) {
+      setError((err as Error).message)
+    } finally { if (version === dialogVersion.current) setRowActionId(null) }
   }
 
   async function saveReviewedStatus(lead: CRMLead, patch: Partial<CRMLead>) {
     setRowActionId(lead.id)
     try {
       const saved = await updateSalesLead(lead.id, patch)
+      refreshVersion.current++
+      setLoading(false)
       setLeads(current => current.map(item => item.id === saved.id ? saved : item))
       setPendingRowAction(null)
       setError(null)

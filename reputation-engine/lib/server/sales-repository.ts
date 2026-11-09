@@ -1,3 +1,4 @@
+import { fetchRead } from '@/lib/resilient-read'
 import { recordLeadAttention } from './lead-attention'
 import { fetchWithReadDeadline as fetch } from '@/lib/resilient-read'
 import {
@@ -1898,4 +1899,43 @@ export async function listAdditionalSalesJobs(parentLeadId: string) {
   const response = await fetchSupabaseWithRetry(`${url}/rest/v1/crm_leads?${query}`, { headers, cache: 'no-store' })
   if (!response.ok) throw new Error('Could not load additional jobs. Try again before creating another.')
   return (await response.json() as PersistedRecord<CRMLead>[]).map(row => normalizeLead(row.data))
+}
+
+// List-only visibility index. All pages are read explicitly; PostgREST's row cap
+// must not silently hide older leads or archive/restore events.
+async function readListPages<T extends { id: string }>(table: string, params: URLSearchParams, signal?: AbortSignal): Promise<T[]> {
+  const { url, headers } = requireSupabase()
+
+  const rows: T[] = []
+  let cursor = ''
+  for (;;) {
+    signal?.throwIfAborted()
+    params.set('order', 'id.asc')
+    params.set('limit', '500')
+    if (cursor) params.set('id', `gt.${cursor}`)
+    const response = await fetchRead(`${url}/rest/v1/${table}?${params}`, { headers, cache: 'no-store', signal })
+    const page = await response.json() as T[]
+    if (!page.length) break
+    rows.push(...page)
+    const next = page[page.length - 1].id
+    if (next === cursor) throw new Error('List cursor did not advance')
+    cursor = next
+    // Continue until empty, even if the service applies a lower row cap.
+  }
+  return rows
+}
+
+export async function listArchivedLeadIdsForList(signal?: AbortSignal) {
+  const lifecycle = await readListPages<LeadLifecycleSnapshot & { id: string; updated_at: string }>('crm_followup_logs', new URLSearchParams({ select: `id,updated_at,${LEAD_LIFECYCLE_SELECT}`, deleted: 'eq.false', 'data->>notes': `in.("${LEAD_ARCHIVED_NOTE}","${LEAD_RESTORED_NOTE}")` }), signal)
+  lifecycle.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+  return getArchivedLeadIds(lifecycle)
+}
+
+export async function listSalesLeadCardIndex(signal?: AbortSignal) {
+  const fields = ['createdAt', 'name', 'stage', 'leadKind', 'phone', 'email', 'identityPhone', 'identityEmail', 'parentLeadId', 'inboundId', 'mergedIntoLeadId', 'branch', 'originAddress', 'originCity', 'destAddress', 'destCity', 'lastTouchedAt', 'quoteId', 'quoteIds', 'moveDate', 'realtorName', 'realtorPhone', 'realtorEmail', 'primaryContactRole']
+  const [leads, archived] = await Promise.all([
+    readListPages<CRMLead & { updated_at: string }>('crm_leads', new URLSearchParams({ select: ['id', 'updated_at', ...fields.map(key => `${key}:data->${key}`)].join(','), deleted: 'eq.false' }), signal),
+    listArchivedLeadIdsForList(signal),
+  ])
+  return filterDisplayDuplicateSalesLeads(leads.map(row => normalizeLead(Object.fromEntries(Object.entries(row).filter(([, value]) => value !== null)) as unknown as CRMLead)).filter(lead => isVisibleSalesLead(lead, archived)))
 }

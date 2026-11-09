@@ -1,11 +1,12 @@
 'use client'
 
+import { PARTNERSHIP_AREA_GROUPS, normalizeInboxCity, inboxCityLabel, areaForCity, WINDSOR_PARTNER_CITY_KEYS, TORONTO_PARTNER_CITY_KEYS, WATERLOO_PARTNER_CITY_KEYS, LONDON_PARTNER_CITY_KEYS, OTTAWA_PARTNER_CITY_KEYS } from '@/lib/partnership-inbox-markets'
+import { ContactSearchResults } from '@/app/components/marketing/contact-search-results'
 import {RelationshipReport} from '@/app/components/partnership/relationship-report'
 import { SharedPartnerContext } from '@/app/components/partnership/shared-context'
 import { PartnerSalesHandoffButton } from '@/app/components/partnership/sales-handoff'
 import { fetchRead } from '@/lib/resilient-read'
 import { loadContactDirectory } from '@/lib/contact-directory-loader'
-import gtaCities from '@/lib/data/gta-service-cities.json'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { MaterialRequestQueue, RelationshipNextStep } from '@/app/components/partnership/relationship-next-step'
@@ -16,6 +17,7 @@ import { partnershipMediaKind } from '@/lib/partnership-media'
 import { VideoAttachment } from '@/app/components/partnership/video-attachment'
 import { BusinessCardPicker } from '@/app/components/partnership/business-card-picker'
 import { businessCardFirstName, appendBusinessCardReply, attachBusinessCard, businessCardReply, businessCardUrl, type PartnerBusinessCard } from '@/lib/partner-business-cards'
+import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
 import { sendSalesMessage } from '@/lib/sales-api'
 import { prepareUploadFile } from '@/lib/browser-media'
 import { PARTNER_CATEGORIES, CATEGORY_LIST, SERVICE_AREAS, suggestBatchName, getCategoryMeta } from '@/lib/partner-categories'
@@ -3369,297 +3371,6 @@ function inboxCategoryLabel(category: string) {
   return getCategoryMeta(category)?.label || category.replace(/_/g, ' ')
 }
 
-const WINDSOR_PARTNER_CITY_KEYS = [
-  'windsor',
-  'lasalle',
-  'tecumseh',
-  'amherstburg',
-  'lakeshore',
-  'belle_river',
-  'comber',
-  'stoney_point',
-  'st_joachim',
-  'puce',
-  'emeryville',
-  'anderdon',
-  'leamington',
-  'kingsville',
-  'essex',
-  'harrow',
-  'mcgregor',
-  'cottam',
-  'ruthven',
-  'colchester',
-  'maidstone',
-  'wheatley',
-  'chatham',
-  'chatham_kent',
-  'tilbury',
-  'wallaceburg',
-  'dresden',
-  'pain_court',
-  'blenheim',
-  'merlin',
-  'charing_cross',
-  'cedar_springs',
-  'dealtown',
-  'ridgetown',
-  'thamesville',
-  'bothwell',
-  'highgate',
-  'morpeth',
-  'muirkirk',
-  'mitchells_bay',
-  'lighthouse_cove',
-  'erieau',
-  'shrewsbury',
-  'erie_beach',
-]
-
-const WATERLOO_PARTNER_CITY_KEYS = [
-  'kitchener',
-  'waterloo',
-  'cambridge',
-  'guelph',
-  'kitchener_waterloo',
-  'elmira',
-  'st_jacobs',
-  'conestogo',
-  'breslau',
-  'woolwich',
-  'new_hamburg',
-  'baden',
-  'wellesley',
-  'wilmot',
-  'ayr',
-  'north_dumfries',
-  'puslinch',
-  'guelph_eramosa',
-  'rockwood',
-  'fergus',
-  'elora',
-  'centre_wellington',
-  'drayton',
-  'mapleton',
-  'arthur',
-  'palmerston',
-  'stratford',
-  'listowel',
-  'paris',
-]
-
-const LONDON_PARTNER_CITY_KEYS = [
-  'london',
-  'lucan',
-  'lucan_biddulph',
-  'ailsa_craig',
-  'parkhill',
-  'ilderton',
-  'north_middlesex',
-  'strathroy',
-  'strathroy_caradoc',
-  'mount_brydges',
-  'kerwood',
-  'glencoe',
-  'newbury',
-  'wardsville',
-  'adelaide_metcalfe',
-  'southwest_middlesex',
-  'komoka',
-  'middlesex_centre',
-  'dorchester',
-  'thames_centre',
-  'belmont',
-  'st_thomas',
-  'central_elgin',
-  'southwold',
-  'talbotville',
-  'shedden',
-  'fingal',
-  'port_stanley',
-  'dutton',
-  'dutton_dunwich',
-  'west_lorne',
-  'rodney',
-  'aylmer',
-  'springfield',
-  'malahide',
-  'bayham',
-  'vienna',
-  'port_burwell',
-  'st_marys',
-  'sarnia',
-  'point_edward',
-  'brights_grove',
-  'camlachie',
-  'corunna',
-  'mooretown',
-  'courtright',
-  'sombra',
-  'port_lambton',
-  'st_clair',
-  'dawn_euphemia',
-  'petrolia',
-  'oil_springs',
-  'brigden',
-  'wyoming',
-  'plympton_wyoming',
-  'watford',
-  'warwick',
-  'alvinston',
-  'brooke_alvinston',
-  'arkona',
-  'forest',
-  'thedford',
-  'grand_bend',
-  'lambton_shores',
-  'port_franks',
-  'ipperwash',
-  'woodstock',
-  'ingersoll',
-  'beachville',
-  'sweaburg',
-  'burgessville',
-  'otterville',
-  'norwich',
-  'mount_elgin',
-  'courtland',
-  'tillsonburg',
-  'tavistock',
-  'thamesford',
-  'innerkip',
-  'east_zorra_tavistock',
-  'embro',
-  'hickson',
-  'kintore',
-  'zorra',
-  'drumbo',
-  'princeton',
-  'plattsville',
-  'bright',
-  'delhi',
-]
-
-const OTTAWA_PARTNER_CITY_KEYS = [
-  'ottawa',
-  'kanata',
-  'nepean',
-  'orleans',
-  'barrhaven',
-  'gloucester',
-  'stittsville',
-  'manotick',
-  'rockland',
-  'carp',
-]
-
-const TORONTO_PARTNER_CITY_KEYS = [...gtaCities.map(city => city.toLowerCase().replace(/[^a-z0-9]+/g, '_')), 'gta', 'greater_toronto_area']
-
-const PARTNERSHIP_AREA_GROUPS = [
-  { id: 'toronto_area', label: 'Toronto / GTA + Hamilton', cityKeys: TORONTO_PARTNER_CITY_KEYS },
-  {
-    id: 'windsor_area',
-    label: 'Windsor / Essex / Chatham',
-    cityKeys: WINDSOR_PARTNER_CITY_KEYS,
-  },
-  {
-    id: 'kwg_area',
-    label: 'KWG area',
-    cityKeys: WATERLOO_PARTNER_CITY_KEYS,
-  },
-  {
-    id: 'london_area',
-    label: 'London / Sarnia / Woodstock',
-    cityKeys: LONDON_PARTNER_CITY_KEYS,
-  },
-  {
-    id: 'ottawa_area',
-    label: 'Ottawa area',
-    cityKeys: OTTAWA_PARTNER_CITY_KEYS,
-  },
-]
-
-const CITY_LABELS: Record<string, string> = {
-  amherstburg: 'Amherstburg',
-  belle_river: 'Belle River',
-  cambridge: 'Cambridge',
-  chatham: 'Chatham',
-  chatham_kent: 'Chatham Kent',
-  comber: 'Comber',
-  cottam: 'Cottam',
-  delhi: 'Delhi',
-  essex: 'Essex',
-  elmira: 'Elmira',
-  elora: 'Elora',
-  fergus: 'Fergus',
-  gatineau: 'Gatineau',
-  guelph: 'Guelph',
-  harrow: 'Harrow',
-  kanata: 'Kanata',
-  kingsville: 'Kingsville',
-  kitchener: 'Kitchener',
-  kitchener_waterloo: 'Kitchener/Waterloo',
-  kw: 'KW',
-  kwg: 'KW/Guelph',
-  lakeshore: 'Lakeshore',
-  lasalle: 'LaSalle',
-  leamington: 'Leamington',
-  london: 'London',
-  mcgregor: 'McGregor',
-  new_hamburg: 'New Hamburg',
-  nepean: 'Nepean',
-  orleans: 'Orleans',
-  ottawa: 'Ottawa',
-  ayr: 'Ayr',
-  baden: 'Baden',
-  barrhaven: 'Barrhaven',
-  gloucester: 'Gloucester',
-  london_area: 'London area',
-  manotick: 'Manotick',
-  sarnia: 'Sarnia',
-  st_thomas: 'St. Thomas',
-  st_jacobs: 'St. Jacobs',
-  st_joachim: 'St. Joachim',
-  st_marys: 'St. Marys',
-  stittsville: 'Stittsville',
-  stoney_point: 'Stoney Point',
-  strathroy: 'Strathroy',
-  tecumseh: 'Tecumseh',
-  waterloo: 'Waterloo',
-  windsor: 'Windsor',
-  woodstock: 'Woodstock',
-}
-
-function normalizeInboxCity(value: string | null | undefined) {
-  const normalized = String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-  if (!normalized) return ''
-  if (['la_salle', 'lasalle'].includes(normalized)) return 'lasalle'
-  if (['chathamkent', 'chatham_kent', 'chatham'].includes(normalized)) return 'chatham_kent'
-  if (['kitchener_waterloo', 'kitchener_and_waterloo', 'kw', 'kwg', 'wkg'].includes(normalized)) return 'kitchener_waterloo'
-  if (['st_jacobs', 'saint_jacobs'].includes(normalized)) return 'st_jacobs'
-  if (['newhamburg', 'new_hamburg'].includes(normalized)) return 'new_hamburg'
-  if (['barr_haven', 'barrhaven'].includes(normalized)) return 'barrhaven'
-  if (['stoney_pt', 'stoney_point'].includes(normalized)) return 'stoney_point'
-  if (['st_thomas', 'saint_thomas'].includes(normalized)) return 'st_thomas'
-  if (['st_joachim', 'saint_joachim'].includes(normalized)) return 'st_joachim'
-  if (['st_marys', 'saint_marys'].includes(normalized)) return 'st_marys'
-  if (['mitchell_s_bay', 'mitchells_bay'].includes(normalized)) return 'mitchells_bay'
-  return normalized
-}
-
-function inboxCityLabel(cityKey: string) {
-  return CITY_LABELS[cityKey] || cityKey.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
-}
-
-function areaForCity(cityKey: string) {
-  return PARTNERSHIP_AREA_GROUPS.find(area => area.cityKeys.includes(cityKey))
-}
-
 type PartnershipMarketKey = 'windsor' | 'waterloo' | 'london' | 'ottawa' | 'toronto'
 
 type PartnershipMarketCommand = {
@@ -3752,8 +3463,10 @@ function PhoneTab({
   batches,
   lists,
   onSelectContact,
-  onContactUpdated,
-  onContactDeleted,
+  onContactUpdated: publishContactUpdate,
+  onContactDeleted: publishContactDeletion,
+  requireDirectory,
+  directoryLoading,
 }: {
   contacts: Contact[]
   batches: Batch[]
@@ -3761,15 +3474,33 @@ function PhoneTab({
   onSelectContact: (c: Contact) => void
   onContactUpdated: (c: Contact) => void
   onContactDeleted: (id: string) => void
+  requireDirectory: () => void
+  directoryLoading: boolean
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedFromQuery = searchParams.get('contact')
   const [deepContact, setDeepContact] = useState<Contact | null>(null)
+  const hydratedContactId = useRef<string | null>(null)
   const [deepLinkError, setDeepLinkError] = useState('')
+  const [searchRevision, setSearchRevision] = useState(0)
+  function onContactUpdated(contact: Contact) {
+    setDeepContact(current => current?.id === contact.id ? { ...current, ...contact } : current)
+    setSearchRevision(value => value + 1)
+    publishContactUpdate(contact)
+  }
+  function onContactDeleted(id: string) {
+    if (hydratedContactId.current === id) hydratedContactId.current = null
+    setDeepContact(current => current?.id === id ? null : current)
+    setSearchRevision(value => value + 1)
+    publishContactDeletion(id)
+  }
   const requestedMarket = (searchParams.get('market') as PartnershipMarketKey | null)
   const requestedAreaId = requestedMarket ? marketCommandForKey(requestedMarket).areaId : ''
   const [search, setSearch] = useState('')
+  const [searchMode, setSearchMode] = useState<'contacts' | 'comprehensive'>(process.env.NEXT_PUBLIC_CRM_SYNTHETIC_PREVIEW === '1' && searchParams.get('legacyDirectory') === '1' ? 'comprehensive' : 'contacts')
+  const fastSearch = searchMode === 'contacts' && Boolean(search.trim())
+  useEffect(() => { if (searchMode === 'comprehensive') requireDirectory() }, [searchMode, requireDirectory])
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('inbound')
   const [areaFilter, setAreaFilter] = useState(requestedAreaId)
   const [cityFilter, setCityFilter] = useState('')
@@ -3788,6 +3519,7 @@ function PhoneTab({
   const [smsBody, setSmsBody] = useState('')
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
+  const [emailSender, setEmailSender] = useState('')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
   const [mediaUploading, setMediaUploading] = useState(false)
   const [scheduleMode, setScheduleMode] = useState(false)
@@ -3848,14 +3580,17 @@ function PhoneTab({
 
   useEffect(() => {
     let cancelled = false
-    setDeepContact(null); setDeepLinkError('')
+    setDeepLinkError('')
+    if (selectedFromQuery && hydratedContactId.current === selectedFromQuery) { setSelectedId(selectedFromQuery); return }
+    hydratedContactId.current = null
+    setDeepContact(null)
     if (!selectedFromQuery) return
     setSelectedId(selectedFromQuery)
     fetch(`/api/marketing/contacts?mode=directory&id=${encodeURIComponent(selectedFromQuery)}&limit=1`, { credentials: 'include' })
       .then(async response => {
         const data = await response.json()
         if (!response.ok || data.contacts?.[0]?.id !== selectedFromQuery) throw new Error('The requested contact is unavailable. No other conversation has been selected.')
-        if (!cancelled) setDeepContact(data.contacts[0])
+        if (!cancelled) { hydratedContactId.current = selectedFromQuery; setDeepContact(data.contacts[0]) }
       })
       .catch(error => { if (!cancelled) setDeepLinkError(error.message) })
     return () => { cancelled = true }
@@ -3869,7 +3604,7 @@ function PhoneTab({
       byId.set(contact.id, contact)
     })
     replyContacts.forEach(contact => byId.set(contact.id, { ...(byId.get(contact.id) || {} as Contact), ...contact }))
-    if (deepContact) byId.set(deepContact.id, { ...deepContact, ...(byId.get(deepContact.id) || {}) })
+    if (deepContact) byId.set(deepContact.id, { ...(byId.get(deepContact.id) || {}), ...deepContact })
     return Array.from(byId.values())
   }, [contacts, replyContacts, deepContact])
 
@@ -3975,7 +3710,7 @@ function PhoneTab({
     router.replace(`/marketing/partners?${params.toString()}`, { scroll: false })
   }
 
-  const sorted = useMemo(() => [...segmentContacts]
+  const sorted = useMemo(() => fastSearch ? [] : [...segmentContacts]
     .filter(c => inboxFilter === 'recent_sales' ? recentSalesByContact.has(c.id) : matchesInboxFilter(c, inboxFilter))
     .sort((a, b) => {
       const priorityRank = Number(b.priority === 'high') - Number(a.priority === 'high')
@@ -4010,7 +3745,7 @@ function PhoneTab({
         preview,
         status,
       ].filter(Boolean).join(' ').toLowerCase().includes(q)
-    }), [segmentContacts, inboxFilter, search, batchMeta, recentSalesByContact])
+    }), [segmentContacts, inboxFilter, search, batchMeta, recentSalesByContact, fastSearch])
 
   const filterCounts = useMemo(() => {
     return INBOX_FILTERS.reduce((acc, filter) => {
@@ -4024,10 +3759,10 @@ function PhoneTab({
   useEffect(() => {
     // Never strand a market manager on an empty inbound queue with no composer.
     // New markets can still open the full directory before the first reply arrives.
-    if (inboxFilter === 'inbound' && sorted.length === 0 && segmentContacts.length > 0) {
+    if (!fastSearch && inboxFilter === 'inbound' && sorted.length === 0 && segmentContacts.length > 0) {
       setInboxFilter('all')
     }
-  }, [inboxFilter, segmentContacts.length, sorted.length])
+  }, [fastSearch, inboxFilter, segmentContacts.length, sorted.length])
 
   const selected = inboxContacts.find(c => c.id === selectedId) ?? null
   const selectedThreadFromNumber = selected
@@ -4060,20 +3795,20 @@ function PhoneTab({
   useEffect(() => loadReplyContacts(), [loadReplyContacts])
 
   useEffect(() => {
-    void dialer.ensureReady({ showError: false })
+    if (process.env.NEXT_PUBLIC_CRM_SYNTHETIC_PREVIEW !== '1') void dialer.ensureReady({ showError: false })
     // Register the partnership browser dialer once when the inbox mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     // A deep link must never fall back to an unrelated first inbox contact.
-    if (selectedFromQuery) return
+    if (selectedFromQuery || fastSearch) return
     if (!selectedId && sorted[0]) {
       setSelectedId(sorted[0].id)
     } else if (selectedId && !segmentContacts.some(c => c.id === selectedId)) {
       setSelectedId(sorted[0]?.id ?? null)
     }
-  }, [segmentContacts, selectedFromQuery, selectedId, sorted])
+  }, [segmentContacts, selectedFromQuery, selectedId, sorted, fastSearch])
 
   const reloadTouches = useCallback((contactId: string) => {
     const requestId = ++touchRequestRef.current
@@ -4122,6 +3857,7 @@ function PhoneTab({
     setSmsBody('')
     setEmailSubject('')
     setEmailBody('')
+    setEmailSender('')
     setMediaUrls([])
     setScheduleMode(false)
     setActionPanelOpen(false)
@@ -4354,6 +4090,7 @@ function PhoneTab({
     const currentSmsBody = smsDraftRef.current
     setSending(true)
     const replyFromNumber = selectedThreadFromNumber
+    let emailNeedsReconciliation = false
     try {
       if (composeChannel === 'sms' && scheduleMode) {
         const res = await fetch(`/api/marketing/contacts/${selected.id}/schedule-reply`, {
@@ -4395,6 +4132,15 @@ function PhoneTab({
         })
         const data = await res.json().catch(() => null) as { error?: string } | null
         if (!res.ok) throw new Error(data?.error || 'Could not send SMS')
+      } else if (!isOttawa(selected.city)) {
+        const res = await fetch(`/api/marketing/contacts/${selected.id}/send-email`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({ sender: emailSender, subject: emailSubject, body: emailBody,
+            internalTest: selected.tags?.includes('internal-infrastructure-test') === true }),
+        })
+        const data = await res.json().catch(() => null) as { error?: string; reconciliationRequired?: boolean } | null
+        if (!res.ok) throw new Error(data?.error || 'Could not send email')
+        emailNeedsReconciliation = data?.reconciliationRequired === true
       } else {
         await sendSalesMessage({ channel: 'email', to: selected.email!, subject: emailSubject, body: emailBody })
         await fetch('/api/marketing/touches', {
@@ -4407,7 +4153,7 @@ function PhoneTab({
           }),
         })
       }
-      showToast(composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
+      showToast(emailNeedsReconciliation ? 'Email accepted. Delivery records need reconciliation; do not resend.' : composeChannel === 'sms' ? '💬 SMS sent' : '✉️ Email sent')
       const outboundAt = new Date().toISOString()
       const updatedAfterSend = {
         ...selected,
@@ -4415,7 +4161,7 @@ function PhoneTab({
         latest_touch_channel: composeChannel,
         latest_touch_note: composeChannel === 'sms' ? currentSmsBody : emailBody,
         last_touch_at: outboundAt,
-        sequence_paused: false,
+        sequence_paused: composeChannel === 'email' && !isOttawa(selected.city) ? true : selected.sequence_paused,
         needs_follow_up: true,
       }
       setReplyContacts(curr => curr.some(c => c.id === selected.id)
@@ -4887,10 +4633,15 @@ function PhoneTab({
               </button>
             ))}
           </div>
+          <div className="mb-2 flex gap-2" aria-label="Search mode">
+            <button type="button" aria-pressed={searchMode === 'contacts'} onClick={() => setSearchMode('contacts')} className="rounded border px-3 py-1 text-xs">Contacts</button>
+            <button type="button" aria-pressed={searchMode === 'comprehensive'} onClick={() => setSearchMode('comprehensive')} className="rounded border px-3 py-1 text-xs">Comprehensive</button>
+          </div>
+          <p className="mb-2 text-xs text-slate-500">{searchMode === 'contacts' ? 'Search all authorized contacts by name, company, email, phone or city. Comprehensive also searches messages, campaigns and status.' : directoryLoading ? 'Loading the complete directory for comprehensive search… Results may be incomplete until loading finishes.' : 'Search contacts, messages, campaigns, market labels and status using the existing inbox filters.'}</p>
           <div className="flex gap-2">
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…"
               className="h-12 min-w-0 flex-1 rounded-[9px] border border-slate-200 bg-slate-50 px-4 text-base leading-6 text-[#071421] outline-none focus:border-[#071421] lg:h-10 lg:text-sm" />
-            <details className="relative shrink-0">
+            <details className="relative shrink-0" onToggle={event => { if (event.currentTarget.open) requireDirectory() }}>
               <summary className="flex h-12 cursor-pointer list-none items-center rounded-[9px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 lg:h-10">Filters{hasSegmentFilter ? ' · On' : ''}</summary>
               <div className="absolute right-0 z-30 mt-2 grid w-72 grid-cols-1 gap-2 rounded-[10px] border border-slate-200 bg-white p-3 shadow-lg sm:grid-cols-2">
             <select
@@ -4950,7 +4701,7 @@ function PhoneTab({
           {(hasSegmentFilter || segmentContacts.length > 0) && (
             <div className="mt-2 flex items-center justify-between gap-2 px-1 py-1">
               <span className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
-                {activeArea?.label || 'All partnership markets'} · {segmentContacts.length.toLocaleString()} contacts
+                {activeArea?.label || 'All partnership markets'} · {segmentContacts.length.toLocaleString()} {directoryLoading || searchMode === 'contacts' ? 'loaded contacts' : 'contacts'}
               </span>
               {hasSegmentFilter && (
                 <button
@@ -4966,7 +4717,7 @@ function PhoneTab({
             {INBOX_FILTERS.map(filter => (
               <button
                 key={filter.key}
-                onClick={() => setInboxFilter(filter.key)}
+                onClick={() => { setInboxFilter(filter.key); setSearchMode('comprehensive'); requireDirectory() }}
                 className={`min-h-10 shrink-0 border-b-2 px-0 text-sm font-medium transition ${inboxFilter === filter.key ? 'border-[#071421] text-[#071421]' : 'border-transparent text-slate-500 hover:text-[#071421]'}`}
               >
                 {filter.label}
@@ -4976,7 +4727,8 @@ function PhoneTab({
           <RelationshipReport />
           {replyLoading && <div className="mt-2 text-[11px] text-slate-500">Loading replies...</div>}
         </div>
-        <div className="flex-1 overflow-y-auto">
+        {fastSearch ? <ContactSearchResults refreshKey={searchRevision} query={search} filters={{ area: areaFilter, cityKey: cityFilter, categoryKey: categoryFilter, brokerage: brokerageFilter, batch_id: batchFilter }} selectedId={selectedId}
+          onSelect={contact => { hydratedContactId.current = String(contact.id); setDeepContact(contact as unknown as Contact); handleSelect(String(contact.id)) }} /> : <div className="flex-1 overflow-y-auto">
           {sorted.map(c => {
             const status = getInboxStatus(c)
             const unread = status === 'context' || status === 'needs_reply'
@@ -5012,7 +4764,7 @@ function PhoneTab({
               </button>
             )
           })}
-        </div>
+        </div>}
       </div>
 
       {/* Detail panel */}
@@ -5452,6 +5204,15 @@ function PhoneTab({
               </div>
             ) : (
               <div className="space-y-2">
+                {!isOttawa(selected.city) && <label className="block text-xs font-semibold text-slate-600">Send from
+                  <select aria-label="Send email from" value={emailSender} onChange={e => setEmailSender(e.target.value)} className="mt-1 min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
+                    <option value="">Choose the address for this conversation</option>
+                    <option value="john">john@saturnstarmovers.ca</option>
+                    <option value="johnny">johnny@saturnstarmovers.ca</option>
+                    <option value="jhon">jhon@saturnstarmovers.ca</option>
+                    <option value="business">business@starmovers.ca</option>
+                  </select>
+                </label>}
                 <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
                   className="min-h-12 w-full rounded-[14px] border border-slate-200 bg-slate-50 px-4 text-base leading-[1.5] text-[#071421] outline-none focus:border-[#071421] lg:min-h-10 lg:text-sm" />
                 <div className="flex gap-2">
@@ -5465,7 +5226,7 @@ function PhoneTab({
                   </button>
                   <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={4} placeholder={selected.email ? 'Write a clear partnership email…' : 'No email'} disabled={!selected.email}
                     className="max-h-64 min-h-[120px] flex-1 resize-y rounded-[12px] border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-[1.6] text-[#071421] outline-none focus:border-[#071421] disabled:opacity-40" />
-                  <button onClick={handleSend} disabled={sending || !selected.email || !emailBody.trim()}
+                  <button onClick={handleSend} disabled={sending || !selected.email || !emailSubject.trim() || !emailBody.trim() || (!isOttawa(selected.city) && !emailSender)}
                     className="min-h-12 self-end rounded-full bg-[#071421] px-5 text-sm font-semibold text-white disabled:opacity-40 lg:min-h-11">{sending ? '…' : 'Send'}</button>
                 </div>
                 {(voiceListening || voiceError) && (
@@ -7095,7 +6856,8 @@ function PartnershipEngineInner() {
       .then(data => setCurrentUser(data as { role?: string; branch?: string | null; name?: string; userId?: string | null } | null))
       .catch(() => setCurrentUser(null))
   }, [])
-  useEffect(() => { void loadContacts() }, [loadContacts])
+  const requireDirectory = useCallback(() => { void loadContacts() }, [loadContacts])
+  useEffect(() => { if ((tab !== 'phone' && tab !== 'replies') || (process.env.NEXT_PUBLIC_CRM_SYNTHETIC_PREVIEW === '1' && searchParams.get('legacyDirectory') === '1')) void loadContacts() }, [loadContacts, tab, searchParams])
   useEffect(() => { void loadBatches() }, [loadBatches])
   useEffect(() => { void loadLists() }, [loadLists])
   useEffect(() => { void loadRelationshipSummary() }, [loadRelationshipSummary])
@@ -7277,7 +7039,7 @@ function PartnershipEngineInner() {
           />
         )}
         {(tab === 'phone' || tab === 'replies') && (
-          <PhoneTab contacts={contacts} batches={batches} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} onContactDeleted={handleContactDeleted} />
+          <PhoneTab requireDirectory={requireDirectory} directoryLoading={contactsRefreshing} contacts={contacts} batches={batches} lists={lists} onSelectContact={setSelectedContact} onContactUpdated={handleContactUpdated} onContactDeleted={handleContactDeleted} />
         )}
         {tab === 'partners' && (
           <PartnersTab contacts={contacts} onSelect={handleOpenThread} />

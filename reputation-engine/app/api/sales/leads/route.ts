@@ -1,3 +1,6 @@
+import { cursorScope, decodeListCursor, encodeListCursor } from '@/lib/server/list-cursor'
+import { readSalesLeadCards, readUnscopedSalesCardPage } from '@/lib/server/sales-list-reader'
+import { listSalesLeadCardIndex, listArchivedLeadIdsForList } from '@/lib/server/sales-repository'
 import { NextResponse } from 'next/server'
 import { applyDetectedBranch, maybeCreateDestinationOpportunityLead } from '@/lib/server/sales-opportunities'
 import { calculateLeadScore, getLeadAssignedRepName, normalizeLead, uid } from '@/lib/sales'
@@ -11,7 +14,55 @@ import { logEvent } from '@/lib/server/analytics'
 import { syncLeadPartnerReferral } from '@/lib/server/partner-referral-link'
 import { findUniqueRelationshipContactByPhone } from '@/lib/server/relationship-contact-link'
 
-export async function GET(request: Request) {
+async function getCards(request: Request) {
+  try {
+    const session = await getSessionUser()
+    if (!canAccessSalesWorkspace(session)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const url = new URL(request.url)
+    const page = Number(url.searchParams.get('page') || 0)
+    const limit = Number(url.searchParams.get('limit') || 50)
+    if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(limit) || limit < 10 || limit > 100) {
+      return NextResponse.json({ error: 'Invalid pagination' }, { status: 400 })
+    }
+    const cursorMode = url.searchParams.get('pagination') === 'cursor'
+    const scope = cursorScope([session?.role, session?.branch, session?.userId, 'sales-cards-v1'])
+    let after: string | null = null
+    try { after = decodeListCursor(url.searchParams.get('cursor'), scope) }
+    catch { return NextResponse.json({ error: 'Invalid cursor; restart the list' }, { status: 400 }) }
+    if (!isBranchScopedManager(session)) {
+      const archived = await listArchivedLeadIdsForList(request.signal)
+      const result = await readUnscopedSalesCardPage({ page, limit, archived, after, cursorMode, signal: request.signal })
+      const last = result.leads.at(-1)
+      return NextResponse.json({ ...result, page, limit, nextCursor: cursorMode && result.hasMore && last ? encodeListCursor(last.id, scope) : null }, { headers: { 'Cache-Control': 'private, no-store' } })
+    }
+    // Resolve legacy branch inference, identity and lifecycle rules before paging.
+    // Only lightweight fields are read here, never the full JSONB directory.
+    const index = (await listSalesLeadCardIndex(request.signal)).filter(lead => leadMatchesSessionBranch(lead, session))
+    index.sort((a, b) => {
+      const left = a as CRMLead & { updated_at?: string }
+      const right = b as CRMLead & { updated_at?: string }
+      if (cursorMode) return a.id.localeCompare(b.id)
+      return (right.updated_at || '').localeCompare(left.updated_at || '') || a.id.localeCompare(b.id)
+    })
+    const candidates = cursorMode && after ? index.filter(lead => lead.id.localeCompare(after!) > 0) : index
+    const start = cursorMode ? 0 : page * limit
+    const ids = candidates.slice(start, start + limit).map(lead => lead.id)
+    const hasMore = start + limit < candidates.length
+    const nextCursor = cursorMode && hasMore && ids.length ? encodeListCursor(ids[ids.length - 1], scope) : null
+    const leads = await readSalesLeadCards(ids, session, request.signal)
+    return NextResponse.json({ leads, total: index.length, page, limit, hasMore, nextCursor }, { headers: { 'Cache-Control': 'private, no-store' } })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to list leads' },
+      { status: 500 }
+    )
+  }
+}
+
+async function legacyGET(request: Request) {
   try {
     const session = await getSessionUser()
     if (!canAccessSalesWorkspace(session)) {
@@ -38,6 +89,14 @@ export async function GET(request: Request) {
       { status: 500 }
     )
   }
+}
+
+export async function GET(request: Request) {
+  if (new URL(request.url).searchParams.get('mode') === 'cards') {
+    if (process.env.CRM_EXPERIMENTAL_SALES_CARDS !== '1' || process.env.CRM_SYNTHETIC_PREVIEW === '1') return NextResponse.json({ error: 'Experimental sales cards are disabled' }, { status: 404 })
+    return getCards(request)
+  }
+  return legacyGET(request)
 }
 
 export async function POST(request: Request) {

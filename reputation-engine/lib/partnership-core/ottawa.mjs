@@ -5,5 +5,5 @@ const locations=['Ottawa','Kanata','Nepean','Orleans','Gloucester','Stittsville'
 export const isOttawa=city=>locations.some(c=>norm(c)===norm(city));
 export function ottawaActionAllowed({city,kind,channel,sender}){
  if(!isOttawa(city))return false;
- return kind==='reply'&&((channel==='sms'&&sender==='+15482908695')||(channel==='email'&&/^(?:Dr\.? Courage(?: \| Dexa Movers)? <)?hello@dexamovers\.ca>?$/i.test(sender)));
+ return kind==='reply'&&((channel==='sms'&&sender==='+15482908695')||(channel==='email'&&(sender==='Courage Eke <hello@dexamovers.ca>'||/^(?:Dr\.? Courage(?: \| Dexa Movers)? <)?hello@dexamovers\.ca>?$/i.test(sender))));
 }
