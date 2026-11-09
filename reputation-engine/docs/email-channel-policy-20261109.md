@@ -23,7 +23,7 @@ Qualitative engineering assessment, not a deliverability score:
 | --- | --- | --- |
 | SES operational transport | Strong | Reservation, provider receipt, unknown-outcome protection, signed event handling, suppression and unsubscribe tests. |
 | Google mailbox setup | In progress | Eight connected new mailboxes; connection alone does not prove durable refresh, campaign dispatch or reply ingestion. |
-| Cold campaign execution | Not ready | Candidate implements Gmail transport, atomic inbox/domain capacity, sender affinity, suppression rechecks and duplicate-send protection. Live verification, health ingestion, queue admission and reviewed follow-up policy remain outstanding. |
+| Cold campaign execution | Not ready | Candidate implements Gmail transport, atomic inbox/domain capacity, sender affinity, suppression rechecks and duplicate-send protection. Live verification, health ingestion and reviewed follow-up policy remain outstanding. |
 | Monitoring | Partial | Mailivery metrics exist; local monitor is not an always-on alerting service. ScaledMail reporting activation is pending. |
 | Fifth-domain migration | Not ready for cutover | Three Zoho exports verified as readable, 214 messages total. Compare source completeness, resolve Google tenant, provision destination and validate import before MX change. |
 | Playbook | Strong intent; stale execution details | Use this channel policy; historical SES campaigns must not be replayed. |
@@ -42,12 +42,12 @@ Mailivery SEM-FRESH detections are domain-age warnings, distinct from abuse-list
 
 ## Candidate implementation status (later on November 9)
 
-The isolated Google candidate now includes a disabled worker, owner-only status endpoint, atomic capacity/policy claims, immutable reviewed jobs and sender assignments, Gmail MIME transport, unknown-outcome holds, and thread polling that pauses/cancels pending outreach and records an inbound CRM touch. Capacity is rolling 24 hours (10/inbox and 20/domain by default), with ten-minute inbox pacing. Provider acceptance is not delivery.
+The isolated Google candidate now includes a disabled worker, owner-only status and reviewed-queue admission endpoints, atomic capacity/policy claims, immutable reviewed jobs and sender assignments, Gmail MIME transport, unknown-outcome holds, and thread polling that pauses/cancels pending outreach and records an inbound CRM touch. Capacity is rolling 24 hours (10/inbox and 20/domain by default), with ten-minute inbox pacing. Provider acceptance is not delivery.
 
 Automatic follow-ups deliberately remain held: the current shared relationship policy supports cold introductions and human replies, not unattended follow-ups. The MIME builder preserves original mailbox/thread bindings for a future explicitly reviewed follow-up workflow. Do not label a follow-up as a human reply to bypass that policy.
 
 No campaign cron has been scheduled, no production schema has been migrated, and neither GOOGLE_MAIL_WORKER_ENABLED nor GOOGLE_MAIL_DISPATCH_ENABLED has been activated. The existing OAuth table constraint also prohibits campaign_enabled=true. Keep it until an independently reviewed activation migration and end-to-end tests pass.
 
-Remaining launch work: reconcile this candidate with the operations-phone deployment restored from the previous Google release; connect current health evidence to google_mail_health; add controlled reviewed-queue admission; implement the reviewed follow-up policy; test original-thread replies, opt-out/bounce handling, token refresh and acceptance reconciliation with owned mailboxes; then schedule bounded polling and prove alert delivery. The current thread poller pauses all non-sent/non-draft responses for human review rather than claiming it has classified human replies reliably. It does not yet scan for delivery notices arriving in unrelated threads.
+Remaining launch work: reconcile this candidate with the operations-phone deployment restored from the previous Google release; connect current health evidence to google_mail_health; implement the reviewed follow-up policy; test original-thread replies, opt-out/bounce handling, token refresh and acceptance reconciliation with owned mailboxes; then schedule bounded polling and prove alert delivery. The current thread poller pauses all non-sent/non-draft responses for human review rather than claiming it has classified human replies reliably. It does not yet scan for delivery notices arriving in unrelated threads.
 
 Gmail implementation references: https://developers.google.com/workspace/gmail/api/guides/sending and https://developers.google.com/workspace/gmail/api/guides/threads .
