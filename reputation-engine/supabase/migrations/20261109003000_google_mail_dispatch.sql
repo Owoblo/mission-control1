@@ -21,7 +21,7 @@ create table public.google_mail_jobs (
  id uuid primary key default gen_random_uuid(), action_key text not null unique,
  contact_id uuid not null references public.market_contacts(id), payload jsonb not null,
  scheduled_at timestamptz not null default now(), state text not null default 'pending'
- check(state in ('pending','dispatching','accepted','rejected','unknown','cancelled')),
+ check(state in ('pending','held','dispatching','accepted','rejected','unknown','cancelled')),
  claimed_at timestamptz, accepted_at timestamptz, message_id text, thread_id text, error text,
  check(state<>'accepted' or (message_id is not null and thread_id is not null and accepted_at is not null))
 );

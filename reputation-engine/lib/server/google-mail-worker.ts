@@ -31,8 +31,8 @@ export async function processGoogleMail() {
  if(readEnv('GOOGLE_MAIL_DISPATCH_ENABLED')==='true'){
   const jobs=await emailStorage<any[]>(`google_mail_jobs?state=eq.pending&scheduled_at=lte.${encodeURIComponent(new Date().toISOString())}&order=scheduled_at,id&limit=2`)
   for(const job of jobs){try{if((await dispatchGoogleJob(job)).state==='accepted')sent++}catch{
-   // Keep the original queue state; dispatching/unknown must never become pending.
-   await emailStorage(`google_mail_jobs?id=eq.${encodeURIComponent(job.id)}&state=eq.pending`,{error:'Preflight held; review policy, health and capacity'},'PATCH')
+   // Remove preflight-held jobs from the ready queue; never reset uncertain sends.
+   await emailStorage(`google_mail_jobs?id=eq.${encodeURIComponent(job.id)}&state=eq.pending`,{state:'held',error:'Preflight held; review policy, health and capacity'},'PATCH')
    await enqueueInternalAlert(`google-mail-job:${job.id}:${new Date().toISOString().slice(0,10)}`,{recipients:getPartnershipAlertRecipients(null),subject:'Google outreach job held',html:'<p>A reviewed Google outreach job needs attention. Check its send ledger before retrying.</p>'})
   }}
  }
