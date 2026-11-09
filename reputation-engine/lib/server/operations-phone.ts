@@ -10,7 +10,8 @@ export async function operationsDb(path: string, init?: RequestInit) {
   const {url,headers} = requireSupabaseEnv()
   const response = await fetch(`${url}/rest/v1/${path}`, { ...init, headers: {...headers,...init?.headers}, cache:'no-store', signal:AbortSignal.timeout(12000) })
   if (!response.ok) throw new Error(`Operations storage unavailable (${response.status})`)
-  return response.status === 204 ? null : response.json()
+  const body = await response.text()
+  return body ? JSON.parse(body) : null
 }
 export async function saveOperationsEvent(id: string, phone: string, kind: OperationsEvent['kind'], direction: OperationsEvent['direction'], payload: OperationsEvent['payload']) {
   await operationsDb('rpc/save_operations_phone_event',{method:'POST',body:JSON.stringify({p_id:id,p_phone:phone,p_kind:kind,p_direction:direction,p_payload:payload})})

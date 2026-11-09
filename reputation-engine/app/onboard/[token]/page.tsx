@@ -1,5 +1,6 @@
 'use client'
 
+import ContractorPaymentUpload from '@/app/components/contractor-payment-upload'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Check, ChevronLeft, ChevronRight, Save, ShieldCheck } from 'lucide-react'
@@ -88,6 +89,7 @@ export default function Onboard() {
                 <div className="grid gap-5 sm:grid-cols-2">{field('truckSizes', 'Truck sizes / types', { hint: 'Example: 16 ft cube, 26 ft with liftgate.' })}{field('truckCount', 'How many trucks can you supply?')}</div>
                 {form.truckAccess.some(t => ['Rent', 'Lease'].includes(t)) && field('rentalNotice', 'Rental / lease arrangements and notice needed', { hint: 'Which sizes are reliably available? How much notice do you need?', multiline: true })}
                 {field('crewSize', 'Usual and maximum crew size', { required: true, hint: 'Example: normally 2; up to 5 with two days’ notice.' })}
+                {field('simultaneousJobs', 'How many jobs can you cover at the same time?')}
                 {field('availability', 'Usual availability and notice needed', { hint: 'Weekdays/weekends, short notice, evenings and seasonal limits.', multiline: true })}
                 {checks('specialties', 'Which services can your team handle?', SPECIALTIES)}
                 {field('specialtyDetails', 'Specialty experience and limits', { hint: 'For hot tubs, pool tables, machinery, pianos, safes or rigging: describe similar jobs, size/weight limits, equipment and any specialist you use. Required when selecting these services.', multiline: true })}
@@ -95,9 +97,10 @@ export default function Onboard() {
                 {field('restrictions', 'Anything you cannot take on?', { hint: 'Access, weights, stairs, items, truck restrictions or other limits.', multiline: true })}
                 {select('pricingModel', 'How do you prefer to price jobs?', ['Fixed price per job', 'Hourly', 'Fixed base plus hourly / extras', 'Open to either fixed or hourly'])}
                 {field('rateNotes', 'Usual rates and minimums (optional)', { hint: 'Include crew/truck, minimum hours, travel charges and whether tax is included. Each job’s scope and payment will be agreed separately.', multiline: true })}
+                <div className="grid gap-5 sm:grid-cols-2">{field('minimumHours', 'Minimum hours')}{field('travelCharges', 'Travel / fuel charges')}{field('extras', 'Stairs, heavy items and other extras')}{field('cancellationTerms', 'Cancellation terms')}{field('paymentTerms', 'Preferred invoice and payment timing')}</div>
               </>}
               {step === 3 && <>
-                <div className="flex gap-3 rounded-xl bg-slate-50 p-4 text-sm leading-6"><ShieldCheck className="mt-1 h-5 w-5 shrink-0" /><p>Please upload your registration, insurance, photo ID and additional-insured evidence so we can complete your review. If an item is not ready, you can still submit your details; it will stay pending until received and reviewed. Documents are needed before approval. Files are stored privately for authorized Saturn staff. Upload PDF, JPG or PNG, up to 4 MB each. Do not send SINs or banking details.</p></div>
+                <div className="flex gap-3 rounded-xl bg-slate-50 p-4 text-sm leading-6"><ShieldCheck className="mt-1 h-5 w-5 shrink-0" /><p>Please upload your registration, insurance, photo ID and additional-insured evidence so we can complete your review. If an item is not ready, you can still submit your details; it will stay pending until received and reviewed. Documents are needed before approval. Files are stored privately for authorized Saturn staff. Upload PDF, JPG or PNG, up to 4 MB each. Do not include banking details in these general documents. Use the separate Direct deposit setup below.</p></div>
                 {Object.entries(DOCUMENT_TYPES).map(([kind, label]) => <div key={kind} className="rounded-xl border p-4"><label htmlFor={`upload-${kind}`} className="text-sm font-bold">{label}<span className="ml-2 text-xs font-normal text-slate-500">Needed before approval</span></label>{kind === 'identity' && <p className="mt-1 text-xs leading-5 text-slate-500">Photo ID for the owner or representative authorized to work with Saturn.</p>}<ul className="my-2 space-y-1 text-xs text-emerald-800">{invite.documents.filter(d => d.kind === kind).map(d => <li key={d.id} className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0" /><span className="break-all">{d.filename} · received, awaiting review</span></li>)}</ul><input id={`upload-${kind}`} type="file" disabled={preview || busy} accept="application/pdf,image/jpeg,image/png" className="block w-full min-w-0 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2" onChange={e => { void upload(kind, e.target.files?.[0]); e.target.value = '' }} /></div>)}
                 <div className="grid gap-5 sm:grid-cols-2">{field('insurer', 'Insurance company / broker')}{field('insuranceExpiry', 'Insurance expiry date', { type: 'date' })}</div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6"><b>Adding Saturn as an additional insured</b><p className="mt-1">{invite.additionalInsuredInstructions || 'Saturn will provide the exact legal name and address for your insurer. You can submit your details now; additional-insured evidence will be reviewed before approval.'}</p></div>
@@ -107,7 +110,7 @@ export default function Onboard() {
                 <p className="text-sm leading-6 text-slate-600">On Saturn jobs, we plan to use Saturn shirts and temporary magnetic truck decals where suitable. Pricing, complaints and scope changes go through Saturn. If the actual job differs from the agreed scope, pause the affected extra work and contact Operations before proceeding.</p>
                 {select('branding', 'Can your team work with these expectations?', ['Yes, happy to discuss the details', 'Need to discuss shirts / decals or another requirement'], false)}
                 <p className="text-xs leading-5 text-slate-500">This records your preference. The detailed agreement, branding arrangements and service standards will be reviewed together later.</p>
-                {field('questions', 'Anything else we should know?', { multiline: true })}
+                {field('shippingName', 'Uniform delivery recipient')}{field('shippingAddress', 'Uniform delivery address', { multiline: true })}{field('shirtSizes', 'Shirt sizes and quantities')}{field('questions', 'Anything else we should know?', { multiline: true })}
                 <div className="rounded-xl bg-slate-50 p-4 text-sm leading-7"><b>{form.legalBusinessName || 'Your company'}</b><p>{form.homeMarket || 'Base city not entered'} · {form.serviceModel || 'Service model not selected'}</p><p>Dispatch: {form.dispatchName || 'Not entered'} · {form.dispatchPhone || 'Not entered'}</p><p>Trucks: {form.truckAccess.join(', ') || 'Not selected'} · {form.truckSizes || 'Sizes not entered'}</p><p>Services: {form.specialties.join(', ') || 'Not selected'}</p><p>Documents received: {new Set(invite.documents.map(d => d.kind)).size} types</p><p className="mt-2 text-xs text-slate-500">Use the steps above to check or change any answer.</p></div>
                 <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" checked={form.confirmed} onChange={e => update('confirmed', e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[#071421]" /><span>I am authorized to provide these details and confirm they are accurate. I understand Saturn will review them before approving our company, and each job requires a separate scope and payment agreement.</span></label>
                 <div className="rounded-xl border p-4 text-sm"><b>What happens next?</b><p className="mt-2 leading-6 text-slate-600">Details received → collect any missing documents → document review → agreement & service standards → payment setup → first suitable job. Submitting does not guarantee work or activate your company for dispatch.</p></div>
@@ -120,5 +123,5 @@ export default function Onboard() {
       </>}
       <p className="text-center text-xs leading-5 text-slate-500">Saturn Star Movers · Contractor onboarding<br />Keep your personal application link private.</p>
     </div>
-  </main>
+  {invite && !preview && <div className="mx-auto max-w-2xl px-5"><ContractorPaymentUpload token={token}/></div>}</main>
 }

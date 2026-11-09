@@ -30,6 +30,8 @@ export default function OperationsPhonePage() {
   },[])
   useEffect(() => {
     alive.current=true
+    const initialParams=new URLSearchParams(window.location.search), initialPhone=operationsPhone(initialParams.get('phone'))
+    if(initialPhone){select(initialPhone);setDraft((initialParams.get('draft')||'').slice(0,1600))}
     void refresh().catch(e=>setError(e.message))
     const timer=setInterval(()=>{void refresh().catch(()=>{});if(selectedRef.current) void load(selectedRef.current).catch(()=>{})},15000)
     const leave=(e:BeforeUnloadEvent)=>{if(busy.current){e.preventDefault();e.returnValue=''}}

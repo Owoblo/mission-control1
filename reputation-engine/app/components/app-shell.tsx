@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const tab = searchParams.get('tab')
   const partnershipInbox = pathname.startsWith('/marketing/partners') && (!tab || tab === 'phone' || tab === 'replies')
   const shouldMountDialer =
-    pathname.startsWith('/sales') && !pathname.startsWith('/sales/operations/phone') && !pathname.startsWith('/sales/operations/sms') &&
+    pathname.startsWith('/sales') && !pathname.startsWith('/sales/operations/onboarding') && !pathname.startsWith('/sales/operations/phone') && !pathname.startsWith('/sales/operations/sms') &&
     (user?.role === 'owner' || user?.role === 'manager' || user?.role === 'sales_rep')
 
   if (pathname.startsWith('/sales') || pathname.startsWith('/admin') || pathname.startsWith('/marketing')) {

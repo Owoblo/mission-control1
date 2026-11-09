@@ -58,10 +58,11 @@ const BASE_NAV = [
   { environment: 'Sales', href: '/sales/quotes', label: 'Quotes', match: (p: string) => p.startsWith('/sales/quotes'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Sales', href: '/sales/academy', label: 'Academy', match: (p: string) => p.startsWith('/sales/academy'), roles: ['owner', 'manager', 'sales_rep'] },
   { environment: 'Operations', href: '/sales/booked', label: 'Booked', match: (p: string) => p.startsWith('/sales/booked'), roles: ['owner', 'manager', 'sales_rep'] },
-  { environment: 'Operations', href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations') && !p.startsWith('/sales/operations/sms') && !p.startsWith('/sales/operations/phone'), roles: ['owner', 'manager', 'operations_lead'] },
+  { environment: 'Operations', href: '/sales/operations', label: 'Operations', match: (p: string) => p.startsWith('/sales/operations') && !p.startsWith('/sales/operations/sms') && !p.startsWith('/sales/operations/phone') && !p.startsWith('/sales/operations/onboarding'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/contractors', label: 'Contractors', match: (p: string) => p.startsWith('/sales/contractors'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/partner-operations', label: 'Partner Ops', match: (p: string) => p.startsWith('/sales/partner-operations'), roles: ['owner', 'manager', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/partner-simulations', label: 'Simulations', match: (p: string) => p.startsWith('/sales/partner-simulations'), roles: ['owner', 'manager', 'operations_lead'] },
+  { environment: 'Operations', href: '/sales/operations/onboarding', label: 'Contractor Onboarding', match: (p: string) => p.startsWith('/sales/operations/onboarding'), roles: ['owner', 'manager', 'sales_rep', 'operations_lead'] },
   { environment: 'Operations', href: '/sales/operations/phone', label: 'Operations Phone', match: (p: string) => p.startsWith('/sales/operations/phone') || p.startsWith('/sales/operations/sms'), roles: ['owner', 'manager', 'sales_rep', 'operations_lead'] },
   { environment: 'Care', href: '/sales/finance', label: 'Finance', match: (p: string) => p.startsWith('/sales/finance'), roles: ['owner', 'manager'] },
   { environment: 'Management', href: '/sales/activity', label: 'Live Feed', match: (p: string) => p.startsWith('/sales/activity'), roles: ['owner', 'manager'] },
@@ -398,7 +399,7 @@ export function SalesHeader() {
   const navItems = BASE_NAV
     .filter(item => item.roles.includes(role))
     .filter(item => !(role === 'sales_rep' && ['Finance', 'Live Feed', 'Analytics', 'Reps', 'Team', 'Partnerships'].includes(item.label)))
-  const primaryNavLabels = new Set(['Dashboard', 'Tasks', 'Inbox', 'Leads', 'Pipeline', 'Sales Opportunities', 'Booked', 'Partnerships', 'Operations', 'Operations Phone'])
+  const primaryNavLabels = new Set(['Dashboard', 'Tasks', 'Inbox', 'Leads', 'Pipeline', 'Sales Opportunities', 'Booked', 'Partnerships', 'Operations', 'Operations Phone', 'Contractor Onboarding'])
   const primaryNavItems = navItems.filter(item => primaryNavLabels.has(item.label))
   const secondaryNavItems = navItems.filter(item => !primaryNavLabels.has(item.label))
   const activeSecondaryItem = secondaryNavItems.some(item => item.match(pathname))
