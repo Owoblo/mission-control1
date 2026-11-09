@@ -1,3 +1,4 @@
+import { syntheticPreviewBoundary } from '@/lib/preview/middleware'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getSessionCookieName, getSessionPayload } from '@/lib/auth'
@@ -8,6 +9,8 @@ const PUBLIC_PATHS = new Set(['/login'])
 
 // Webhooks / public API — no session cookie
 const PUBLIC_API_PATHS = new Set([
+  '/api/marketing/sms/email-reply/ses', // Authenticated by signed SNS envelope.
+  '/api/marketing/sms/email-reply', // Dedicated ingress secret and authenticated mailbox.
   '/api/sales/twilio/sms',
   '/api/sales/twilio/sms-status',
   '/api/sales/telnyx/messaging',
@@ -83,6 +86,8 @@ function hasCronBypass(request: NextRequest, pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  const preview = await syntheticPreviewBoundary(request)
+  if (preview) return preview
   const { pathname, search } = request.nextUrl
 
   if (
@@ -186,6 +191,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/api/:path*',
+    '/preview/:path*',
     '/sales/:path*',
     '/api/sales/:path*',
     '/crew/:path*',

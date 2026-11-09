@@ -1,3 +1,4 @@
+import { projectSalesList } from '@/lib/sales-list-projection'
 import { scopeDashboard } from '@/lib/server/dashboard-scope'
 import { NextResponse } from 'next/server'
 import { getSalesOverview, listSalesLeadSearchSnapshots } from '@/lib/server/sales-repository'
@@ -31,6 +32,8 @@ async function getCachedSalesOverview() {
 
 export async function GET(request: Request) {
   const session = await getSessionUser()
+  const listMode = new URL(request.url).searchParams.get('mode') === 'lead-list'
+  const respond = (payload: Awaited<ReturnType<typeof getSalesOverview>>) => NextResponse.json(listMode ? projectSalesList(payload) : payload)
   try {
     if (!canAccessSalesWorkspace(session)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -49,15 +52,15 @@ export async function GET(request: Request) {
       const { leads, quotes, followUps } = scopeDashboard(overview, session)
       const clientIds = new Set(quotes.map(quote => quote.clientId).filter(Boolean))
       const clients = overview.clients.filter(client => clientIds.has(client.id))
-      return NextResponse.json({ leads, quotes, clients, followUps, summary: buildSalesSummary(leads, quotes) })
+      return respond({ leads, quotes, clients, followUps, summary: buildSalesSummary(leads, quotes) })
     }
 
-    return NextResponse.json(overview)
+    return respond(overview)
   } catch (error) {
     console.error('[sales-overview] Live CRM read failed', error)
     if (overviewCache && canAccessSalesWorkspace(session) && !isBranchScopedManager(session)) {
       return NextResponse.json(
-        { ...overviewCache.payload, stale: true, warning: 'Live data is temporarily unavailable.' },
+        { ...(listMode ? projectSalesList(overviewCache.payload) : overviewCache.payload), stale: true, warning: 'Live data is temporarily unavailable.' },
         { headers: { 'X-Saturn-Data': 'stale', 'Retry-After': '5' } }
       )
     }

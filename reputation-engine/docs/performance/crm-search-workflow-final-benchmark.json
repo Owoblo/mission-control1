@@ -1,0 +1,54 @@
+{
+  "measuredAt": "2026-11-01T00:29:20.951Z",
+  "location": "developer workstation executing repository functions; not hosted endpoint",
+  "results": [
+    {
+      "trial": 0,
+      "kind": "legacy-lead-page",
+      "requests": 1,
+      "ms": 322,
+      "responseBytes": 978027,
+      "returnedRows": 49
+    },
+    {
+      "trial": 0,
+      "kind": "new-lead-page",
+      "requests": 3,
+      "ms": 905,
+      "responseBytes": 18189,
+      "returnedRows": 50
+    },
+    {
+      "trial": 0,
+      "kind": "contact-search",
+      "requests": 1,
+      "ms": 152,
+      "responseBytes": 18961,
+      "returnedRows": 50
+    },
+    {
+      "trial": 1,
+      "kind": "legacy-lead-page",
+      "requests": 1,
+      "ms": 162,
+      "responseBytes": 978027,
+      "returnedRows": 49
+    },
+    {
+      "trial": 1,
+      "kind": "new-lead-page",
+      "requests": 3,
+      "ms": 843,
+      "responseBytes": 18189,
+      "returnedRows": 50
+    },
+    {
+      "trial": 1,
+      "kind": "contact-search",
+      "requests": 1,
+      "ms": 158,
+      "responseBytes": 18961,
+      "returnedRows": 50
+    }
+  ]
+}

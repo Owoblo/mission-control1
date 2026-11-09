@@ -24,7 +24,7 @@ export async function replyDb(table: string, query: Record<string, string>, meth
   return response.json()
 }
 
-export async function createSmsReplyAddress(email: string, contactId: string, fromNumber: string, toNumber: string) {
+export async function createSmsReplyAddress(email: string, contactId: string, fromNumber: string, toNumber: string, sourceMessageId?: string) {
   const domain = readEnv('EMAIL_SMS_REPLY_DOMAIN')
   if (readEnv('EMAIL_SMS_REPLY_ENABLED') !== 'true' || readEnv('EMAIL_SMS_REPLY_NOTIFICATIONS_ENABLED') !== 'true' || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain) || !readEnv('EMAIL_SMS_INGRESS_SECRET')) return null
   const actor = emailSmsOperator(email)
@@ -33,6 +33,8 @@ export async function createSmsReplyAddress(email: string, contactId: string, fr
   if (!contact || !partnershipRecordMatchesSession(actor, contact) || contact.do_not_contact || contact.cross_channel_suppressed_at) return null
   const [source] = await replyDb('market_touches', { contact_id: 'eq.' + contactId, channel: 'eq.sms', direction: 'eq.inbound', order: 'created_at.desc', limit: '1', select: 'id,metadata' })
   if (!source?.id || source.metadata?.to !== fromNumber || source.metadata?.from !== toNumber) return null
+  // A delayed alert must not bind an old email to a newer conversation turn.
+  if (sourceMessageId && source.metadata?.messageSid !== sourceMessageId) return null
   const token = randomBytes(20).toString('hex')
   await replyDb('partnership_email_sms_replies', {}, 'POST', {
     token_hash: replyTokenHash(token), source_touch_id: source.id, contact_id: contactId, operator_email: email.toLowerCase(),

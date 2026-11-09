@@ -1,0 +1,48 @@
+{
+  "measuredAt": "2026-11-01T00:25:29.191Z",
+  "location": "developer workstation; direct Supabase REST; uncompressed JSON bytes",
+  "results": [
+    {
+      "trial": 0,
+      "kind": "full",
+      "rows": 50,
+      "bytes": 1025828,
+      "ms": 133
+    },
+    {
+      "trial": 0,
+      "kind": "compact",
+      "rows": 50,
+      "bytes": 24982,
+      "ms": 99
+    },
+    {
+      "trial": 1,
+      "kind": "compact",
+      "rows": 50,
+      "bytes": 24982,
+      "ms": 110
+    },
+    {
+      "trial": 1,
+      "kind": "full",
+      "rows": 50,
+      "bytes": 1025828,
+      "ms": 132
+    },
+    {
+      "trial": 2,
+      "kind": "full",
+      "rows": 50,
+      "bytes": 1025828,
+      "ms": 102
+    },
+    {
+      "trial": 2,
+      "kind": "compact",
+      "rows": 50,
+      "bytes": 24982,
+      "ms": 86
+    }
+  ]
+}

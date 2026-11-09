@@ -1,7 +1,20 @@
+import { createSmsReplyAddress } from './email-sms-reply-store'
 import { sendSesProviderEmail } from './email-provider'
 import { requireSupabaseEnv } from './runtime'
 
-export type InternalAlert = { subject: string; html: string; recipients: string[] }
+export type SmsReplyContext = { contactId: string; fromNumber: string; toNumber: string; sourceMessageId: string }
+export type InternalAlert = { subject: string; html: string; recipients: string[]; smsReply?: SmsReplyContext }
+export async function prepareAlertReply(payload: { to: string; html: string; smsReply?: SmsReplyContext }) {
+  const context = payload.smsReply
+  const replyTo = context?.sourceMessageId ? await createSmsReplyAddress(payload.to, context.contactId, context.fromNumber, context.toNumber, context.sourceMessageId).catch(() => {
+    console.error('SMS reply address unavailable for internal alert')
+    return null
+  }) : null
+  return {
+    replyTo: replyTo || 'business@starmovers.ca',
+    html: payload.html + (replyTo ? '<p>Reply to this email to send an SMS to this contact. Put only your message above the quoted email; omit your signature. Text only, one reply per notification, valid for seven days. Use CRM for attachments.</p>' : ''),
+  }
+}
 async function db<T>(path: string, body: unknown, method = 'POST'): Promise<T> {
   const { url, headers } = requireSupabaseEnv()
   const response = await fetch(`${url}/rest/v1/${path}`, { method, headers: { ...headers, Prefer: 'return=representation' }, body: JSON.stringify(body), cache: 'no-store' })
@@ -19,12 +32,13 @@ export function retryableAlertFailure(error: unknown) {
   return (error as {beforeSend?:boolean})?.beforeSend === true || Boolean(status && status >= 400 && status < 500) || /required for SES|production access is not confirmed/.test(candidate?.message || '')
 }
 export async function processInternalAlerts() {
-  const jobs = await db<Array<{ id: string; attempts: number; payload: { to: string; subject: string; html: string } }>>('rpc/claim_internal_alerts', { p_limit: 10 })
+  const jobs = await db<Array<{ id: string; attempts: number; payload: { to: string; subject: string; html: string; smsReply?: SmsReplyContext } }>>('rpc/claim_internal_alerts', { p_limit: 10 })
   let accepted = 0, unresolved = 0
   for (const job of jobs) {
     let values: Record<string, unknown>
     try {
-      const receipt = await sendSesProviderEmail({ from: 'Saturn Star OS <notifications@starmovers.ca>', to: job.payload.to, subject: job.payload.subject, html: job.payload.html, replyTo: 'business@starmovers.ca', trackingMode: 'deliverability', idempotencyKey:`internal:${job.id}`, context:{source:'internal_alert'}, tags: { alert_id: job.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 200) } })
+      const reply = await prepareAlertReply(job.payload)
+      const receipt = await sendSesProviderEmail({ from: 'Saturn Star OS <notifications@starmovers.ca>', to: job.payload.to, subject: job.payload.subject, html: reply.html, replyTo: reply.replyTo, trackingMode: 'deliverability', idempotencyKey:`internal:${job.id}`, context:{source:'internal_alert'}, tags: { alert_id: job.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 200) } })
       if (!receipt.accepted || !receipt.messageId) throw new Error('Provider acceptance was not confirmed')
       values = { state: 'accepted', provider_message_id: receipt.messageId, last_error: null }; accepted++
     } catch (error) {

@@ -1,0 +1,11 @@
+{
+  "measuredAt": "2026-11-01T00:31:24.882Z",
+  "source": "one live authorized owner overview snapshot; response shaping locally, no hosted-route timing",
+  "leads": 763,
+  "quotes": 295,
+  "fullBytes": 13958577,
+  "compactBytes": 9237530,
+  "repositoryReadMs": 2370,
+  "projectionMs": 9.71,
+  "guidanceMismatches": 0
+}

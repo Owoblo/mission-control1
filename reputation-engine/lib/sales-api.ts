@@ -57,14 +57,17 @@ async function readJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function fetchSalesOverview(options?: { fresh?: boolean }): Promise<{
+export async function fetchSalesOverview(options?: { fresh?: boolean; leadList?: boolean }): Promise<{
   leads: CRMLead[]
   quotes: CRMQuote[]
   clients: CRMClient[]
   followUps: FollowUpLog[]
   summary: SalesDashboardSummary
 }> {
-  const response = await fetch(options?.fresh ? '/api/sales/overview?fresh=1' : '/api/sales/overview', { cache: 'no-store', credentials: 'include' })
+  const params = new URLSearchParams()
+  if (options?.fresh) params.set('fresh', '1')
+  if (options?.leadList) params.set('mode', 'lead-list')
+  const response = await fetch(`/api/sales/overview${params.size ? `?${params.toString()}` : ''}`, { cache: 'no-store', credentials: 'include' })
   return readJson(response)
 }
 
