@@ -7,7 +7,8 @@ import {validSignalReview} from './signal-review.mjs';
 const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const cities=new Set(serviceLocations.map(normalize));
 /** Server-only adapter. Never accept evidence flags from an HTTP request body. */
-export async function reserveAction({url,headers,contactId,channel,kind='cold_introduction',key,content,sender,emailProvider=''}){
+export async function reserveAction({url,headers,contactId,channel,kind='cold_introduction',key,content,sender,emailProvider='',evidenceOnly=false}){
+ if(channel==='email'&&kind==='cold_introduction'&&emailProvider!=='google')throw Object.assign(new Error('Cold outreach requires the Google fleet workflow; legacy email reservations are disabled'),{beforeSend:true});
  const response=await fetch(`${url}/rest/v1/market_contacts?${new URLSearchParams({id:'eq.'+contactId,select:'*'})}`,{headers,cache:'no-store'});
  if(!response.ok)throw Error('Policy contact lookup failed');
  const [contact]=await response.json();if(!contact)throw Error('Policy contact missing');
@@ -22,9 +23,15 @@ export async function reserveAction({url,headers,contactId,channel,kind='cold_in
  const ottawaAllowed=ottawaActionAllowed({city:contact.city,kind,channel,sender,reviewedSignal});
  // Explicit workflow provider takes precedence; legacy sender-specific routes remain unchanged.
  const provider=emailProvider||(isOttawa(contact.city)?'zoho':'ses');
- if(channel==='email'&&!['ses','zoho'].includes(provider))throw Error('Unknown email provider');
+ if(channel==='email'&&!['ses','zoho','google'].includes(provider))throw Error('Unknown email provider');
  let senderHealthy=false;
- if(channel==='email'&&provider==='zoho'){
+ if(channel==='email'&&provider==='google'){
+  const address=String(sender).match(/<([^<>]+)>$/)?.[1]||sender;
+  const r=await fetch(`${url}/rest/v1/google_mail_health?${new URLSearchParams({email:'eq.'+address,select:'ready,checked_at,sync_checked_at'})}`,{headers,cache:'no-store'});
+  if(!r.ok)throw Error('Google health lookup failed');
+  const [h]=await r.json(),now=Date.now();
+  senderHealthy=h?.ready===true&&Date.parse(h.checked_at)<=now&&Date.parse(h.checked_at)>now-3600000&&Date.parse(h.sync_checked_at)<=now&&Date.parse(h.sync_checked_at)>now-300000;
+ }else if(channel==='email'&&provider==='zoho'){
   if(ottawaAllowed){await openZohoMailbox('ottawa');senderHealthy=true;}
  }else if(channel==='email'&&provider==='ses'){
   const health=await new SESv2Client({region:process.env.AWS_REGION||process.env.AWS_DEFAULT_REGION||'ca-central-1',maxAttempts:1}).send(new GetAccountCommand({}));
@@ -38,6 +45,7 @@ export async function reserveAction({url,headers,contactId,channel,kind='cold_in
  }else if(channel==='direct_mail')senderHealthy=true;
  const channelEligible=channel==='email'?!!contact.email&&!contact.email_unsubscribed_at&&!['bounced','complained','unsubscribed'].includes(contact.email_status):channel==='sms'||channel==='phone'?!!contact.phone&&!contact.do_not_contact:channel==='direct_mail'&&!!(contact.address||contact.mailing_address);
  const evidence={observedAt:new Date().toISOString(),marketActive:isOttawa(contact.city)?ottawaAllowed:activeLocations.some(city=>normalize(city)===normalize(contact.city)),serviceAvailable,channelEligible,senderHealthy,sender,recipient:channel==='email'?contact.email:contact.phone,contentHash:createHash('sha256').update(content||'').digest('hex')};
+ if(evidenceOnly){if(provider!=='google')throw Error('Evidence-only mode requires Google workflow');return evidence;}
  const r=await fetch(`${url}/rest/v1/rpc/reserve_partnership_action`,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({p_contact_id:contactId,p_channel:channel,p_kind:kind,p_action_key:key,p_evidence:evidence}),cache:'no-store'});
  if(!r.ok)throw Error('Policy reservation unavailable ('+r.status+')');
  const result=await r.json();if(!result.allowed)throw Error('Partnership policy hold: '+result.reasons.join(', '));return result;

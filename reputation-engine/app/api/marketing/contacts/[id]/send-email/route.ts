@@ -63,6 +63,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const senderKey = input.sender || Object.keys(addresses).find(key => addresses[key] === previousAddress)
     if (!senderKey) return NextResponse.json({ error: 'Choose an authorized sender for this conversation' }, { status: 400 })
     const address = addresses[senderKey]
+    if (!internalTest && (!inbound || inbound.metadata?.human_reply !== true || previousAddress !== address)) {
+      return NextResponse.json({ error: 'Use the original sender for an established human email conversation. Cold email and Google conversations require the Google fleet workflow.' }, { status: 409 })
+    }
     const [profile] = await db('email_sender_accounts', { from_email: `eq.${address}`, provider: 'eq.ses', select: 'from_name,reply_to_email', limit: '1' })
     if (!profile?.reply_to_email) return NextResponse.json({ error: 'Register this sender and its reply mailbox first' }, { status: 409 })
     const sender = `${profile.from_name || 'Saturn Star Movers'} <${address}>`
@@ -83,7 +86,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       notes: `Subject: ${input.subject}\n\n${input.body}`, created_by: session.name || 'Partnership team', metadata })
     const receipt = await sendProviderEmail({ from: sender, to: contact.email, subject: input.subject, text: input.body,
       replyTo: profile.reply_to_email, headers: replyId ? { 'In-Reply-To': replyId, References: replyId } : undefined,
-      purpose: internalTest ? 'internal' : 'outreach', trackingMode: 'deliverability', idempotencyKey: actionKey,
+      purpose: internalTest ? 'internal' : 'transactional', trackingMode: 'deliverability', idempotencyKey: actionKey,
       context: { source: internalTest ? 'owner_infrastructure_test' : 'manual_partnership_email', contactId: id, policyActionKey: internalTest ? undefined : actionKey },
     })
     if (!receipt.accepted || !receipt.messageId) throw new Error('Provider acceptance is unconfirmed; reconcile before retrying')

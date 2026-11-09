@@ -1,3 +1,4 @@
+import { excludeOperationsCalls } from '@/lib/operations-phone'
 import { getRequestSessionUser } from '@/lib/server/request-session'
 /**
  * POST /api/sales/dialer/backfill-calls
@@ -26,6 +27,7 @@ function formatDuration(s: number) {
 }
 interface TwilioCall {
   sid: string
+  parent_call_sid?: string
   from: string
   to: string
   status: string
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
     let skipped = 0
     let created = 0
 
-    for (const call of calls) {
+    for (const call of excludeOperationsCalls(calls)) {
       const callSid = call.sid
       const durationSec = parseInt(call.duration || '0', 10) || 0
 

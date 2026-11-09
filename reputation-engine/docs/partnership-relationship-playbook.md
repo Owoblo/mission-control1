@@ -1,3 +1,5 @@
+> Current email routing and readiness: [Email channel policy — 2026-11-09](email-channel-policy-20261109.md). SES handles Sales and operational mail; new cold outreach belongs to the Google fleet. Historical SES cold-send instructions below are superseded.
+
 ## October 9: shared context, ownership and pricing
 
 The [shared Partnerships and Sales rules](partnership-context-and-ownership.md) govern handoff ownership, combined conversations, response reporting, sending windows, referral outcomes and current reply wording. Use **John** only; for new pricing enquiries explain the scope factors and offer a flat binding estimate after review, rather than an hourly rate. These rules supersede conflicting older examples below.

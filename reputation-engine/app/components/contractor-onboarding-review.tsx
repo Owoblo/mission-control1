@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { DOCUMENT_TYPES, onboardingProgress } from '@/lib/contractor-onboarding'
 
-export default function ContractorOnboardingReview({ id }: { id: string }) {
+export default function ContractorOnboardingReview({ id, reviewOnly = false }: { id: string; reviewOnly?: boolean }) {
   const [data, setData] = useState<any>(null), [message, setMessage] = useState(''), [link, setLink] = useState(''), [documentLink, setDocumentLink] = useState('')
   const [busy, setBusy] = useState(false), [verified, setVerified] = useState(false), [note, setNote] = useState('')
   const endpoint = `/api/sales/subcontractors/${id}/onboarding`
@@ -17,7 +17,7 @@ export default function ContractorOnboardingReview({ id }: { id: string }) {
       await load()
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Action failed') } finally { setBusy(false) }
   }
-  return <section className="mx-auto mb-5 max-w-7xl rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Contractor onboarding</h2><p className="text-sm text-slate-500">{data?.invite ? onboardingProgress(data.invite.stage, !!data.invite.checklist?.application, data.documents) : 'Start with a short call, then share the company form.'}</p></div><button disabled={busy} onClick={() => action({ action: 'invite' })} className="rounded-lg bg-[#071421] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Create / renew form link</button></div>
+  return <section className="mx-auto mb-5 max-w-7xl rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold">Contractor onboarding</h2><p className="text-sm text-slate-500">{data?.invite ? onboardingProgress(data.invite.stage, !!data.invite.checklist?.application, data.documents) : 'Start with a short call, then share the company form.'}</p></div>{!reviewOnly && <button disabled={busy} onClick={() => action({ action: 'invite' })} className="rounded-lg bg-[#071421] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Create / renew form link</button>}</div>
     {data?.invite && <div className="mt-4 grid gap-2 sm:grid-cols-2">{Object.entries(DOCUMENT_TYPES).map(([kind,label]) => <div key={kind} className="rounded-lg bg-slate-50 p-3 text-sm"><b>{label}</b><p className={data.documents.some((d:any) => d.kind === kind) ? 'text-emerald-700' : 'text-amber-800'}>{data.documents.some((d:any) => d.kind === kind) ? data.invite.checklist?.documentsReviewedAt ? 'Reviewed' : 'Received · awaiting review' : 'Pending · follow up for document'}</p></div>)}</div>}
     {message && <p role="status" className="mt-3 rounded-lg bg-sky-50 p-3 text-sm">{message}</p>}
     {documentLink && <a href={documentLink} target="_blank" rel="noreferrer" className="mt-3 inline-block rounded-lg border px-4 py-2 text-sm font-bold">Open private document</a>}

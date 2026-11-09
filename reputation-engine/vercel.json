@@ -75,6 +75,10 @@
     {
       "path": "/api/ops/email-health/process",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/marketing/google-mail/process",
+      "schedule": "*/5 * * * *"
     }
   ],
   "regions": [

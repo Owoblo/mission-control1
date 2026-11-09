@@ -1,3 +1,4 @@
+import { excludeOperationsCalls } from '@/lib/operations-phone'
 import { NextResponse } from 'next/server'
 import { getRequestSessionUser } from '@/lib/server/request-session'
 import { canHandleLeadCommunications } from '@/lib/server/sales-permissions'
@@ -45,7 +46,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     const lookups = await Promise.allSettled(twilioPhoneFilters(phone).map(filter => readTwilioCalls(accountSid, auth, filter.field, filter.value)))
     const successful = lookups.filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof readTwilioCalls>>> => result.status === 'fulfilled')
     if (!successful.length) return NextResponse.json({ error: 'Provider call history could not be read. Existing recordings were preserved.' }, { status: 503 })
-    const conversations = groupTwilioCallsByPhone([...new Map(successful.flatMap(result => result.value.calls).map(call => [call.sid, call])).values()], phone)
+    const conversations = groupTwilioCallsByPhone(excludeOperationsCalls([...new Map(successful.flatMap(result => result.value.calls).map(call => [call.sid, call])).values()]), phone)
     let synced = 0
     async function persist(entries: CallLogEntry[]) {
       for (let attempt = 0; attempt < 3; attempt++) {

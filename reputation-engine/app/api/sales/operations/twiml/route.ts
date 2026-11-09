@@ -1,95 +1,38 @@
-/**
- * POST /api/sales/operations/twiml
- * Handles voice calls on the operations number (+12267746581).
- * Inbound: rings the ops browser identity + SIP (Groundwire).
- * Outbound: dials out using 6581 as caller ID.
- * All calls are recorded.
- */
+import { authorizeTwilioWebhook } from '@/lib/server/security'
+import { operationsDb, operationsUser, saveOperationsEvent } from '@/lib/server/operations-phone'
+import { OPERATIONS_NUMBER, OPERATIONS_IDENTITY_PREFIX, OPERATIONS_ROLES, operationsPhone } from '@/lib/operations-phone'
 import { getAppBaseUrl } from '@/lib/server/runtime'
 
-const OPS_NUMBER = '+12267746581'
-const OPS_SIP_DOMAIN = 'saturn-ops.sip.twilio.com'
-const OPS_IDENTITY = 'saturn-ops'
-const OPS_SIP_USERS = ['opsmanager']
-const RING_TIMEOUT = 28
-const RECORDING_MODE = 'record-from-answer'
-const RECORDING_TRIM = 'do-not-trim'
-
-function xmlResponse(twiml: string) {
-  return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } })
-}
-
-function xmlUrl(url: string) {
-  return url.replace(/&/g, '&amp;')
-}
-
-function getRequestOrigin(request: Request) {
-  try { return new URL(request.url).origin.replace(/\/$/, '') } catch { return '' }
-}
-
-export async function GET() {
-  return Response.json({ ok: true, route: 'operations-twiml' })
-}
-
-export async function POST(request: Request) {
+import { xml, voiceResponse, operationsCallbacks, recordingAttributes } from '@/lib/server/operations-twiml'
+export async function POST(request:Request) {
+  const raw = await request.text()
+  const rejection = await authorizeTwilioWebhook(request,raw)
+  if (rejection) return rejection
   try {
-    const formData = await request.formData()
-    const to = (formData.get('To') as string | null)?.trim() || ''
-    const from = (formData.get('From') as string | null)?.trim() || ''
-
-    const fromBrowser = from.toLowerCase().startsWith('client:')
-    const fromSip = from.toLowerCase().startsWith('sip:')
-    const isInbound = !fromBrowser && !fromSip
-
-    const appUrl = getRequestOrigin(request) || getAppBaseUrl()
-    const recordingCallback = appUrl ? `${appUrl}/api/sales/dialer/recording-callback` : ''
-
-    const dialAttrs = [
-      `record="${RECORDING_MODE}"`,
-      `trim="${RECORDING_TRIM}"`,
-      `timeout="${RING_TIMEOUT}"`,
-      recordingCallback ? `recordingStatusCallback="${xmlUrl(recordingCallback)}"` : '',
-      recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
-      recordingCallback ? `recordingStatusCallbackEvent="completed absent"` : '',
-    ].filter(Boolean).join(' ')
-
-    if (isInbound) {
-      // Ring ops browser identity + Groundwire SIP
-      const sipTargets = OPS_SIP_USERS
-        .map(u => `<Sip>sip:${u}@${OPS_SIP_DOMAIN}</Sip>`)
-        .join('')
-      return xmlResponse(
-        `<?xml version="1.0" encoding="UTF-8"?><Response>` +
-        `<Dial ${dialAttrs}>` +
-        `<Client>${OPS_IDENTITY}</Client>` +
-        sipTargets +
-        `</Dial>` +
-        `</Response>`
-      )
+    const form = new URLSearchParams(raw), from = form.get('From') || ''
+    const callSid = form.get('CallSid') || ''
+    if (!/^CA[a-f0-9]{32}$/i.test(callSid)) return new Response('Invalid call',{status:400})
+    const browser = from.startsWith(`client:${OPERATIONS_IDENTITY_PREFIX}`)
+    const sip = /^sip:opsmanager@saturn-ops\.sip\.twilio\.com(?:[;:]|$)/i.test(from)
+    const inbound = !from.startsWith('client:') && !from.startsWith('sip:') && operationsPhone(form.get('To')) === OPERATIONS_NUMBER
+    const user = browser ? await operationsUser(from.slice(7)) : null
+    if ((!inbound && !sip && !user) || (browser && !user)) return new Response('Forbidden',{status:403})
+    const phone = operationsPhone(inbound ? from : form.get('To'))
+    if (!phone || phone === OPERATIONS_NUMBER) return voiceResponse('<Say>Please enter a valid Canadian or US phone number.</Say><Hangup/>')
+    const direction = inbound ? 'inbound' : 'outbound'
+    const origin = getAppBaseUrl(new URL(request.url).origin)
+    const urls = operationsCallbacks(origin,phone,direction,callSid)
+    await saveOperationsEvent(`call:${callSid}`,phone,'call',direction,{status:'ringing',...(user ? {repName:user.name,repId:user.id} : {})})
+    if (inbound) {
+      const users = await operationsDb(`app_users?select=id&role=in.(${OPERATIONS_ROLES.join(',')})&order=name.asc&limit=10`)
+      const targets = users.map((row:{id:string}) => `<Client><Identity>${xml(OPERATIONS_IDENTITY_PREFIX+row.id)}</Identity><Parameter name="OperationsPhone" value="${phone}"/></Client>`).join('')
+      if (!targets) return voiceResponse(`<Redirect method="POST">${xml(urls.status+'&stage=browser')}</Redirect>`)
+      return voiceResponse(`<Dial timeout="20" action="${xml(urls.status+'&stage=browser')}" method="POST" ${recordingAttributes(urls.recording)}>${targets}</Dial>`)
     }
-
-    // Outbound: ops manager dialing out — use 6581 as caller ID
-    const digits = to.replace(/\D/g, '')
-    const dialTarget = digits.length === 10 ? `+1${digits}` : digits.length === 11 ? `+${digits}` : to
-    if (!dialTarget) {
-      return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>`)
-    }
-
-    const outboundAttrs = [
-      `callerId="${OPS_NUMBER}"`,
-      `record="${RECORDING_MODE}"`,
-      `trim="${RECORDING_TRIM}"`,
-      recordingCallback ? `recordingStatusCallback="${xmlUrl(recordingCallback)}"` : '',
-      recordingCallback ? `recordingStatusCallbackMethod="POST"` : '',
-      recordingCallback ? `recordingStatusCallbackEvent="completed absent"` : '',
-    ].filter(Boolean).join(' ')
-
-    return xmlResponse(
-      `<?xml version="1.0" encoding="UTF-8"?><Response>` +
-      `<Dial ${outboundAttrs}><Number>${dialTarget}</Number></Dial>` +
-      `</Response>`
-    )
-  } catch {
-    return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>`)
+    // The caller ID and callbacks are owned by this workspace, never browser parameters.
+    return voiceResponse(`<Dial callerId="${OPERATIONS_NUMBER}" timeout="45" action="${xml(urls.status+'&stage=outbound')}" method="POST" ${recordingAttributes(urls.recording)}><Number>${phone}</Number></Dial>`)
+  } catch (error) {
+    console.error('Operations voice routing failed',error instanceof Error ? error.message : 'unknown')
+    return new Response('Operations routing unavailable',{status:503})
   }
 }

@@ -9,6 +9,8 @@ export const EMPTY_APPLICATION = {
   phoneAnsweredBy: '', dispatchName: '', dispatchRole: '', dispatchPhone: '', preferredContact: '', contactHours: '', backupContact: '',
   serviceModel: '', truckAccess: [] as string[], truckSizes: '', truckCount: '', rentalNotice: '', crewSize: '', availability: '',
   specialties: [] as string[], specialtyDetails: '', equipment: '', restrictions: '', pricingModel: '', rateNotes: '',
+  simultaneousJobs: '', minimumHours: '', travelCharges: '', extras: '', cancellationTerms: '', paymentTerms: '',
+  shippingName: '', shippingAddress: '', shirtSizes: '',
   insurer: '', insuranceExpiry: '', additionalInsured: '', branding: '', questions: '', confirmed: false,
 }
 export type ContractorApplication = typeof EMPTY_APPLICATION

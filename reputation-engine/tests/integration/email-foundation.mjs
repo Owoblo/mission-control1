@@ -49,15 +49,11 @@ test('provider acceptance remains distinct from receipt storage, with a visible 
  const r=await f.api.sendProviderEmail(payload);assert.equal(r.accepted,true);assert.equal(r.auditState,'pending_reconciliation')
  await assert.rejects(f.api.sendProviderEmail(payload),e=>e.outcomeUnknown===true);assert.equal(f.transport.length,1)
 }finally{f.close()}})
-test('outreach is one recipient per reviewed contact, includes functional unsubscribe, and disables engagement tracking',async()=>{const f=fixture();try{
- const p={...payload,replyTo:'business@starmovers.ca',trackingMode:'engagement',context:{contactId:'contact-1',policyActionKey:'review-1',source:'managed_outreach'}}
- await f.api.sendOutreachEmail(p);const sent=f.transport[0]
- assert.equal(sent.ConfigurationSetName,'saturn-crm-deliverability');assert.match(sent.Content.Simple.Body.Text.Data,/123 Example Street/)
- const headers=Object.fromEntries(sent.Content.Simple.Headers.map(h=>[h.Name,h.Value]));assert.equal(headers['List-Unsubscribe-Post'],'List-Unsubscribe=One-Click');assert.match(headers['List-Unsubscribe'],/https:\/\/crm.fixture\/api\/marketing\/email-unsubscribe\?token=[a-f0-9]{64}/)
- assert.ok(sent.EmailTags.some(t=>t.Name==='contact_id'&&t.Value==='contact-1'))
- await assert.rejects(f.api.sendOutreachEmail({...p,to:['a@example.test','b@example.test'],idempotencyKey:'other'}),/one|reviewed contact/)
- await assert.rejects(f.api.sendOutreachEmail({...payload,idempotencyKey:'no-review'}),/reviewed contact/)
- assert.equal(f.transport.length,1)
+test('all cold outreach entrypoints reject before storage or transport',async()=>{const f=fixture();try{
+ for(const method of ['sendProviderEmail','sendSesProviderEmail','sendOutreachEmail']) {
+  await assert.rejects(f.api[method]({...payload,purpose:'outreach'}),e=>e.beforeSend===true)
+ }
+ assert.equal(f.transport.length,0);assert.equal(f.writes.length,0)
 }finally{f.close()}})
 test('recipient lists are normalized without changing attachment bytes or reply routing',async()=>{const f=fixture();try{
  await f.api.sendProviderEmail({...payload,to:['One <A@example.test>','a@example.test','b@example.test'],replyTo:'business@starmovers.ca',attachments:[{filename:'receipt.pdf',content:Buffer.from('%PDF-test').toString('base64')}]})
@@ -94,18 +90,9 @@ test('the actual signed-event handler records and publishes every recipient; for
  const post=()=>route.POST(new Request('https://crm.fixture/api/marketing/email-events/ses',{method:'POST',headers:{'x-amz-sns-message-type':'Notification'},body:JSON.stringify(envelope)}))
  try{assert.equal((await post()).status,200);const events=writes.filter(w=>w.table==='email_provider_events');assert.equal(events.length,2);assert.notEqual(events[0].body.provider_event_id,events[1].body.provider_event_id);assert.deepEqual(events.map(e=>e.body.recipient_email),['a@example.test','b@example.test']);const before=writes.length;signature=false;assert.equal((await post()).status,401);assert.equal(writes.length,before);assert.equal(recorded.length,2)}finally{globalThis.fetch=original}
 })
-test('managed sends use the registered sender and saved contact, preserve reviewed leases, and reject stale or mismatched evidence',async()=>{
- const crypto=require('node:crypto'),sent=[],policy=[]
- const contact={id:'00000000-0000-4000-a000-000000000001',email:'client@example.test',city:'Windsor',name:'Client',last_inbound_at:'2026-10-27T10:00:00Z'}
- const sender={id:'00000000-0000-4000-a000-000000000002',from_email:'jo@saturnstarmovers.ca',from_name:'John | Saturn Star Movers',reply_to_email:'business@starmovers.ca',status:'warming'}
- let lease=null
- const load=createLoader(root,{'@/lib/server/session':{getSessionUser:async()=>({role:'owner',name:'John'})},'@/lib/partnership-core/reserve.mjs':{reserveAction:async x=>{policy.push(x);return {allowed:true}}},'@/lib/server/partnership-access':{partnershipRecordMatchesSession:()=>true},'@/lib/server/email-provider':{sendOutreachEmail:async p=>{sent.push(p);return {messageId:'ses-fixture',auditState:'recorded'}}},'@/lib/server/runtime':{requireSupabaseEnv:()=>({url:'https://storage.fixture',headers:{}})},'@/lib/server/saturn-send-gate':{hasUnresolvedTemplateVariable:()=>false},'@/lib/server/email-delivery':{emailStorage:async(endpoint,body)=>{if(endpoint.startsWith('market_contacts?')&&!body)return [contact];if(endpoint.startsWith('email_sender_accounts?'))return [sender];if(endpoint.startsWith('crm_email_requests?'))return [];if(endpoint.startsWith('partnership_action_reservations?'))return lease?[lease]:[];return []}}})
+test('managed cold endpoint holds owner requests before reserving or sending',async()=>{
+ const load=createLoader(root,{'@/lib/server/session':{getSessionUser:async()=>({role:'owner'})}})
  const route=load(path.join(root,'app/api/marketing/outreach/send/route.ts'))
- const input={contactId:contact.id,senderId:sender.id,requestKey:'owner-reviewed-message',subject:'A relevant question',body:'May I send the details?',from:'attacker@example.test',to:'wrong@example.test'}
- const post=()=>route.POST(new Request('https://crm.fixture/api/marketing/outreach/send',{method:'POST',body:JSON.stringify(input)}))
- assert.equal((await post()).status,200);assert.equal(policy.length,1);assert.equal(sent[0].to,contact.email);assert.match(sent[0].from,/jo@saturnstarmovers.ca/);assert.equal(sent[0].replyTo,sender.reply_to_email);assert.equal(sent[0].context.actorName,'John')
- lease={contact_id:contact.id,channel:'email',evidence:{allowed:true,adapterEvidence:{observedAt:new Date().toISOString(),sender:sender.from_email,recipient:contact.email,contentHash:crypto.createHash('sha256').update(input.subject+'\n'+input.body).digest('hex')}}}
- assert.equal((await post()).status,200);assert.equal(policy.length,1,'A fresh exact-message lease is reused without a second policy reservation')
- lease.evidence.adapterEvidence.observedAt=new Date(Date.now()-600000).toISOString();assert.equal((await post()).status,409);assert.equal(sent.length,2)
- lease.evidence.adapterEvidence.observedAt=new Date().toISOString();lease.evidence.adapterEvidence.recipient='someone-else@example.test';assert.equal((await post()).status,409);assert.equal(sent.length,2)
+ const result=await route.POST(new Request('https://crm.fixture',{method:'POST',body:'{}'}))
+ assert.equal(result.status,409);assert.match((await result.json()).error,/Google fleet/)
 })

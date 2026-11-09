@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/server/session'
-import { canAccessOperationsWorkspace } from '@/lib/server/sales-permissions'
+import { canUseOperationsPhone } from '@/lib/operations-phone'
 import { createOnboardingInvite, updateOnboardingInvite } from '@/lib/server/partner-pilot'
 import { listOnboardingDocuments, onboardingRest, saveOnboardingVersion } from '@/lib/server/contractor-onboarding'
 import { REQUIRED_DOCUMENTS } from '@/lib/contractor-onboarding'
@@ -8,7 +8,7 @@ import { requireSupabaseEnv } from '@/lib/server/runtime'
 
 async function context(id: string) {
   const session = await getSessionUser()
-  if (!canAccessOperationsWorkspace(session)) return null
+  if (!canUseOperationsPhone(session)) return null
   const partners = await onboardingRest<any[]>(`subcontractors?id=eq.${encodeURIComponent(id)}&select=id,company_name,contact_name,phone,email,status,service_cities,home_market`)
   if (!partners[0]) return null
   const invites = await onboardingRest<any[]>(`partner_onboarding_invites?subcontractor_id=eq.${encodeURIComponent(id)}&order=created_at.desc&limit=1`)
@@ -28,6 +28,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!c) return NextResponse.json({ error: 'Not authorized or contractor not found.' }, { status: 403 })
     const body = await request.json()
     if (body.action === 'invite') {
+      const cases = await onboardingRest<any[]>(`contractor_onboarding_cases?subcontractor_id=eq.${c.partner.id}&select=hold_reason&limit=1`)
+      if (cases[0]?.hold_reason) return NextResponse.json({error:'Resolve the recorded onboarding hold first.'},{status:409})
       if (c.partner.status === 'blocked') return NextResponse.json({ error: 'This contractor is blocked.' }, { status: 409 })
       if (c.invite && !['invited', 'screening', 'application', 'verification'].includes(c.invite.stage)) return NextResponse.json({ error: 'This contractor has moved beyond the application stage.' }, { status: 409 })
       let invite = c.invite

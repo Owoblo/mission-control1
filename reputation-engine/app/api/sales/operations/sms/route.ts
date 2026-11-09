@@ -1,3 +1,4 @@
+import { saveOperationsEvent } from '@/lib/server/operations-phone'
 /**
  * POST /api/sales/operations/sms
  * Handles inbound SMS to the operations number (+12267746581).
@@ -91,37 +92,8 @@ function extractMedia(formData: URLSearchParams) {
 }
 
 async function writeSmsMessage(from: string, body: string, messageSid: string, media: Array<{ url: string; contentType?: string }>) {
-  try {
-    const { url, headers } = requireSupabaseEnv()
-    if (messageSid) {
-      const existing = await fetch(
-        `${url}/rest/v1/sms_messages?select=id&twilio_sid=eq.${encodeURIComponent(messageSid)}&limit=1`,
-        { headers, cache: 'no-store' }
-      )
-      if (existing.ok) {
-        const rows = (await existing.json()) as Array<{ id: string }>
-        if (rows.length > 0) return
-      }
-    }
-    // Append media URLs to body for display
-    const mediaText = media.length > 0 ? `\n[MMS: ${media.map(m => m.url).join(', ')}]` : ''
-    await fetch(`${url}/rest/v1/sms_messages`, {
-      method: 'POST',
-      headers: { ...headers, Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        id: crypto.randomUUID(),
-        from_number: from,
-        to_number: OPS_NUMBER,
-        body: body + mediaText,
-        direction: 'inbound',
-        lead_id: null,
-        twilio_sid: messageSid || null,
-        created_at: new Date().toISOString(),
-      }),
-    })
-  } catch {
-    // non-fatal
-  }
+  if (!messageSid) throw new Error('Missing message SID')
+  await saveOperationsEvent(`sms:${messageSid}`,from,'sms','inbound',{body,mediaUrls:media.map(item => item.url),status:'received'})
 }
 
 async function linkPartnerMessage(from: string, body: string, messageSid: string, media: Array<{ url: string; contentType?: string }>) {
@@ -149,6 +121,7 @@ export async function POST(request: Request) {
       return new Response('Forbidden', { status: 403 })
     }
 
+    if (toE164(formData.get('To') || '') !== OPS_NUMBER) return new Response('Wrong Operations line', {status:400})
     const from = toE164((formData.get('From') ?? '').trim())
     const body = (formData.get('Body') ?? '').trim()
     const messageSid = (formData.get('MessageSid') ?? formData.get('SmsSid') ?? '').trim()
@@ -160,7 +133,7 @@ export async function POST(request: Request) {
       await linkPartnerMessage(from, messageText, messageSid, media).catch(() => null)
     }
   } catch {
-    // always return 200 to Twilio
+    return new Response('Unable to persist Operations message', {status:503})
   }
 
   return new Response(

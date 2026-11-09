@@ -35,7 +35,7 @@ export async function validatePreparedEmail(payload,{loadReview,loadEvidence,now
  const result=()=>({allowed:reasons.length===0,reasons:[...new Set(reasons)],scope:'prepared_contract_only',requiresLiveReservation:true});
  if(!payload||typeof payload!=='object'||Array.isArray(payload)){reasons.push('invalid_payload');return result();}
  if(Object.keys(payload).some(k=>![...FIELDS,'contentHash'].includes(k)))reasons.push('unexpected_payload_fields');
- if(payload.version!==PREPARED_EMAIL_VERSION)reasons.push('unsupported_version');
+ if(![PREPARED_EMAIL_VERSION,'ssm-google-email/1'].includes(payload.version))reasons.push('unsupported_version');
  for(const k of FIELDS.filter(k=>k!=='evidenceRefs'))if(!nonempty(payload[k]))reasons.push('missing_'+k);
  for(const k of FIELDS.filter(k=>!['text','evidenceRefs'].includes(k)))if(typeof payload[k]==='string'&&HEADER_CONTROL.test(payload[k]))reasons.push('control_character_'+k);
  if(typeof payload.recipient!=='string'||!EMAIL.test(payload.recipient)||payload.recipient.includes('..')||payload.recipient!==payload.recipient.trim())reasons.push('invalid_recipient');
@@ -44,9 +44,14 @@ export async function validatePreparedEmail(payload,{loadReview,loadEvidence,now
  if(typeof payload.text==='string'&&(payload.text.length>50000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(payload.text)||PLACEHOLDER.test(payload.text)))reasons.push('invalid_or_unresolved_text');
  if(!validRefs(payload.evidenceRefs))reasons.push('invalid_evidence_references');
  if(!SHA256.test(payload.contentHash||'')||payload.contentHash!==preparedEmailContentHash(payload))reasons.push('content_hash_mismatch');
+ const google=payload.version==='ssm-google-email/1';
  const ottawa=isOttawa(payload.city);
  if(payload.market!==(ottawa?'ottawa':'saturn'))reasons.push('regional_market_mismatch');
- if(ottawa){
+ if(google){
+  const allowed=['saturnstarpartners.com','saturnstarmoving.com','moveswithsaturn.com','saturnstarconnect.com'].flatMap(d=>['john','johnny'].map(n=>n+'@'+d));
+  if(ottawa||!allowed.includes(payload.replyTo)||!['John | Saturn Star Movers <'+payload.replyTo+'>','Johnny | Saturn Star Movers <'+payload.replyTo+'>'].includes(payload.sender))reasons.push('google_sender_mismatch');
+  if(!/Saturn Star Movers/i.test(payload.text||'')||/Dexa Movers/i.test(payload.text||''))reasons.push('saturn_brand_mismatch');
+ }else if(ottawa){
   if(!['Courage Eke <hello@dexamovers.ca>','Dr. Courage | Dexa Movers <hello@dexamovers.ca>'].includes(payload.sender)||payload.replyTo!=='hello@dexamovers.ca')reasons.push('ottawa_sender_mismatch');
   if(!/Dexa Movers/i.test(payload.text||'')||/Saturn Star Movers/i.test(payload.text||''))reasons.push('ottawa_brand_mismatch');
  }else{
