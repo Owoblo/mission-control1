@@ -61,3 +61,5 @@ Correlated hard bounces require a delivery-status MIME part, failed action, 5.x.
 Same-inbox follow-up construction was verified live between owned mailboxes with original thread IDs preserved at both sender and recipient. No prospect messages were sent. Automated tests cover sender/recipient/subject changes and paused assignments, plus atomic bounce suppression. This does not authorize unreviewed follow-up sequences.
 
 Legacy saturnstarmovers.ca: johnny@ warm-up reduced to 10/day; retiring jhon@ warm-up paused. john@ remains paused after repeated provider connection losses; it is a legacy SMTP connection pending migration. Zoho and MX records are unchanged.
+
+Scheduled production authentication verified at 2026-11-09 20:45 UTC: all eight mailboxes acquired fresh health and Gmail sync timestamps within 14 seconds. Fleet disabled, zero campaign-enabled connections, zero queued jobs.
