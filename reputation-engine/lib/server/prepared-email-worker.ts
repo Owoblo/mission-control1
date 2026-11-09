@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto'
-import { preparedEmailContentHash, validatePreparedEmail } from '../partnership-core/prepared-email.mjs'
+import { preparedEmailContentHash } from '../partnership-core/prepared-email.mjs'
 import { reserveAction } from '../partnership-core/reserve.mjs'
 import { sendOutreachEmail } from './email-provider'
-import { readEnv } from './runtime'
 
 type Row = Record<string, any>
 type Dependencies = {
@@ -17,8 +16,6 @@ export async function executePreparedEmailJob(input: {
 }, deps: Dependencies = {}) {
   if (!input.enabled) throw new Error('Prepared email execution disabled')
   const request = deps.request || fetch
-  const reserve = deps.reserve || reserveAction
-  const send = deps.send || sendOutreachEmail
   const { job, url, headers } = input
   const payload = job.email_payload as Row
   if (job.channel !== 'email' || job.template_key !== 'prepared_email_v1' || !payload || typeof payload !== 'object') throw new Error('Invalid prepared email job')
@@ -44,58 +41,15 @@ export async function executePreparedEmailJob(input: {
     const rows = await db(table, params, 'PATCH', body)
     if (!Array.isArray(rows) || rows.length !== 1) throw new Error('Prepared email receipt target missing; reconcile before retry')
   }
-  let dispatch = await one('prepared_email_dispatches', { action_key: 'eq.' + payload.actionKey })
+  const dispatch = await one('prepared_email_dispatches', { action_key: 'eq.' + payload.actionKey })
   if (dispatch && (dispatch.job_id !== job.id || dispatch.contact_id !== payload.contactId || dispatch.content_hash !== payload.contentHash)) throw new Error('Prepared dispatch binding mismatch')
   if (dispatch && dispatch.state !== 'accepted') throw new Error('Prepared email already attempted; reconcile before retry')
 
   if (!dispatch) {
-    const gate = await validatePreparedEmail(payload, {
-      loadReview: async (id: string) => (await one('prepared_email_reviews', { id: 'eq.' + id }))?.record,
-      loadEvidence: async (id: string) => (await one('prepared_email_evidence', { id: 'eq.' + id }))?.record,
-    })
-    if (!gate.allowed) throw new Error('Prepared email review hold: ' + gate.reasons.join(', '))
-    const contact = await one('market_contacts', { id: 'eq.' + payload.contactId })
-    if (!contact || contact.email !== payload.recipient || contact.city !== payload.city || contact.partner_company_id !== payload.accountId) throw new Error('Prepared recipient context changed')
-    if (contact.do_not_contact || contact.sequence_paused || contact.cross_channel_suppressed_at || contact.email_unsubscribed_at || ['dnc','do_not_contact','closed_lost'].includes(contact.stage) || ['bounced','complained','unsubscribed'].includes(contact.email_status)) throw new Error('Prepared recipient suppressed or paused')
-    // Both approved brands use the canonical SES ledger and delivery-event path.
-    // Ottawa activation remains explicit until its sender identity is verified.
-    const provider = 'ses'
-    if (payload.market === 'ottawa' && !(input.ottawaEnabled ?? (readEnv('PREPARED_OTTAWA_EXECUTION_ENABLED') === 'true'))) throw new Error('Ottawa rollout held: provider limits and confirmed-delivery telemetry require verification')
-    if (payload.market === 'ottawa') {
-      const suppressed = await db('crm_email_suppressions', { recipient: 'eq.' + payload.recipient.toLowerCase(), limit: '1' })
-      if (!Array.isArray(suppressed) || suppressed.length) throw new Error('Prepared Ottawa recipient suppressed')
-    }
-    const claim = await db('rpc/claim_prepared_email_dispatch', {}, 'POST', {
-      p_action_key: payload.actionKey, p_job_id: job.id, p_contact_id: payload.contactId, p_content_hash: payload.contentHash,
-    })
-    if (claim.claimed !== true) throw new Error('Prepared email dispatch already claimed; reconcile before retry')
-    try {
-      await reserve({ url, headers, contactId: payload.contactId, channel: 'email', key: payload.actionKey, content: payload.text, sender: payload.sender, emailProvider: provider })
-    } catch (error) {
-      await patch('prepared_email_dispatches', { action_key: 'eq.' + payload.actionKey, state: 'eq.dispatching' }, { state: 'held' })
-      throw error
-    }
-    try {
-      const sendPayload = {
-        from: payload.sender, to: payload.recipient, replyTo: payload.replyTo,
-        subject: payload.subject, text: payload.text, trackingMode: 'deliverability',
-        idempotencyKey: 'prepared-email:' + payload.actionKey,
-        context: { source: 'prepared-email', contactId: payload.contactId, policyActionKey: payload.actionKey, actorName: 'Prepared campaign' },
-        reviewedBody: { text: payload.text },
-        tags: { channel: 'partnership', contact_id: payload.contactId, sequence_job_id: String(job.id) },
-      }
-      const receipt = await send(sendPayload as Parameters<typeof sendOutreachEmail>[0])
-      if (receipt.provider !== provider || !receipt.accepted || !receipt.messageId) throw new Error('Ambiguous provider acceptance')
-      dispatch = { state: 'accepted', provider: receipt.provider, message_id: receipt.messageId, accepted_at: new Date().toISOString() }
-      await patch('prepared_email_dispatches', { action_key: 'eq.' + payload.actionKey, state: 'eq.dispatching' }, dispatch)
-    } catch (error) {
-      // Includes timeouts and receipt-save failures. Never send again automatically.
-      const state = (error as { beforeSend?: boolean })?.beforeSend === true ? 'held' : 'ambiguous'
-      const uncertain = dispatch?.message_id ? { ...dispatch, state } : { state }
-      try { await patch('prepared_email_dispatches', { action_key: 'eq.' + payload.actionKey, state: 'eq.dispatching' }, uncertain) } catch { /* Existing durable claim still blocks retries. */ }
-      throw error
-    }
+    // Preserve accepted-receipt reconciliation; never dispatch historical SES campaigns.
+    throw Object.assign(new Error('Legacy prepared email is held; rebuild reviewed campaigns for the Google fleet'), { beforeSend: true })
   }
+
   if (!dispatch.message_id || !dispatch.provider || !dispatch.accepted_at) throw new Error('Invalid accepted provider receipt')
   const hash = createHash('sha256').update('prepared-email:' + job.id).digest('hex')
   const touchId = `${hash.slice(0,8)}-${hash.slice(8,12)}-${hash.slice(12,16)}-${hash.slice(16,20)}-${hash.slice(20,32)}`

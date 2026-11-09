@@ -127,6 +127,7 @@ async function sendWithSes(payload: ProviderEmailPayload): Promise<ProviderEmail
 
 export async function sendProviderEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
   requireEmailBody(payload)
+  if (payload.purpose === 'outreach') throw new EmailPreflightError('Cold outreach requires the Google mailbox workflow; SES is reserved for operational mail and existing conversations.')
   const receipt = await sendWithSes(payload)
   if (!receipt.accepted || !receipt.messageId) throw new Error('SES did not confirm acceptance')
   return receipt
@@ -135,6 +136,7 @@ export async function sendProviderEmail(payload: ProviderEmailPayload): Promise<
 /** Use SES for operational alerts even when another provider is configured for other mail. */
 export async function sendSesProviderEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
   requireEmailBody(payload)
+  if (payload.purpose === 'outreach') throw new EmailPreflightError('Cold outreach cannot use the SES operational sender.')
   return sendWithSes({...payload,purpose:payload.purpose || 'internal'})
 }
 
@@ -151,12 +153,9 @@ export function getSesLaunchReadiness() {
   }
 }
 
-/** Partnership sequence email is SES; never fall back to a transactional provider. */
-export async function sendOutreachEmail(payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
-  requireEmailBody(payload)
-  const receipt = await sendWithSes({...payload,purpose:'outreach',trackingMode:'deliverability'})
-  if (!receipt.accepted || !receipt.messageId) throw new Error("SES did not return an acceptance receipt")
-  return receipt
+/** Retained to fail closed for legacy callers. No SES fallback for cold outreach. */
+export async function sendOutreachEmail(_payload: ProviderEmailPayload): Promise<ProviderEmailReceipt> {
+  throw new EmailPreflightError('Cold outreach is held pending the Google fleet dispatcher, sender assignment and capacity gates. No email was sent.')
 }
 
 /** Sales/quote delivery is configured independently from partnership outreach. */

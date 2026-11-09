@@ -449,7 +449,7 @@ async function processSequence(request: Request) {
   await recoverStaleSequenceJobs(url, headers)
 
   const jobsRes = await fetch(
-    `${url}/rest/v1/sequence_jobs?status=eq.pending&scheduled_at=lte.${encodeURIComponent(now)}&select=*&limit=${SEQUENCE_JOB_BATCH_SIZE}&order=scheduled_at.asc`,
+    `${url}/rest/v1/sequence_jobs?channel=neq.email&status=eq.pending&scheduled_at=lte.${encodeURIComponent(now)}&select=*&limit=${SEQUENCE_JOB_BATCH_SIZE}&order=scheduled_at.asc`,
     { headers, cache: 'no-store' }
   )
   if (!jobsRes.ok) return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 })
@@ -459,7 +459,7 @@ async function processSequence(request: Request) {
 
   // Fetch context before claiming. Jobs we cannot start within this invocation
   // remain pending instead of being stranded as running until stale recovery.
-  const eligibleJobs = jobs.filter(job => (!job.sms_payload || readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true') && (!isPreparedEmailJob(job) || readEnv('PREPARED_EMAIL_EXECUTION_ENABLED') === 'true'))
+  const eligibleJobs = jobs.filter(job => job.channel !== 'email' && (!job.sms_payload || readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true') && (!isPreparedEmailJob(job) || readEnv('PREPARED_EMAIL_EXECUTION_ENABLED') === 'true'))
   if (!eligibleJobs.length) return NextResponse.json({ok:true,processed:0,skipped:0,disabled:jobs.length})
   const contactIds = Array.from(new Set(eligibleJobs.map(j => j.contact_id as string)))
   const batchIds = Array.from(new Set(eligibleJobs.map(j => j.batch_id as string).filter(Boolean)))
