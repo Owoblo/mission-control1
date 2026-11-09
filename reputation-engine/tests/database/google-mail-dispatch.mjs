@@ -15,6 +15,7 @@ create function reserve_partnership_action(c uuid,ch text,k text,ak text,e jsonb
  insert into partnership_action_reservations values(ak,c,ch,e);return '{"allowed":true}'::jsonb;end $$;`)
 await db.exec(await fs.readFile('supabase/migrations/20261109000100_google_mail_oauth.sql','utf8'))
 await db.exec(await fs.readFile('supabase/migrations/20261109003000_google_mail_dispatch.sql','utf8'))
+await db.exec(await fs.readFile('supabase/migrations/20261109004000_google_mail_bounces.sql','utf8'))
 await db.query("insert into google_mail_connections(email,refresh_token_encrypted,scopes,connected_by) values($1,'fixture','{}','owner')",[sender])
 await db.query("insert into market_contacts(id,email) values($1,'client@example.test')",[id])
 await db.query("insert into prepared_email_reviews values('review',$1)",[{status:'approved',contentHash:'abc',contactId:id,expiresAt:new Date(Date.now()+3600000).toISOString()}])
@@ -66,3 +67,5 @@ test('reviewed body and mailbox assignment are immutable',async()=>{const db=awa
  await claim(db)
  await assert.rejects(db.query("update google_mail_assignments set email='johnny@saturnstarpartners.com' where contact_id=$1",[id]),/immutable/)
 }finally{await db.close()}})
+
+test('correlated hard bounce atomically suppresses contact and cancels held followups',async()=>{const db=await fixture();try{await ready(db);await claim(db);await db.query('select finish_google_mail_job($1,$2,$3,$4,$5)',[jid,'accepted','gmail-id','thread','<rfc@example.test>']);await db.query("insert into google_mail_jobs(action_key,contact_id,payload,state) values('held-followup',$1,'{}','held')",[id]);await db.query('select record_google_mail_bounce($1,$2,$3,now())',[sender,'bounce',jid]);assert.equal((await db.query('select email_status from market_contacts')).rows[0].email_status,'bounced');assert.equal((await db.query("select state from google_mail_jobs where action_key='held-followup'")).rows[0].state,'cancelled');await assert.rejects(db.query('select record_google_mail_bounce($1,$2,$3,now())',['wrong@example.test','bounce2',jid]),/does not match/)}finally{await db.close()}})

@@ -39,12 +39,13 @@ export async function dispatchGoogleJob(job:Job) {
  const [contact]=await emailStorage<any[]>(`market_contacts?id=eq.${encodeURIComponent(job.contact_id)}&select=*`)
  if(!contact||contact.partner_company_id!==p.accountId||contact.city!==p.city||contact.email!==p.recipient)throw Error('Google contact context changed')
  const [assignment]=await emailStorage<any[]>(`google_mail_assignments?contact_id=eq.${encodeURIComponent(job.contact_id)}&select=*`)
- if(assignment)throw Error('Follow-up policy review required; automatic follow-ups remain held')
+ if(assignment&&(assignment.paused||assignment.email!==p.replyTo||assignment.recipient!==p.recipient||assignment.subject!==p.subject||!assignment.thread_id||!assignment.last_message_id))throw Error('Follow-up policy: original sender/thread binding or active conversation required')
  const token=await refreshGoogleMailAccess(p.replyTo)
+ // Repeat contact still requires the shared policy's persisted nonresponse review.
  // Refresh the original conversation immediately before considering a follow-up.
  if(assignment?.thread_id)await syncGoogleThread(token,assignment)
  const {url,headers}=requireSupabaseEnv(),key='google-mail:'+job.id
- const evidence=await reserveAction({url,headers,contactId:job.contact_id,channel:'email',kind:assignment?'follow_up':'cold_introduction',key,content:p.subject+'\n'+p.text,sender:p.sender,emailProvider:'google',evidenceOnly:true})
+ const evidence=await reserveAction({url,headers,contactId:job.contact_id,channel:'email',kind:'cold_introduction',key,content:p.subject+'\n'+p.text,sender:p.sender,emailProvider:'google',evidenceOnly:true})
  const message=googleMessage(job,{threadId:assignment?.thread_id,inReplyTo:assignment?.last_message_id})
  const claim=await emailStorage<any>('rpc/claim_google_mail_job',{p_id:job.id,p_evidence:evidence})
  if(!claim.claimed)return {state:claim.state}

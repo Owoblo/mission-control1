@@ -5,7 +5,7 @@ import path from 'node:path'
 const require=createRequire(import.meta.url),createLoader=require('../helpers/load-typescript.cjs'),root=path.resolve('.')
 function fixture({enabled=true,claim=true,outcome='accepted',finishFails=false,assignment=null}={}){
  const original=globalThis.fetch,calls=[],storage=[]
- globalThis.fetch=async(url,init)=>{calls.push({url,body:JSON.parse(init.body||'{}')});if(outcome==='timeout')throw Error('timeout');if(outcome==='reject')return Response.json({}, {status:403});return Response.json(outcome==='missing'?{}:{id:'gmail-message',threadId:'gmail-thread'})}
+ globalThis.fetch=async(url,init)=>{calls.push({url,body:JSON.parse(init.body||'{}')});if(url.includes('/threads/'))return Response.json({id:assignment.thread_id,messages:[]});if(outcome==='timeout')throw Error('timeout');if(outcome==='reject')return Response.json({}, {status:403});return Response.json(outcome==='missing'?{}:{id:'gmail-message',threadId:'gmail-thread'})}
  const load=createLoader(root,{
   '../partnership-core/prepared-email.mjs':{validatePreparedEmail:async()=>({allowed:true})},
   '../partnership-core/reserve.mjs':{reserveAction:async()=>{}},
@@ -14,7 +14,7 @@ function fixture({enabled=true,claim=true,outcome='accepted',finishFails=false,a
   './email-delivery':{emailAddress:s=>s.match(/<([^>]+)>/)?.[1]||s,emailStorage:async(p,b)=>{
    storage.push({p,b});if(p.startsWith('market_contacts?'))return [{partner_company_id:'account',city:'Windsor',email:'client@example.test'}]
    if(p.startsWith('google_mail_assignments?'))return assignment?[assignment]:[]
-   if(p==='rpc/claim_google_mail_job')return {claimed:claim,state:'dispatching'}
+   if(p==='rpc/claim_google_mail_job')return {claimed:claim,state:'dispatching',threadId:assignment?.thread_id,inReplyTo:assignment?.last_message_id}
    if(p==='rpc/finish_google_mail_job'&&finishFails)throw Error('storage offline')
    return true
   }},
@@ -41,3 +41,6 @@ test('MIME preserves body and deterministic ID; follow-ups bind original thread'
  assert.throws(()=>f.api.googleMessage(job,{threadId:'thread'}))
 }finally{f.close()}})
 test('unreviewed follow-up policy holds before reservation or transport',async()=>{const f=fixture({assignment:{thread_id:'thread',last_message_id:'<parent@example.test>'}});try{await assert.rejects(f.api.dispatchGoogleJob(job),/Follow-up policy/);assert.equal(f.calls.length,0);assert.ok(!f.storage.some(x=>x.p==='rpc/claim_google_mail_job'))}finally{f.close()}})
+
+test('reviewed follow-up uses original mailbox, subject and thread after inbound sync',async()=>{const assignment={email:job.payload.replyTo,recipient:job.payload.recipient,subject:job.payload.subject,thread_id:'original-thread',last_message_id:'<original@example.test>',paused:false};const f=fixture({assignment});try{await f.api.dispatchGoogleJob(job);assert.ok(f.calls[0].url.includes('/threads/original-thread'));assert.equal(f.calls[1].body.threadId,'original-thread');const mime=Buffer.from(f.calls[1].body.raw,'base64url').toString();assert.ok(mime.includes('In-Reply-To: <original@example.test>'));assert.ok(mime.includes('Reply-To: '+assignment.email))}finally{f.close()}})
+for(const change of [{paused:true},{email:'johnny@saturnstarpartners.com'},{recipient:'other@example.test'},{subject:'New conversation'}])test('follow-up rejects changed or paused original conversation '+JSON.stringify(change),async()=>{const f=fixture({assignment:{email:job.payload.replyTo,recipient:job.payload.recipient,subject:job.payload.subject,thread_id:'thread',last_message_id:'<original@example.test>',...change}});try{await assert.rejects(f.api.dispatchGoogleJob(job),/Follow-up policy/);assert.equal(f.calls.length,0)}finally{f.close()}})
