@@ -13,7 +13,7 @@ This policy supersedes historical SES cold-campaign instructions in the partners
 
 An isolated candidate based on production source 09aecaa5d0520b587f127f1de32ce81e4c46f42e blocks legacy SES outreach transports, cold reservations, and managed cold sends. The sequence processor excludes email jobs before its query limit. Historical accepted prepared dispatches retain reconciliation without resend. Manual legacy replies require an established human conversation and consistent original sender.
 
-These candidate changes are not yet deployed. Do not deploy the older dirty main working tree over the newer production delivery ledger.
+The boundary and dispatch foundation were deployed at fbed418; monitoring and bounce correlation are deployed at f809692. Do not deploy the older dirty main working tree over this release.
 
 ## Readiness assessment
 
@@ -23,8 +23,8 @@ Qualitative engineering assessment, not a deliverability score:
 | --- | --- | --- |
 | SES operational transport | Strong | Reservation, provider receipt, unknown-outcome protection, signed event handling, suppression and unsubscribe tests. |
 | Google mailbox setup | In progress | Eight connected new mailboxes; connection alone does not prove durable refresh, campaign dispatch or reply ingestion. |
-| Cold campaign execution | Not ready | Candidate implements Gmail transport, atomic inbox/domain capacity, sender affinity, suppression rechecks and duplicate-send protection. Live verification, health ingestion and reviewed follow-up policy remain outstanding. |
-| Monitoring | Partial | Mailivery metrics exist; local monitor is not an always-on alerting service. ScaledMail reporting activation is pending. |
+| Cold campaign execution | Not ready | Candidate implements Gmail transport, atomic inbox/domain capacity, sender affinity, suppression rechecks and duplicate-send protection. Monitoring is live; dispatch remains disabled. Launch acceptance and healthy placement evidence remain outstanding. Repeat contact requires the shared policy’s persisted nonresponse review. |
+| Monitoring | Partial | A five-minute production worker ingests Mailivery health and ScaledMail weekly results. Reporting was purchased; the API currently has zero completed reports. Missing evidence holds outreach. |
 | Fifth-domain migration | Not ready for cutover | Three Zoho exports verified as readable, 214 messages total. Compare source completeness, resolve Google tenant, provision destination and validate import before MX change. |
 | Playbook | Strong intent; stale execution details | Use this channel policy; historical SES campaigns must not be replayed. |
 
@@ -51,3 +51,13 @@ No campaign cron has been scheduled, no production schema has been migrated, and
 Remaining launch work: reconcile this candidate with the operations-phone deployment restored from the previous Google release; connect current health evidence to google_mail_health; implement the reviewed follow-up policy; test original-thread replies, opt-out/bounce handling, token refresh and acceptance reconciliation with owned mailboxes; then schedule bounded polling and prove alert delivery. The current thread poller pauses all non-sent/non-draft responses for human review rather than claiming it has classified human replies reliably. It does not yet scan for delivery notices arriving in unrelated threads.
 
 Gmail implementation references: https://developers.google.com/workspace/gmail/api/guides/sending and https://developers.google.com/workspace/gmail/api/guides/threads .
+
+## Monitoring release, November 9, 2026
+
+Deployment dpl_Gv19yYtgWusuibmBXAYfatTET2uU enables the monitoring worker, not campaign dispatch. The Google mailbox page shows last health/sync checks, warm-up score and spam placement, ScaledMail availability and hold reasons. Warm-up criteria are conservative rollout defaults: active ramp-up, score at least 80, spam placement at most 5%, valid SPF/DMARC/MX, and 28 active days. Passing these alone never authorizes outreach; independent placement and launch acceptance remain required.
+
+Correlated hard bounces require a delivery-status MIME part, failed action, 5.x.x status and exact outbound RFC Message-ID. They suppress the contact and cancel pending/held Google jobs. Unmatched, ambiguous and delayed notices do not automatically mark a contact bounced. Bounded scans fail closed when pagination is incomplete.
+
+Same-inbox follow-up construction was verified live between owned mailboxes with original thread IDs preserved at both sender and recipient. No prospect messages were sent. Automated tests cover sender/recipient/subject changes and paused assignments, plus atomic bounce suppression. This does not authorize unreviewed follow-up sequences.
+
+Legacy saturnstarmovers.ca: johnny@ warm-up reduced to 10/day; retiring jhon@ warm-up paused. john@ remains paused after repeated provider connection losses; it is a legacy SMTP connection pending migration. Zoho and MX records are unchanged.
