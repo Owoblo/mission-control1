@@ -1,0 +1,1960 @@
+{
+  "updated": "2026-09-15",
+  "source": "owner-provided service coverage",
+  "note": "Service groupings are not administrative boundary claims. Preserve location, branch and jurisdiction separately. WKG is the owner-specified region code; runtime mapping remains a separate implementation task. Ottawa sending remains paused under prior instruction.",
+  "locations": [
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Windsor",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "LaSalle",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Tecumseh",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Amherstburg",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Lakeshore",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Belle River",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Comber",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Stoney Point",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "St. Joachim",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Puce",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Emeryville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Anderdon",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Leamington",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Kingsville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Essex",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Harrow",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "McGregor",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Cottam",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Ruthven",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Colchester",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Maidstone",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "windsor",
+      "region_label": "Windsor / Essex County",
+      "location": "Wheatley",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Chatham",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Chatham Kent",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Tilbury",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Wallaceburg",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Dresden",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Pain Court",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Blenheim",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Merlin",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Charing Cross",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Cedar Springs",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Dealtown",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Ridgetown",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Thamesville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Bothwell",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Highgate",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Morpeth",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Muirkirk",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Mitchell’s Bay",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Lighthouse Cove",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Erieau",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Shrewsbury",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "chatham-kent",
+      "region_label": "Chatham-Kent",
+      "location": "Erie Beach",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Sarnia",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Point Edward",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Brights Grove",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Camlachie",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Corunna",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Mooretown",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Courtright",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Sombra",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Port Lambton",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "St. Clair",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Dawn-Euphemia",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Petrolia",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Oil Springs",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Brigden",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Wyoming",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Plympton-Wyoming",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Watford",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Warwick",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Alvinston",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Brooke-Alvinston",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Arkona",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Forest",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Thedford",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Grand Bend",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Lambton Shores",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Port Franks",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Ipperwash",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Bluewater",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Dashwood",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Enniskillen",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "sarnia",
+      "region_label": "Sarnia / Lambton County",
+      "location": "Kettle Point",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "London",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Lucan",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Lucan Biddulph",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Ailsa Craig",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Parkhill",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Ilderton",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "North Middlesex",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Strathroy",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Strathroy-Caradoc",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Mount Brydges",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Kerwood",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Glencoe",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Newbury",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Wardsville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Adelaide-Metcalfe",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Southwest Middlesex",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Komoka",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Middlesex Centre",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Dorchester",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Thames Centre",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Belmont",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "St. Thomas",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Central Elgin",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Southwold",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Talbotville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Shedden",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Fingal",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Port Stanley",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Dutton",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Dutton-Dunwich",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "West Lorne",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Rodney",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Wallacetown",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "West Elgin",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Aylmer",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Springfield",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Malahide",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Bayham",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Vienna",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Port Burwell",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "St. Marys",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Arva",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Delaware",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "Perth South",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "london",
+      "region_label": "London / Middlesex and surrounding areas",
+      "location": "South Huron",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Woodstock",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Ingersoll",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Beachville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Sweaburg",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Burgessville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Otterville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Norwich",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Mount Elgin",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Courtland",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Tillsonburg",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Tavistock",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Thamesford",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Innerkip",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "East Zorra-Tavistock",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Embro",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Hickson",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Kintore",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Zorra",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Drumbo",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Princeton",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Plattsville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Bright",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Delhi",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Burford",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Cathcart",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Milldale",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Norfolk County",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "South-West Oxford",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Shakespeare",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Blandford-Blenheim",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Kitchener",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Waterloo",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Cambridge",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Guelph",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Elmira",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "St. Jacobs",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Conestogo",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Breslau",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Woolwich",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "New Hamburg",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Baden",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Wellesley",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Wilmot",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Ayr",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "North Dumfries",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Puslinch",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Guelph-Eramosa",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Rockwood",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Fergus",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Elora",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Centre Wellington",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Drayton",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Mapleton",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Arthur",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Palmerston",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Arkell",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Belwood",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Conestogo Lake",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Erin",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Minto",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Milverton",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Moorefield",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Morriston",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "North Perth",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Perth East",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Wellington North",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Stratford",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Listowel",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Paris",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Brantford",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "Brant",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "WKG",
+      "region_label": "Kitchener / Waterloo / Cambridge / Guelph",
+      "location": "East Garafraxa",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Ottawa",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Kanata",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Nepean",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Orleans",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Gloucester",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Stittsville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Barrhaven",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Manotick",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Rockland",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Carp",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Arnprior",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Beckwith",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Carleton Place",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Lanark Highlands",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Mississippi Mills",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "North Dundas",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "North Grenville",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Russell",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Richmond",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "McNab/Braeside",
+      "kind": "service_location",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "woodstock",
+      "region_label": "Woodstock / Oxford and surrounding areas",
+      "location": "Blandford Blenheim",
+      "kind": "listing_alias",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "subject_to_contact_review",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Greely Metcalfe Osgoode Vernon And Area",
+      "kind": "listing_alias",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Lower Town Sandy Hill",
+      "kind": "listing_alias",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Pineview",
+      "kind": "listing_alias",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    },
+    {
+      "region": "ottawa",
+      "region_label": "Ottawa and surrounding areas",
+      "location": "Stittsville Munster Richmond",
+      "kind": "listing_alias",
+      "discovery_status": "not_individually_searched",
+      "sending_status": "existing_ottawa_hold",
+      "source": "owner-provided 2026-09-15"
+    }
+  ]
+}

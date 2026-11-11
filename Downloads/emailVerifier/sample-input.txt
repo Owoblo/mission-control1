@@ -1,5 +1,0 @@
-John, Doe, google.com
-Jane, Smith, microsoft.com
-Elon, Musk, tesla.com
-Tim, Cook, apple.com
-Satya, Nadella, microsoft.com

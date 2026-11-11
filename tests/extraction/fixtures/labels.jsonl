@@ -1,0 +1,17 @@
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "adjacent-fax", "phones": [{"extension": "", "kind": "fax", "phone": "+15195550123"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "mixed-field", "phones": [{"extension": "", "kind": "phone", "phone": "+15195550123"}, {"extension": "", "kind": "fax", "phone": "+15195550124"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "table-fax", "phones": [{"extension": "", "kind": "fax", "phone": "+15195550124"}, {"extension": "", "kind": "phone", "phone": "+15195550123"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "trailing-fax", "phones": [{"extension": "", "kind": "fax", "phone": "+15195550124"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "separate-cards", "phones": [{"extension": "", "kind": "fax", "phone": "+15195550124"}, {"extension": "", "kind": "phone", "phone": "+15195550123"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "shared-route", "phones": [{"extension": "", "kind": "fax", "phone": "+15195550123"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "nanp-invalid", "phones": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "international", "phones": [{"extension": "", "kind": "phone", "phone": "+4422345678"}, {"extension": "09", "kind": "phone", "phone": "+442079460123"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "malformed-plus", "phones": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "extensions", "phones": [{"extension": "106", "kind": "phone", "phone": "+15195550123"}, {"extension": "42", "kind": "phone", "phone": "+18005550123"}]}
+{"attribution": [], "attribution_known": true, "emails": ["info@fictional.test"], "exhaustive": true, "id": "structured", "phones": [{"extension": "", "kind": "phone", "phone": "+15195550123"}, {"extension": "", "kind": "fax", "phone": "+15195550124"}]}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "noise", "phones": []}
+{"attribution": [], "attribution_known": true, "emails": ["info@fictional.test"], "exhaustive": true, "id": "inline-email", "phones": []}
+{"attribution": [], "attribution_known": true, "emails": ["\u00e9lise@fictional.test"], "exhaustive": true, "id": "unicode-email", "phones": []}
+{"attribution": [{"channel": "jane@fictional.test", "owner": "Jane Smith", "relation": "person_card"}, {"channel": "john@fictional.test", "owner": "John Jones", "relation": "person_card"}], "attribution_known": true, "emails": ["jane@fictional.test", "john@fictional.test"], "exhaustive": true, "id": "two-people", "phones": []}
+{"attribution": [], "attribution_known": false, "emails": ["desk@shared.test"], "exhaustive": true, "id": "shared-business-email", "phones": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "empty", "phones": []}

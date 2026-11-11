@@ -1,9 +1,0 @@
-.env.local
-.next
-node_modules
-.DS_Store
-.vercel
-.env*.local
-.env.sentry-build-plugin
-tmp-logic-tests/
-*.tsbuildinfo

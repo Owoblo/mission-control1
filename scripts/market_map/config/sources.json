@@ -1,0 +1,918 @@
+{
+  "version": 1,
+  "prepared_at": "2026-10-26",
+  "sources": [
+    {
+      "id": "vaughan-yres-2025",
+      "name": "Vaughan 2025 YRES directory",
+      "publisher": "City of Vaughan / York Region",
+      "source_url": "https://vaughanbusiness.ca/data-and-research/vaughan-business-directories/",
+      "source_type": "employment_survey",
+      "geography_scope": [
+        "vaughan"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "documented_bulk_download",
+      "retrieval_status": "accessible",
+      "rights_status": "restricted",
+      "terms_url": "https://vaughanbusiness.ca/privacy-policy/",
+      "robots_checked_at": "2026-10-26",
+      "cost_model": "free",
+      "pagination_method": "single_file",
+      "reported_count": 11350,
+      "count_definition": "Rows excluding header in downloaded official2025_YRES_Public worksheet; inspected only, not licensed for ingestion",
+      "source_date": "2025",
+      "last_checked_at": "2026-10-26",
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": "xls",
+      "notes": "Documented XLS exists; inspected file has11350 source rows. Site Information Usage terms prohibit commercial exploitation and automated extraction. NOT ingested. Investigate York Region separately licensed open-data dataset instead.",
+      "country": "CA",
+      "province": "ON",
+      "download_url": "https://vaughanbusiness.ca/wp-content/uploads/2026/04/2025_YRES_Public.xls",
+      "allowed_hosts": [
+        "vaughanbusiness.ca"
+      ]
+    },
+    {
+      "id": "york-regional-directory",
+      "name": "York Region interactive business directory",
+      "publisher": "York Region",
+      "source_url": "https://ww4.yorkmaps.ca/locateit/BusinessDirectory/index.html",
+      "source_type": "employment_survey",
+      "geography_scope": [
+        "york"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Regional map discovery lead; prefer licensed downloadable dataset",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "durham-directory-page",
+      "name": "Durham directory discovery entry",
+      "publisher": "Region of Durham",
+      "source_url": "https://www.durham.ca/doing-business/business-directory/",
+      "source_type": "economic_development",
+      "geography_scope": [
+        "durham"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "durham-business-sites",
+      "name": "Durham DRES business sites",
+      "publisher": "Region of Durham",
+      "source_url": "https://maps.durham.ca/arcgis/rest/services/Open_Data/Durham_OpenData/MapServer/11",
+      "source_type": "open_data_business_locations",
+      "geography_scope": [
+        "durham"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "documented_open_data_endpoint",
+      "retrieval_status": "accessible",
+      "rights_status": "licensed_open",
+      "terms_url": "https://www.durham.ca/regional-government/access-to-information/open-data/",
+      "robots_checked_at": "2026-10-26",
+      "cost_model": "free",
+      "pagination_method": "object_ids",
+      "reported_count": 6874,
+      "count_definition": "Count query reconciled to6874 unique IDs and fetched rows on2026-10-26",
+      "source_date": null,
+      "last_checked_at": "2026-10-26",
+      "last_success_at": "2026-10-26",
+      "refresh_interval": 30,
+      "adapter_name": "arcgis",
+      "notes": "Official region open-data licence permits commercial reuse with exclusions; business-site records are not all organisations. Source data currency remains to be checked. Full live traversal verified2026-10-26;18 measured HTTP requests,5721818 bytes. Record update dates null; retrieval date is not business currency.",
+      "country": "CA",
+      "province": "ON",
+      "allowed_hosts": [
+        "maps.durham.ca"
+      ],
+      "attribution": "Contains public sector information made available under The Regional Municipality of Durham's Open Data Licence"
+    },
+    {
+      "id": "brampton-economic-development",
+      "name": "Brampton economic-development business directory",
+      "publisher": "City of Brampton",
+      "source_url": "https://services3.arcgis.com/rl7ACuZkiFsmDA2g/ArcGIS/rest/services/Economic_Development/FeatureServer/0",
+      "source_type": "open_data_business_locations",
+      "geography_scope": [
+        "brampton"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "documented_open_data_endpoint",
+      "retrieval_status": "access_blocked",
+      "rights_status": "licensed_open",
+      "terms_url": "https://www.arcgis.com/sharing/rest/content/items/04a4ba1bbdd54faa8ea49bc0ef1033ce?f=json",
+      "robots_checked_at": "2026-10-26",
+      "cost_model": "free",
+      "pagination_method": "object_ids",
+      "reported_count": 5132,
+      "count_definition": "Public ArcGIS count query on2026-10-26; no full row retrieval",
+      "source_date": null,
+      "last_checked_at": "2026-10-26",
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": "arcgis",
+      "notes": "Official ArcGIS item licenseInfo is exactly CC BY (version unspecified); publisher City of Brampton; metadata advertises Query and maxRecordCount 10000. Preserve source age separately from service edit date. Strict collection held because services3.arcgis.com/robots.txt returns403. Metadata/count inspected, no bulk collection; do not bypass.",
+      "country": "CA",
+      "province": "ON",
+      "allowed_hosts": [
+        "services3.arcgis.com"
+      ],
+      "attribution": "Contains information provided by the City of Brampton under CC BY. No City endorsement is implied.",
+      "license_name": "CC BY",
+      "page_size": 1000,
+      "field_map": {
+        "city": [
+          "CITY",
+          "City"
+        ],
+        "phone": [
+          "PHONE",
+          "Phone"
+        ],
+        "categories": [
+          "NAICS_DETAIL",
+          "NAIC_2"
+        ]
+      },
+      "city": "Brampton"
+    },
+    {
+      "id": "london-ledc",
+      "name": "London economic-development directory",
+      "publisher": "London Economic Development Corporation",
+      "source_url": "https://www.ledc.com/business-directory",
+      "source_type": "economic_development",
+      "geography_scope": [
+        "london"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "partial_access",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": "2026-10-26",
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": "html_directory",
+      "notes": "Directory page accessible and reports sector/B2B scope. Export route returned403; no bypass. Directory is not all London businesses.",
+      "country": "CA",
+      "province": "ON",
+      "allowed_hosts": [
+        "www.ledc.com"
+      ]
+    },
+    {
+      "id": "waterloo-edc",
+      "name": "Waterloo EDC company directory",
+      "publisher": "Waterloo EDC",
+      "source_url": "https://www.waterlooedc.ca/data/business-directory",
+      "source_type": "economic_development",
+      "geography_scope": [
+        "waterloo",
+        "kitchener",
+        "cambridge"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Selection of regional companies; not an all-business census",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "sarnia-economic-directory",
+      "name": "Sarnia-Lambton economic directory discovery",
+      "publisher": "Sarnia-Lambton Economic Partnership",
+      "source_url": "https://investsarnia.ca/business-resources",
+      "source_type": "economic_development",
+      "geography_scope": [
+        "sarnia-lambton"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Publisher approximate3500 business count is not validated fetched count; existing collector evidence available separately",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "sarnia-licences-2026",
+      "name": "Sarnia 2026 licensed-business directory",
+      "publisher": "City of Sarnia",
+      "source_url": "https://www.sarnia.ca/living-here/permits-and-licencing/2026-business-licence-directory/",
+      "source_type": "municipal_business_directory",
+      "geography_scope": [
+        "sarnia"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": "2026",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Business-licence scope differs from all economic activity",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "windsor-essex-source",
+      "name": "SourceWindsorEssex directory",
+      "publisher": "SourceWindsorEssex",
+      "source_url": "https://sourcewindsoressex.com",
+      "source_type": "economic_development",
+      "geography_scope": [
+        "windsor",
+        "essex"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "browser_required",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": "2026-10-26",
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Public page requires JavaScript; documented download/permission not established. No rendered bulk collection attempted.",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "windsor-university-guide",
+      "name": "Windsor business-directory research guide",
+      "publisher": "University of Windsor",
+      "source_url": "https://leddy.uwindsor.ca/node/6336",
+      "source_type": "source_discovery",
+      "geography_scope": [
+        "windsor",
+        "essex"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Guide to candidate directories, not itself a list of businesses",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "wellington-directory",
+      "name": "Wellington business directory",
+      "publisher": "County of Wellington",
+      "source_url": "https://www.wellington.ca/business-development/business-directory",
+      "source_type": "economic_development",
+      "geography_scope": [
+        "wellington"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "ontario-made",
+      "name": "Ontario Made manufacturer directory",
+      "publisher": "Canadian Manufacturers & Exporters / Ontario Made",
+      "source_url": "https://supportontariomade.ca/manufacturers/directory/",
+      "source_type": "manufacturers_association",
+      "geography_scope": [
+        "ontario"
+      ],
+      "sector_scope": [
+        "manufacturing"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "permission_required",
+      "rights_status": "restricted",
+      "terms_url": "https://supportontariomade.ca/terms",
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": "2026-10-26",
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Participation directory, not a manufacturing census. User Agreement section1(b), checked2026-10-26, explicitly requires written approval for automated access/query/collection. No bulk ingestion; use an authorised publisher export or written permission. Public page presence is discovery only.",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "ontario-sport-bodies",
+      "name": "Ontario sport governing bodies",
+      "publisher": "Government of Ontario",
+      "source_url": "https://www.ontario.ca/page/provincial-sport-organizations-and-multi-sport-organizations",
+      "source_type": "league_team_directory",
+      "geography_scope": [
+        "ontario"
+      ],
+      "sector_scope": [
+        "sports"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "access_unverified",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Brief research fetch encountered403; follow public governing-body rosters after access review",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "boma-toronto",
+      "name": "BOMA Toronto member directory",
+      "publisher": "BOMA Toronto",
+      "source_url": "https://www.bomatoronto.org/membership/member-directory",
+      "source_type": "provincial_association_members",
+      "geography_scope": [
+        "toronto"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "membership_only",
+      "rights_status": "restricted",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Member-access directory; no unrestricted harvesting assumed",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "ofma",
+      "name": "Ontario facilities association public resources",
+      "publisher": "Ontario Facilities Management Association",
+      "source_url": "https://www.ofma.ca/",
+      "source_type": "provincial_association_members",
+      "geography_scope": [
+        "ontario"
+      ],
+      "sector_scope": [
+        "commercial_property_facilities"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "toronto-procurement",
+      "name": "Toronto procurement routes",
+      "publisher": "City of Toronto",
+      "source_url": "https://www.toronto.ca/business-economy/doing-business-with-the-city/searching-bidding-on-city-contracts/",
+      "source_type": "procurement",
+      "geography_scope": [
+        "toronto"
+      ],
+      "sector_scope": [
+        "government"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "windsor-procurement",
+      "name": "Windsor procurement routes",
+      "publisher": "City of Windsor",
+      "source_url": "https://www.citywindsor.ca/city-hall/legal-services/purchasing",
+      "source_type": "procurement",
+      "geography_scope": [
+        "windsor"
+      ],
+      "sector_scope": [
+        "government"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "ontario-procurement",
+      "name": "Ontario procurement routes",
+      "publisher": "Government of Ontario",
+      "source_url": "https://www.ontario.ca/page/doing-business-government-ontario",
+      "source_type": "procurement",
+      "geography_scope": [
+        "ontario"
+      ],
+      "sector_scope": [
+        "government"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "canada-business-counts-2026",
+      "name": "Canadian employer business-location aggregate counts",
+      "publisher": "Statistics Canada / Open Government",
+      "source_url": "https://open.canada.ca/data/en/dataset/92a81342-c3bc-4c06-b233-d2e988c10d06",
+      "source_type": "statistical_benchmark",
+      "geography_scope": [
+        "ontario"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": "2026-06",
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Aggregate employer-location benchmark only, not named business/contact records; match geography NAICS date and units",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "woodstock-city-directory",
+      "name": "Woodstock municipal directory",
+      "publisher": "City of Woodstock",
+      "source_url": "https://www.cityofwoodstock.ca/business-directory/",
+      "source_type": "municipal_business_directory",
+      "geography_scope": [
+        "woodstock",
+        "oxford"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "historically_ingested",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": "govstack_directory",
+      "notes": "Existing September V2 evidence236 records across24 pages; reuse/access recheck required before new crawl; current generic adapter deliberately holds JS/form pagination",
+      "country": "CA",
+      "province": "ON",
+      "allowed_hosts": [
+        "www.cityofwoodstock.ca"
+      ],
+      "city": "Woodstock"
+    },
+    {
+      "id": "guelph-chamber-directory",
+      "name": "Guelph Chamber members",
+      "publisher": "Guelph Chamber of Commerce",
+      "source_url": "https://www.guelphchamber.com/business-directory",
+      "source_type": "chamber_member_directory",
+      "geography_scope": [
+        "guelph"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "historically_ingested",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Existing V2 bounded category evidence; membership does not prove local physical presence",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "ottawa-open-data",
+      "name": "Ottawa open-data source discovery",
+      "publisher": "City of Ottawa",
+      "source_url": "https://open.ottawa.ca/",
+      "source_type": "source_discovery",
+      "geography_scope": [
+        "ottawa"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Include Ottawa research even when sending is paused. Dataset selection/licence not yet validated.",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "ottawa-board-trade",
+      "name": "Ottawa Board of Trade directory discovery",
+      "publisher": "Ottawa Board of Trade",
+      "source_url": "https://www.ottawabot.ca/",
+      "source_type": "chamber_member_directory",
+      "geography_scope": [
+        "ottawa"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Source-discovery homepage only; actual directory path and reuse terms need validation",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "toronto-open-data",
+      "name": "Toronto open-data source discovery",
+      "publisher": "City of Toronto",
+      "source_url": "https://open.toronto.ca/",
+      "source_type": "source_discovery",
+      "geography_scope": [
+        "toronto"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Select address-bearing datasets individually; business-licence and employer surveys have different scopes",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "mississauga-open-data",
+      "name": "Mississauga open-data source discovery",
+      "publisher": "City of Mississauga",
+      "source_url": "https://data.mississauga.ca/",
+      "source_type": "source_discovery",
+      "geography_scope": [
+        "mississauga",
+        "peel"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "hamilton-open-data",
+      "name": "Hamilton open-data source discovery",
+      "publisher": "City of Hamilton",
+      "source_url": "https://open.hamilton.ca/",
+      "source_type": "source_discovery",
+      "geography_scope": [
+        "hamilton"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "halton-open-data",
+      "name": "Halton open-data source discovery",
+      "publisher": "Halton Region",
+      "source_url": "https://open.halton.ca/",
+      "source_type": "source_discovery",
+      "geography_scope": [
+        "halton"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Research lead; no bulk-access or completeness claim",
+      "country": "CA",
+      "province": "ON"
+    },
+    {
+      "id": "ontario-data-catalogue",
+      "name": "Ontario source discovery",
+      "publisher": "Government of Ontario",
+      "source_url": "https://data.ontario.ca/",
+      "source_type": "source_discovery",
+      "geography_scope": [
+        "ontario"
+      ],
+      "sector_scope": [
+        "*"
+      ],
+      "access_method": "public_html",
+      "retrieval_status": "discovered",
+      "rights_status": "unverified",
+      "terms_url": null,
+      "robots_checked_at": null,
+      "cost_model": "free",
+      "pagination_method": "unknown",
+      "reported_count": null,
+      "count_definition": null,
+      "source_date": null,
+      "last_checked_at": null,
+      "last_success_at": null,
+      "refresh_interval": 30,
+      "adapter_name": null,
+      "notes": "Expand beyond serviced cities over time; dataset selection and licence review remain separate",
+      "country": "CA",
+      "province": "ON"
+    }
+  ]
+}

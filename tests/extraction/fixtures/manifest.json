@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "label_scope": "page_unique_channel",
+  "pages": [
+    {
+      "id": "adjacent-fax",
+      "file": "adjacent-fax.html",
+      "url": "https://adjacent-fax.test/contact",
+      "sha256": "99844a86e3bac4b2b565a028a63876158f400f76a1ae32cc41be85f3a9148c3a",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "mixed-field",
+      "file": "mixed-field.html",
+      "url": "https://mixed-field.test/contact",
+      "sha256": "f75fab2559168047b8827e5d1cb6b79099f703d1f0b99ab3e5d62ba37e1867bf",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "table-fax",
+      "file": "table-fax.html",
+      "url": "https://table-fax.test/contact",
+      "sha256": "fd611e440d439c37971252ccb90d9f77c0a11a487bdfb944f4661270c42b2ad1",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "trailing-fax",
+      "file": "trailing-fax.html",
+      "url": "https://trailing-fax.test/contact",
+      "sha256": "a31ceac9b1c4238165f85d7223840f9d39b0e3bb03c13b496f724fe9aca233dd",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "separate-cards",
+      "file": "separate-cards.html",
+      "url": "https://separate-cards.test/contact",
+      "sha256": "db7918d2f99046e306ac65996be982a666dc394826a4f46ae244cd725e972cf6",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "shared-route",
+      "file": "shared-route.html",
+      "url": "https://shared-route.test/contact",
+      "sha256": "746f7acf22a392bccc7f355887c7c85de0b0d5182a7cf569a95039002777fdd1",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "nanp-invalid",
+      "file": "nanp-invalid.html",
+      "url": "https://nanp-invalid.test/contact",
+      "sha256": "0ed1c8a9c1b637086d45302a634ff65fc01d99b8797d3a4ba0a32f7b8faea3cc",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "international",
+      "file": "international.html",
+      "url": "https://international.test/contact",
+      "sha256": "f54c161c4b94d446b974dcb823a320a465f4ba15e4129f3594cb260fb54540b9",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "malformed-plus",
+      "file": "malformed-plus.html",
+      "url": "https://malformed-plus.test/contact",
+      "sha256": "d7c4a58fea149356e3e408f6525805c6a47bef31ef0cf8ce6a698fd4bcd25e8c",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "extensions",
+      "file": "extensions.html",
+      "url": "https://extensions.test/contact",
+      "sha256": "70a7a50a126ad58171e71c0ede273b0f0c4950af49b4a141a7f9e52a0f36f239",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "structured",
+      "file": "structured.html",
+      "url": "https://structured.test/contact",
+      "sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "noise",
+      "file": "noise.html",
+      "url": "https://noise.test/contact",
+      "sha256": "ca3e1a1c8eadd68bb4238c4897606c2a1ddffd8122ac878b78e05a7e6a4c0e17",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "inline-email",
+      "file": "inline-email.html",
+      "url": "https://inline-email.test/contact",
+      "sha256": "8051c8edcc152cf2a59423dfde536ea9b67c3bd473948352c4ab550f6636192e",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "unicode-email",
+      "file": "unicode-email.html",
+      "url": "https://unicode-email.test/contact",
+      "sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "two-people",
+      "file": "two-people.html",
+      "url": "https://two-people.test/contact",
+      "sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "shared-business-email",
+      "file": "shared-business-email.html",
+      "url": "https://shared-business-email.test/contact",
+      "sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "empty",
+      "file": "empty.html",
+      "url": "https://empty.test/contact",
+      "sha256": "f70b370debd085dd9e9fb6495c796cdccf41c44574cc185dbe124f3ea8237623",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    }
+  ]
+}

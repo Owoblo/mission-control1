@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "label_scope": "page_unique_channel",
+  "pages": [
+    {
+      "id": "repeated-context",
+      "file": "repeated-context.html",
+      "url": "https://business.test/repeated-context",
+      "sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "hidden",
+      "file": "hidden.html",
+      "url": "https://business.test/hidden",
+      "sha256": "4ade4d8d0f2a14666eb7bf421e21c4164ef99035c397655fb67a2680377d4cd8",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "inline",
+      "file": "inline.html",
+      "url": "https://business.test/inline",
+      "sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "inline-suffix",
+      "file": "inline-suffix.html",
+      "url": "https://business.test/inline-suffix",
+      "sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "inline-unicode",
+      "file": "inline-unicode.html",
+      "url": "https://business.test/inline-unicode",
+      "sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "inline-obfuscation",
+      "file": "inline-obfuscation.html",
+      "url": "https://business.test/inline-obfuscation",
+      "sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "cards",
+      "file": "cards.html",
+      "url": "https://business.test/cards",
+      "sha256": "a59b6ac83e260d090308ffd352d925336976f99ca5f3a91b16e33ebcb100e363",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "cells",
+      "file": "cells.html",
+      "url": "https://business.test/cells",
+      "sha256": "33f889484b0dcdf04947410f3710d704182224f71e346837eb4d21f488446f4c",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "hidden-barrier",
+      "file": "hidden-barrier.html",
+      "url": "https://business.test/hidden-barrier",
+      "sha256": "3a2564f93c94f1a9d60ef1a5143fe877c03e48ad609eab4a19da7c5926b6283b",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "subtype",
+      "file": "subtype.html",
+      "url": "https://business.test/subtype",
+      "sha256": "4f689943c25ec09caf30075ed6063c426714cfb6d0b13b5777e38cedb7b978af",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "uri-array",
+      "file": "uri-array.html",
+      "url": "https://business.test/uri-array",
+      "sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "reference",
+      "file": "reference.html",
+      "url": "https://business.test/reference",
+      "sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "shared-reference",
+      "file": "shared-reference.html",
+      "url": "https://business.test/shared-reference",
+      "sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "duplicate-reference",
+      "file": "duplicate-reference.html",
+      "url": "https://business.test/duplicate-reference",
+      "sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "person-employer",
+      "file": "person-employer.html",
+      "url": "https://business.test/person-employer",
+      "sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "article-author",
+      "file": "article-author.html",
+      "url": "https://business.test/article-author",
+      "sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "cycle",
+      "file": "cycle.html",
+      "url": "https://business.test/cycle",
+      "sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    },
+    {
+      "id": "inline-fax",
+      "file": "inline-fax.html",
+      "url": "https://business.test/inline-fax",
+      "sha256": "b3abe8e4fc137b21642e876e20f9f323d1a70c6d73c82a3c9aed60379caed296",
+      "approval": "synthetic_authorized_by_implementation_request",
+      "retention": "synthetic_no_personal_data",
+      "capture_kind": "self_authored_synthetic",
+      "fetched_at": null
+    }
+  ]
+}
