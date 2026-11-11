@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 destination=Path(sys.argv[1]).resolve()
 if destination.exists():raise SystemExit('Destination must be new')
-paths=set(json.loads(Path('/tmp/extraction-stage-paths.json').read_text().splitlines()[-1]))
+paths=set(json.loads((Path(__file__).parent/'source-paths.json').read_text()))
 paths.update(['lib/partnership-core/markets.mjs','tests/extraction/network_sandbox.py','tests/extraction/run_corrective_processes.py','tests/extraction/corrections_measure.py','tests/extraction/pr17_measure.py','tests/extraction/tranche5_results/PR-16/frozen-candidate.json','tests/extraction/tranche5_results/PR-16/candidate.json'])
 paths.update(str(p.relative_to(ROOT)) for p in (ROOT/'staging/extraction-evaluation').glob('*') if p.is_file())
 manifest={}
