@@ -483,14 +483,14 @@ def reconcile_completed_muse_research():
         folder=result_path.parent.parent
         output=folder/'relationship-decisions.json'
         prior=read(output,{})
-        if prior.get('decision_version')==3:
+        status=read(result_path.parent/'status.json',{})
+        stamp=status.get('at')
+        historic=bool(stamp and (datetime.now(timezone.utc)-datetime.fromisoformat(stamp.replace('Z','+00:00'))).total_seconds()>36*3600)
+        if prior.get('decision_version')==3 or (prior.get('decision_version')==2 and (not stamp or historic)):
             if 'review_summary' not in prior:
                 save(output,{**prior,'review_summary':muse_decision_summary(prior)})
             continue
-        status=read(result_path.parent/'status.json',{})
-        if status.get('state')!='source_first_pass_complete':
-            continue
-        if not status.get('at') or (datetime.now(timezone.utc)-datetime.fromisoformat(status['at'])).total_seconds()>36*3600:
+        if status.get('state')!='source_first_pass_complete' or historic:
             continue
         review=read(folder/'open-house-review.json')
         agents=read(result_path)['items']
