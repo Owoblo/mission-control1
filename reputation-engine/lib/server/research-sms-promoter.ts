@@ -39,7 +39,7 @@ type Draft = {
   cities: string[]
   body: string
   requested_action?: string
-  release_evidence?: { prior_sms_touch_id?: string }
+  release_evidence?: { prior_sms_touch_id?: string; prior_delivery_receipt?: string }
 }
 type Inventory = {
   id: string
@@ -225,6 +225,7 @@ export function researchSmsRows(
       content_hash: createHash('sha256').update(draft.body).digest('hex'),
       approved_by: options.approvedBy,
       prior_sms_touch_id: priorSmsTouchId,
+      ...(draft.release_evidence?.prior_delivery_receipt ? { prior_delivery_receipt: draft.release_evidence.prior_delivery_receipt } : {}),
     } : undefined
     const disclosureReview = !allowRevival && verified && options.authenticatedApprover &&
       options.authenticatedApprover.name === options.approvedBy && options.clearHolds.includes(disclosureHold) &&

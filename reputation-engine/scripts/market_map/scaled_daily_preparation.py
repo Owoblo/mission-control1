@@ -483,12 +483,14 @@ def reconcile_completed_muse_research():
         folder=result_path.parent.parent
         output=folder/'relationship-decisions.json'
         prior=read(output,{})
-        if prior.get('decision_version')==2:
+        if prior.get('decision_version')==3:
             if 'review_summary' not in prior:
                 save(output,{**prior,'review_summary':muse_decision_summary(prior)})
             continue
         status=read(result_path.parent/'status.json',{})
         if status.get('state')!='source_first_pass_complete':
+            continue
+        if not status.get('at') or (datetime.now(timezone.utc)-datetime.fromisoformat(status['at'])).total_seconds()>36*3600:
             continue
         review=read(folder/'open-house-review.json')
         agents=read(result_path)['items']
@@ -497,16 +499,18 @@ def reconcile_completed_muse_research():
         contact_ids=sorted(matches)
         contacts={}
         touches,tasks,jobs=defaultdict(list),defaultdict(list),defaultdict(list)
+        linked_events={item['crm_contact_id'] for item in review['items']
+                       if item.get('crm_contact_id') and item.get('source')=='saved_crm_activity'}
         secret=read(ROOT/'.private/regional-outcomes.json')
         for start in range(0,len(contact_ids),50):
             group='in.('+','.join(contact_ids[start:start+50])+')'
-            for item in database_rows(secret,'market_contacts','id,last_touch_at,last_inbound_at,stage,decision,sequence_paused,sequence_paused_reason,do_not_contact,cross_channel_suppressed_at,email_unsubscribed_at,email_last_bounced_at',**{'and':'(id.'+group+')'}):
+            for item in database_rows(secret,'market_contacts','id,name,company,city,phone,notes,last_touch_at,last_inbound_at,stage,decision,sequence_paused,sequence_paused_reason,do_not_contact,cross_channel_suppressed_at,email_unsubscribed_at,email_last_bounced_at',**{'and':'(id.'+group+')'}):
                 contacts[item['id']]=item
-            for item in database_rows(secret,'market_touches','id,contact_id,direction,channel,notes,created_at',contact_id=group):
+            for item in database_rows(secret,'market_touches','id,contact_id,direction,channel,notes,metadata,created_at',contact_id=group):
                 touches[item['contact_id']].append(item)
             for item in database_rows(secret,'crm_tasks','id,related_id,title,status',related_id=group,status='in.(open,in_progress)'):
                 tasks[item['related_id']].append(item)
-            for item in database_rows(secret,'sequence_jobs','id,contact_id,status',contact_id=group,status='in.(pending,processing,running)'):
+            for item in database_rows(secret,'sequence_jobs','id,contact_id,status',contact_id=group,status='in.(pending,processing,running,queued_manual)'):
                 jobs[item['contact_id']].append(item)
         decisions=[]
         for contact_id in contact_ids:
@@ -528,6 +532,8 @@ def reconcile_completed_muse_research():
                 holds.append('open_relationship_tasks_review')
             if jobs[contact_id]:
                 holds.append('active_sequence_hold')
+            if contact_id in linked_events:
+                holds.append('current_crm_linked_event_review')
             inbound=[touch for touch in history if touch['direction']=='inbound']
             outbound=[touch for touch in history if touch['direction']=='outbound']
             commitments=[touch for touch in history if re.search(
@@ -541,11 +547,12 @@ def reconcile_completed_muse_research():
                    len(outbound)==1 and outbound[0]['channel']=='sms' else 'full_thread_decision_required')
             decisions.append({'contact_id':contact_id,'state':state,
                               'holds':holds,'latest_activity_at':last,'history':history,
+                              'contact':{k:contact.get(k) for k in ('name','company','city','phone','notes')} if contact else None,
                               'hold_touch_ids':[touch['id'] for touch in commitments],
                               'open_tasks':tasks[contact_id],'active_jobs':jobs[contact_id],'dispatch':False})
         if prior and not (folder/'relationship-decisions-v1.json').is_file():
             save(folder/'relationship-decisions-v1.json',prior)
-        decision={'state':'saved_crm_context_ready','decision_version':2,'contacts':decisions,
+        decision={'state':'saved_crm_context_ready','decision_version':3,'contacts':decisions,
              'new_or_ambiguous_agents':[{'id':agent['id'],'name':agent['name'],'state':agent['state'],
                   'holds':['recipient_specific_release_basis_unconfirmed']}
                   for agent in agents if not agent.get('crm_matches')],
@@ -686,10 +693,32 @@ def start_carrier_checks(results):
 def resume_deferred_carrier_checks():
     candidates=list((OUT/'days').glob('*/results/carrier-activation.json'))
     candidates+=list((OUT/'muse-imports/reviews').glob('*/source-first/carrier-activation.json'))
+    candidates+=list((OUT/'muse-imports/reviews').glob('*/source-first/realtor-sms/carrier-activation.json'))
     cutoff=time.time()-36*3600
     for marker in candidates:
         if marker.stat().st_mtime>=cutoff:
             start_carrier_checks(marker.parent)
+
+
+def post_research_sms(endpoint, batch):
+    url=urllib.parse.urlsplit(endpoint)
+    if url.scheme!='https' or url.netloc!='go.quote2move.com' or url.path!='/api/marketing/sms/promote-research' or url.query or url.fragment:
+        raise ValueError('Invalid geography promotion endpoint')
+    secret=os.environ.get('WORKER_SHARED_SECRET') or read(ROOT/'.private/geo-sms-promotion.json',{}).get('WORKER_SHARED_SECRET')
+    if not secret:
+        raise ValueError('Geography worker secret unavailable')
+    payload=json.dumps(batch,ensure_ascii=False,separators=(',',':')).encode()
+    if len(payload)>32*1024*1024:
+        raise ValueError('Geography promotion evidence exceeds decoded request limit')
+    compressed=base64.b64encode(gzip.compress(payload)).decode('ascii')
+    payload=json.dumps({'encoding':'gzip-base64','data':compressed},separators=(',',':')).encode()
+    if len(payload)>4*1024*1024:
+        raise ValueError('Geography promotion payload exceeds request limit')
+    request=urllib.request.Request(endpoint,data=payload,headers={'Content-Type':'application/json','x-internal-secret':secret})
+    opener=urllib.request.build_opener(NoPromotionRedirect())
+    with opener.open(request,timeout=70) as response:
+        result=json.load(response)
+    return result
 
 
 def reconcile_daily_geo_sms(folder, config):
@@ -727,25 +756,9 @@ def reconcile_daily_geo_sms(folder, config):
         return  # Local draft-only operation until the endpoint is configured.
     save(attempt_path,{'mode':mode,'at':now(),'state':'started'})
     try:
-        url=urllib.parse.urlsplit(endpoint)
-        if url.scheme!='https' or url.netloc!='go.quote2move.com' or url.path!='/api/marketing/sms/promote-research' or url.query or url.fragment:
-            raise ValueError('Invalid geography promotion endpoint')
-        secret=os.environ.get('WORKER_SHARED_SECRET') or read(ROOT/'.private/geo-sms-promotion.json',{}).get('WORKER_SHARED_SECRET')
-        if not secret:
-            raise ValueError('Geography worker secret unavailable')
         batch={'day':folder.name,'draft_version':prepared['template_version'],
                'drafts':prepared['drafts'],'inventory':prepared['inventory'],'dry_run':not execute}
-        payload=json.dumps(batch,ensure_ascii=False,separators=(',',':')).encode()
-        if len(payload)>32*1024*1024:
-            raise ValueError('Geography promotion evidence exceeds decoded request limit')
-        compressed=base64.b64encode(gzip.compress(payload)).decode('ascii')
-        payload=json.dumps({'encoding':'gzip-base64','data':compressed},separators=(',',':')).encode()
-        if len(payload)>4*1024*1024:
-            raise ValueError('Geography promotion payload exceeds request limit')
-        request=urllib.request.Request(endpoint,data=payload,headers={'Content-Type':'application/json','x-internal-secret':secret})
-        opener=urllib.request.build_opener(NoPromotionRedirect())
-        with opener.open(request,timeout=70) as response:
-            result=json.load(response)
+        result=post_research_sms(endpoint,batch)
         if result.get('prepared')!=len(prepared['drafts']) or result.get('campaign_key')!='geo-b2b-daily-'+folder.name.replace('-',''):
             raise ValueError('Incomplete geography promotion receipt')
         save(receipt_path,{'mode':mode,'state':'confirmed','inventory_mtime':inventory_path.stat().st_mtime,**result})
@@ -756,6 +769,148 @@ def reconcile_daily_geo_sms(folder, config):
                            'reason':str(exc)[:120]})
     except Exception as exc:
         save(attempt_path,{'mode':mode,'at':now(),'state':'unconfirmed','error':type(exc).__name__})
+
+
+def open_house_sms_candidates(agents, decisions, feed, *, clock=None):
+    clock=clock or datetime.now(timezone.utc)
+    by_contact={r['contact_id']:r for r in decisions}
+    by_identity=defaultdict(list)
+    for group in feed.get('items',[]):
+        by_identity[normalize(group.get('agent_name'))].extend(group.get('observations',[]))
+    prepared=[]
+    for agent in agents:
+        matches=agent.get('crm_matches',[])
+        if agent.get('sales_route_match') or len(matches)>1 or not agent.get('brokerages'):
+            continue
+        contact_decision=by_contact.get(matches[0],{}) if matches else {}
+        contact=contact_decision.get('contact') or {}
+        roles=agent.get('roles',[])
+        events=[]
+        for role in roles:
+            associated=role.get('events') or by_identity[normalize(agent['name'])]
+            for event in associated:
+                start=event.get('start_iso')
+                if (not start or event.get('mls')!=role.get('mls') or not role.get('source_url') or not role.get('proof')
+                        or event.get('status')!='upcoming' or not event.get('verified_on_export_day') or not event.get('verified_at')):
+                    continue
+                if role.get('origin')=='validated_feed_association' and event.get('source_url')!=role['source_url']:
+                    continue
+                try:
+                    if datetime.fromisoformat(start.replace('Z','+00:00'))<=clock:
+                        continue
+                except (ValueError,TypeError):
+                    continue
+                if event.get('city'):
+                    events.append((start,event,role))
+        cities={normalize(event['city']) for _,event,_ in events}
+        city=contact.get('city') if matches else None
+        if not events or (not matches and len(cities)!=1):
+            # Save direct routes for carrier research even if the relationship
+            # decision or listing attribution still needs review.
+            selected_event=None
+        else:
+            start,event,role=min(events,key=lambda entry:entry[0])
+            city=city or event['city']
+            selected_event={'mls':role['mls'],'source_url':role['source_url'],'starts_at':start,
+                            'city':event['city'],'verified_at':event['verified_at']}
+        direct=[route for route in agent.get('routes',[]) if route['kind']=='phone'
+                and route.get('shared_in_research_batch') is False and route.get('source_url') and route.get('proof')]
+        prior=None
+        if matches and contact_decision.get('state')=='quiet_sms_route_and_sender_review' and selected_event:
+            prior=next((touch for touch in contact_decision['history'] if touch['direction']=='outbound' and touch['channel']=='sms'),None)
+            profile=re.search(r'^profile=(https://\S+)$',contact.get('notes') or '',re.M)
+            mobile=phone(contact.get('phone'))
+            if not prior or not mobile or phone((prior.get('metadata') or {}).get('to'))!=mobile:
+                prior=None
+            elif not direct and profile:
+                direct=[{'kind':'phone','value':mobile,'source_url':profile[1],
+                         'proof':'Recorded Realtor profile and prior CRM SMS destination',
+                         'origin':'crm_delivered_sms_route','shared_in_research_batch':False}]
+        if not direct:
+            continue
+        holds=[]
+        if len(direct)!=1: holds.append('confirm_single_direct_realtor_mobile')
+        if not selected_event: holds.append('current_open_house_attribution_required')
+        if matches:
+            if not prior: holds.extend(contact_decision.get('holds') or ['existing_relationship_review'])
+            if contact and any(phone(route['value'])!=phone(contact.get('phone')) for route in direct):
+                holds.append('agent_phone_requires_identity_review')
+        brokerages={normalize(re.sub(r'\s+brokerage$', '', b, flags=re.I)) for b in agent['brokerages']}
+        source_identity_count=agent.get('candidate_directory_identities',0)
+        brokerage=agent['brokerages']
+        if matches and prior and source_identity_count<=1 and brokerages=={normalize(contact.get('company'))}:
+            brokerage=[contact['company']]
+            source_identity_count=1
+        if source_identity_count!=1 or len(brokerages)!=1:
+            holds.append('resolve_brokerage')
+        prepared.append({'id':agent['id'],'name':contact.get('name') or agent['name'],'brokerages':brokerage,
+                         'roles':roles,'event':selected_event,'city':city,
+                         'source_identity_count':source_identity_count,
+                         'verified_routes':direct,'review_holds':sorted(set(holds)),
+                         **({'contact_id':matches[0],'prior_sms_touch_id':prior['id']} if prior else {})})
+    return prepared
+
+
+def reconcile_open_house_sms(config):
+    endpoint=config.get('geo_sms_promotion_endpoint')
+    if not endpoint:
+        return
+    today=datetime.now(LOCAL).date().isoformat()
+    execute=config.get('open_house_sms_auto_promotion') is True and today>=config.get('open_house_sms_first_day','9999-99-99')
+    mode='execute' if execute else 'preview'
+    for source in sorted((OUT/'muse-imports'/'reviews').glob('*/source-first/agent-results.json')):
+        folder=source.parent.parent
+        decision=read(folder/'relationship-decisions.json',{})
+        status=read(source.parent/'status.json',{})
+        if (decision.get('decision_version')!=3 or status.get('state')!='source_first_pass_complete'
+                or not status.get('at') or datetime.fromisoformat(status['at']).astimezone(LOCAL).date().isoformat()!=today):
+            continue
+        out=source.parent/'realtor-sms'
+        out.mkdir(exist_ok=True)
+        receipt_path=out/'promotion-receipt.json'
+        if read(receipt_path,{}).get('mode')==mode:
+            continue
+        inventory_path=out/'verified-contact-inventory.json'
+        if not inventory_path.is_file():
+            agents=read(source)['items']
+            feed=read(folder/'muse-open-house-intake.json',{})
+            candidates=open_house_sms_candidates(agents,decision['contacts'],feed)
+            save(inventory_path,{'items':candidates})
+        else:
+            candidates=read(inventory_path)['items']
+        if not candidates:
+            save(receipt_path,{'mode':mode,'prepared':0,'scheduled':0})
+            continue
+        start_carrier_checks(out)
+        activation=read(out/'carrier-activation.json',{})
+        status_path=out/'carrier-review-status.json'
+        if (not activation or not status_path.is_file() or status_path.stat().st_mtime<inventory_path.stat().st_mtime
+                or status_path.stat().st_mtime<activation.get('started_epoch',0)
+                or muse_research_running(activation,OUT/'lib/geo_contact_carrier_checks.py',inventory_path)
+                or read(status_path,{}).get('state')=='existing_carrier_worker_active'):
+            continue
+        ready=[item for item in candidates if not item['review_holds'] and len(item['verified_routes'])==1
+               and item['verified_routes'][0].get('technical_state')=='canadian_mobile']
+        if not ready:
+            save(receipt_path,{'mode':mode,'prepared':0,'scheduled':0,
+                               'verified_candidates':len(candidates)})
+            continue
+        attempt=out/'promotion-attempt.json'
+        if read(attempt,{}).get('mode')==mode and time.time()-attempt.stat().st_mtime<300:
+            continue
+        key=hashlib.sha256(folder.name.encode()).hexdigest()[:24]
+        batch={'day':today,'draft_version':'open_house_realtor_v1','export_key':key,
+               'candidates':ready,'dry_run':not execute}
+        save(attempt,{'mode':mode,'state':'started','at':now()})
+        try:
+            result=post_research_sms(endpoint,batch)
+            if result.get('prepared')!=len(ready) or result.get('campaign_key')!='open-house-realtor-daily-'+today.replace('-','')+'-'+key:
+                raise ValueError('Incomplete open-house promotion receipt')
+            save(receipt_path,{'mode':mode,'state':'confirmed','verified_candidates':len(candidates),**result})
+        except urllib.error.HTTPError as exc:
+            save(attempt,{'mode':mode,'state':'unconfirmed','at':now(),'http_status':exc.code})
+        except Exception as exc:
+            save(attempt,{'mode':mode,'state':'unconfirmed','at':now(),'error':type(exc).__name__})
 
 
 def daemon():
@@ -779,6 +934,7 @@ def daemon():
                     start_queued_muse_research()
                     reconcile_completed_muse_research()
                     resume_deferred_carrier_checks()
+                    reconcile_open_house_sms(config)
                 except Exception as exc:
                     save(OUT/'muse-review-error.json',{'at':now(),'type':type(exc).__name__,'dispatch':False})
                 if local.hour>=config['start_hour'] and day>=config['first_day'] and existing:

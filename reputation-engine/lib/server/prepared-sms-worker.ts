@@ -6,6 +6,7 @@ import { validateOutboundMessage } from './saturn-send-gate'
 import { preparedSmsMarketSenders, smsContactSuppressed, type CrmRow } from './prepared-sms'
 import { getPartnershipSenderNumbersForMarket, getPartnershipMessagingServiceSidForNumber } from '../partnership-lines'
 import { isOttawa } from '../partnership-core/ottawa.mjs'
+import { openHouseRelationshipHolds } from './open-house-sms-promotion'
 export class PreparedSmsProviderError extends Error {
   constructor(public status: number, public providerBody: string) { super(`Twilio: ${providerBody}`) }
 }
@@ -62,6 +63,11 @@ export async function executePreparedSmsJob(input: {
     const allowRevival = payload.allowRevival ?? payload.allow_revival ??
       (job.allowRevival === true || job.allow_revival === true || !!payload.prior_sms_touch_id ||
         /(?:^|[-_:])revivals?(?:$|[-_:])/i.test(payload.campaign_key || ''))
+    if (allowRevival && payload.campaign_key?.startsWith('open-house-realtor-daily-')) {
+      const holds = await openHouseRelationshipHolds({ url, headers: Object.fromEntries(new Headers(headers).entries()) },
+        contact.id, String(contact.name || ''))
+      if (holds.length) throw new Error('Open-house relationship hold: ' + holds.join(', '))
+    }
     await reserve({ url, headers, contactId: contact.id, channel: 'sms', key: 'sequence:'+job.id, content: payload.body, sender: payload.from, ...(allowRevival ? { allowRevival } : {}) })
     input.beforeSend?.()
     const messagingServiceSid = telnyx ? undefined : getPartnershipMessagingServiceSidForNumber(payload.from)
