@@ -1,6 +1,8 @@
 import { sendSmsProviderRequest } from '@/lib/server/sms-provider'
-import { executePreparedSmsJob, PreparedSmsProviderError } from '@/lib/server/prepared-sms-worker'
+import { executePreparedSmsJob, holdPreparedSmsForReconciliation, PreparedSmsProviderError, PreparedSmsReconciliationRequired } from '@/lib/server/prepared-sms-worker'
+import { executePreparedEmailJob } from '@/lib/server/prepared-email-worker'
 import { campaignWindow } from '@/lib/partner-context'
+import { deferredCampaignSmsTime } from '@/lib/server/campaign-window-deferral'
 import { NextResponse } from 'next/server'
 import { defaultFollowUpDate } from '@/lib/marketing'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
@@ -162,6 +164,10 @@ function jobAttempts(job: Record<string, unknown>) {
   return Math.max(0, Number(job.attempts || 0))
 }
 
+function isPreparedEmailJob(job: Record<string, unknown>) {
+  return job.email_payload != null || job.template_key === 'prepared_email_v1'
+}
+
 function jobMaxAttempts(job: Record<string, unknown>) {
   return Math.max(1, Number(job.max_attempts || DEFAULT_MAX_ATTEMPTS))
 }
@@ -221,7 +227,7 @@ async function releaseFailedSequenceJob(
   const retry = retryAt(attempts)
   const coldSend = job.channel === 'sms' && !parseScheduledReplyTemplateKey(job.template_key) && !job.provider_sid
   const retryWindow = campaignWindow(campaignNotes, String(job.scheduled_at), new Date(retry))
-  const failed = attempts >= jobMaxAttempts(job) || (coldSend && !retryWindow.allowed)
+  const failed = isPreparedEmailJob(job) || attempts >= jobMaxAttempts(job) || (coldSend && !retryWindow.allowed)
   await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${encodeURIComponent(String(job.id))}`, {
     method: 'PATCH',
     headers,
@@ -444,7 +450,7 @@ async function processSequence(request: Request) {
   await recoverStaleSequenceJobs(url, headers)
 
   const jobsRes = await fetch(
-    `${url}/rest/v1/sequence_jobs?status=eq.pending&scheduled_at=lte.${encodeURIComponent(now)}&select=*&limit=${SEQUENCE_JOB_BATCH_SIZE}&order=scheduled_at.asc`,
+    `${url}/rest/v1/sequence_jobs?channel=neq.email&status=eq.pending&scheduled_at=lte.${encodeURIComponent(now)}&select=*&limit=${SEQUENCE_JOB_BATCH_SIZE}&order=scheduled_at.asc`,
     { headers, cache: 'no-store' }
   )
   if (!jobsRes.ok) return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 })
@@ -454,7 +460,7 @@ async function processSequence(request: Request) {
 
   // Fetch context before claiming. Jobs we cannot start within this invocation
   // remain pending instead of being stranded as running until stale recovery.
-  const eligibleJobs = jobs.filter(job => !job.sms_payload || readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true')
+  const eligibleJobs = jobs.filter(job => job.channel !== 'email' && (!job.sms_payload || readEnv('PREPARED_SMS_EXECUTION_ENABLED') === 'true') && (!isPreparedEmailJob(job) || readEnv('PREPARED_EMAIL_EXECUTION_ENABLED') === 'true'))
   if (!eligibleJobs.length) return NextResponse.json({ok:true,processed:0,skipped:0,disabled:jobs.length})
   const contactIds = Array.from(new Set(eligibleJobs.map(j => j.contact_id as string)))
   const batchIds = Array.from(new Set(eligibleJobs.map(j => j.batch_id as string).filter(Boolean)))
@@ -492,40 +498,55 @@ async function processSequence(request: Request) {
   let raced = 0
   let processed = 0
   let skipped = 0
+  let preparedEmailClaimed = false
 
   for (const candidate of eligibleJobs) {
     if (Date.now() - runStarted >= 40000) break
+    if (isPreparedEmailJob(candidate) && preparedEmailClaimed) continue
     const job = await claimSequenceJob(url, headers, candidate)
     if (!job) { raced++; continue }
+    if (isPreparedEmailJob(job)) preparedEmailClaimed = true
     claimedCount++
     const contact = contactMap.get(job.contact_id as string)
     const batch = batchMap.get(job.batch_id as string) ?? (job.batch_id ? { notes: "missing_campaign_context" } : {})
     const scheduledAt = typeof job.scheduled_at === 'string' ? job.scheduled_at : now
     const scheduledTime = new Date(scheduledAt).getTime()
     const scheduledReply = parseScheduledReplyTemplateKey(job.template_key)
+    const dispatchStarted = (job.sms_payload as { dispatch_started_at?: string } | null)?.dispatch_started_at
+    if (job.channel === 'sms' && dispatchStarted && !job.provider_sid) {
+      await holdPreparedSmsForReconciliation(url, headers, job as { id: string }, 'outcome_unknown')
+      skipped++
+      continue
+    }
 
     // Enforce at execution, not just scheduling: delayed cold sends must not spill
     // into the evening or the next day. Human-requested scheduled replies are separate.
     if (job.channel === 'sms' && !scheduledReply && !job.provider_sid) {
-      const window = campaignWindow(batch.notes, scheduledAt, new Date());
+      const checkedAt = new Date()
+      const window = campaignWindow(batch.notes, scheduledAt, checkedAt)
       if (!window.allowed) {
-        const closed = window.reason !== 'campaign_window_not_open';
+        const nextOpening = deferredCampaignSmsTime(batch.notes, window.reason, checkedAt)
         const response = await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}&status=eq.running`, {
           method: 'PATCH', headers,
-          body: JSON.stringify({ status: closed ? 'failed' : 'pending', locked_at: null, error: window.reason, last_error: window.reason }),
-        });
-        if (!response.ok) throw new Error('Unable to record campaign window hold');
-        skipped++;
-        continue;
+          body: JSON.stringify({
+            status: nextOpening ? 'pending' : 'failed',
+            ...(nextOpening ? { scheduled_at: nextOpening } : {}),
+            attempts: jobAttempts(candidate),
+            locked_at: null,
+            error: window.reason,
+            last_error: window.reason,
+          }),
+        })
+        if (!response.ok) throw new Error('Unable to record campaign window hold')
+        skipped++
+        continue
       }
     }
 
     // Provider checks belong to the job's channel, never the shared queue.
-    let accountSid = ''
-    let authToken = ''
-    if (scheduledReply || job.channel === 'sms') {
-      accountSid = readEnv('TWILIO_ACCOUNT_SID')
-      authToken = readEnv('TWILIO_AUTH_TOKEN')
+    const accountSid = readEnv('TWILIO_ACCOUNT_SID')
+    const authToken = readEnv('TWILIO_AUTH_TOKEN')
+    if (scheduledReply || (job.channel === 'sms' && !job.sms_payload)) {
       try {
         if (!accountSid || !authToken) throw new Error('Missing Twilio credentials')
         if (await twilioAccountIsSuspended(accountSid, authToken)) throw new Error('twilio_account_suspended')
@@ -557,7 +578,8 @@ async function processSequence(request: Request) {
     }
 
     // Cancel if contact responded (sequence paused)
-    if (!contact || contact.sequence_paused) {
+    const acceptedPreparedSms = job.channel === 'sms' && !!job.sms_payload && !!job.provider_sid
+    if (!contact || (contact.sequence_paused && !acceptedPreparedSms)) {
       await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
         method: 'PATCH', headers,
         body: JSON.stringify({ status: 'cancelled' }),
@@ -566,7 +588,7 @@ async function processSequence(request: Request) {
       continue
     }
 
-    if (Number.isFinite(scheduledTime) && Date.now() - scheduledTime > STALE_JOB_MAX_AGE_MS) {
+    if (!acceptedPreparedSms && Number.isFinite(scheduledTime) && Date.now() - scheduledTime > STALE_JOB_MAX_AGE_MS) {
       await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
         method: 'PATCH',
         headers,
@@ -580,6 +602,11 @@ async function processSequence(request: Request) {
     }
 
     try {
+      if (isPreparedEmailJob(job)) {
+        await executePreparedEmailJob({job, contact, url, headers, enabled: readEnv('PREPARED_EMAIL_EXECUTION_ENABLED') === 'true'})
+        processed++
+        continue
+      }
       if (job.channel === 'email') {
         if (!contact.email) {
           await fetch(`${url}/rest/v1/sequence_jobs?id=eq.${job.id}`, {
@@ -637,6 +664,9 @@ async function processSequence(request: Request) {
           } catch (error) {
             if (error instanceof PreparedSmsProviderError && isPermanentSmsFailure(error.status, error.providerBody)) {
               await suppressSmsContact({ url, headers, contact, job, errorText: error.providerBody, now })
+              skipped++
+            } else if (error instanceof PreparedSmsReconciliationRequired || error instanceof PreparedSmsProviderError) {
+              await holdPreparedSmsForReconciliation(url, headers, job as { id: string }, error instanceof PreparedSmsReconciliationRequired ? error.reason : 'provider_rejected')
               skipped++
             } else throw error
           }

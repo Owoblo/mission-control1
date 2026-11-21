@@ -16,7 +16,7 @@ const key = (s: unknown) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, 
 // Same Canadian area-code policy as the existing Canadian import path. Not a line-type assertion.
 const canadian = new Set('204 226 236 249 250 257 263 289 306 343 354 365 367 368 382 387 403 416 418 428 431 437 438 450 468 474 506 514 519 548 579 581 584 587 604 613 639 647 672 683 705 709 742 753 778 780 782 807 819 825 867 873 879 902 905 942'.split(' '))
 export function smsContactSuppressed(c: Record<string, unknown>) {
-  return !!(c.do_not_contact || c.cross_channel_suppressed_at || ['dnc','do_not_contact','closed_lost'].includes(String(c.stage)) || ['opted_out','rejected'].includes(String(c.decision)) || isOptOutText(typeof c.notes === 'string' ? c.notes.replace(/^Inbound SMS:\s*/i, '') : null))
+  return !!(c.do_not_contact || c.cross_channel_suppressed_at || ['dnc','do_not_contact','closed_lost'].includes(String(c.stage)) || ['opted_out','rejected','bad_number'].includes(String(c.decision)) || isOptOutText(typeof c.notes === 'string' ? c.notes.replace(/^Inbound SMS:\s*/i, '') : null))
 }
 export function hasQuietSmsHistory(touches: CrmRow[], priorSmsTouchId: string | undefined, now = Date.now()) {
   const prior = touches.find(t => t.id === priorSmsTouchId && t.channel === 'sms' && t.direction === 'outbound')
@@ -71,7 +71,7 @@ export function planPreparedSms(rows: PreparedSms[], snapshot: SmsSnapshot, camp
     const executionKey = createHash('sha256').update(identity).digest('hex')
     const existingJob = snapshot.jobs.find(j => j.execution_key === executionKey)
     const otherSmsJobs = snapshot.jobs.filter(j => ids.has(String(j.contact_id)) && j.channel === 'sms' && j.execution_key !== executionKey)
-    const activeSmsJob = otherSmsJobs.some(j => ['pending', 'running', 'processing'].includes(String(j.status)))
+    const activeSmsJob = otherSmsJobs.some(j => ['pending', 'running', 'processing', 'queued_manual'].includes(String(j.status)))
     const priorSentSmsJob = otherSmsJobs.some(j => j.status === 'sent')
     if (activeSmsJob || (priorSentSmsJob && !revival)) {
       reasons.push(revival ? 'active_sms_job' : 'existing_sms_job')

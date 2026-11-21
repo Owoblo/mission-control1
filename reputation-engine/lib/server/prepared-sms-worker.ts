@@ -8,6 +8,24 @@ import { getPartnershipSenderNumbersForMarket, getPartnershipMessagingServiceSid
 export class PreparedSmsProviderError extends Error {
   constructor(public status: number, public providerBody: string) { super(`Twilio: ${providerBody}`) }
 }
+export class PreparedSmsReconciliationRequired extends Error {
+  constructor(public readonly reason: 'outcome_unknown' | 'provider_rejected') {
+    super(`Prepared SMS requires reconciliation: ${reason}`)
+  }
+}
+export async function holdPreparedSmsForReconciliation(
+  url: string, headers: HeadersInit, job: CrmRow, reason: PreparedSmsReconciliationRequired['reason'],
+  request: typeof fetch = fetch,
+) {
+  const lease = new URLSearchParams({ id: 'eq.' + job.id, status: 'eq.running', provider_sid: 'is.null' })
+  if (job.locked_at) lease.set('locked_at', 'eq.' + String(job.locked_at))
+  const error = 'prepared_sms_' + reason
+  const result = await request(`${url}/rest/v1/sequence_jobs?${lease}`, {
+    method: 'PATCH', headers,
+    body: JSON.stringify({ status: 'queued_manual', locked_at: null, error, last_error: error }),
+  })
+  if (!result.ok) throw new Error('Could not persist prepared SMS reconciliation hold')
+}
 export async function executePreparedSmsJob(input: {
   job: CrmRow; contact: CrmRow; url: string; headers: HeadersInit; accountSid: string; authToken: string; enabled: boolean; beforeSend?: () => void
 }, deps: { request?: typeof fetch; reserve?: typeof reserveAction } = {}) {
@@ -18,13 +36,11 @@ export async function executePreparedSmsJob(input: {
   const payload = job.sms_payload as {
     body: string; to: string; from: string; city: string
     allowRevival?: boolean; allow_revival?: boolean; prior_sms_touch_id?: string; campaign_key?: string
+    dispatch_started_at?: string
   }
   const gate = validateOutboundMessage({ body: payload?.body, to: payload?.to, from: payload?.from })
   if (!gate.allowed) throw new Error(`Prepared SMS validation: ${gate.reason}`)
-  if (smsContactSuppressed(contact) || contact.sequence_paused) throw new Error('Recipient suppressed or paused')
-  if (contact.phone !== payload.to || contact.city !== payload.city) throw new Error('Prepared recipient context changed')
-  if (!getPartnershipSenderNumbersForMarket(payload.city).includes(payload.from)) throw new Error('Prepared sender market mismatch')
-  if (!job.provider_sid && !isTelnyxNumber(payload.from) && (!input.accountSid || !input.authToken)) throw new Error('Missing Twilio credentials')
+  const telnyx = isTelnyxNumber(payload.from)
   async function write(path: string, method: string, body: unknown, insert = false) {
     const h = new Headers(headers); h.set('Content-Type','application/json'); h.set('Prefer', insert ? 'resolution=ignore-duplicates,return=representation' : 'return=representation')
     const response = await request(`${url}/rest/v1/${path}`, { method, headers: h, body: JSON.stringify(body) })
@@ -34,21 +50,42 @@ export async function executePreparedSmsJob(input: {
   }
   let sid = String(job.provider_sid || '')
   if (!sid) {
+    if (payload.dispatch_started_at) throw new PreparedSmsReconciliationRequired('outcome_unknown')
+    if (smsContactSuppressed(contact) || contact.sequence_paused) throw new Error('Recipient suppressed or paused')
+    if (contact.phone !== payload.to || contact.city !== payload.city) throw new Error('Prepared recipient context changed')
+    if (!getPartnershipSenderNumbersForMarket(payload.city).includes(payload.from)) throw new Error('Prepared sender market mismatch')
+    if (!telnyx && (!input.accountSid || !input.authToken)) throw new Error('Missing Twilio credentials')
+    input.beforeSend?.()
     const allowRevival = payload.allowRevival ?? payload.allow_revival ??
       (job.allowRevival === true || job.allow_revival === true || !!payload.prior_sms_touch_id ||
         /(?:^|[-_:])revivals?(?:$|[-_:])/i.test(payload.campaign_key || ''))
     await reserve({ url, headers, contactId: contact.id, channel: 'sms', key: 'sequence:'+job.id, content: payload.body, sender: payload.from, ...(allowRevival ? { allowRevival } : {}) })
-    const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(payload.from)
     input.beforeSend?.()
-    const response = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${input.accountSid}/Messages.json`, {
-      method: 'POST', headers: { Authorization: 'Basic '+Buffer.from(input.accountSid+':'+input.authToken).toString('base64'), 'Content-Type':'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ To: payload.to, ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: payload.from }), Body: payload.body }),
-    }, request)
+    const messagingServiceSid = telnyx ? undefined : getPartnershipMessagingServiceSidForNumber(payload.from)
+    const lease = new URLSearchParams({ id: 'eq.' + job.id, status: 'eq.running', provider_sid: 'is.null', 'sms_payload->>dispatch_started_at': 'is.null' })
+    if (job.locked_at) lease.set('locked_at', 'eq.' + String(job.locked_at))
+    // Persist intent before crossing the provider boundary. A recovered claim
+    // with this marker and no provider ID must never submit again.
+    await write('sequence_jobs?' + lease, 'PATCH', { sms_payload: { ...payload, dispatch_started_at: new Date().toISOString() } })
+    let response: Response
+    try {
+      response = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${input.accountSid}/Messages.json`, {
+        method: 'POST', headers: { Authorization: 'Basic '+Buffer.from(input.accountSid+':'+input.authToken).toString('base64'), 'Content-Type':'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ To: payload.to, ...(messagingServiceSid ? { MessagingServiceSid: messagingServiceSid } : { From: payload.from }), Body: payload.body }),
+      }, request)
+    } catch {
+      throw new PreparedSmsReconciliationRequired('outcome_unknown')
+    }
+    if (response.status >= 500 || response.status === 408) throw new PreparedSmsReconciliationRequired('outcome_unknown')
     if (!response.ok) throw new PreparedSmsProviderError(response.status, await response.text())
-    const provider = await response.json(); sid = provider.sid
-    if (!isSmsProviderReceipt(sid)) throw new Error('Ambiguous provider acceptance; inspect reservation before retry')
-    // First persist acceptance. A later completion failure may only reconcile, never resend.
-    await write('sequence_jobs?id=eq.'+job.id, 'PATCH', { provider_sid: sid })
+    try {
+      const provider = await response.json()
+      sid = provider.sid
+      if (!isSmsProviderReceipt(sid)) throw new Error('Invalid provider receipt')
+      await write('sequence_jobs?id=eq.'+job.id, 'PATCH', { provider_sid: sid })
+    } catch {
+      throw new PreparedSmsReconciliationRequired('outcome_unknown')
+    }
   }
   if (!isSmsProviderReceipt(sid)) throw new Error('Invalid stored provider receipt')
   const hash = createHash('sha256').update('prepared-sms:'+job.id).digest('hex')
