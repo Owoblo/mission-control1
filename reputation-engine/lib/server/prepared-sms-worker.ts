@@ -1,5 +1,5 @@
 import { sendSmsProviderRequest } from './sms-provider'
-import { isSmsProviderReceipt } from '../telephony-providers'
+import { isTelnyxNumber, isSmsProviderReceipt } from '../telephony-providers'
 import { createHash } from 'node:crypto'
 import { reserveAction } from '../partnership-core/reserve.mjs'
 import { validateOutboundMessage } from './saturn-send-gate'
@@ -15,13 +15,16 @@ export async function executePreparedSmsJob(input: {
   const reserve = deps.reserve || reserveAction
   if (!input.enabled) throw new Error('Prepared SMS execution disabled')
   const { job, contact, url, headers } = input
-  const payload = job.sms_payload as { body: string; to: string; from: string; city: string }
+  const payload = job.sms_payload as {
+    body: string; to: string; from: string; city: string
+    allowRevival?: boolean; allow_revival?: boolean; prior_sms_touch_id?: string; campaign_key?: string
+  }
   const gate = validateOutboundMessage({ body: payload?.body, to: payload?.to, from: payload?.from })
   if (!gate.allowed) throw new Error(`Prepared SMS validation: ${gate.reason}`)
   if (smsContactSuppressed(contact) || contact.sequence_paused) throw new Error('Recipient suppressed or paused')
   if (contact.phone !== payload.to || contact.city !== payload.city) throw new Error('Prepared recipient context changed')
   if (!getPartnershipSenderNumbersForMarket(payload.city).includes(payload.from)) throw new Error('Prepared sender market mismatch')
-  if (!input.accountSid || !input.authToken) throw new Error('Missing Twilio credentials')
+  if (!job.provider_sid && !isTelnyxNumber(payload.from) && (!input.accountSid || !input.authToken)) throw new Error('Missing Twilio credentials')
   async function write(path: string, method: string, body: unknown, insert = false) {
     const h = new Headers(headers); h.set('Content-Type','application/json'); h.set('Prefer', insert ? 'resolution=ignore-duplicates,return=representation' : 'return=representation')
     const response = await request(`${url}/rest/v1/${path}`, { method, headers: h, body: JSON.stringify(body) })
@@ -31,7 +34,10 @@ export async function executePreparedSmsJob(input: {
   }
   let sid = String(job.provider_sid || '')
   if (!sid) {
-    await reserve({ url, headers, contactId: contact.id, channel: 'sms', key: 'sequence:'+job.id, content: payload.body, sender: payload.from })
+    const allowRevival = payload.allowRevival ?? payload.allow_revival ??
+      (job.allowRevival === true || job.allow_revival === true || !!payload.prior_sms_touch_id ||
+        /(?:^|[-_:])revivals?(?:$|[-_:])/i.test(payload.campaign_key || ''))
+    await reserve({ url, headers, contactId: contact.id, channel: 'sms', key: 'sequence:'+job.id, content: payload.body, sender: payload.from, ...(allowRevival ? { allowRevival } : {}) })
     const messagingServiceSid = getPartnershipMessagingServiceSidForNumber(payload.from)
     const response = await sendSmsProviderRequest(`https://api.twilio.com/2010-04-01/Accounts/${input.accountSid}/Messages.json`, {
       method: 'POST', headers: { Authorization: 'Basic '+Buffer.from(input.accountSid+':'+input.authToken).toString('base64'), 'Content-Type':'application/x-www-form-urlencoded' },

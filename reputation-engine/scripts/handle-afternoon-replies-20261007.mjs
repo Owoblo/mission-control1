@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises'
+import {dir,db,asset,send,reviewed,task} from './reply-runtime-20261007.mjs'
+const s=JSON.parse(await fs.readFile(dir+'/reply-refresh.json','utf8'))
+const names=['Kelley Bartlett','CHLOE NGUYEN','LINA FRIDMAN','ABU BAKKAR SIDDIK SARKAR','Noah Elia','EDMOND GAIGALAS','YASO SAYIKUMAR','JACKY CHRISTIAN'];const plans=[]
+for(const name of names){const t=s.threads.find(t=>t.contact.name===name);if(!t)throw Error('Missing '+name);const c=t.contact,first=name.split(' ')[0].toLowerCase().replace(/^./,x=>x.toUpperCase());plans.push({id:c.id,name,phone:c.phone,city:c.city,latest:t.touches.at(-1).id,from:'+14374650584',body:`Here you go, ${first}! Here's our ${c.city} card. Feel free to save it and share it when a client needs moving help.`,media_urls:[await asset(c.city)]})}
+const m=s.threads.find(t=>t.contact.name==='Michael Baker');plans.push({id:m.contact.id,name:m.contact.name,phone:m.contact.phone,city:m.contact.city,latest:m.touches.at(-1).id,from:'+14374650584',body:'Thanks for clarifying, and sorry for the mix-up. I’ll check the office contact details.',note:'Acknowledged wrong-person correction. Pause this route and review office identity before any further outreach.'})
+await fs.writeFile(dir+'/afternoon-reply-plan.json',JSON.stringify(plans,null,2));
+for(const p of plans)await send(p)
+await db('market_contacts',{id:'eq.'+m.contact.id},'PATCH',{sequence_paused:true,sequence_paused_reason:'wrong_person_identity_review',next_follow_up:null});await task(m.contact,'20261007-michael-identity','Review Michael Baker office contact before further outreach','Recipient said wrong Michael, right company; referred us to office. Do not reuse this personal route for a cold introduction. Verify company and office contact and history before any outreach.');
+const b=s.threads.find(t=>t.contact.name==='Bonnie Spurrell');await db('market_contacts',{id:'eq.'+b.contact.id},'PATCH',{sequence_paused:true,sequence_paused_reason:'retired_declined_outreach',next_follow_up:null});await reviewed(b.touches.at(-1).id,'Retired and declined. Paused further outreach; no card or extra message.');
+for(const name of ['RASHED MAHMOOD BUTT','ALFRED MARTINELLI']){const t=s.threads.find(t=>t.contact.name===name);await reviewed(t.touches.at(-1).id,'Acknowledgement only; no further outbound needed.')}
+console.log('Fulfilled 8 cards and 1 identity acknowledgement; retirement and thanks reviewed.')

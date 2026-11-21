@@ -1,0 +1,327 @@
+--- a/scripts/market_map/contact_enrichment.py
++++ b/scripts/market_map/contact_enrichment.py
+@@ -51,9 +51,14 @@
+     upstream=sqlite3.connect('file:'+str(Path(source_queue).resolve())+'?mode=ro',uri=True,timeout=30)
+     # Domain must already exist as a website job; never infer a website from
+     # an email address. Directory/provider attribution remains unverified.
+-    rows=[(domain,url,'upstream_review_hold' if state in HOLDS else 'pending',pages)
+-          for domain,url,state,pages in upstream.execute(
+-              'SELECT e.domain,j.url,j.status,COUNT(DISTINCT e.source_url) FROM email_evidence e JOIN jobs j ON j.domain=e.domain GROUP BY e.domain,j.url,j.status')]
++    sources={}
++    for domain,url in upstream.execute('SELECT domain,source_url FROM email_evidence'):
++        sources.setdefault(domain,set()).add(url)
++    if upstream.execute("SELECT 1 FROM sqlite_master WHERE name='email_occurrences'").fetchone():
++        for payload,url in upstream.execute('SELECT o.payload,c.source_url FROM email_occurrences o JOIN extraction_runs r ON r.id=o.run_id JOIN captures c ON c.id=r.capture_id'):
++            sources.setdefault(json.loads(payload)['domain'],set()).add(url)
++    rows=[(domain,url,'upstream_review_hold' if state in HOLDS else 'pending',len(sources[domain]))
++          for domain,url,state in upstream.execute('SELECT domain,url,status FROM jobs') if domain in sources]
+     upstream.close()
+     with db:
+         db.executemany('INSERT OR IGNORE INTO jobs(domain,url,status,email_source_pages) VALUES(?,?,?,?)',rows)
+--- /dev/null
++++ b/scripts/market_map/contact_observation_store.py
+@@ -0,0 +1,124 @@
++"""Append-only research history. No network, automatic backfill or freshness inference."""
++import base64
++import hashlib
++import json
++import zlib
++from .email_extraction import VERSION, extract_published_emails
++
++
++def encoded(value):
++    return json.dumps(value,sort_keys=True,ensure_ascii=False,separators=(',',':'))
++
++
++def identity(*parts):
++    return hashlib.sha256(encoded(parts).encode()).hexdigest()
++
++
++def initialize(db):
++    db.executescript('''
++    CREATE TABLE IF NOT EXISTS captures(
++      id TEXT PRIMARY KEY,source_url TEXT NOT NULL,fetched_at TEXT,content_sha256 TEXT,
++      raw_body BLOB,provenance TEXT NOT NULL,payload TEXT NOT NULL);
++    CREATE TABLE IF NOT EXISTS extraction_runs(
++      id TEXT PRIMARY KEY,capture_id TEXT NOT NULL REFERENCES captures(id),
++      extractor_version TEXT NOT NULL,processed_at TEXT,mode TEXT NOT NULL);
++    CREATE TABLE IF NOT EXISTS email_occurrences(
++      id TEXT PRIMARY KEY,run_id TEXT NOT NULL REFERENCES extraction_runs(id),
++      context_id TEXT NOT NULL,email TEXT NOT NULL,source_occurrence_id TEXT NOT NULL,payload TEXT NOT NULL);
++    CREATE TABLE IF NOT EXISTS legacy_observation_links(
++      legacy_key TEXT NOT NULL,occurrence_id TEXT NOT NULL REFERENCES email_occurrences(id),
++      PRIMARY KEY(legacy_key,occurrence_id));
++    CREATE INDEX IF NOT EXISTS occurrence_email ON email_occurrences(email);
++    ''')
++    for table in ('captures','extraction_runs','email_occurrences','legacy_observation_links'):
++        for action in ('UPDATE','DELETE'):
++            db.execute(f"CREATE TRIGGER IF NOT EXISTS {table}_no_{action.lower()} BEFORE {action} ON {table} BEGIN SELECT RAISE(ABORT,'append-only contact history'); END")
++
++
++def capture(db, page):
++    """Receipt assigned before checkpoint; old receipts stay explicitly partial."""
++    raw = base64.b64decode(page['raw_body_base64'],validate=True) if page.get('raw_body_base64') is not None else None
++    digest = hashlib.sha256(raw).hexdigest() if raw is not None else page.get('content_sha256')
++    if raw is not None and page.get('content_sha256') != digest:
++        raise ValueError('capture content hash mismatch')
++    receipt = page.get('capture_id') or identity('legacy-page',page)
++    provenance = 'source_fetch' if page.get('capture_id') and raw is not None else 'legacy_partial'
++    fetched = page.get('checked_at') if provenance == 'source_fetch' else None
++    payload = encoded({k:v for k,v in page.items() if k!='raw_body_base64'})
++    values=(receipt,page['url'],fetched,digest,zlib.compress(raw) if raw is not None else None,provenance,payload)
++    existing=db.execute('SELECT * FROM captures WHERE id=?',(receipt,)).fetchone()
++    if existing and tuple(existing)!=values:raise ValueError('capture receipt reused with different evidence')
++    db.execute('INSERT OR IGNORE INTO captures VALUES(?,?,?,?,?,?,?)',values)
++    return receipt
++
++
++def run(db, capture_id, version, processed_at=None, mode='extraction'):
++    if not db.execute('SELECT 1 FROM captures WHERE id=?',(capture_id,)).fetchone():raise ValueError('unknown capture')
++    rid=identity(capture_id,version)
++    db.execute('INSERT OR IGNORE INTO extraction_runs VALUES(?,?,?,?,?)',(rid,capture_id,version,processed_at,mode))
++    return rid
++
++
++def append_email(db, record, domain, context_id):
++    cid=record.get('capture_id')
++    if not cid:
++        # Imports without an actual fetch receipt cannot establish fetched_at.
++        cid=capture(db,{'url':record['source_url'],'content_sha256':record.get('page_content_sha256'),
++                        'legacy_record':record,'context_id':context_id,'domain':domain})
++    rid=run(db,cid,record.get('extraction_version','legacy-partial/1'),record.get('processed_at'),record.get('processing_mode','legacy_import'))
++    legacy_key=identity(record['email'],record['source_url'],context_id)
++    for occurrence in record.get('occurrences') or [dict(record,evidence_completeness='legacy_partial')]:
++        source_id=occurrence.get('occurrence_id') or identity(occurrence)
++        oid=identity(rid,context_id,source_id)
++        payload=encoded({'occurrence':occurrence,'source_record_context':{k:v for k,v in record.items() if k!='occurrences'},'domain':domain})
++        values=(oid,rid,context_id,record['email'],source_id,payload)
++        old=db.execute('SELECT * FROM email_occurrences WHERE id=?',(oid,)).fetchone()
++        if old and tuple(old)!=values:raise ValueError('occurrence replay changed; use a new extraction version')
++        db.execute('INSERT OR IGNORE INTO email_occurrences VALUES(?,?,?,?,?,?)',values)
++        db.execute('INSERT OR IGNORE INTO legacy_observation_links VALUES(?,?)',(legacy_key,oid))
++
++
++def _reprocess(db, capture_id, *, processed_at):
++    """Caller owns transaction. Never updates page/job freshness or legacy source times."""
++    row=db.execute('SELECT * FROM captures WHERE id=?',(capture_id,)).fetchone()
++    if not row or row['raw_body'] is None:raise ValueError('raw capture unavailable; cannot reprocess partial evidence')
++    existing=db.execute('SELECT id FROM extraction_runs WHERE id=?',(identity(capture_id,VERSION),)).fetchone()
++    if existing:return {'capture_id':capture_id,'run_id':existing[0],'replayed':True,'source_fetches':0}
++    body=zlib.decompress(row['raw_body'])
++    run(db,capture_id,VERSION,processed_at,'reparse')
++    # Keep the original source context(s); do not infer owners from URL alone.
++    contexts={}
++    for old in db.execute('SELECT o.context_id,o.payload FROM email_occurrences o JOIN extraction_runs r ON r.id=o.run_id WHERE r.capture_id=?',(capture_id,)):
++        data=json.loads(old['payload']);contexts[old['context_id']]=data
++    if not contexts:contexts={'capture:'+capture_id:{'domain':'','source_record_context':{}}}
++    findings=extract_published_emails(body,row['source_url'])
++    for context_id,data in contexts.items():
++        for finding in findings:
++            record={**data['source_record_context'],**finding,'capture_id':capture_id,
++                    'observed_at':row['fetched_at'],'processed_at':processed_at,'processing_mode':'reparse'}
++            append_email(db,record,data['domain'],context_id)
++    return {'capture_id':capture_id,'run_id':identity(capture_id,VERSION),'unique_emails':len(findings),'source_fetches':0}
++
++
++def backfill(db):
++    """Explicit resumable temporary-copy/approved backfill; never called on connect."""
++    count=0
++    with db:
++        for row in db.execute('SELECT * FROM email_evidence'):
++            append_email(db,json.loads(zlib.decompress(row['payload'])),row['domain'],row['context_id']);count+=1
++    return {'legacy_rows_reconciled':count,'legacy_links':db.execute('SELECT count(*) FROM legacy_observation_links').fetchone()[0]}
++
++
++def history_rows(db):
++    for row in db.execute('SELECT o.*,r.capture_id,r.extractor_version,r.processed_at,r.mode,c.fetched_at,c.provenance FROM email_occurrences o JOIN extraction_runs r ON r.id=o.run_id JOIN captures c ON c.id=r.capture_id ORDER BY o.id'):
++        yield {**dict(row),'projection':'append_only_history; not a current-presence or withdrawal assertion'}
++
++
++def reprocess(db, capture_id, *, processed_at):
++    db.execute('SAVEPOINT reprocess_capture')
++    try:
++        result=_reprocess(db,capture_id,processed_at=processed_at)
++        db.execute('RELEASE reprocess_capture')
++        return result
++    except Exception:
++        db.execute('ROLLBACK TO reprocess_capture');db.execute('RELEASE reprocess_capture');raise
+--- a/scripts/market_map/email_acquisition.py
++++ b/scripts/market_map/email_acquisition.py
+@@ -6,6 +6,7 @@
+ from __future__ import annotations
+ 
+ import argparse
++import base64
+ import hashlib
+ import gzip
+ import json
+@@ -24,7 +25,8 @@
+ from lxml import html
+ from lxml.etree import ParserError
+ 
+-from .email_extraction import extract_published_emails, clean_email, role_hint
++from .email_extraction import VERSION as EXTRACTOR_VERSION, extract_published_emails, clean_email, role_hint
++from . import contact_observation_store as observations
+ from .relationships import canonical_url, excluded, identity_supported
+ from .transport import Transport, SourceBlocked, BudgetExceeded
+ from .verification_pilot import website_candidate, stamp, encode, storage_guard, file_hash, spreadsheet_cell
+@@ -59,6 +61,7 @@
+         CREATE TABLE IF NOT EXISTS seed_sweeps(id TEXT PRIMARY KEY,started_at TEXT,completed_at TEXT,status TEXT,
+             records_seen INTEGER,source_path TEXT,notes TEXT);
+     """)
++    observations.initialize(db)
+     return db
+ 
+ 
+@@ -189,8 +192,15 @@
+ 
+ 
+ def save_email(db, record, domain, context_id):
+-    payload = zlib.compress(encode(record).encode(),6)
+-    return db.execute("INSERT OR IGNORE INTO email_evidence VALUES(?,?,?,?,?,?,?)", (record["email"],record["source_url"],context_id,domain,record.get("role_hint",role_hint(record["email"])),record.get("association_status","source_published_candidate"),payload)).rowcount
++    db.execute('SAVEPOINT email_dual_write')
++    try:
++        observations.append_email(db,record,domain,context_id)
++        payload = zlib.compress(encode(record).encode(),6)
++        count=db.execute("INSERT OR IGNORE INTO email_evidence VALUES(?,?,?,?,?,?,?)", (record["email"],record["source_url"],context_id,domain,record.get("role_hint",role_hint(record["email"])),record.get("association_status","source_published_candidate"),payload)).rowcount
++        db.execute('RELEASE email_dual_write')
++        return count
++    except Exception:
++        db.execute('ROLLBACK TO email_dual_write');db.execute('RELEASE email_dual_write');raise
+ 
+ 
+ def collect_domain(job, frontier, names, *, page_limit=4, byte_limit=4_000_000, checkpoint=None):
+@@ -215,11 +225,11 @@
+             doc = html.fromstring(response.body,base_url=response.url)
+             title = " ".join(" ".join(doc.xpath('//title/text() | //h1//text()')).split())[:800]
+             matches = [name for name in names if identity_supported(name,{"title":title})]
+-            facts = {"url":response.url,"requested_url":url,"checked_at":stamp(),"content_sha256":hashlib.sha256(response.body).hexdigest(),
++            facts = {"capture_id":uuid.uuid4().hex,"raw_body_base64":base64.b64encode(response.body).decode("ascii"),"extractor_version":EXTRACTOR_VERSION,"url":response.url,"requested_url":url,"checked_at":stamp(),"content_sha256":hashlib.sha256(response.body).hexdigest(),
+                      "title":title,"candidate_name_heading_matches":matches,"identity_status":"publisher_self_identification_only" if matches else "not_established"}
+             out["pages"].append(facts)
+             for record in extract_published_emails(response.body,response.url):
+-                record.update(observed_at=facts["checked_at"],candidate_name_heading_matches=matches,
++                record.update(capture_id=facts["capture_id"],processing_mode="extraction",processed_at=facts["checked_at"],observed_at=facts["checked_at"],candidate_name_heading_matches=matches,
+                               organisation_identity_status=facts["identity_status"],branch_ownership_status="not_checked")
+                 out["emails"].append(record)
+             for anchor in doc.xpath('//a[@href]'):
+@@ -259,10 +269,14 @@
+                         status=CASE WHEN frontier.status='depth_deferred' AND excluded.status='pending' THEN 'pending' ELSE frontier.status END""",(domain,url,depth,state))
+                 for url,state,error in result['frontier_updates']:
+                     db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,error,domain,url))
++                capture_by_url={}
+                 for page in result['pages']:
++                    cid=observations.capture(db,page)
++                    capture_by_url[page['url']]=cid
++                    observations.run(db,cid,page.get('extractor_version','legacy-partial/1'),page.get('checked_at'),'extraction')
+                     db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['checked_at'],page['content_sha256'],zlib.compress(encode(page).encode(),6)))
+                 for record in result['emails']:
+-                    save_email(db,record,domain,'website-domain:'+domain)
++                    save_email(db,dict(record,**({'capture_id':capture_by_url[record['source_url']]} if record['source_url'] in capture_by_url and not record.get('capture_id') else {})),domain,'website-domain:'+domain)
+                 remains=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+                 db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',(result.get('job_status') or ('pending' if remains else 'known_frontier_processed'),stamp(),domain))
+             return remains
+@@ -358,7 +372,10 @@
+ 
+ 
+ def summary(db):
+-    return {'queued_domains':db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],
++    return {'capture_history_count':db.execute('SELECT COUNT(*) FROM captures').fetchone()[0],
++            'extraction_run_history_count':db.execute('SELECT COUNT(*) FROM extraction_runs').fetchone()[0],
++            'email_occurrence_history_count':db.execute('SELECT COUNT(*) FROM email_occurrences').fetchone()[0],
++            'queued_domains':db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],
+             'job_status_counts':dict(db.execute('SELECT status,COUNT(*) FROM jobs GROUP BY status')),
+             'organisation_url_associations':db.execute('SELECT COUNT(*) FROM associations').fetchone()[0],
+             'distinct_published_email_values':db.execute('SELECT COUNT(DISTINCT email) FROM email_evidence').fetchone()[0],
+@@ -381,6 +398,9 @@
+                 record=json.loads(zlib.decompress(row['payload']))
+                 record['domain']=row['domain']
+                 writer.writerow({key:spreadsheet_cell(encode(record.get(key)) if isinstance(record.get(key),list) else record.get(key,'')) for key in fields})
++        with (output/'email-occurrence-history.jsonl').open('w') as handle:
++            for row in observations.history_rows(db):handle.write(json.dumps(row,sort_keys=True)+'\n')
++        report['legacy_csv_projection']='historical associations; not current presence'
+         report['export_sha256']=file_hash(output/'published-email-evidence.csv')
+         (output/'status.json').write_text(json.dumps(report,indent=2)+'\n')
+         return report
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -28,6 +28,8 @@
+ 
+ TESTS['PR-06'] = TESTS['PR-04'] + ['tests/extraction/test_email_occurrences.py']
+ 
++TESTS['PR-07'] = TESTS['PR-06'] + ['tests/market_map/test_contact_observation_store.py', 'tests/market_map/test_email_persistence.py', 'tests/market_map/test_email_acquisition.py', 'tests/market_map/test_contact_enrichment.py']
++
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- /dev/null
++++ b/tests/market_map/test_contact_observation_store.py
+@@ -0,0 +1,68 @@
++import base64
++import hashlib
++import json
++from pathlib import Path
++import sqlite3
++import tempfile
++import unittest
++from unittest.mock import patch
++from scripts.market_map import contact_observation_store as store
++from scripts.market_map.email_acquisition import connect, save_email, persist_visit
++from scripts.market_map.email_extraction import extract_published_emails
++
++class HistoryTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp=tempfile.TemporaryDirectory();self.guard=patch('scripts.market_map.email_acquisition.storage_guard');self.guard.start()
++        self.db=connect(Path(self.tmp.name)/'q.sqlite')
++    def tearDown(self):self.db.close();self.guard.stop();self.tmp.cleanup()
++    def page(self,receipt='one',body=b'<p>desk@business.test</p>'):
++        return {'capture_id':receipt,'url':'https://business.test','checked_at':'2026-01-01',
++                'content_sha256':hashlib.sha256(body).hexdigest(),'raw_body_base64':base64.b64encode(body).decode()}
++    def add(self,page,version='old/1',context='company:1'):
++        cid=store.capture(self.db,page)
++        row=extract_published_emails(base64.b64decode(page['raw_body_base64']),page['url'])[0]
++        row.update(capture_id=cid,extraction_version=version,observed_at=page['checked_at'])
++        save_email(self.db,row,'business.test',context)
++    def count(self,table):return self.db.execute('SELECT count(*) FROM '+table).fetchone()[0]
++    def test_receipts_versions_context_and_freshness(self):
++        with self.db:
++            self.add(self.page());self.add(self.page());self.add(self.page(),context='company:2')
++        self.assertEqual((self.count('captures'),self.count('email_occurrences')),(1,2))
++        with self.db:
++            store.reprocess(self.db,'one',processed_at='2026-02-01')
++            self.assertTrue(store.reprocess(self.db,'one',processed_at='2026-03-01')['replayed'])
++        self.assertEqual(self.count('extraction_runs'),2)
++        self.assertEqual(self.db.execute('SELECT fetched_at FROM captures').fetchone()[0],'2026-01-01')
++        with self.db:self.add(self.page('two'))
++        self.assertEqual(self.count('captures'),2)
++    def test_changed_bytes_retained_and_receipt_conflict_rejected(self):
++        with self.db:self.add(self.page());self.add(self.page('two',b'<footer>Website by desk@business.test</footer>'))
++        self.assertEqual(self.count('email_occurrences'),2)
++        with self.assertRaises(ValueError):store.capture(self.db,self.page('one',b'changed'))
++        with self.assertRaises(sqlite3.IntegrityError):self.db.execute('DELETE FROM captures')
++    def test_partial_backfill_replay_preserves_legacy_and_has_no_fetch_date(self):
++        import zlib
++        record={'email':'desk@business.test','source_url':'https://business.test','observed_at':'yesterday'}
++        with self.db:self.db.execute('INSERT INTO email_evidence VALUES(?,?,?,?,?,?,?)',('desk@business.test',record['source_url'],'source:1','business.test','general','unknown',zlib.compress(json.dumps(record).encode())))
++        before=tuple(self.db.execute('SELECT * FROM email_evidence').fetchone())
++        store.backfill(self.db);store.backfill(self.db)
++        self.assertEqual(self.count('email_occurrences'),1)
++        self.assertEqual(before,tuple(self.db.execute('SELECT * FROM email_evidence').fetchone()))
++        self.assertIsNone(self.db.execute('SELECT fetched_at FROM captures').fetchone()[0])
++        with self.assertRaises(ValueError):store.reprocess(self.db,self.db.execute('SELECT id FROM captures').fetchone()[0],processed_at='now')
++    def test_visit_transaction_rollback_and_checkpoint_replay(self):
++        page=self.page();record=extract_published_emails(b'<p>desk@business.test</p>',page['url'])[0]
++        result={'domain':'business.test','discovered':[],'frontier_updates':[],'pages':[page],'emails':[record]}
++        with patch('scripts.market_map.email_acquisition.save_email',side_effect=RuntimeError('crash')):
++            with self.assertRaises(RuntimeError):persist_visit(self.db,result)
++        self.assertEqual(self.count('captures'),0)
++        persist_visit(self.db,result);persist_visit(self.db,result)
++        self.assertEqual((self.count('captures'),self.count('email_occurrences')),(1,1))
++
++    def test_reparse_failure_does_not_leave_completed_run(self):
++        with self.db:self.add(self.page())
++        with patch.object(store,'append_email',side_effect=RuntimeError('crash')):
++            with self.assertRaises(RuntimeError):store.reprocess(self.db,'one',processed_at='now')
++        self.assertEqual(self.count('extraction_runs'),1)
++        store.reprocess(self.db,'one',processed_at='now')
++        self.assertEqual(self.count('extraction_runs'),2)

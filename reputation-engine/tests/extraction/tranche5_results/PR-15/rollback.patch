@@ -1,0 +1,189 @@
+--- a/scripts/market_map/cloud/regional_contact_enrichment.py
++++ b/scripts/market_map/cloud/regional_contact_enrichment.py
+@@ -5,7 +5,6 @@
+ from urllib.parse import urlsplit,urljoin,urlunsplit
+ from lxml import html
+ from scripts.market_map.transport import Transport
+-from scripts.market_map.contact_page import parse_contact_page,parser_versions
+ from scripts.market_map.regional_occurrences import evidence_for_page
+ from scripts.market_map.phone_extraction import extract_published_phones
+ from scripts.market_map.email_extraction import extract_published_emails, VERSION as EMAIL_VERSION
+@@ -61,17 +60,15 @@
+         cached=json.loads(receipt.read_text())
+         changed=False
+         for page in cached.get('pages',[]):
+-            if page.get('parser_versions')==parser_versions() and not page.get('parser_errors'):continue
++            if page.get('email_extraction_version')==EMAIL_VERSION:continue
+             try:
+                 source=Path(page['body_path']).resolve()
+                 if folder.resolve() not in source.parents:raise ValueError('Unexpected saved source path')
+                 if source.stat().st_size>3000000:raise ValueError('Saved source exceeds cap')
+                 body=source.read_bytes()
+                 if hashlib.sha256(body).hexdigest()!=page['sha256']:raise ValueError('Saved source hash mismatch')
+-                parsed=parse_contact_page(body,{'url':page['url'],'sha256':page['sha256'],'captured_at':page.get('captured_at')})
+-                page.setdefault('parse_history',[]).append({k:page[k] for k in ('emails','phones','context','parser_versions','parser_errors','email_extraction_version','processed_at') if k in page})
+-                page.update({k:parsed[k] for k in ('emails','phones','context','structured_contacts','parser_versions','parser_errors','decoding_uncertainty')})
+-                page.update(email_extraction_version=EMAIL_VERSION,processed_at=now(),processing_mode='reparse')
++                page['emails']=extract_published_emails(body,page['url'])
++                page['email_extraction_version']=EMAIL_VERSION
+                 page.pop('email_recheck_error',None)
+             except (OSError,ValueError,KeyError) as exc:page['email_recheck_error']=str(exc)[:240]
+             changed=True
+@@ -88,10 +85,7 @@
+             response=t.fetch(u,allowed_hosts=hosts)
+             if response.status!=200:raise ValueError('HTTP '+str(response.status))
+             body=response.body;doc=html.fromstring(body);n=len(pages);file=folder/(str(n)+'.html');file.write_bytes(body)
+-            pg={'url':response.url,'captured_at':now(),'sha256':hashlib.sha256(body).hexdigest(),'body_path':str(file)}
+-            parsed=parse_contact_page(body,{k:pg[k] for k in ('url','captured_at','sha256')})
+-            pg.update({k:parsed[k] for k in ('emails','phones','context','structured_contacts','parser_versions','parser_errors','decoding_uncertainty')})
+-            pg.update(email_extraction_version=EMAIL_VERSION,processed_at=now(),processing_mode='capture_parse')
++            pg={'url':response.url,'captured_at':now(),'sha256':hashlib.sha256(body).hexdigest(),'body_path':str(file),'phones':extract_published_phones(body,response.url),'emails':extract_published_emails(body,response.url),'email_extraction_version':EMAIL_VERSION}
+             pages.append(pg)
+             if depth<2:
+                 for link in doc.xpath('//a[@href]'):
+--- a/scripts/market_map/contact_context.py
++++ b/scripts/market_map/contact_context.py
+@@ -7,8 +7,6 @@
+ from lxml import html
+ from .email_extraction import extract_published_emails, clean_email, role_hint
+ from .relationships import canonical_url
+-
+-VERSION = 'ssm-contact-context/2'
+ 
+ ROLE_RULES = [
+  ('facilities',r'\bfacilit(?:y|ies)\b'),
+@@ -63,16 +61,16 @@
+     return None
+ 
+ 
+-def extract_contact_context(body,url,*,email_summaries=None):
++def extract_contact_context(body,url):
+     data=body.encode() if isinstance(body,str) else body
+     output={'organisation_assertions':[],'people':[],'department_contacts':[],'relevant_links':[]}
+     if not data:return output
+     document=html.fromstring(data.decode('utf-8',errors='replace'),base_url=url);digest=hashlib.sha256(data).hexdigest()
+     def evidence(excerpt,method):
+         return {'source_url':url,'page_content_sha256':digest,'excerpt':' '.join(str(excerpt).split())[:700],
+-                'extraction_version':VERSION,'extraction_method':method,'review_status':'source_published_candidate_requires_review'}
++                'extraction_method':method,'review_status':'source_published_candidate_requires_review'}
+     original_paths={n:document.getroottree().getpath(n) for n in document.iter()}
+-    original_emails=extract_published_emails(data,url) if email_summaries is None else email_summaries
++    original_emails=extract_published_emails(data,url)
+     people_seen=set()
+     def add_person(name,title,emails,excerpt,method,employer=None,source_listing_context=None,scope=None):
+         name=person_name(name)
+@@ -134,7 +132,7 @@
+             add_person(name,titles[0],emails,context,'visible_role_card',source_listing_context=listing_context(heading),scope=path)
+             if output['people'] and output['people'][-1].get('source_dom_locator')==path:output['people'][-1]['email_occurrences']=scoped
+             break
+-    for record in original_emails:
++    for record in extract_published_emails(data,url):
+         email=record['email'];local=email.split('@')[0].lower().split('+')[0]
+         function=INBOX_FUNCTIONS.get(local)
+         context=record.get('short_supporting_context','')
+--- a/scripts/market_map/contact_page.py
++++ /dev/null
+@@ -1,41 +0,0 @@
+-"""Pure fan-out of one immutable capture. No fetches, storage, ownership promotion."""
+-import hashlib,json
+-from lxml import html
+-from . import email_extraction,phone_extraction,contact_context,structured_contacts
+-from .contact_frontier import score_contact_link
+-from .relationships import canonical_url
+-
+-VERSION='ssm-contact-page/1'
+-
+-def parser_versions():
+-    return {'email':email_extraction.VERSION,'phone':phone_extraction.VERSION,'context':contact_context.VERSION,
+-            'structured':structured_contacts.VERSION,'page':VERSION}
+-
+-def parse_contact_page(body,receipt,*,email_parser=None,phone_parser=None,context_parser=None):
+-    if not isinstance(body,bytes):raise TypeError('Captured bytes required')
+-    digest=hashlib.sha256(body).hexdigest()
+-    if digest!=receipt['sha256']:raise ValueError('capture hash mismatch')
+-    url=receipt['url'];versions=parser_versions()
+-    result={'capture':dict(receipt),'page_content_sha256':digest,'parser_versions':versions,'parser_errors':{},
+-            'emails':[],'phones':[],'context':{},'structured_contacts':[],'frontier_candidates':[],
+-            'charset':receipt.get('charset'),'decoding_uncertainty':False,'source_fetches':0,'send_ready':False}
+-    try:body.decode('utf-8')
+-    except UnicodeError:result['decoding_uncertainty']=True
+-    for name,parser in [('email',email_parser or email_extraction.extract_published_emails),('phone',phone_parser or phone_extraction.extract_published_phones)]:
+-        try:result['emails' if name=='email' else 'phones']=parser(body,url)
+-        except Exception as error:result['parser_errors'][name]={'type':type(error).__name__,'message':str(error)[:300]}
+-    try:result['context']=(context_parser or contact_context.extract_contact_context)(body,url,email_summaries=result['emails'])
+-    except Exception as error:result['parser_errors']['context']={'type':type(error).__name__,'message':str(error)[:300]}
+-    try:
+-        doc=html.fromstring(body,base_url=url)
+-        for script in doc.xpath('//script[@type="application/ld+json"]'):
+-            pointer=doc.getroottree().getpath(script)
+-            try:
+-                for row in structured_contacts.walk_contact_graph(json.loads(script.text or '')):
+-                    result['structured_contacts'].append({**row,'source_dom_locator':pointer,'source_url':url,'page_content_sha256':digest})
+-            except (ValueError,TypeError,RecursionError) as error:result['parser_errors']['structured:'+pointer]={'type':type(error).__name__,'message':str(error)[:300]}
+-        for anchor in doc.xpath('//a[@href]'):
+-            label=' '.join(anchor.text_content().split());target=canonical_url(anchor.get('href'),url)
+-            if target and score_contact_link(target,label)>0:result['frontier_candidates'].append({'url':target,'label':label,'source_dom_locator':doc.getroottree().getpath(anchor)})
+-    except Exception as error:result['parser_errors']['document']={'type':type(error).__name__,'message':str(error)[:300]}
+-    return result
+--- a/scripts/market_map/structured_contacts.py
++++ b/scripts/market_map/structured_contacts.py
+@@ -1,7 +1,5 @@
+ """Bounded, document-local schema contacts. Candidate edges are never verification."""
+ from .schema_types import ORGANIZATION_TYPES
+-
+-VERSION='ssm-structured-contacts/1'
+ 
+ EXCLUDED={'JobPosting','Review','Article','BlogPosting','NewsArticle'}
+ 
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -44,8 +44,6 @@
+ 
+ TESTS['PR-14'] = TESTS['PR-13'] + ['tests/market_map/test_contact_frontier.py']
+ 
+-TESTS['PR-15'] = TESTS['PR-14'] + ['tests/market_map/test_contact_page.py','tests/market_map/test_regional_contact_daily.py']
+-
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- a/tests/market_map/test_contact_page.py
++++ /dev/null
+@@ -1,38 +0,0 @@
+-import hashlib,json,tempfile,unittest
+-from pathlib import Path
+-from unittest.mock import patch
+-from scripts.market_map.contact_page import parse_contact_page,parser_versions
+-from scripts.market_map import email_extraction,phone_extraction,contact_context
+-from scripts.market_map.cloud import regional_contact_enrichment as regional
+-from scripts.market_map.transport import Response
+-
+-class PageTests(unittest.TestCase):
+- def receipt(self,body):return {'url':'https://business.test/','sha256':hashlib.sha256(body).hexdigest(),'captured_at':'2026-01-01T00:00:00Z'}
+- def test_same_values_versions_and_no_duplicate_email_parse(self):
+-  body=b'<p>desk@business.test Phone: (519) 555-0123</p>'
+-  with patch.object(contact_context,'extract_published_emails',side_effect=AssertionError('duplicate email parser')):
+-   r=parse_contact_page(body,self.receipt(body))
+-  self.assertFalse(r['parser_errors']);self.assertEqual(r['emails'],email_extraction.extract_published_emails(body,r['capture']['url']))
+-  self.assertEqual(r['phones'],phone_extraction.extract_published_phones(body,r['capture']['url']))
+-  self.assertEqual(r,parse_contact_page(body,self.receipt(body)));self.assertEqual(r['capture']['captured_at'],'2026-01-01T00:00:00Z')
+- def test_hash_parser_failure_and_encoding_uncertainty(self):
+-  body=b'<p>Phone: (519) 555-0123</p>'
+-  with self.assertRaises(ValueError):parse_contact_page(body,{**self.receipt(body),'sha256':'bad'})
+-  def broken(*args):raise ValueError('fixture error')
+-  r=parse_contact_page(body,self.receipt(body),email_parser=broken)
+-  self.assertIn('email',r['parser_errors']);self.assertTrue(r['phones'])
+-  latin=b'<meta charset="iso-8859-1"><p>caf\xe9</p>'
+-  self.assertTrue(parse_contact_page(latin,self.receipt(latin))['decoding_uncertainty'])
+- def test_malformed_json_block_does_not_erase_valid_contact(self):
+-  body=b'<script type="application/ld+json">broken</script><p>desk@business.test</p>'
+-  r=parse_contact_page(body,self.receipt(body));self.assertTrue(r['emails']);self.assertTrue(any(k.startswith('structured:') for k in r['parser_errors']))
+- def test_regional_one_fetch_and_reparse_preserves_capture_time_and_prior_results(self):
+-  body=b'<p>desk@business.test Phone: (519) 555-0123</p>'
+-  with tempfile.TemporaryDirectory() as temp,patch.object(regional,'OUT',Path(temp)),patch.object(regional,'Transport') as factory:
+-   client=factory.return_value;client.fetch.return_value=Response(body,{},'https://business.test/')
+-   group={'host':'business.test','seeds':['https://business.test/'],'records':[]}
+-   first=regional.capture(group);self.assertEqual(client.fetch.call_count,1)
+-   page=first['pages'][0];at=page['captured_at']
+-   folder=Path(page['body_path']).parent;old=json.loads((folder/'receipt.json').read_text());old['pages'][0]['parser_versions']={'phone':'old'};(folder/'receipt.json').write_text(json.dumps(old))
+-   second=regional.capture(group);self.assertEqual(client.fetch.call_count,1)
+-   self.assertEqual(second['pages'][0]['captured_at'],at);self.assertTrue(second['pages'][0]['parse_history']);self.assertEqual(second['pages'][0]['parser_versions'],parser_versions())

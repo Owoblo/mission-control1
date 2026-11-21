@@ -1,0 +1,338 @@
+[
+  {
+    "case": "élise@fictional.test",
+    "before": {
+      "contract_actual": {
+        "extracted": [
+          "lise@fictional.test"
+        ],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "lise@fictional.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "élise@fictional.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": null,
+      "raw": "élise@fictional.test"
+    },
+    "after": {
+      "contract_actual": {
+        "extracted": [],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [],
+      "normalized": null,
+      "raw": "élise@fictional.test"
+    }
+  },
+  {
+    "case": "élise@fictional.test",
+    "before": {
+      "contract_actual": {
+        "extracted": [
+          "lise@fictional.test"
+        ],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "lise@fictional.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "20c22694a55db7b09056210df465b9f9d8fd036fb9e1400a2bb06c973de0abc5",
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "élise@fictional.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": null,
+      "raw": "élise@fictional.test"
+    },
+    "after": {
+      "contract_actual": {
+        "extracted": [],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [],
+      "normalized": null,
+      "raw": "élise@fictional.test"
+    }
+  },
+  {
+    "case": "a@foo.-bar.test",
+    "before": {
+      "contract_actual": {
+        "extracted": [
+          "a@foo.-bar.test"
+        ],
+        "normalized": "a@foo.-bar.test"
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "a@foo.-bar.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "f261881a44157465e6b1555ae5c86cf5ea859873f2009520e5670790988813d9",
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "a@foo.-bar.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": "a@foo.-bar.test",
+      "raw": "a@foo.-bar.test"
+    },
+    "after": {
+      "contract_actual": {
+        "extracted": [],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [],
+      "normalized": null,
+      "raw": "a@foo.-bar.test"
+    }
+  },
+  {
+    "case": "Sales@BUSINESS.test",
+    "before": {
+      "contract_actual": {
+        "extracted": [
+          "Sales@business.test"
+        ],
+        "normalized": "Sales@business.test"
+      },
+      "contract_expected": {
+        "extracted": [
+          "Sales@business.test"
+        ],
+        "normalized": "Sales@business.test"
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "Sales@business.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "07a81e68cf9086afc69c4cd4edbbba96e4164b765e299c2a50a939840e7aa142",
+          "role_hint": "sales",
+          "short_supporting_context": "Sales@BUSINESS.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": "Sales@business.test",
+      "raw": "Sales@BUSINESS.test"
+    },
+    "after": {
+      "contract_actual": {
+        "extracted": [
+          "Sales@business.test"
+        ],
+        "normalized": "Sales@business.test"
+      },
+      "contract_expected": {
+        "extracted": [
+          "Sales@business.test"
+        ],
+        "normalized": "Sales@business.test"
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "Sales@business.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/3",
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "07a81e68cf9086afc69c4cd4edbbba96e4164b765e299c2a50a939840e7aa142",
+          "raw_value": "Sales@BUSINESS.test",
+          "role_hint": "sales",
+          "short_supporting_context": "Sales@BUSINESS.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": "Sales@business.test",
+      "raw": "Sales@BUSINESS.test"
+    }
+  },
+  {
+    "case": "sales@business.test",
+    "before": {
+      "contract_actual": {
+        "extracted": [
+          "sales@business.test"
+        ],
+        "normalized": "sales@business.test"
+      },
+      "contract_expected": {
+        "extracted": [
+          "sales@business.test"
+        ],
+        "normalized": "sales@business.test"
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "sales@business.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "05e46bf325a92d58ede4ffab5e6ba64b0a0c2aee77bec162059019a8b5298cf1",
+          "role_hint": "sales",
+          "short_supporting_context": "sales@business.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": "sales@business.test",
+      "raw": "sales@business.test"
+    },
+    "after": {
+      "contract_actual": {
+        "extracted": [
+          "sales@business.test"
+        ],
+        "normalized": "sales@business.test"
+      },
+      "contract_expected": {
+        "extracted": [
+          "sales@business.test"
+        ],
+        "normalized": "sales@business.test"
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "sales@business.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/3",
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "05e46bf325a92d58ede4ffab5e6ba64b0a0c2aee77bec162059019a8b5298cf1",
+          "raw_value": "sales@business.test",
+          "role_hint": "sales",
+          "short_supporting_context": "sales@business.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": "sales@business.test",
+      "raw": "sales@business.test"
+    }
+  },
+  {
+    "case": "Sales+Tag@BÜCHER.test",
+    "before": {
+      "contract_actual": {
+        "extracted": [],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [
+          "Sales+Tag@xn--bcher-kva.test"
+        ],
+        "normalized": "Sales+Tag@xn--bcher-kva.test"
+      },
+      "extracted": [],
+      "normalized": null,
+      "raw": "Sales+Tag@BÜCHER.test"
+    },
+    "after": {
+      "contract_actual": {
+        "extracted": [
+          "Sales+Tag@xn--bcher-kva.test"
+        ],
+        "normalized": "Sales+Tag@xn--bcher-kva.test"
+      },
+      "contract_expected": {
+        "extracted": [
+          "Sales+Tag@xn--bcher-kva.test"
+        ],
+        "normalized": "Sales+Tag@xn--bcher-kva.test"
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "Sales+Tag@xn--bcher-kva.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/3",
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "3e5a3c6c2d291d1e106bd02a6d9bfe4e1280dcc35852c801d22003064afee38c",
+          "raw_value": "Sales+Tag@BÜCHER.test",
+          "role_hint": "sales",
+          "short_supporting_context": "Sales+Tag@BÜCHER.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": "Sales+Tag@xn--bcher-kva.test",
+      "raw": "Sales+Tag@BÜCHER.test"
+    }
+  }
+]

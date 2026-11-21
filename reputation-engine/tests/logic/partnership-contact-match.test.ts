@@ -4,6 +4,7 @@ import {
   partnershipPhoneDigits,
   partnershipPhoneLookupSuffix,
   partnershipPhonesMatch,
+  samePartnershipIdentity,
 } from '../../lib/partnership-contact-match'
 import { getSaturnTrackingSource } from '../../lib/sales-phones'
 
@@ -16,6 +17,17 @@ test('partnership phone matching tolerates imported formatting', () => {
 test('partnership phone lookup uses a formatting-independent candidate suffix', () => {
   assert.equal(partnershipPhoneDigits('+1 (905) 781-0262'), '9057810262')
   assert.equal(partnershipPhoneLookupSuffix('+1 (905) 781-0262'), '0262')
+})
+
+test('duplicate rows for one business stay in the partnership thread', () => {
+  assert.equal(samePartnershipIdentity([
+    { name: 'Bluewater Interiors', company: 'Bluewater Interiors' },
+    { name: 'Bluewater Interiors', company: 'Bluewater Interiors' },
+  ]), true)
+  assert.equal(samePartnershipIdentity([
+    { name: 'Alex', company: 'Brokerage' },
+    { name: 'Jordan', company: 'Brokerage' },
+  ]), false)
 })
 
 test('dedicated reply lines preserve the partnership and sales workspace boundary', () => {

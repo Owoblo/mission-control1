@@ -14,8 +14,14 @@ function normalizePhone(value: string) {
 /** Extract only explicit referral details; do not assume the partner's number is the customer's. */
 export function extractPartnershipReferralDetails(notes: string[], partnerPhone?: string | null): PartnershipReferralDetails {
   const combined = notes.join('\n')
-  const customerName = combined.match(/\b([A-Z][a-z]+)\s+(?:my\s+)?grandson\b/i)?.[1]
-    || combined.match(/\b([A-Z][a-z]+)\s+(?:said|says)\s+(?:he|she|they)\s+will\s+confirm\b/i)?.[1]
+  // Greeting addressees and the person speaking are not customer identities.
+  // Prefer an explicit naming statement; conflicting explicit names stay unconfirmed.
+  const namePattern = "([A-Z][a-z]+(?:[ '-][A-Z][a-z]+){0,2})"
+  const explicit = [...combined.matchAll(new RegExp("\\b(?:[Hh]is|[Hh]er|[Tt]heir|[Cc]ustomer['’]s|[Cc]lient['’]s) name is\\s+" + namePattern, 'g'))].map(match => match[1].replace(/[.,].*$/, '').trim())
+  const relationship = combined.match(new RegExp("\\b(?:my|our) (?:grandson|granddaughter|son|daughter|client|customer)\\s+" + namePattern))?.[1]
+  const candidates = explicit.length ? explicit : relationship ? [relationship] : []
+  const unique = [...new Set(candidates.map(name => name.trim()))]
+  const customerName = unique.length === 1 ? unique[0] : undefined
   const phoneMatches = [...combined.matchAll(/(?:\+?1[\s().-]*)?(?:\(?\d{3}\)?[\s.-]*)\d{3}[\s.-]*\d{4}/g)]
     .map(match => normalizePhone(match[0]))
     .filter((value): value is string => Boolean(value))

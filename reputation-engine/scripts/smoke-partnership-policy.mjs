@@ -1,0 +1,8 @@
+// No customer messages: deliberately nonexistent contact UUID on every POST.
+import {createHmac} from 'node:crypto';import fs from 'node:fs/promises';
+const secret=process.env.AUTH_SECRET?.replace(/\\r|\\n|\r|\n/g,'').trim();if(!secret||secret.includes('SENSITIVE'))throw Error('Missing smoke authentication');
+const payload=Buffer.from(JSON.stringify({role:'owner',name:'John',exp:Date.now()+300000})).toString('base64url');const cookie='mc_session='+payload+'.'+createHmac('sha256',secret).update(payload).digest('base64url');
+const base='https://go.quote2move.com';const id='00000000-0000-0000-0000-000000000000';const tests=[['send-email',{sender:'john',subject:'Policy smoke: nonexistent contact',body:'No recipient exists; must not send.'}],['send-reply',{body:'No recipient exists; must not send.'}],['authorize-mail',{text:'No recipient exists; must not authorize.'}]];
+const results=[];for(const [route,body] of tests){const r=await fetch(`${base}/api/marketing/contacts/${id}/${route}`,{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'manual'});const text=await r.text();results.push({route,http:r.status,json:r.headers.get('content-type')?.includes('application/json')||false,body:text.slice(0,180)});}
+const publicR=await fetch(`${base}/api/marketing/contacts/${id}/authorize-mail`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});results.push({route:'unauthenticated-authorize-mail',http:publicR.status});
+await fs.writeFile('/private/tmp/partnership-policy-live-smoke.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));if(results.some((r,i)=>r.http!==(i===3?401:404)||(i<3&&!r.json)))process.exitCode=1;

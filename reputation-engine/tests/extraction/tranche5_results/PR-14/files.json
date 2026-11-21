@@ -1,0 +1,44 @@
+[
+  {
+    "stage": "PR-14",
+    "path": "scripts/market_map/contact_enrichment.py",
+    "before_sha256": "061763a1547fb683e18c9b062a5494949260b581f7658de52db475472efec755",
+    "after_sha256": "52367ff7146c7edf75151c3336e03658bb141e6f3e9199eff1fc4283aa763552"
+  },
+  {
+    "stage": "PR-14",
+    "path": "scripts/market_map/contact_frontier.py",
+    "before_sha256": null,
+    "after_sha256": "2a5aa79eab0dfdcfedb14418f2d12c1b600fdf2d169340b2b87edb4d9b08046b"
+  },
+  {
+    "stage": "PR-14",
+    "path": "scripts/market_map/email_acquisition.py",
+    "before_sha256": "30f43fc6d0008ffb12c0449cab81eeb204580327b76bdcbb68cf67816ea77a85",
+    "after_sha256": "805de263449b7f954ed6ee634666877f865e844b1b8d655eb5adb2134d46585a"
+  },
+  {
+    "stage": "PR-14",
+    "path": "scripts/market_map/phone_acquisition.py",
+    "before_sha256": "6183d439ad9ddbd76c65d56fd42cfdc0510b973b29faa7f8ca74e75ede2e36b6",
+    "after_sha256": "c91475332c903f45e3a6791e64b0caf18b93b9d20aa3a3a7af599110531a1e77"
+  },
+  {
+    "stage": "PR-14",
+    "path": "tests/extraction/run_offline.py",
+    "before_sha256": "78847916f5cc8a79cbc134a8decc1f750bf9376d5abaf4bd0a250e5a36a43ccb",
+    "after_sha256": "6f01dd0b453aed6d20b061801bb1cad4c76daba8675dca2270174bf8906f46a9"
+  },
+  {
+    "stage": "PR-14",
+    "path": "tests/market_map/test_contact_enrichment.py",
+    "before_sha256": "f744bf9b285cfab64780bbada32cdfaecf00deac083d554b551f56a8deaccda4",
+    "after_sha256": "24cce1549ac8666efca51b9c3d3957b6fb6959545e203d7c07aff2cfa43404e9"
+  },
+  {
+    "stage": "PR-14",
+    "path": "tests/market_map/test_contact_frontier.py",
+    "before_sha256": null,
+    "after_sha256": "e6d4aa0ed16bcc7646e69d9ad9b35b1a439c8a9595b8aba88433a9f9e1c3bd1d"
+  }
+]

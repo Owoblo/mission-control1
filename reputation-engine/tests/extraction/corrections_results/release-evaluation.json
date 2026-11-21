@@ -1,0 +1,573 @@
+{
+  "version": "ssm-release-evaluation/1",
+  "manifest_sha256": "11760b97ffb62efa37aa70014f040d73f19223931641d4de696548482a312cd1",
+  "label_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "all": {
+    "metrics": {
+      "email": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "phone": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "phone_kind": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "extension": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "email_normalization": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "phone_normalization": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "organization": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "site": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "person": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "shared_ambiguity": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "unknown_ownership": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "entity_pairs": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": null
+      },
+      "provenance": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      }
+    },
+    "errors": [],
+    "capture_count": 0,
+    "independent_clusters": 0,
+    "extension_accuracy": {
+      "correct_extension_sets": 0,
+      "matched_base_phone_values": 0,
+      "accuracy": null,
+      "wilson95": null
+    },
+    "fax_as_phone": 0,
+    "fax_evaluation": {
+      "misclassified": 0,
+      "fax_only_values": 0,
+      "error_rate": null,
+      "wilson95": null
+    },
+    "wrong_owner_edges": 0,
+    "abstention": {
+      "count": 0,
+      "accepted_occurrences": 0,
+      "rate": null,
+      "wilson95": null
+    },
+    "entity_resolution": {
+      "false_merges": 0,
+      "false_splits": 0,
+      "unassigned_records": 0
+    },
+    "end_to_end": {
+      "correct_contacts": 0,
+      "input_businesses": 0,
+      "contacts_per_business": null,
+      "correct_contact_keys": [],
+      "contacts_per_business_cluster_bootstrap95": null,
+      "businesses_with_correct_contact": 0,
+      "business_coverage_wilson95": null
+    },
+    "label_support": {
+      "supported_occurrences": 0,
+      "all_labeled_occurrences": 0
+    },
+    "interval_notes": "Wilson intervals assume independent Bernoulli observations and are diagnostic; clustered bootstrap uses connected domain/template families, seed 170017. Sparse/perfect samples can give degenerate bootstrap intervals. Neither corrects unrepresentative sampling."
+  },
+  "holdout": {
+    "metrics": {
+      "email": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "phone": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "phone_kind": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "extension": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "email_normalization": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "phone_normalization": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "organization": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "site": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "person": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "shared_ambiguity": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "unknown_ownership": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      },
+      "entity_pairs": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": null
+      },
+      "provenance": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "predicted": 0,
+        "expected": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "precision_wilson95": null,
+        "recall_wilson95": null,
+        "cluster_bootstrap95": {
+          "precision": null,
+          "recall": null,
+          "f1": null
+        }
+      }
+    },
+    "errors": [],
+    "capture_count": 0,
+    "independent_clusters": 0,
+    "extension_accuracy": {
+      "correct_extension_sets": 0,
+      "matched_base_phone_values": 0,
+      "accuracy": null,
+      "wilson95": null
+    },
+    "fax_as_phone": 0,
+    "fax_evaluation": {
+      "misclassified": 0,
+      "fax_only_values": 0,
+      "error_rate": null,
+      "wilson95": null
+    },
+    "wrong_owner_edges": 0,
+    "abstention": {
+      "count": 0,
+      "accepted_occurrences": 0,
+      "rate": null,
+      "wilson95": null
+    },
+    "entity_resolution": {
+      "false_merges": 0,
+      "false_splits": 0,
+      "unassigned_records": 0
+    },
+    "end_to_end": {
+      "correct_contacts": 0,
+      "input_businesses": 0,
+      "contacts_per_business": null,
+      "correct_contact_keys": [],
+      "contacts_per_business_cluster_bootstrap95": null,
+      "businesses_with_correct_contact": 0,
+      "business_coverage_wilson95": null
+    },
+    "label_support": {
+      "supported_occurrences": 0,
+      "all_labeled_occurrences": 0
+    },
+    "interval_notes": "Wilson intervals assume independent Bernoulli observations and are diagnostic; clustered bootstrap uses connected domain/template families, seed 170017. Sparse/perfect samples can give degenerate bootstrap intervals. Neither corrects unrepresentative sampling."
+  },
+  "strata": {},
+  "release": {
+    "criteria_version": "project-proposal/1",
+    "broad_production": "NO_GO",
+    "bounded_live_pilot": "NO_GO",
+    "offline_shadow_evaluation": "GO",
+    "blockers": [
+      "Representative approved real corpus: >=300 captures, >=100 holdout, >=50 holdout clusters required",
+      "Holdout coverage <10: sector=contractor_service",
+      "Holdout coverage <10: sector=directory_association",
+      "Holdout coverage <10: sector=manufacturing",
+      "Holdout coverage <10: sector=multi_branch",
+      "Holdout coverage <10: sector=property_manager",
+      "Holdout coverage <10: sector=realtor_brokerage",
+      "Holdout coverage <10: sector=storage",
+      "Holdout coverage <10: language=en",
+      "Holdout coverage <10: language=fr",
+      "Holdout coverage <10: company_scope=multiple",
+      "Holdout coverage <10: company_scope=single",
+      "Holdout coverage <10: source_kind=document",
+      "Holdout coverage <10: source_kind=rendered",
+      "Holdout coverage <10: source_kind=static",
+      "Holdout coverage <10: markup=complex",
+      "Holdout coverage <10: markup=simple",
+      "Holdout coverage <10: markup=structured",
+      "email: precision >=99% and diagnostic Wilson lower bound >=98% not established",
+      "email: supported recall >=90% not established",
+      "phone: precision >=99% and diagnostic Wilson lower bound >=98% not established",
+      "phone: supported recall >=90% not established",
+      "organization: precision >=99% and diagnostic Wilson lower bound >=98% not established",
+      "organization: supported recall >=90% not established",
+      "site: precision >=99% and diagnostic Wilson lower bound >=98% not established",
+      "site: supported recall >=90% not established",
+      "person: precision >=99% and diagnostic Wilson lower bound >=98% not established",
+      "person: supported recall >=90% not established",
+      "Complete accepted-contact provenance not demonstrated",
+      "Adversarial safety zero wrong-owner/fax failures not established",
+      "Safety set lacks person/channel denominators",
+      "Operational evidence missing/failing: disk_retention"
+    ],
+    "authorization": "Never authorizes crawls, outreach, deployment or release; owner/security review remains mandatory."
+  }
+}

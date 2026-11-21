@@ -1,0 +1,7 @@
+import fs from 'node:fs/promises';
+const root='partnership-system/markets/ca/on/ottawa/runs/2026-09-17-mortgage-brokers';const {rows}=JSON.parse(await fs.readFile(root+'/prepared.json'));
+let results=[];try{results=JSON.parse(await fs.readFile(root+'/phone-checks.json'))}catch(e){if(e.code!=='ENOENT')throw e;}
+const clean=s=>String(s||'').replace(/\\r|\\n|\r|\n/g,'').trim();const auth='Basic '+Buffer.from(clean(process.env.TWILIO_ACCOUNT_SID)+':'+clean(process.env.TWILIO_AUTH_TOKEN)).toString('base64');
+const queue=rows.filter(r=>r.phone&&!r.holds.includes('outside_ottawa_campaign')&&!r.holds.includes('realtor_not_mortgage_segment')&&!results.some(x=>x.phone===r.phone));let cursor=0;
+await Promise.all(Array.from({length:4},async()=>{while(cursor<queue.length){const row=queue[cursor++];const r=await fetch('https://lookups.twilio.com/v2/PhoneNumbers/'+encodeURIComponent(row.phone)+'?Fields=line_type_intelligence',{headers:{Authorization:auth},signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Lookup '+r.status);const d=await r.json();results.push({name:row.name,phone:row.phone,at:new Date().toISOString(),valid:d.valid,type:d.line_type_intelligence?.type||null,carrier:d.line_type_intelligence?.carrier_name||null,error:d.line_type_intelligence?.error_code||null});}}));
+await fs.writeFile(root+'/phone-checks.json',JSON.stringify(results,null,2));console.log(JSON.stringify({checked:results.length,types:results.reduce((a,r)=>(a[r.type||'unknown']=(a[r.type||'unknown']||0)+1,a),{})}));

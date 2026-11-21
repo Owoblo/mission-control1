@@ -1,0 +1,1717 @@
+{
+  "catalog_at": "2026-10-29",
+  "municipalities": [
+    {
+      "id": "geo_d9a803d06d8739d721fc1e62",
+      "name": "North Dundas",
+      "aliases": [
+        "North Dundas"
+      ]
+    },
+    {
+      "id": "geo_02733e695b90d8178103446f",
+      "name": "Pickering",
+      "aliases": [
+        "Pickering"
+      ]
+    },
+    {
+      "id": "geo_59ff2f825ca93496a64b6569",
+      "name": "Ajax",
+      "aliases": [
+        "Ajax"
+      ]
+    },
+    {
+      "id": "geo_37d828f31cd1bcfc68a41929",
+      "name": "Whitby",
+      "aliases": [
+        "Whitby"
+      ]
+    },
+    {
+      "id": "geo_5903f3ae85e741f6977ec3d3",
+      "name": "Oshawa",
+      "aliases": [
+        "Oshawa"
+      ]
+    },
+    {
+      "id": "geo_1731f6a3d1322c0c107b0797",
+      "name": "Clarington",
+      "aliases": [
+        "Clarington"
+      ]
+    },
+    {
+      "id": "geo_f7384c6135cd655675732e93",
+      "name": "Scugog",
+      "aliases": [
+        "Scugog"
+      ]
+    },
+    {
+      "id": "geo_9117dbd8a97a760cf952425c",
+      "name": "Uxbridge",
+      "aliases": [
+        "Uxbridge"
+      ]
+    },
+    {
+      "id": "geo_c8a26cedb71f07492328e2a7",
+      "name": "Brock",
+      "aliases": [
+        "Brock"
+      ]
+    },
+    {
+      "id": "geo_27ffe57b9fcdd7cbbfa063a6",
+      "name": "Vaughan",
+      "aliases": [
+        "Vaughan"
+      ]
+    },
+    {
+      "id": "geo_88a2eeb9e04b59488e1f24e5",
+      "name": "Markham",
+      "aliases": [
+        "Markham"
+      ]
+    },
+    {
+      "id": "geo_2d63bbb17a64871fb6ea996f",
+      "name": "Richmond Hill",
+      "aliases": [
+        "Richmond Hill"
+      ]
+    },
+    {
+      "id": "geo_41ba71ca24e657a350382253",
+      "name": "Whitchurch-Stouffville",
+      "aliases": [
+        "Whitchurch-Stouffville"
+      ]
+    },
+    {
+      "id": "geo_ec732dc9ff8447f49981fd75",
+      "name": "Aurora",
+      "aliases": [
+        "Aurora"
+      ]
+    },
+    {
+      "id": "geo_1c86f08b848fb7b9c48dc0e6",
+      "name": "Newmarket",
+      "aliases": [
+        "Newmarket"
+      ]
+    },
+    {
+      "id": "geo_8bb2b01c82fd2041dd69c5c1",
+      "name": "King",
+      "aliases": [
+        "King"
+      ]
+    },
+    {
+      "id": "geo_c43e621352173de8f90a79ea",
+      "name": "East Gwillimbury",
+      "aliases": [
+        "East Gwillimbury"
+      ]
+    },
+    {
+      "id": "geo_706bd35efa23e739e0322fc8",
+      "name": "Georgina",
+      "aliases": [
+        "Georgina"
+      ]
+    },
+    {
+      "id": "geo_f45caf4d2d5bc4f483b3f50b",
+      "name": "Toronto",
+      "aliases": [
+        "Toronto",
+        "Scarborough",
+        "Etobicoke",
+        "North York"
+      ]
+    },
+    {
+      "id": "geo_14b6476e614f4c29f1bdebcc",
+      "name": "Clarence-Rockland",
+      "aliases": [
+        "Rockland"
+      ]
+    },
+    {
+      "id": "geo_52a26aec348c70c38f98b666",
+      "name": "Russell",
+      "aliases": [
+        "Russell"
+      ]
+    },
+    {
+      "id": "geo_7fffa19482b216111fcb6422",
+      "name": "Mississauga",
+      "aliases": [
+        "Mississauga"
+      ]
+    },
+    {
+      "id": "geo_28decf2a467ba0ea90428374",
+      "name": "Brampton",
+      "aliases": [
+        "Brampton"
+      ]
+    },
+    {
+      "id": "geo_3475500207a078bd76137153",
+      "name": "Caledon",
+      "aliases": [
+        "Caledon"
+      ]
+    },
+    {
+      "id": "geo_34211ca2c4f0a281b9984d83",
+      "name": "East Garafraxa",
+      "aliases": [
+        "East Garafraxa"
+      ]
+    },
+    {
+      "id": "geo_82a5becf1d1bb78489d9a4d5",
+      "name": "Puslinch",
+      "aliases": [
+        "Puslinch",
+        "Arkell",
+        "Morriston"
+      ]
+    },
+    {
+      "id": "geo_a104ef97bbe1f6a56690932d",
+      "name": "Guelph-Eramosa",
+      "aliases": [
+        "Guelph-Eramosa",
+        "Rockwood"
+      ]
+    },
+    {
+      "id": "geo_7710b359b91b81447e8ddb7e",
+      "name": "Guelph",
+      "aliases": [
+        "Guelph"
+      ]
+    },
+    {
+      "id": "geo_6a158943b5cd6d0ac31216f5",
+      "name": "Centre Wellington",
+      "aliases": [
+        "Fergus",
+        "Elora",
+        "Centre Wellington",
+        "Belwood"
+      ]
+    },
+    {
+      "id": "geo_efc5e0b206692ad70ac2b4aa",
+      "name": "Erin",
+      "aliases": [
+        "Erin"
+      ]
+    },
+    {
+      "id": "geo_3bbb1ac72fddd888793393e7",
+      "name": "Wellington North",
+      "aliases": [
+        "Arthur",
+        "Wellington North"
+      ]
+    },
+    {
+      "id": "geo_be57d0e03b217f2aabd88614",
+      "name": "Mapleton",
+      "aliases": [
+        "Drayton",
+        "Mapleton",
+        "Moorefield"
+      ]
+    },
+    {
+      "id": "geo_52ef54f4e2d856038c6978a7",
+      "name": "Minto",
+      "aliases": [
+        "Palmerston",
+        "Minto"
+      ]
+    },
+    {
+      "id": "geo_600a36ff40f88580f7b4d65f",
+      "name": "Oakville",
+      "aliases": [
+        "Oakville"
+      ]
+    },
+    {
+      "id": "geo_2d8fbf2da3b85ecbb480021b",
+      "name": "Burlington",
+      "aliases": [
+        "Burlington"
+      ]
+    },
+    {
+      "id": "geo_af3df0764ca254c8102b3fe9",
+      "name": "Milton",
+      "aliases": [
+        "Milton"
+      ]
+    },
+    {
+      "id": "geo_ee51d5d42d062115addd73b9",
+      "name": "Halton Hills",
+      "aliases": [
+        "Halton Hills"
+      ]
+    },
+    {
+      "id": "geo_19b3b3af102c05b88bb9d45d",
+      "name": "Hamilton",
+      "aliases": [
+        "Hamilton"
+      ]
+    },
+    {
+      "id": "geo_0dc39358a34c7bb75aef2300",
+      "name": "Norfolk County",
+      "aliases": [
+        "Courtland",
+        "Delhi",
+        "Norfolk County"
+      ]
+    },
+    {
+      "id": "geo_6f0fb9d409d71b52eee0ab1f",
+      "name": "Brant",
+      "aliases": [
+        "Burford",
+        "Cathcart",
+        "Paris",
+        "Brant"
+      ]
+    },
+    {
+      "id": "geo_3e0facd61c56dc2123372c59",
+      "name": "North Dumfries",
+      "aliases": [
+        "Ayr",
+        "North Dumfries"
+      ]
+    },
+    {
+      "id": "geo_c6a649903ee049debf280ccc",
+      "name": "Cambridge",
+      "aliases": [
+        "Cambridge"
+      ]
+    },
+    {
+      "id": "geo_5e74864c21b5684217eba470",
+      "name": "Kitchener",
+      "aliases": [
+        "Kitchener"
+      ]
+    },
+    {
+      "id": "geo_c71b3459b359fe268e4f1866",
+      "name": "Waterloo",
+      "aliases": [
+        "Waterloo"
+      ]
+    },
+    {
+      "id": "geo_8f9366216250eb87e5b12b11",
+      "name": "Wilmot",
+      "aliases": [
+        "New Hamburg",
+        "Baden",
+        "Wilmot"
+      ]
+    },
+    {
+      "id": "geo_86a8454f4fdb394cac102056",
+      "name": "Wellesley",
+      "aliases": [
+        "Wellesley"
+      ]
+    },
+    {
+      "id": "geo_98570805819fd06c2b3fce0b",
+      "name": "Woolwich",
+      "aliases": [
+        "Elmira",
+        "St. Jacobs",
+        "Conestogo",
+        "Breslau",
+        "Woolwich"
+      ]
+    },
+    {
+      "id": "geo_a126ab1892bef7589a1f7fbc",
+      "name": "Perth East",
+      "aliases": [
+        "Shakespeare",
+        "Milverton",
+        "Perth East"
+      ]
+    },
+    {
+      "id": "geo_19eb0e32b4fd8cbcda8beaec",
+      "name": "Perth South",
+      "aliases": [
+        "Perth South"
+      ]
+    },
+    {
+      "id": "geo_285d91352875fb486579e01f",
+      "name": "Stratford",
+      "aliases": [
+        "Stratford"
+      ]
+    },
+    {
+      "id": "geo_ea3867ca3b78a71c7150e3d3",
+      "name": "St. Marys",
+      "aliases": [
+        "St. Marys"
+      ]
+    },
+    {
+      "id": "geo_ce724c91d2aca095675d9cca",
+      "name": "North Perth",
+      "aliases": [
+        "North Perth",
+        "Listowel"
+      ]
+    },
+    {
+      "id": "geo_bcf9c7ff2cd8f8c7c38fcd65",
+      "name": "Norwich",
+      "aliases": [
+        "Burgessville",
+        "Otterville",
+        "Norwich",
+        "Milldale"
+      ]
+    },
+    {
+      "id": "geo_a52bd04bd2c0407f332cba92",
+      "name": "Tillsonburg",
+      "aliases": [
+        "Tillsonburg"
+      ]
+    },
+    {
+      "id": "geo_3a4fcc001d62c6697f928d99",
+      "name": "South-West Oxford",
+      "aliases": [
+        "Sweaburg",
+        "Mount Elgin",
+        "South-West Oxford"
+      ]
+    },
+    {
+      "id": "geo_52ea0d408c5938c2724546dc",
+      "name": "Ingersoll",
+      "aliases": [
+        "Ingersoll"
+      ]
+    },
+    {
+      "id": "geo_d94d62e173196d3e6648fd92",
+      "name": "Zorra",
+      "aliases": [
+        "Thamesford",
+        "Embro",
+        "Kintore",
+        "Zorra"
+      ]
+    },
+    {
+      "id": "geo_dba9b598cc67e7cd5c02d852",
+      "name": "East Zorra-Tavistock",
+      "aliases": [
+        "Tavistock",
+        "Innerkip",
+        "East Zorra-Tavistock",
+        "Hickson"
+      ]
+    },
+    {
+      "id": "geo_53f001bae235012fd072141c",
+      "name": "Woodstock",
+      "aliases": [
+        "Woodstock"
+      ]
+    },
+    {
+      "id": "geo_5a29dd6afc83a5559f90281f",
+      "name": "Blandford-Blenheim",
+      "aliases": [
+        "Drumbo",
+        "Princeton",
+        "Plattsville",
+        "Bright",
+        "Blandford-Blenheim"
+      ]
+    },
+    {
+      "id": "geo_f683161d8776094524c9fe56",
+      "name": "Bayham",
+      "aliases": [
+        "Bayham",
+        "Vienna",
+        "Port Burwell"
+      ]
+    },
+    {
+      "id": "geo_fa716ff2308cbe79c935ae86",
+      "name": "Malahide",
+      "aliases": [
+        "Springfield",
+        "Malahide"
+      ]
+    },
+    {
+      "id": "geo_25c85768d5196e4312427402",
+      "name": "Aylmer",
+      "aliases": [
+        "Aylmer"
+      ]
+    },
+    {
+      "id": "geo_e3b44736d3f0a27032c331b5",
+      "name": "Central Elgin",
+      "aliases": [
+        "Belmont",
+        "Central Elgin",
+        "Port Stanley"
+      ]
+    },
+    {
+      "id": "geo_8210ee15af2765d5b49de17d",
+      "name": "St. Thomas",
+      "aliases": [
+        "St. Thomas"
+      ]
+    },
+    {
+      "id": "geo_7aba7c86cbde2ca4cca393f8",
+      "name": "Southwold",
+      "aliases": [
+        "Southwold",
+        "Talbotville",
+        "Shedden",
+        "Fingal"
+      ]
+    },
+    {
+      "id": "geo_02b628f48f2c4b1356573920",
+      "name": "Dutton-Dunwich",
+      "aliases": [
+        "Dutton",
+        "Dutton-Dunwich",
+        "Wallacetown"
+      ]
+    },
+    {
+      "id": "geo_d84fab2990dc36bf1fdf7bbb",
+      "name": "West Elgin",
+      "aliases": [
+        "West Lorne",
+        "Rodney",
+        "West Elgin"
+      ]
+    },
+    {
+      "id": "geo_04decda1d96a58428b741c3e",
+      "name": "Chatham-Kent",
+      "aliases": [
+        "Wheatley",
+        "Chatham",
+        "Chatham Kent",
+        "Tilbury",
+        "Wallaceburg",
+        "Dresden",
+        "Pain Court",
+        "Blenheim",
+        "Merlin",
+        "Charing Cross",
+        "Cedar Springs",
+        "Dealtown",
+        "Ridgetown",
+        "Thamesville",
+        "Bothwell",
+        "Highgate",
+        "Morpeth",
+        "Muirkirk",
+        "Mitchell\u2019s Bay",
+        "Erieau",
+        "Shrewsbury",
+        "Erie Beach"
+      ]
+    },
+    {
+      "id": "geo_c0c150cae6454a820ab9050c",
+      "name": "Leamington",
+      "aliases": [
+        "Leamington"
+      ]
+    },
+    {
+      "id": "geo_16a180b1bee4891ca861f685",
+      "name": "Kingsville",
+      "aliases": [
+        "Kingsville",
+        "Cottam",
+        "Ruthven"
+      ]
+    },
+    {
+      "id": "geo_37f59193fd35c2bdf8ea6b5d",
+      "name": "Essex",
+      "aliases": [
+        "Essex",
+        "Harrow",
+        "Colchester"
+      ]
+    },
+    {
+      "id": "geo_1f2c75828869608e8ae91073",
+      "name": "Amherstburg",
+      "aliases": [
+        "Amherstburg",
+        "Anderdon"
+      ]
+    },
+    {
+      "id": "geo_73d1cd072134aca04918bd59",
+      "name": "LaSalle",
+      "aliases": [
+        "LaSalle"
+      ]
+    },
+    {
+      "id": "geo_c69099bd4ff3d0197cd4771d",
+      "name": "Windsor",
+      "aliases": [
+        "Windsor"
+      ]
+    },
+    {
+      "id": "geo_bb16eced09969fe7609d5ea3",
+      "name": "Tecumseh",
+      "aliases": [
+        "Tecumseh",
+        "Maidstone"
+      ]
+    },
+    {
+      "id": "geo_3e3d78f518e07b83fff79bc4",
+      "name": "Lakeshore",
+      "aliases": [
+        "Lakeshore",
+        "Belle River",
+        "Comber",
+        "Stoney Point",
+        "St. Joachim",
+        "Puce",
+        "Emeryville",
+        "Lighthouse Cove"
+      ]
+    },
+    {
+      "id": "geo_bb0db0e66bebb9b07c11573b",
+      "name": "St. Clair",
+      "aliases": [
+        "Corunna",
+        "Mooretown",
+        "Courtright",
+        "Sombra",
+        "Port Lambton",
+        "St. Clair",
+        "Brigden"
+      ]
+    },
+    {
+      "id": "geo_f42e11eb24a2cf48fa039c79",
+      "name": "Dawn-Euphemia",
+      "aliases": [
+        "Dawn-Euphemia"
+      ]
+    },
+    {
+      "id": "geo_e136b3194eaeabb4960455f6",
+      "name": "Brooke-Alvinston",
+      "aliases": [
+        "Alvinston",
+        "Brooke-Alvinston"
+      ]
+    },
+    {
+      "id": "geo_ead2578e334a2865194f4b43",
+      "name": "Enniskillen",
+      "aliases": [
+        "Enniskillen"
+      ]
+    },
+    {
+      "id": "geo_49e5a04059939930b585ad5f",
+      "name": "Oil Springs",
+      "aliases": [
+        "Oil Springs"
+      ]
+    },
+    {
+      "id": "geo_15606ef5f629b63b475b095e",
+      "name": "Petrolia",
+      "aliases": [
+        "Petrolia"
+      ]
+    },
+    {
+      "id": "geo_b259268d10fa077cef860ab2",
+      "name": "Sarnia",
+      "aliases": [
+        "Sarnia",
+        "Brights Grove"
+      ]
+    },
+    {
+      "id": "geo_542b101b33fb0fe166f7fa1d",
+      "name": "Point Edward",
+      "aliases": [
+        "Point Edward"
+      ]
+    },
+    {
+      "id": "geo_06996ddafc616a4d09de8134",
+      "name": "Plympton-Wyoming",
+      "aliases": [
+        "Camlachie",
+        "Wyoming",
+        "Plympton-Wyoming"
+      ]
+    },
+    {
+      "id": "geo_33f0dd72b362b51e757d5dd1",
+      "name": "Lambton Shores",
+      "aliases": [
+        "Arkona",
+        "Forest",
+        "Thedford",
+        "Grand Bend",
+        "Lambton Shores",
+        "Port Franks",
+        "Ipperwash"
+      ]
+    },
+    {
+      "id": "geo_1c39ab71b8068f5bae30eee1",
+      "name": "Warwick",
+      "aliases": [
+        "Watford",
+        "Warwick"
+      ]
+    },
+    {
+      "id": "geo_307f198db71387ce574da7f5",
+      "name": "Newbury",
+      "aliases": [
+        "Newbury"
+      ]
+    },
+    {
+      "id": "geo_3cefabf7950ff47658d06d16",
+      "name": "Southwest Middlesex",
+      "aliases": [
+        "Glencoe",
+        "Wardsville",
+        "Southwest Middlesex"
+      ]
+    },
+    {
+      "id": "geo_3b6c793f3964a11250592dc6",
+      "name": "Adelaide-Metcalfe",
+      "aliases": [
+        "Kerwood",
+        "Adelaide-Metcalfe"
+      ]
+    },
+    {
+      "id": "geo_82187c4a873338d05f0894bc",
+      "name": "Strathroy-Caradoc",
+      "aliases": [
+        "Strathroy",
+        "Strathroy-Caradoc",
+        "Mount Brydges"
+      ]
+    },
+    {
+      "id": "geo_454a17b71ce0d3092c30dc5c",
+      "name": "Middlesex Centre",
+      "aliases": [
+        "Ilderton",
+        "Komoka",
+        "Middlesex Centre",
+        "Arva",
+        "Delaware"
+      ]
+    },
+    {
+      "id": "geo_793e4fee88589dc99eea847d",
+      "name": "Thames Centre",
+      "aliases": [
+        "Dorchester",
+        "Thames Centre"
+      ]
+    },
+    {
+      "id": "geo_517eb9b874148235ec22f2e1",
+      "name": "London",
+      "aliases": [
+        "London"
+      ]
+    },
+    {
+      "id": "geo_cfdf7d3fcd0488e482e1f034",
+      "name": "North Middlesex",
+      "aliases": [
+        "Ailsa Craig",
+        "Parkhill",
+        "North Middlesex"
+      ]
+    },
+    {
+      "id": "geo_53f514d1d70127babdd4af6e",
+      "name": "Lucan Biddulph",
+      "aliases": [
+        "Lucan",
+        "Lucan Biddulph"
+      ]
+    },
+    {
+      "id": "geo_3a33d4f8ae219eeec0e3499d",
+      "name": "South Huron",
+      "aliases": [
+        "South Huron"
+      ]
+    },
+    {
+      "id": "geo_cc771b6512a84854311adc44",
+      "name": "Bluewater",
+      "aliases": [
+        "Bluewater"
+      ]
+    },
+    {
+      "id": "geo_1d9fa11b785875fa2d25bd05",
+      "name": "Arnprior",
+      "aliases": [
+        "Arnprior"
+      ]
+    },
+    {
+      "id": "geo_048034b78b2b3bec23523cd2",
+      "name": "McNab/Braeside",
+      "aliases": [
+        "McNab/Braeside"
+      ]
+    },
+    {
+      "id": "geo_d94517563681f645d23cdac2",
+      "name": "Ottawa",
+      "aliases": [
+        "Ottawa",
+        "Kanata",
+        "Nepean",
+        "Orleans",
+        "Gloucester",
+        "Stittsville",
+        "Barrhaven",
+        "Manotick",
+        "Carp",
+        "Richmond",
+        "Pineview"
+      ]
+    },
+    {
+      "id": "geo_56b080bbdb9dc661e15a9013",
+      "name": "North Grenville",
+      "aliases": [
+        "North Grenville"
+      ]
+    },
+    {
+      "id": "geo_e81f1df81bccb3bde761eff3",
+      "name": "Beckwith",
+      "aliases": [
+        "Beckwith"
+      ]
+    },
+    {
+      "id": "geo_2f9aa96317245bbf8859c749",
+      "name": "Carleton Place",
+      "aliases": [
+        "Carleton Place"
+      ]
+    },
+    {
+      "id": "geo_4df0d349cb8f3d2f3765f38b",
+      "name": "Mississippi Mills",
+      "aliases": [
+        "Mississippi Mills"
+      ]
+    },
+    {
+      "id": "geo_23fd16b86d6acd9597225e25",
+      "name": "Lanark Highlands",
+      "aliases": [
+        "Lanark Highlands"
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "category-01",
+      "name": "Manufacturers / OEMs",
+      "terms": [
+        "manufacturer",
+        "auto parts supplier",
+        "food processor",
+        "metal fabricator",
+        "plastics packaging"
+      ]
+    },
+    {
+      "id": "category-02",
+      "name": "Universities / colleges",
+      "terms": [
+        "university",
+        "college campus",
+        "university college",
+        "career college",
+        "Indigenous Institute"
+      ]
+    },
+    {
+      "id": "category-03",
+      "name": "School boards / larger private schools",
+      "terms": [
+        "school board",
+        "district school board",
+        "independent school"
+      ]
+    },
+    {
+      "id": "category-04",
+      "name": "Cities / regions / public agencies",
+      "terms": [
+        "municipality",
+        "regional government",
+        "public library",
+        "housing corporation"
+      ]
+    },
+    {
+      "id": "category-05",
+      "name": "Property / condominium managers",
+      "terms": [
+        "property management",
+        "condominium management",
+        "commercial property manager"
+      ]
+    },
+    {
+      "id": "category-06",
+      "name": "Apartment / student-housing operators",
+      "terms": [
+        "apartment operator",
+        "student housing operator",
+        "rental portfolio"
+      ]
+    },
+    {
+      "id": "category-07",
+      "name": "Hotels / resorts",
+      "terms": [
+        "hotel",
+        "resort",
+        "hotel management company"
+      ]
+    },
+    {
+      "id": "category-08",
+      "name": "Casinos / entertainment operators",
+      "terms": [
+        "casino",
+        "gaming operator",
+        "entertainment complex"
+      ]
+    },
+    {
+      "id": "category-09",
+      "name": "Venues / convention centres",
+      "terms": [
+        "convention centre",
+        "conference venue",
+        "arena venue"
+      ]
+    },
+    {
+      "id": "category-10",
+      "name": "Warehousing / distribution / wholesalers",
+      "terms": [
+        "distribution centre",
+        "warehouse operator",
+        "wholesale distributor"
+      ]
+    },
+    {
+      "id": "category-11",
+      "name": "International movers / logistics firms",
+      "terms": [
+        "international mover",
+        "destination services",
+        "freight forwarder"
+      ]
+    },
+    {
+      "id": "category-12",
+      "name": "Furniture suppliers / installers",
+      "terms": [
+        "office furniture dealer",
+        "commercial furniture installer",
+        "furniture distribution"
+      ]
+    },
+    {
+      "id": "category-13",
+      "name": "Builders / developers / general contractors",
+      "terms": [
+        "commercial general contractor",
+        "property developer",
+        "design build"
+      ]
+    },
+    {
+      "id": "category-14",
+      "name": "Restoration / insurance service firms",
+      "terms": [
+        "commercial restoration",
+        "disaster restoration",
+        "contents restoration"
+      ]
+    },
+    {
+      "id": "category-15",
+      "name": "Hospitals / healthcare networks",
+      "terms": [
+        "hospital network",
+        "healthcare organization",
+        "medical campus"
+      ]
+    },
+    {
+      "id": "category-16",
+      "name": "Senior living / care operators",
+      "terms": [
+        "retirement residence",
+        "long term care operator",
+        "senior living management"
+      ]
+    },
+    {
+      "id": "category-17",
+      "name": "Corporate / professional employers",
+      "terms": [
+        "corporate office",
+        "regional headquarters",
+        "professional services employer"
+      ]
+    },
+    {
+      "id": "category-18",
+      "name": "Retail / dealership groups",
+      "terms": [
+        "dealership group",
+        "retail group head office",
+        "multi location retailer"
+      ]
+    },
+    {
+      "id": "category-19",
+      "name": "Utilities / infrastructure operators",
+      "terms": [
+        "electric utility",
+        "water utility",
+        "infrastructure operator"
+      ]
+    },
+    {
+      "id": "category-20",
+      "name": "Nonprofits / cultural organizations",
+      "terms": [
+        "museum",
+        "large charity",
+        "community service organization"
+      ]
+    },
+    {
+      "id": "category-21",
+      "name": "Realtors / brokerages",
+      "terms": [
+        "real estate agent",
+        "real estate brokerage"
+      ]
+    },
+    {
+      "id": "category-22",
+      "name": "Mortgage professionals",
+      "terms": [
+        "mortgage broker",
+        "mortgage agent"
+      ]
+    },
+    {
+      "id": "category-23",
+      "name": "Home services",
+      "terms": [
+        "cleaning service",
+        "home organizer",
+        "renovation contractor",
+        "estate sale company"
+      ]
+    },
+    {
+      "id": "category-24",
+      "name": "Moving / storage competitors",
+      "terms": [
+        "moving company",
+        "self storage",
+        "portable storage"
+      ]
+    },
+    {
+      "id": "category-25",
+      "name": "Legal / accounting / advisory",
+      "terms": [
+        "law firm",
+        "accounting firm",
+        "business advisory"
+      ]
+    },
+    {
+      "id": "category-26",
+      "name": "Nonprofit / faith / community",
+      "terms": [
+        "charity",
+        "nonprofit",
+        "religious organization",
+        "community centre"
+      ]
+    },
+    {
+      "id": "category-27",
+      "name": "Agriculture and horticulture",
+      "terms": [
+        "greenhouse",
+        "farm operator",
+        "food grower"
+      ]
+    },
+    {
+      "id": "category-28",
+      "name": "Associations and business networks",
+      "terms": [
+        "trade association",
+        "business improvement area",
+        "chamber of commerce"
+      ]
+    }
+  ],
+  "source_counts_at": "2026-11-17T21:51:03Z",
+  "mortgage_source_counts": [
+    {
+      "municipality_id": "geo_3b6c793f3964a11250592dc6",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_59ff2f825ca93496a64b6569",
+      "organizations": 23,
+      "locations": 23
+    },
+    {
+      "municipality_id": "geo_1f2c75828869608e8ae91073",
+      "organizations": 2,
+      "locations": 2
+    },
+    {
+      "municipality_id": "geo_1d9fa11b785875fa2d25bd05",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_ec732dc9ff8447f49981fd75",
+      "organizations": 7,
+      "locations": 7
+    },
+    {
+      "municipality_id": "geo_25c85768d5196e4312427402",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_f683161d8776094524c9fe56",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_e81f1df81bccb3bde761eff3",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_5a29dd6afc83a5559f90281f",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_cc771b6512a84854311adc44",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_28decf2a467ba0ea90428374",
+      "organizations": 133,
+      "locations": 133
+    },
+    {
+      "municipality_id": "geo_6f0fb9d409d71b52eee0ab1f",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_c8a26cedb71f07492328e2a7",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_e136b3194eaeabb4960455f6",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_2d8fbf2da3b85ecbb480021b",
+      "organizations": 65,
+      "locations": 65
+    },
+    {
+      "municipality_id": "geo_3475500207a078bd76137153",
+      "organizations": 14,
+      "locations": 14
+    },
+    {
+      "municipality_id": "geo_c6a649903ee049debf280ccc",
+      "organizations": 39,
+      "locations": 39
+    },
+    {
+      "municipality_id": "geo_2f9aa96317245bbf8859c749",
+      "organizations": 3,
+      "locations": 3
+    },
+    {
+      "municipality_id": "geo_e3b44736d3f0a27032c331b5",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_6a158943b5cd6d0ac31216f5",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_04decda1d96a58428b741c3e",
+      "organizations": 6,
+      "locations": 6
+    },
+    {
+      "municipality_id": "geo_14b6476e614f4c29f1bdebcc",
+      "organizations": 5,
+      "locations": 5
+    },
+    {
+      "municipality_id": "geo_1731f6a3d1322c0c107b0797",
+      "organizations": 15,
+      "locations": 15
+    },
+    {
+      "municipality_id": "geo_f42e11eb24a2cf48fa039c79",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_02b628f48f2c4b1356573920",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_34211ca2c4f0a281b9984d83",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_c43e621352173de8f90a79ea",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_dba9b598cc67e7cd5c02d852",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_ead2578e334a2865194f4b43",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_efc5e0b206692ad70ac2b4aa",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_37f59193fd35c2bdf8ea6b5d",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_706bd35efa23e739e0322fc8",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_7710b359b91b81447e8ddb7e",
+      "organizations": 30,
+      "locations": 30
+    },
+    {
+      "municipality_id": "geo_a104ef97bbe1f6a56690932d",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_ee51d5d42d062115addd73b9",
+      "organizations": 7,
+      "locations": 7
+    },
+    {
+      "municipality_id": "geo_19b3b3af102c05b88bb9d45d",
+      "organizations": 89,
+      "locations": 89
+    },
+    {
+      "municipality_id": "geo_52ea0d408c5938c2724546dc",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_8bb2b01c82fd2041dd69c5c1",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_16a180b1bee4891ca861f685",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_5e74864c21b5684217eba470",
+      "organizations": 50,
+      "locations": 50
+    },
+    {
+      "municipality_id": "geo_73d1cd072134aca04918bd59",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_3e3d78f518e07b83fff79bc4",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_33f0dd72b362b51e757d5dd1",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_23fd16b86d6acd9597225e25",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_c0c150cae6454a820ab9050c",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_517eb9b874148235ec22f2e1",
+      "organizations": 113,
+      "locations": 113
+    },
+    {
+      "municipality_id": "geo_53f514d1d70127babdd4af6e",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_fa716ff2308cbe79c935ae86",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_be57d0e03b217f2aabd88614",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_88a2eeb9e04b59488e1f24e5",
+      "organizations": 117,
+      "locations": 117
+    },
+    {
+      "municipality_id": "geo_048034b78b2b3bec23523cd2",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_454a17b71ce0d3092c30dc5c",
+      "organizations": 3,
+      "locations": 3
+    },
+    {
+      "municipality_id": "geo_af3df0764ca254c8102b3fe9",
+      "organizations": 31,
+      "locations": 31
+    },
+    {
+      "municipality_id": "geo_52ef54f4e2d856038c6978a7",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_7fffa19482b216111fcb6422",
+      "organizations": 414,
+      "locations": 414
+    },
+    {
+      "municipality_id": "geo_4df0d349cb8f3d2f3765f38b",
+      "organizations": 2,
+      "locations": 2
+    },
+    {
+      "municipality_id": "geo_307f198db71387ce574da7f5",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_1c86f08b848fb7b9c48dc0e6",
+      "organizations": 26,
+      "locations": 26
+    },
+    {
+      "municipality_id": "geo_0dc39358a34c7bb75aef2300",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_3e0facd61c56dc2123372c59",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_d9a803d06d8739d721fc1e62",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_56b080bbdb9dc661e15a9013",
+      "organizations": 2,
+      "locations": 2
+    },
+    {
+      "municipality_id": "geo_cfdf7d3fcd0488e482e1f034",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_ce724c91d2aca095675d9cca",
+      "organizations": 3,
+      "locations": 3
+    },
+    {
+      "municipality_id": "geo_bcf9c7ff2cd8f8c7c38fcd65",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_600a36ff40f88580f7b4d65f",
+      "organizations": 55,
+      "locations": 55
+    },
+    {
+      "municipality_id": "geo_49e5a04059939930b585ad5f",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_5903f3ae85e741f6977ec3d3",
+      "organizations": 33,
+      "locations": 33
+    },
+    {
+      "municipality_id": "geo_d94517563681f645d23cdac2",
+      "organizations": 184,
+      "locations": 184
+    },
+    {
+      "municipality_id": "geo_a126ab1892bef7589a1f7fbc",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_19eb0e32b4fd8cbcda8beaec",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_15606ef5f629b63b475b095e",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_02733e695b90d8178103446f",
+      "organizations": 28,
+      "locations": 28
+    },
+    {
+      "municipality_id": "geo_06996ddafc616a4d09de8134",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_542b101b33fb0fe166f7fa1d",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_82a5becf1d1bb78489d9a4d5",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_2d63bbb17a64871fb6ea996f",
+      "organizations": 88,
+      "locations": 88
+    },
+    {
+      "municipality_id": "geo_52a26aec348c70c38f98b666",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_b259268d10fa077cef860ab2",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_f7384c6135cd655675732e93",
+      "organizations": 5,
+      "locations": 5
+    },
+    {
+      "municipality_id": "geo_3a33d4f8ae219eeec0e3499d",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_3a4fcc001d62c6697f928d99",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_3cefabf7950ff47658d06d16",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_7aba7c86cbde2ca4cca393f8",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_bb0db0e66bebb9b07c11573b",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_ea3867ca3b78a71c7150e3d3",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_8210ee15af2765d5b49de17d",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_285d91352875fb486579e01f",
+      "organizations": 10,
+      "locations": 10
+    },
+    {
+      "municipality_id": "geo_82187c4a873338d05f0894bc",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_bb16eced09969fe7609d5ea3",
+      "organizations": 4,
+      "locations": 4
+    },
+    {
+      "municipality_id": "geo_793e4fee88589dc99eea847d",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_a52bd04bd2c0407f332cba92",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_f45caf4d2d5bc4f483b3f50b",
+      "organizations": 680,
+      "locations": 680
+    },
+    {
+      "municipality_id": "geo_9117dbd8a97a760cf952425c",
+      "organizations": 6,
+      "locations": 6
+    },
+    {
+      "municipality_id": "geo_27ffe57b9fcdd7cbbfa063a6",
+      "organizations": 145,
+      "locations": 145
+    },
+    {
+      "municipality_id": "geo_1c39ab71b8068f5bae30eee1",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_c71b3459b359fe268e4f1866",
+      "organizations": 36,
+      "locations": 36
+    },
+    {
+      "municipality_id": "geo_86a8454f4fdb394cac102056",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_3bbb1ac72fddd888793393e7",
+      "organizations": 1,
+      "locations": 1
+    },
+    {
+      "municipality_id": "geo_d84fab2990dc36bf1fdf7bbb",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_37d828f31cd1bcfc68a41929",
+      "organizations": 39,
+      "locations": 39
+    },
+    {
+      "municipality_id": "geo_41ba71ca24e657a350382253",
+      "organizations": 3,
+      "locations": 3
+    },
+    {
+      "municipality_id": "geo_8f9366216250eb87e5b12b11",
+      "organizations": 5,
+      "locations": 5
+    },
+    {
+      "municipality_id": "geo_c69099bd4ff3d0197cd4771d",
+      "organizations": 29,
+      "locations": 29
+    },
+    {
+      "municipality_id": "geo_53f001bae235012fd072141c",
+      "organizations": 16,
+      "locations": 16
+    },
+    {
+      "municipality_id": "geo_98570805819fd06c2b3fce0b",
+      "organizations": 0,
+      "locations": 0
+    },
+    {
+      "municipality_id": "geo_d94d62e173196d3e6648fd92",
+      "organizations": 0,
+      "locations": 0
+    }
+  ],
+  "cost_evidence": {
+    "evidence_at": "2026-11-17T21:35:47.684927+00:00",
+    "reporting_run_paid_calls": 0,
+    "last_saved_batch": {
+      "number": 28,
+      "district": "Forest Glade",
+      "state": "finished",
+      "output": "artifacts/windsor-railway-20261031/campaign/batch-028",
+      "api_requests_started": 101,
+      "elapsed_seconds": 325.0184972845018,
+      "transport_errors": 0,
+      "http_errors": 0,
+      "saved": 50,
+      "failed_tasks": 0,
+      "lease_warning_files": 0,
+      "estimated_saved_result_token_usd": 3.5416687000000007
+    },
+    "token_estimate_per_saved_investigation_usd": 0.07083337400000002,
+    "full_provider_bill_usd": null,
+    "cost_per_verified_contact_usd": null,
+    "cost_per_qualified_opportunity_usd": null,
+    "exclusions": "Saved-result token estimate excludes unreported search/tool charges, retries, infrastructure and other unallocated costs; it is not the provider bill.",
+    "routing": [
+      "reuse captured evidence and identity matches",
+      "deterministic extraction of structured fields",
+      "bounded model extraction only for unresolved structure",
+      "deep research for a named missing fact",
+      "human review for identity conflicts or commitments"
+    ],
+    "controls": [
+      "No paid request is authorized by this planner.",
+      "Preserve existing worker caps and unknown-request locks.",
+      "Reuse source URL/hash and extraction version; refresh on expiry or change.",
+      "Batch common organization/domain sources without merging separate people or tenants.",
+      "Record actual provider usage, tool fees and acceptance yield before claiming savings."
+    ]
+  }
+}

@@ -1,0 +1,318 @@
+{
+  "version": "ssm-relationship-segmentation/2026-11-18.1",
+  "industry_backbone": "NAICS-CA-2022",
+  "industry_evidence": "Preserve source taxonomy and version. Never relabel unspecified-version NAICS as verified NAICS-CA-2022.",
+  "dimensions": [
+    "geography",
+    "industry",
+    "organization_scale",
+    "site_type",
+    "account_structure",
+    "relationship_roles",
+    "service_hypotheses",
+    "relationship_state",
+    "market_signals"
+  ],
+  "size_bands": {
+    "small": {
+      "minimum_paid_employees": 1,
+      "maximum_paid_employees": 99
+    },
+    "medium": {
+      "minimum_paid_employees": 100,
+      "maximum_paid_employees": 499
+    },
+    "large": {
+      "minimum_paid_employees": 500,
+      "maximum_paid_employees": null
+    },
+    "unknown": {
+      "reason": "No verified current employee-count evidence"
+    },
+    "non_employer": {
+      "minimum_paid_employees": 0,
+      "maximum_paid_employees": 0,
+      "requires": "Explicit source evidence; sole-owner branding alone is insufficient"
+    }
+  },
+  "size_unit": "organization; a parent company, branch and proposed moving project require separate scope",
+  "size_source": "https://ised-isde.canada.ca/site/sme-research-statistics/en/key-small-business-statistics/key-small-business-statistics-2025",
+  "account_structures": [
+    "independent",
+    "branch",
+    "headquarters",
+    "chain",
+    "franchisee",
+    "public_institution",
+    "nonprofit",
+    "unknown"
+  ],
+  "relationship_roles": [
+    "buyer",
+    "referral_source",
+    "project_intermediary",
+    "operating_partner",
+    "supplier",
+    "competitor",
+    "unknown"
+  ],
+  "research_modes": {
+    "coverage": "City \u00d7 industry \u00d7 source gaps, including unmapped records",
+    "depth": "Resolve a specific identity, decision role, service scope or organization structure",
+    "overlap": "Link existing records and fresh verified signals; preserve one conversation history"
+  },
+  "playbooks": {
+    "government_agencies": {
+      "decision_roles": [
+        "facilities",
+        "procurement",
+        "department operations"
+      ],
+      "services": [
+        "office_relocation",
+        "internal_move",
+        "furniture_transfer"
+      ],
+      "message_angle": "Ask for the appropriate supplier process or facilities contact; offer relevant verified scope."
+    },
+    "healthcare": {
+      "decision_roles": [
+        "practice manager",
+        "facilities",
+        "procurement"
+      ],
+      "services": [
+        "office_relocation",
+        "furniture_transfer",
+        "internal_move"
+      ],
+      "message_angle": "Coordinate office and furniture transitions around operational requirements. Clinical equipment requires separate capability review."
+    },
+    "hospitality": {
+      "decision_roles": [
+        "owner",
+        "general manager",
+        "facilities",
+        "purchasing"
+      ],
+      "services": [
+        "furniture_transfer",
+        "internal_move",
+        "contents_move"
+      ],
+      "message_angle": "Offer practical support for furniture refreshes and back-office moves; ask about their vendor process."
+    },
+    "retail_franchises": {
+      "decision_roles": [
+        "owner",
+        "store manager",
+        "regional operations",
+        "property manager"
+      ],
+      "services": [
+        "fixture_transfer",
+        "contents_move",
+        "office_relocation"
+      ],
+      "message_angle": "Offer help with approved contents and fixture transfers; verify whether local or central operations decides. A retail label does not prove a franchise."
+    },
+    "education_research": {
+      "decision_roles": [
+        "administrator",
+        "facilities",
+        "procurement",
+        "residence operations"
+      ],
+      "services": [
+        "furniture_transfer",
+        "internal_move",
+        "office_relocation"
+      ],
+      "message_angle": "Introduce planned furniture and office transition support through the appropriate school or institution process."
+    },
+    "wholesale_distribution": {
+      "decision_roles": [
+        "operations",
+        "warehouse manager",
+        "facilities",
+        "procurement"
+      ],
+      "services": [
+        "office_relocation",
+        "contents_move",
+        "storage_transfer"
+      ],
+      "message_angle": "Clarify the contents and handling requirements before proposing help. Machinery, racking and specialist handling are not assumed capabilities."
+    },
+    "professional_offices": {
+      "decision_roles": [
+        "owner",
+        "office manager",
+        "facilities",
+        "HR"
+      ],
+      "services": [
+        "office_relocation",
+        "internal_move",
+        "employee_relocation"
+      ],
+      "message_angle": "Offer office and furniture moving support and an easy route for employee/client referrals."
+    },
+    "property_facilities": {
+      "decision_roles": [
+        "property manager",
+        "leasing",
+        "facilities",
+        "broker"
+      ],
+      "services": [
+        "resident_referral",
+        "office_relocation",
+        "furniture_transfer"
+      ],
+      "message_angle": "Build a useful relationship around tenant/client introductions and approved building moves; honor existing conversation context."
+    },
+    "restoration_storage_logistics": {
+      "decision_roles": [
+        "owner",
+        "operations",
+        "partnerships"
+      ],
+      "services": [
+        "storage_transfer",
+        "contents_move",
+        "referral_coordination"
+      ],
+      "message_angle": "Determine whether the organization is a buyer, referral partner, supplier or competitor before choosing copy."
+    },
+    "default": {
+      "decision_roles": [
+        "owner",
+        "operations",
+        "office manager"
+      ],
+      "services": [
+        "contents_move",
+        "furniture_transfer",
+        "referral_coordination"
+      ],
+      "message_angle": "Verify the business and relevant role first; introduce only appropriate, confirmed services."
+    }
+  },
+  "dispatch_policy": {
+    "classification_is_send_permission": false,
+    "signal_is_send_permission": false,
+    "multiple_signals_allow_multiple_messages": false,
+    "existing_conversation_overrides_generic_copy": true,
+    "unknowns_remain_research_debt": true,
+    "specialist_capability_requires_review": true,
+    "customer_led_timing_preserved": true,
+    "email_launch_policy_unchanged": true
+  },
+  "sector_source": "https://www23.statcan.gc.ca/imdb/p3VD.pl?Function=getVD&TVD=1369825&wbdisable=true",
+  "sector_backbone": [
+    {
+      "code": "11",
+      "label": "Agriculture, forestry, fishing and hunting",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "21",
+      "label": "Mining, quarrying, and oil and gas extraction",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "22",
+      "label": "Utilities",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "23",
+      "label": "Construction",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "31-33",
+      "label": "Manufacturing",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "41",
+      "label": "Wholesale trade",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "44-45",
+      "label": "Retail trade",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "48-49",
+      "label": "Transportation and warehousing",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "51",
+      "label": "Information and cultural industries",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "52",
+      "label": "Finance and insurance",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "53",
+      "label": "Real estate and rental and leasing",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "54",
+      "label": "Professional, scientific and technical services",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "55",
+      "label": "Management of companies and enterprises",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "56",
+      "label": "Administrative and support, waste management and remediation services",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "61",
+      "label": "Educational services",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "62",
+      "label": "Health care and social assistance",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "71",
+      "label": "Arts, entertainment and recreation",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "72",
+      "label": "Accommodation and food services",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "81",
+      "label": "Other services (except public administration)",
+      "default_coverage_state": "not_verified"
+    },
+    {
+      "code": "91",
+      "label": "Public administration",
+      "default_coverage_state": "not_verified"
+    }
+  ],
+  "display_overrides": {
+    "retail_franchises": "Retail; franchise ownership requires separate evidence"
+  }
+}

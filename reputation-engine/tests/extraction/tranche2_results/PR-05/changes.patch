@@ -1,0 +1,372 @@
+--- a/scripts/market_map/contact_normalization.py
++++ b/scripts/market_map/contact_normalization.py
+@@ -1,5 +1,6 @@
+ """Pure phone syntax normalization; never carrier, owner or outreach validation."""
+ import re
++import unicodedata
+ from urllib.parse import unquote
+ 
+ PHONE_NORMALIZATION_VERSION = 'ssm-phone-normalization/1'
+@@ -7,6 +8,62 @@
+ _PUNCTUATION = str.maketrans({**{c: ' ' for c in '\u00a0\u2007\u2009\u202f'},
+                             **{c: '-' for c in '\u2010\u2011\u2012\u2013\u2014\u2212'}})
+ _NANP = re.compile(r'[2-9][0-9]{2}[2-9][0-9]{6}')
++
++EMAIL_NORMALIZATION_VERSION = 'ssm-email-normalization/1'
++EMAIL_ASSET_TLDS = {'png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'css', 'js', 'woff', 'woff2', 'ico'}
++EMAIL_PLACEHOLDER_DOMAINS = {'example.com', 'example.org', 'example.net'}
++
++
++def parse_email_candidate(value):
++    """Conservative dot-atom local part; round-trip-safe stdlib IDNA2003 domains.
++
++    No EAI/quoted-local repair and no percent/entity decoding at this layer.
++    IDNA mappings that change the Unicode spelling beyond NFC/lowercase are
++    unsupported (e.g. sharp-s to ss), rather than silently targeting another host.
++    """
++    raw = str(value or '')
++    result = {'raw_value': raw, 'email': None, 'status': 'invalid', 'reason': None,
++              'normalization_version': EMAIL_NORMALIZATION_VERSION}
++    def reject(reason, status='invalid'):
++        result.update(reason=reason, status=status)
++        return result
++    if any(unicodedata.category(c) in ('Cc', 'Cf') for c in raw):
++        return reject('control_or_format_character')
++    candidate = raw.strip().strip('<>').rstrip('.,;:')
++    result['candidate_value'] = candidate
++    if candidate.count('@') != 1:
++        return reject('invalid_at_count')
++    local, domain = candidate.rsplit('@', 1)
++    if local.startswith('"') or local.endswith('"') or domain.startswith('['):
++        return reject('quoted_local_or_domain_literal', 'unsupported')
++    if any(ord(c) > 127 for c in local):
++        return reject('unicode_local_part', 'unsupported')
++    if not re.fullmatch(r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]{1,64}", local) or local.startswith('.') or local.endswith('.') or '..' in local:
++        return reject('invalid_local_part')
++    domain = unicodedata.normalize('NFC', domain).lower()
++    if not domain or any(c.isspace() for c in domain) or '.' not in domain:
++        return reject('invalid_domain')
++    labels = []
++    for label in domain.split('.'):
++        try:
++            encoded = label.encode('idna').decode('ascii').lower()
++            decoded = encoded.encode('ascii').decode('idna')
++        except UnicodeError:
++            return reject('invalid_idna_label')
++        if any(ord(c) > 127 for c in label) and unicodedata.normalize('NFC', decoded).lower() != label:
++            return reject('non_roundtrip_idna_mapping', 'unsupported')
++        if not re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', encoded):
++            return reject('invalid_domain_label')
++        labels.append(encoded)
++    host = '.'.join(labels)
++    if not (re.fullmatch(r'[a-z]{2,63}', labels[-1]) or labels[-1].startswith('xn--')):
++        return reject('unsupported_tld', 'unsupported')
++    if len(host) > 253 or len(local + '@' + host) > 254:
++        return reject('address_too_long')
++    if labels[-1] in EMAIL_ASSET_TLDS or host in EMAIL_PLACEHOLDER_DOMAINS:
++        return reject('asset_or_placeholder')
++    result.update(email=local + '@' + host, status='normalized', reason='supported_syntax_only')
++    return result
+ 
+ 
+ def parse_phone_candidate(value):
+--- a/scripts/market_map/email_extraction.py
++++ b/scripts/market_map/email_extraction.py
+@@ -7,9 +7,12 @@
+ from urllib.parse import unquote, urlsplit
+ 
+ from lxml import html
+-
+-VERSION = "ssm-published-email-extraction/2"
+-EMAIL = re.compile(r"(?<![A-Za-z0-9.!#$%&'*+/=?^_`{|}~@-])([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,252}[A-Za-z0-9])?\.[A-Za-z]{2,63})(?![\w@])")
++from .contact_normalization import parse_email_candidate, EMAIL_NORMALIZATION_VERSION
++
++VERSION = "ssm-published-email-extraction/3"
++# Whole published candidate, including unsupported Unicode/quoted syntax.
++# Validation belongs to clean_email(), never an ASCII substring search.
++EMAIL = re.compile(r'((?:"[^"\r\n]+"|[^\s<>"(),;:]+)@[^\s<>"(),;:]+)')
+ ASSET_TLDS = {"png", "jpg", "jpeg", "webp", "gif", "svg", "css", "js", "woff", "woff2", "ico"}
+ PLACEHOLDER_DOMAINS = {"example.com", "example.org", "example.net"}
+ INFRASTRUCTURE_DOMAINS = {"sentry.io", "wixpress.com"}
+@@ -26,22 +29,7 @@
+ 
+ 
+ def clean_email(value):
+-    value = str(value or "").strip().strip(".,;:<>\"'()[]")
+-    if any(character in value for character in "\r\n\x00") or len(value) > 254:
+-        return None
+-    match = EMAIL.fullmatch(value)
+-    if not match:
+-        return None
+-    local, host = value.rsplit("@", 1)
+-    if len(local) > 64 or local.startswith(".") or local.endswith(".") or ".." in local or ".." in host:
+-        return None
+-    if host.lower().split(".")[-1] in ASSET_TLDS:
+-        return None
+-    if host.lower() in PLACEHOLDER_DOMAINS:
+-        return None
+-    # Case-fold only the domain for the dedupe key; preserve the published local
+-    # part because SMTP local parts are not universally case-insensitive.
+-    return local + "@" + host.lower()
++    return parse_email_candidate(value)['email']
+ 
+ 
+ def role_hint(email):
+@@ -81,7 +69,7 @@
+     return sorted(found)
+ 
+ 
+-def extract_published_emails(body, page_url):
++def extract_published_emails(body, page_url, *, candidate_evidence=None):
+     raw = body if isinstance(body, bytes) else body.encode()
+     if not raw.strip() or raw.lstrip().startswith((b'%PDF', b'PK\x03\x04', b'\x89PNG', b'\xff\xd8', b'\x1f\x8b')) or b'\x00' in raw[:4096]:
+         return []
+@@ -96,7 +84,13 @@
+                    for item in [node, *node.iterancestors()])
+ 
+     def add(value, method, node=None, text_context=""):
+-        email = clean_email(value)
++        parsed = parse_email_candidate(value)
++        if candidate_evidence is not None:
++            candidate_evidence.append({**parsed, 'source_url': page_url, 'page_content_sha256': content_hash,
++                                       'extraction_method': method, 'extraction_version': VERSION,
++                                       'source_dom_locator': document.getroottree().getpath(node) if node is not None else None,
++                                       'outreach_eligibility': 'research_only'})
++        email = parsed['email']
+         if not email:
+             return
+         mailbox_host = email.rsplit("@", 1)[1]
+@@ -112,7 +106,8 @@
+         if re.search(r"website (?:by|design)|designed by|powered by|web design", context, re.I):
+             relation = "possible_website_vendor_contact_requires_review"
+         finding = findings.setdefault(email, {
+-            "email": email, "source_url": page_url, "page_content_sha256": content_hash,
++            "email": email, "raw_value": str(value), "normalization_version": EMAIL_NORMALIZATION_VERSION,
++            "source_url": page_url, "page_content_sha256": content_hash,
+             "extraction_methods": [], "role_hint": role_hint(email),
+             "association_status": relation, "short_supporting_context": context[:350],
+             "mailbox_status": "not_checked", "ownership_status": "not_checked",
+@@ -207,3 +202,11 @@
+                 for value in EMAIL.findall(explicit):
+                     add(value, "explicit_visible_at_dot", context)
+     return [findings[key] for key in sorted(findings)]
++
++
++def extract_email_evidence(body, page_url):
++    """Opt-in diagnostic envelope; legacy callers still receive valid summaries."""
++    candidates = []
++    emails = extract_published_emails(body, page_url, candidate_evidence=candidates)
++    return {'emails': emails, 'unsupported_candidates': [r for r in candidates if r['status'] == 'unsupported'],
++            'invalid_candidates': [r for r in candidates if r['status'] == 'invalid']}
+--- a/scripts/market_map/extraction_benchmark.py
++++ b/scripts/market_map/extraction_benchmark.py
+@@ -59,8 +59,10 @@
+         if digest(body) != page['sha256']:
+             raise ValueError('capture changed after validation')
+         context = extract_contact_context(body, page['url'])
++        diagnostics = []
++        emails = extract_published_emails(body, page['url'], candidate_evidence=diagnostics)
+         results[page['id']] = {
+-            'emails': extract_published_emails(body, page['url']),
++            'emails': emails, 'email_candidates': diagnostics,
+             'phones': extract_published_phones(body, page['url']), 'context': context,
+             # Evaluate only actual person/email assertions, never infer company from host.
+             'attribution': sorted([{'channel': email, 'owner': p['name'], 'relation': 'person_card'}
+@@ -110,11 +112,75 @@
+             'scope': 'published person-card association; not verified employment/company ownership'}
+ 
+ 
++ERROR_CATEGORIES = ('Acquisition or crawl failure', 'HTML/DOM extraction failure',
++                    'Structured-data extraction failure', 'Normalization error',
++                    'Incorrect channel type', 'Duplicate/entity resolution error',
++                    'Incorrect attribution', 'Unsupported format', 'Unknown or insufficient evidence')
++
++
++def analyze_errors(results, labels):
++    """List every FP/FN; never infer a missing channel's cause from absence alone.
++
++    Optional error_evidence annotations must identify the channel/value/outcome,
++    category, evidence and observed/hypothesis basis. Hypotheses remain separate.
++    """
++    errors = []
++    for page_id, gold in sorted(labels.items()):
++        page = results[page_id]
++        def emit(channel, outcome, value, expected, actual, category=None, evidence=None):
++            hypotheses = []
++            for annotation in gold.get('error_evidence', []):
++                if (annotation.get('channel'), annotation.get('outcome'), annotation.get('value')) != (channel, outcome, value):
++                    continue
++                if annotation.get('category') not in ERROR_CATEGORIES or not annotation.get('evidence') or annotation.get('basis') not in ('observed', 'hypothesis'):
++                    raise ValueError('invalid error evidence annotation')
++                if annotation['basis'] == 'hypothesis':
++                    hypotheses.append(annotation)
++                elif category is None:
++                    category, evidence = annotation['category'], annotation['evidence']
++            if category is None and page.get('acquisition_status') == 'failed' and page.get('acquisition_error'):
++                category, evidence = ERROR_CATEGORIES[0], page['acquisition_error']
++            if category is None:
++                for diagnostic in page.get('email_candidates', []):
++                    if diagnostic.get('candidate_value') == value and diagnostic.get('status') in ('invalid', 'unsupported'):
++                        category = 'Unsupported format' if diagnostic['status'] == 'unsupported' else 'Normalization error'
++                        evidence = diagnostic
++                        break
++            errors.append({'page_id': page_id, 'channel': channel, 'outcome': outcome, 'value': value,
++                           'category': category or ERROR_CATEGORIES[-1],
++                           'basis': 'observed' if evidence is not None else 'insufficient_evidence',
++                           'evidence': evidence, 'hypotheses': hypotheses, 'expected': expected, 'actual': actual,
++                           'source_predictions': page})
++        actual_email = {r['email'] for r in page['emails']}
++        expected_email = set(gold['emails'])
++        for value in sorted(actual_email - expected_email): emit('email', 'false_positive', value, None, value)
++        for value in sorted(expected_email - actual_email): emit('email', 'false_negative', value, value, None)
++        identity = lambda r: (r['phone'], r['extension'], r['kind'])
++        actual_phone = {identity(r) for r in page['phones']}
++        expected_phone = {identity(r) for r in gold['phones']}
++        for outcome, difference, others in [('false_positive', actual_phone - expected_phone, expected_phone),
++                                             ('false_negative', expected_phone - actual_phone, actual_phone)]:
++            for value in sorted(difference):
++                mismatch = [r for r in others if r[:2] == value[:2]]
++                emit('phone', outcome, list(value), list(value) if outcome == 'false_negative' else mismatch,
++                     list(value) if outcome == 'false_positive' else mismatch,
++                     'Incorrect channel type' if mismatch else None,
++                     {'same_base_extension_other_kind': mismatch} if mismatch else None)
++        if gold['attribution_known']:
++            actual = {stable(r): r for r in page['attribution']}
++            expected = {stable(r): r for r in gold['attribution']}
++            for outcome, difference in [('false_positive', actual.keys() - expected.keys()), ('false_negative', expected.keys() - actual.keys())]:
++                for value in sorted(difference):
++                    emit('attribution', outcome, json.loads(value), expected.get(value), actual.get(value),
++                         'Incorrect attribution', 'Exact labeled edge mismatch; underlying cause not inferred')
++    return errors
++
++
+ def compare_runs(before, after):
+     """Full record diff includes raw values, removals, metadata and provenance."""
+     changes = []
+     for key in sorted(set(before) | set(after)):
+-        for channel in ('emails', 'phones', 'context', 'attribution'):
++        for channel in ('emails', 'phones', 'context', 'attribution', 'email_candidates'):
+             old, new = before.get(key, {}).get(channel), after.get(key, {}).get(channel)
+             if old != new:
+                 changes.append({'id': key, 'component': channel, 'before': old, 'after': new})
+@@ -132,7 +198,8 @@
+             'python': platform.python_version(), 'lxml': lxml.etree.LXML_VERSION,
+             'source_sha256': {name: digest((source / name).read_bytes()) for name in names if (source / name).exists()},
+             'capture_count': len(results), 'extraction': score_extraction(results, labels),
+-            'attribution': score_attribution(results, labels), 'predictions': results}
++            'attribution': score_attribution(results, labels), 'predictions': results,
++            'errors': analyze_errors(results, labels), 'error_categories': ERROR_CATEGORIES}
+ 
+ 
+ def main():
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -18,13 +18,15 @@
+          'PR-02': COMMON + ['tests/extraction/test_phone_labels.py', 'tests/extraction/test_phone_normalization.py',
+                             'tests/market_map/test_phone_acquisition.py', 'tests/market_map/test_regional_identity_review.py',
+                             'tests/market_map/test_regional_additional_phones.py']}
++TESTS['PR-05'] = TESTS['PR-02'] + ['tests/extraction/test_email_normalization.py',
++    'tests/market_map/test_structured_email_recovery.py', 'tests/market_map/test_structured_email_audit.py']
+ 
+ 
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+     group.add_argument('--pr', choices=TESTS)
+-    group.add_argument('--all', action='store_true', help='All tests for implemented PR-00..02 only')
++    group.add_argument('--all', action='store_true', help='All explicitly mapped implemented PR tests')
+     args = parser.parse_args()
+     files = sorted(set(sum(TESTS.values(), []))) if args.all else TESTS[args.pr]
+     with tempfile.TemporaryDirectory(prefix='extraction-offline-') as directory:
+--- a/tests/extraction/test_benchmark.py
++++ b/tests/extraction/test_benchmark.py
+@@ -4,12 +4,32 @@
+ import tempfile
+ import unittest
+ from scripts.market_map.extraction_benchmark import (benchmark, compare_runs, counts, load_manifest,
+-                                                    score_attribution, score_extraction, stable)
++                                                    score_attribution, score_extraction, stable, analyze_errors, ERROR_CATEGORIES)
+ 
+ FIXTURES = Path(__file__).parent / 'fixtures'
+ 
+ 
+ class BenchmarkTests(unittest.TestCase):
++    def test_errors_do_not_invent_causes_and_keep_hypotheses_separate(self):
++        gold={'a':{'emails':['missing@business.test'],'phones':[],'attribution':[],'attribution_known':True}}
++        predicted={'a':{'emails':[],'phones':[],'attribution':[]}}
++        self.assertEqual(analyze_errors(predicted,gold)[0]['category'], 'Unknown or insufficient evidence')
++        gold['a']['error_evidence']=[{'channel':'email','value':'missing@business.test','outcome':'false_negative',
++            'category':'HTML/DOM extraction failure','basis':'hypothesis','evidence':'May span text nodes; not traced'}]
++        row=analyze_errors(predicted,gold)[0]
++        self.assertEqual(row['basis'],'insufficient_evidence');self.assertEqual(len(row['hypotheses']),1)
++        for category in ERROR_CATEGORIES:
++            gold['a']['error_evidence'][0].update(category=category,basis='observed',evidence='Controlled fixture trace')
++            self.assertEqual(analyze_errors(predicted,gold)[0]['category'],category)
++
++    def test_phone_kind_and_acquisition_failure_have_direct_evidence(self):
++        gold={'a':{'emails':['a@business.test'],'phones':[{'phone':'+15195550123','extension':'','kind':'fax'}],'attribution':[],'attribution_known':True}}
++        pred={'a':{'emails':[],'phones':[{'phone':'+15195550123','extension':'','kind':'phone'}],'attribution':[],
++                   'acquisition_status':'failed','acquisition_error':{'status':503,'fixture':True}}}
++        errors=analyze_errors(pred,gold)
++        self.assertEqual(len(errors),3)
++        self.assertEqual([r['category'] for r in errors],['Acquisition or crawl failure','Incorrect channel type','Incorrect channel type'])
++
+     def test_hand_calculated_metrics_and_empty_denominators(self):
+         self.assertEqual(counts({1, 2}, {2, 3}), {'tp': 1, 'fp': 1, 'fn': 1, 'precision': .5, 'recall': .5, 'f1': .5})
+         self.assertIsNone(counts(set(), set())['precision'])
+--- /dev/null
++++ b/tests/extraction/test_email_normalization.py
+@@ -0,0 +1,42 @@
++import hashlib
++import unittest
++from scripts.market_map.contact_normalization import parse_email_candidate
++from scripts.market_map.email_extraction import clean_email, extract_published_emails
++
++
++class EmailNormalizationTests(unittest.TestCase):
++    def test_unicode_local_is_retained_without_ascii_substring(self):
++        for address in ['élise@fictional.test', 'e\u0301lise@fictional.test', '用户@fictional.test', 'a\u200db@fictional.test', '"a b"@fictional.test']:
++            with self.subTest(address=address):
++                body='<meta charset="utf-8"><p>'+address+'</p>'
++                evidence=[]
++                self.assertEqual(extract_published_emails(body, 'https://fictional.test/', candidate_evidence=evidence), [])
++                self.assertTrue(any(r['raw_value']==address for r in evidence))
++                self.assertTrue(all(r['page_content_sha256']==hashlib.sha256(body.encode()).hexdigest() for r in evidence))
++
++    def test_domain_labels_and_entire_candidate_validation(self):
++        for address in ['a@foo.-bar.test', 'a@-foo.test', 'a@foo-.test', 'a@foo..test', 'a@'+('x'*64)+'.test', 'a@foo_test.test', 'double..dot@foo.test']:
++            self.assertIsNone(clean_email(address), address)
++            self.assertEqual(extract_published_emails('<p>'+address+'</p>', 'https://fictional.test/'), [])
++
++    def test_case_idna_and_roundtrip_policy(self):
++        self.assertEqual(clean_email('Sales+Tag@BÜCHER.test'), 'Sales+Tag@xn--bcher-kva.test')
++        self.assertEqual(clean_email('Sales@BUSINESS.test'), 'Sales@business.test')
++        self.assertEqual(parse_email_candidate('a@faß.test')['status'], 'unsupported')
++        rows=extract_published_emails('<p>Sales@BUSINESS.test sales@business.test</p>', 'https://fictional.test/')
++        self.assertEqual({r['email'] for r in rows}, {'Sales@business.test','sales@business.test'})
++        self.assertEqual(clean_email(clean_email('Sales@BÜCHER.test')), 'Sales@xn--bcher-kva.test')
++
++    def test_source_layers_decode_once_and_keep_holds(self):
++        page='<a href="mailto:Sales%2BTag@BUSINESS.test?body=ignored@other.test">Contact</a><div hidden>private@other.test</div><p>info@business.test.</p>'
++        rows=extract_published_emails(page,'https://business.test/')
++        self.assertEqual({r['email'] for r in rows},{'Sales+Tag@business.test','info@business.test'})
++        self.assertTrue(all(r['ownership_status']=='not_checked' and r['outreach_eligibility']=='research_only' for r in rows))
++        for value in ['a@business.test\r\n','a@business.test\x00','"quoted"@business.test','a@[127.0.0.1]']:
++            self.assertIsNone(clean_email(value))
++
++    def test_idn_visible_and_explicit_unsupported_channels(self):
++        evidence=[]
++        rows=extract_published_emails('<p>office@bücher.test</p><a href="mailto:élise@business.test">Email</a>', 'https://business.test/', candidate_evidence=evidence)
++        self.assertEqual([r['email'] for r in rows], ['office@xn--bcher-kva.test'])
++        self.assertTrue(any(r['status']=='unsupported' and r['raw_value']=='élise@business.test' for r in evidence))
+--- a/tests/market_map/test_email_extraction.py
++++ b/tests/market_map/test_email_extraction.py
+@@ -63,7 +63,7 @@
+                 self.assertEqual([r['email'] for r in rows],['jane@business.test'])
+                 self.assertEqual(rows[0]['outreach_eligibility'],'research_only')
+                 self.assertEqual(rows[0]['ownership_status'],'not_checked')
+-                self.assertEqual(rows[0]['extraction_version'],'ssm-published-email-extraction/2')
++                self.assertEqual(rows[0]['extraction_version'],'ssm-published-email-extraction/3')
+ 
+     def test_no_guesses_private_strings_or_binary_matches(self):
+         cases = [

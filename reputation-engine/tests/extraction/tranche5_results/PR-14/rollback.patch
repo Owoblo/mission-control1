@@ -1,0 +1,429 @@
+--- a/scripts/market_map/contact_enrichment.py
++++ b/scripts/market_map/contact_enrichment.py
+@@ -20,7 +20,7 @@
+ from .relationships import canonical_url
+ from .transport import Transport, SourceBlocked, BudgetExceeded
+ from .fetch_outcomes import outcome
+-from . import frontier_retry, contact_frontier
++from . import frontier_retry
+ from .verification_pilot import storage_guard,stamp,spreadsheet_cell
+ 
+ CATEGORIES=('organisation_assertions','people','department_contacts')
+@@ -28,7 +28,9 @@
+ 
+ def link_priority(link):
+     value=link if isinstance(link,str) else link.get('url','')
+-    return -contact_frontier.score_contact_link(value),value
++    path=urlsplit(value).path.lower()
++    rank=0 if re.search(r'team|leadership|staff|management|people|directors',path) else 1 if re.search(r'contact|about',path) else 2
++    return rank,value
+ 
+ 
+ 
+@@ -45,7 +47,7 @@
+       CREATE TABLE IF NOT EXISTS visits(id INTEGER PRIMARY KEY,domain TEXT,status TEXT,observed_at TEXT,payload TEXT);
+       CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,payload TEXT);
+       CREATE TABLE IF NOT EXISTS mined_artifacts(path TEXT,sha256 TEXT,observed_at TEXT,PRIMARY KEY(path,sha256));
+-    ''');frontier_retry.initialize(db);contact_frontier.initialize(db);return db
++    ''');frontier_retry.initialize(db);return db
+ 
+ 
+ def seed(db,source_queue):
+@@ -58,15 +60,15 @@
+     if upstream.execute("SELECT 1 FROM sqlite_master WHERE name='email_occurrences'").fetchone():
+         for payload,url in upstream.execute('SELECT o.payload,c.source_url FROM email_occurrences o JOIN extraction_runs r ON r.id=o.run_id JOIN captures c ON c.id=r.capture_id'):
+             sources.setdefault(json.loads(payload)['domain'],set()).add(url)
+-    rows=[(domain,url,'upstream_review_hold' if state in HOLDS else 'pending',len(sources.get(domain,set())))
+-          for domain,url,state in upstream.execute('SELECT domain,url,status FROM jobs')]
++    rows=[(domain,url,'upstream_review_hold' if state in HOLDS else 'pending',len(sources[domain]))
++          for domain,url,state in upstream.execute('SELECT domain,url,status FROM jobs') if domain in sources]
+     upstream.close()
+     with db:
+         db.executemany('INSERT OR IGNORE INTO jobs(domain,url,status,email_source_pages) VALUES(?,?,?,?)',rows)
+         db.executemany('INSERT OR IGNORE INTO frontier(domain,url,depth) VALUES(?,?,0)',[(r[0],r[1]) for r in rows])
+         db.executemany('UPDATE jobs SET email_source_pages=? WHERE domain=?',[(r[3],r[0]) for r in rows])
+         db.executemany("UPDATE jobs SET status='upstream_review_hold' WHERE domain=? AND status IN ('pending','retry_deferred')",[(r[0],) for r in rows if r[2]=='upstream_review_hold'])
+-        db.execute('INSERT OR REPLACE INTO metadata VALUES(?,?)',('source_reference',json.dumps({'source_queue':str(Path(source_queue).resolve()),'association_table':'associations','seeded_at':stamp(),'eligible_website_domains':len(rows),'identity_rule':'Existing eligible website job; emails are optional; provider/directory attribution and ownership remain unverified; join source associations by domain without automatic person/company assignment'})))
++        db.execute('INSERT OR REPLACE INTO metadata VALUES(?,?)',('source_reference',json.dumps({'source_queue':str(Path(source_queue).resolve()),'association_table':'associations','seeded_at':stamp(),'eligible_email_domains':len(rows),'identity_rule':'Existing email-evidence domain joins an existing website job; provider/directory attribution and ownership remain unverified; join source associations by domain without automatic person/company assignment'})))
+     return len(rows)
+ 
+ 
+@@ -78,19 +80,17 @@
+             'full_site_exhausted':False,'main_database_writes':0,'messages_sent':0,'people_verified':0,'authority_verified':0}
+     result['visit_id']=uuid.uuid4().hex
+     result['frontier_failures']=[]
+-    result['frontier_metadata']=[]
+-    visited=set(job.get("blocked_urls",[]));attempted=0
+-    for item in contact_frontier.ordered_frontier(frontier,visited,job.get('url')):
+-        if attempted>=page_limit:break
++    visited=set()
++    for item in frontier:
++        if len(visited)>=page_limit:break
+         url=item['url'];depth=item['depth']
+         if url in visited:continue
+-        visited.add(url);attempted+=1
++        visited.add(url)
+         result['active_url']=url
+         phase='fetch'
+         if checkpoint:checkpoint(result)
+         try:
+             response=client.fetch(url,allowed_hosts=hosts)
+-            visited.add(response.url)
+             content_type=next((v for k,v in response.headers.items() if k.lower()=='content-type'),'')
+             if content_type and 'html' not in content_type.lower():
+                 result['frontier_updates'].append((url,'non_html_review',None));continue
+@@ -101,16 +101,12 @@
+             for category in CATEGORIES:
+                 for record in extracted.get(category,[]):
+                     result['claims'].append({'claim_type':category,'evidence':{**record,'observed_at':facts['observed_at'],'organisation_ownership_status':'not_verified','outreach_eligibility':'research_only'}})
+-            doc=html.fromstring(response.body,base_url=response.url)
+-            for anchor in doc.xpath('//a[@href]'):
+-                link=anchor.get('href','');label=' '.join(anchor.text_content().split())
+-                if contact_frontier.score_contact_link(link,label)<=0:continue
++            for link in sorted(extracted.get('relevant_links',[]),key=link_priority):
+                 target=canonical_url(link if isinstance(link,str) else link.get('url',''),response.url)
+                 if not target or urlsplit(target).hostname not in hosts or re.search(r'\.(?:pdf|zip|png|jpg|svg)$',target,re.I):continue
+                 state='pending' if depth<1 else 'depth_deferred'
+                 result['discovered'].append((target,depth+1,state))
+-                result['frontier_metadata'].append({'url':target,'label':label})
+-                if state=='pending' and target not in visited and len(frontier)<50:frontier.append({'url':target,'depth':depth+1,'label':label})
++                if state=='pending' and target not in visited and len(frontier)<50:frontier.append({'url':target,'depth':depth+1})
+             result['frontier_updates'].append((url,'observed',None))
+         except (SourceBlocked,BudgetExceeded,ValueError,ParserError,HTTPException) as error:
+             failure=outcome(error,url,phase=phase);result['frontier_failures'].append(failure)
+@@ -140,11 +136,10 @@
+     with db:
+         db.execute('BEGIN IMMEDIATE')
+         if not frontier_retry.accept_visit(db,result):return frontier_retry.job_state(db,domain)
+-        for url,depth,state in result.get('discovered',[]):contact_frontier.upsert_link(db,domain,url,depth,state)
++        for url,depth,state in result.get('discovered',[]):db.execute('INSERT OR IGNORE INTO frontier(domain,url,depth,status) VALUES(?,?,?,?)',(domain,url,depth,state))
+         for url,state,error in result.get('frontier_updates',[]):db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,error,domain,url))
+         for page in result.get('pages',[]):db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['content_sha256'],page['observed_at'],json.dumps(page)))
+         for claim in result.get('claims',[]):save_claim(db,domain,claim['claim_type'],claim['evidence'])
+-        contact_frontier.remember_links(db,result)
+         frontier_retry.apply_result(db,result)
+         remaining=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+         state=(result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain)
+@@ -232,8 +227,7 @@
+                             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+                                 with db:db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold' WHERE domain=?",(domain,))
+                                 continue
+-                            job['blocked_urls']=[r[0] for r in db.execute("SELECT url FROM frontier WHERE domain=? AND status NOT IN ('pending','depth_deferred')",(domain,))]
+-                            frontier=contact_frontier.select_queued(db,domain,4,job.get('url'))
++                            frontier=[dict(r) for r in db.execute("SELECT url,depth FROM frontier WHERE domain=? AND status='pending' ORDER BY depth,CASE WHEN url LIKE '%team%' OR url LIKE '%leadership%' OR url LIKE '%staff%' OR url LIKE '%management%' OR url LIKE '%people%' THEN 0 WHEN url LIKE '%contact%' OR url LIKE '%about%' THEN 1 ELSE 2 END,url LIMIT 4",(domain,))]
+                             if not frontier:
+                                 with db:db.execute("UPDATE jobs SET status='known_frontier_processed' WHERE domain=?",(domain,))
+                                 continue
+--- a/scripts/market_map/contact_frontier.py
++++ /dev/null
+@@ -1,60 +0,0 @@
+-"""Deterministic ranking of offered contact links; never invents URLs or releases holds."""
+-import heapq,re,unicodedata
+-from urllib.parse import urlsplit,unquote
+-
+-
+-def words(value):
+-    value=''.join(c for c in unicodedata.normalize('NFD',str(value)).casefold() if not unicodedata.combining(c))
+-    return ' '.join(re.findall(r'[a-z0-9]+',value))
+-
+-
+-def score_contact_link(url,label='',seed_url=None):
+-    try:
+-        p=urlsplit(url)
+-        if p.scheme not in ('http','https','') or p.username or p.password:return -1
+-        text=words(unquote(p.path)+' '+label)
+-        if re.search(r'\bcontact (?:lens|lenses|lents)\b',text):return -1
+-        scores=[score for score,pattern in [(100,r'\b(contact|contactez|joindre|coordonnees)\b'),
+-            (95,r'\b(procurement|purchasing|approvisionnement|achats|facilities|suppliers?|vendors?)\b'),
+-            (90,r'\b(team|staff|people|leadership|management|equipe|personnel)\b'),
+-            (80,r'\b(locations?|branches?|offices?|succursales?|bureaux)\b'),(30,r'\b(about|propos)\b')] if re.search(pattern,text)]
+-        score=max(scores,default=0)
+-        if seed_url and score:
+-            seed=urlsplit(seed_url)
+-            prefix=seed.path.rstrip('/')
+-            if prefix and seed.hostname==p.hostname and (p.path==prefix or p.path.startswith(prefix+'/')):score+=25
+-        return score
+-    except ValueError:return -1
+-
+-
+-def select_frontier(rows,limit,seed_url=None):
+-    candidates=(dict(r) for r in rows)
+-    return heapq.nsmallest(limit,(r for r in candidates if r.get('status','pending')=='pending'),
+-        key=lambda r:(-score_contact_link(r['url'],r.get('label',''),seed_url),r.get('depth',0),r['url']))
+-
+-
+-def ordered_frontier(frontier,visited,seed_url=None):
+-    while True:
+-        rows=select_frontier((r for r in frontier if r['url'] not in visited),1,seed_url)
+-        if not rows:return
+-        yield rows[0]
+-
+-
+-def initialize(db):
+-    db.execute('CREATE TABLE IF NOT EXISTS frontier_link_context(domain TEXT,url TEXT,label TEXT NOT NULL,PRIMARY KEY(domain,url))')
+-    db.commit()
+-
+-
+-def select_queued(db,domain,limit,seed_url=None):
+-    rows=db.execute("SELECT f.url,f.depth,f.status,COALESCE(l.label,'') AS label FROM frontier f LEFT JOIN frontier_link_context l ON l.domain=f.domain AND l.url=f.url WHERE f.domain=? AND f.status='pending'",(domain,))
+-    return select_frontier(rows,limit,seed_url)
+-
+-
+-def remember_links(db,result):
+-    for row in result.get('frontier_metadata',[]):
+-        db.execute('INSERT INTO frontier_link_context VALUES(?,?,?) ON CONFLICT(domain,url) DO UPDATE SET label=excluded.label',
+-                   (result['domain'],row['url'],row['label']))
+-
+-
+-def upsert_link(db,domain,url,depth,state):
+-    db.execute("""INSERT INTO frontier(domain,url,depth,status) VALUES(?,?,?,?) ON CONFLICT(domain,url) DO UPDATE SET depth=MIN(frontier.depth,excluded.depth),status=CASE WHEN frontier.status='depth_deferred' AND excluded.status='pending' THEN 'pending' ELSE frontier.status END""",(domain,url,depth,state))
+--- a/scripts/market_map/email_acquisition.py
++++ b/scripts/market_map/email_acquisition.py
+@@ -30,7 +30,7 @@
+ from .relationships import canonical_url, excluded, identity_supported
+ from .transport import Transport, SourceBlocked, BudgetExceeded
+ from .fetch_outcomes import outcome
+-from . import frontier_retry, contact_frontier
++from . import frontier_retry
+ from .verification_pilot import website_candidate, stamp, encode, storage_guard, file_hash, spreadsheet_cell
+ 
+ VERSION = "ssm-email-acquisition/1"
+@@ -63,7 +63,7 @@
+         CREATE TABLE IF NOT EXISTS seed_sweeps(id TEXT PRIMARY KEY,started_at TEXT,completed_at TEXT,status TEXT,
+             records_seen INTEGER,source_path TEXT,notes TEXT);
+     """)
+-    frontier_retry.initialize(db);contact_frontier.initialize(db)
++    frontier_retry.initialize(db)
+     observations.initialize(db)
+     return db
+ 
+@@ -213,21 +213,19 @@
+            "full_site_exhausted":False,"main_database_writes":0,"messages_sent":0}
+     out['visit_id']=uuid.uuid4().hex
+     out['frontier_failures']=[]
+-    out['frontier_metadata']=[]
+-    visited = set(job.get("blocked_urls",[]));attempted=0
+-    for item in contact_frontier.ordered_frontier(frontier,visited,job.get('url')):
+-        if attempted >= page_limit:
++    visited = set()
++    for item in frontier:
++        if len(visited) >= page_limit:
+             break
+         url,depth = item["url"],item["depth"]
+         if url in visited:
+             continue
+-        visited.add(url);attempted+=1
++        visited.add(url)
+         out['active_url']=url
+         phase='fetch'
+         if checkpoint:checkpoint(out)
+         try:
+             response = transport.fetch(url,allowed_hosts=allowed)
+-            visited.add(response.url)
+             content_type = next((value for key,value in response.headers.items() if key.lower()=="content-type"),"")
+             if content_type and "html" not in content_type.lower():
+                 out["frontier_updates"].append((url,"non_html_review",None))
+@@ -245,16 +243,15 @@
+                 out["emails"].append(record)
+             for anchor in doc.xpath('//a[@href]'):
+                 href=anchor.get('href','');label=' '.join(anchor.text_content().split())
+-                if contact_frontier.score_contact_link(href,label)<=0:
++                if not CONTACT.search(href+' '+label):
+                     continue
+                 linked=canonical_url(href,response.url)
+                 if linked and urlsplit(linked).hostname in allowed and not re.search(r'\.(?:pdf|zip|jpe?g|png|svg)$',linked,re.I):
+                     next_depth=depth+1
+                     state='pending' if next_depth<=2 else 'depth_deferred'
+                     out["discovered"].append((linked,next_depth,state))
+-                    out["frontier_metadata"].append({"url":linked,"label":label})
+                     if state=='pending' and linked not in visited and len(frontier)<100:
+-                        frontier.append({"url":linked,"depth":next_depth,"label":label})
++                        frontier.append({"url":linked,"depth":next_depth})
+             out["frontier_updates"].append((url,"observed",None))
+         except (SourceBlocked,BudgetExceeded,ValueError,ParserError,HTTPException) as error:
+             failure=outcome(error,url,phase=phase);out['frontier_failures'].append(failure)
+@@ -291,7 +288,6 @@
+                     db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['checked_at'],page['content_sha256'],zlib.compress(encode(page).encode(),6)))
+                 for record in result['emails']:
+                     save_email(db,dict(record,**({'capture_id':capture_by_url[record['source_url']]} if record['source_url'] in capture_by_url and not record.get('capture_id') else {})),domain,'website-domain:'+domain)
+-                contact_frontier.remember_links(db,result)
+                 frontier_retry.apply_result(db,result)
+                 remains=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+                 db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',((result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain),stamp(),domain))
+@@ -348,8 +344,7 @@
+                     if note.get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+                         with db:db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold' WHERE domain=?",(domain,))
+                         continue
+-                    job['blocked_urls']=[r[0] for r in db.execute("SELECT url FROM frontier WHERE domain=? AND status NOT IN ('pending','depth_deferred')",(domain,))]
+-                    todo=contact_frontier.select_queued(db,domain,page_limit,job.get('url'))
++                    todo=[dict(r) for r in db.execute("SELECT url,depth FROM frontier WHERE domain=? AND status='pending' ORDER BY depth,url LIMIT ?",(domain,page_limit))]
+                     names=[r[0] for r in db.execute("SELECT name FROM associations WHERE domain=? LIMIT 8",(domain,))]
+                     if not todo:
+                         with db:db.execute("UPDATE jobs SET status='known_frontier_processed' WHERE domain=?",(domain,))
+--- a/scripts/market_map/phone_acquisition.py
++++ b/scripts/market_map/phone_acquisition.py
+@@ -19,7 +19,7 @@
+ from .relationships import canonical_url
+ from .transport import Transport, SourceBlocked, BudgetExceeded
+ from .fetch_outcomes import outcome
+-from . import frontier_retry, contact_frontier
++from . import frontier_retry
+ from .verification_pilot import storage_guard, stamp, spreadsheet_cell
+ 
+ CONTACT = re.compile(r'contact|locations?|branches|about',re.I)
+@@ -39,7 +39,7 @@
+       CREATE TABLE IF NOT EXISTS visits(id INTEGER PRIMARY KEY,domain TEXT,status TEXT,observed_at TEXT,payload TEXT);
+       CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,payload TEXT);
+       CREATE TABLE IF NOT EXISTS mined_artifacts(path TEXT,sha256 TEXT,observed_at TEXT,PRIMARY KEY(path,sha256));
+-    ''');frontier_retry.initialize(db);contact_frontier.initialize(db);return db
++    ''');frontier_retry.initialize(db);return db
+ 
+ 
+ def seed(db,source_queue):
+@@ -68,19 +68,17 @@
+             'full_site_exhausted':False,'main_database_writes':0,'messages_sent':0,'phone_calls_made':0}
+     result['visit_id']=uuid.uuid4().hex
+     result['frontier_failures']=[]
+-    result['frontier_metadata']=[]
+-    visited=set(job.get("blocked_urls",[]));attempted=0
+-    for item in contact_frontier.ordered_frontier(frontier,visited,job.get('url')):
+-        if attempted>=page_limit:break
++    visited=set()
++    for item in frontier:
++        if len(visited)>=page_limit:break
+         url=item['url'];depth=item['depth']
+         if url in visited:continue
+-        visited.add(url);attempted+=1
++        visited.add(url)
+         result['active_url']=url
+         phase='fetch'
+         if checkpoint:checkpoint(result)
+         try:
+             response=client.fetch(url,allowed_hosts=hosts)
+-            visited.add(response.url)
+             content_type=next((v for k,v in response.headers.items() if k.lower()=='content-type'),'')
+             if content_type and 'html' not in content_type.lower():
+                 result['frontier_updates'].append((url,'non_html_review',None));continue
+@@ -95,13 +93,12 @@
+                 result['phones'].append(phone)
+             for a in doc.xpath('//a[@href]'):
+                 href=a.get('href','')
+-                if contact_frontier.score_contact_link(href,a.text_content())<=0:continue
++                if not CONTACT.search(href+' '+a.text_content()):continue
+                 target=canonical_url(href,response.url)
+                 if not target or urlsplit(target).hostname not in hosts or re.search(r'\.(?:pdf|zip|png|jpg|svg)$',target,re.I):continue
+                 state='pending' if depth<1 else 'depth_deferred'
+                 result['discovered'].append((target,depth+1,state))
+-                result['frontier_metadata'].append({'url':target,'label':a.text_content()})
+-                if state=='pending' and target not in visited and len(frontier)<50:frontier.append({'url':target,'depth':depth+1,'label':a.text_content()})
++                if state=='pending' and target not in visited and len(frontier)<50:frontier.append({'url':target,'depth':depth+1})
+             result['frontier_updates'].append((url,'observed',None))
+         except (SourceBlocked,BudgetExceeded,ValueError,ParserError,HTTPException) as error:
+             failure=outcome(error,url,phase=phase);result['frontier_failures'].append(failure)
+@@ -136,13 +133,12 @@
+         db.execute('BEGIN IMMEDIATE')
+         if not frontier_retry.accept_visit(db,result):return frontier_retry.job_state(db,domain)
+         for url,depth,state in result.get('discovered',[]):
+-            contact_frontier.upsert_link(db,domain,url,depth,state)
++            db.execute('INSERT OR IGNORE INTO frontier(domain,url,depth,status) VALUES(?,?,?,?)',(domain,url,depth,state))
+         for url,state,error in result.get('frontier_updates',[]):
+             db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,error,domain,url))
+         for page in result.get('pages',[]):
+             db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['content_sha256'],page['observed_at'],json.dumps(page)))
+         for record in result.get('phones',[]):save_phone(db,record,domain)
+-        contact_frontier.remember_links(db,result)
+         frontier_retry.apply_result(db,result)
+         remaining=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+         state=(result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain)
+@@ -239,8 +235,7 @@
+                             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+                                 with db:db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold' WHERE domain=?",(domain,))
+                                 continue
+-                            job['blocked_urls']=[r[0] for r in db.execute("SELECT url FROM frontier WHERE domain=? AND status NOT IN ('pending','depth_deferred')",(domain,))]
+-                            frontier=contact_frontier.select_queued(db,domain,3,job.get('url'))
++                            frontier=[dict(r) for r in db.execute("SELECT url,depth FROM frontier WHERE domain=? AND status='pending' ORDER BY depth,url LIMIT 3",(domain,))]
+                             if not frontier:
+                                 with db:db.execute("UPDATE jobs SET status='known_frontier_processed' WHERE domain=?",(domain,))
+                                 continue
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -42,8 +42,6 @@
+ 
+ TESTS['PR-13'] = TESTS['PR-12'] + ['tests/market_map/test_frontier_retry.py']
+ 
+-TESTS['PR-14'] = TESTS['PR-13'] + ['tests/market_map/test_contact_frontier.py']
+-
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- a/tests/market_map/test_contact_enrichment.py
++++ b/tests/market_map/test_contact_enrichment.py
+@@ -19,14 +19,14 @@
+         links=['https://one.test/about','https://one.test/locations','https://one.test/team','https://one.test/leadership']
+         ordered=sorted(links,key=link_priority)
+         self.assertEqual(ordered[:2],['https://one.test/leadership','https://one.test/team'])
+-        self.assertEqual(ordered[-1],'https://one.test/about')
++        self.assertEqual(ordered[-1],'https://one.test/locations')
+ 
+     @patch('scripts.market_map.contact_enrichment.storage_guard')
+     def test_seed_only_existing_email_domains_preserves_provider_attribution(self,guard):
+         with tempfile.TemporaryDirectory() as temp:
+             root=Path(temp);source=self.source(root);before=source.read_bytes();db=connect(root/'context.sqlite')
+-            self.assertEqual(seed(db,source),3);seed(db,source)
+-            self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],3)
++            self.assertEqual(seed(db,source),2);seed(db,source)
++            self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],2)
+             self.assertEqual(db.execute("SELECT status FROM jobs WHERE domain='two.test'").fetchone()[0],'upstream_review_hold')
+             self.assertEqual(before,source.read_bytes());db.close()
+ 
+@@ -45,7 +45,7 @@
+             root=Path(temp);overlay=root/'overlay.json';overlay.write_text('{}')
+             def broken(job,frontier):raise RuntimeError('fixture')
+             run(self.source(root),root/'out',overlay,collector=broken)
+-            report=json.loads((root/'out/status.json').read_text());self.assertEqual(report['job_status_counts']['domain_worker_error_review'],2)
++            report=json.loads((root/'out/status.json').read_text());self.assertEqual(report['job_status_counts']['domain_worker_error_review'],1)
+             self.assertTrue((root/'out/public-contact-context.csv').exists())
+ 
+     @patch('scripts.market_map.contact_enrichment.storage_guard')
+--- a/tests/market_map/test_contact_frontier.py
++++ /dev/null
+@@ -1,39 +0,0 @@
+-import sqlite3,unittest
+-from unittest.mock import patch
+-from scripts.market_map import contact_frontier as f,email_acquisition,phone_acquisition,contact_enrichment
+-from scripts.market_map.transport import Response
+-class FrontierTests(unittest.TestCase):
+- def test_language_boundaries_query_and_branch(self):
+-  self.assertGreater(f.score_contact_link('/equipe'),0);self.assertGreater(f.score_contact_link('/nous-joindre'),0)
+-  self.assertLess(f.score_contact_link('/contact-lenses'),0);self.assertEqual(f.score_contact_link('/shop?next=/contact'),0)
+-  self.assertGreater(f.score_contact_link('https://a.test/windsor/contact',seed_url='https://a.test/windsor'),f.score_contact_link('https://a.test/contact',seed_url='https://a.test/windsor'))
+-  self.assertLess(f.score_contact_link('https://user@a.test/contact'),0)
+- def test_sort_does_not_release_holds_or_lose_query_identity(self):
+-  rows=[{'url':'https://a.test/contact?branch=2'},{'url':'https://a.test/contact?branch=1'},{'url':'https://a.test/team','status':'retry_deferred'}]
+-  self.assertEqual(f.select_frontier(rows,3),f.select_frontier(reversed(rows),3));self.assertEqual(len(f.select_frontier(rows,3)),2)
+- def test_shorter_discovery_never_releases_policy_or_retry(self):
+-  db=sqlite3.connect(':memory:');db.execute('CREATE TABLE frontier(domain,url,depth,status,error,PRIMARY KEY(domain,url))')
+-  for state in ['depth_deferred','policy_hold','retry_deferred']:
+-   db.execute('DELETE FROM frontier');db.execute('INSERT INTO frontier VALUES(?,?,?,?,NULL)',('a','url',3,state));f.upsert_link(db,'a','url',1,'pending')
+-   self.assertEqual(db.execute('SELECT depth,status FROM frontier').fetchone(),(1,'pending' if state=='depth_deferred' else state))
+-  db.close()
+- def test_three_collectors_prioritize_new_contact_with_same_two_page_limit(self):
+-  home=b'<a href="/about">About</a><a href="/contact-lenses">Shop</a><a href="/contact">Contact</a><a href="/equipe">Equipe</a>'
+-  for module in [email_acquisition,phone_acquisition,contact_enrichment]:
+-   with patch.object(module,'Transport') as factory:
+-    client=factory.return_value;client.metrics.return_value={};trace=[]
+-    def fetch(url,**kw):trace.append(url);return Response(home if len(trace)==1 else b'<p>desk@business.test</p>',{},url)
+-    client.fetch.side_effect=fetch
+-    args=[{'domain':'a.test','url':'https://a.test/'},[{'url':'https://a.test/','depth':0}]]
+-    if module==email_acquisition:args.append([])
+-    result=module.collect_domain(*args,page_limit=2)
+-    self.assertEqual(trace,['https://a.test/','https://a.test/contact']);self.assertFalse(any('contact-lenses' in r[0] for r in result['discovered']))
+- def test_redirect_alias_and_held_discovered_link_are_not_refetched(self):
+-  with patch.object(email_acquisition,'Transport') as factory:
+-   client=factory.return_value;client.metrics.return_value={};trace=[]
+-   def fetch(url,**kw):
+-    trace.append(url)
+-    return Response(b'<a href="/home">Home contact</a><a href="/contact">Contact</a><a href="/team">Team</a>',{},'https://a.test/home')
+-   client.fetch.side_effect=fetch
+-   email_acquisition.collect_domain({'domain':'a.test','blocked_urls':['https://a.test/contact']},[{'url':'https://a.test/','depth':0}],[],page_limit=2)
+-   self.assertEqual(trace,['https://a.test/','https://a.test/team'])

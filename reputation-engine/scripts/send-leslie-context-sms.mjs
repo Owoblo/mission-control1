@@ -1,0 +1,7 @@
+import fs from 'node:fs/promises';import {createHmac} from 'node:crypto';
+const dir='partnership-system/markets/ca/on/windsor-essex/runs/2026-09-15/send-release';const c=JSON.parse(await fs.readFile(`${dir}/leslie-contact-receipt.json`));
+const file=`${dir}/leslie-sms-action.json`;try{await fs.access(file);throw Error('SMS already reserved; inspect existing action before retrying')}catch(e){if(e.code!=='ENOENT')throw e}
+const body='Hi Leslie, John at Saturn Star Movers. I emailed Innomation about office/furniture moving support. Is that something you oversee? Reply STOP to opt out.';
+const payload=Buffer.from(JSON.stringify({role:'owner',name:'John',exp:Date.now()+5*60*1000})).toString('base64url');const token=payload+'.'+createHmac('sha256',process.env.AUTH_SECRET).update(payload).digest('base64url');
+await fs.writeFile(file,JSON.stringify({at:new Date().toISOString(),contact_id:c.id,to:'+15199652299',from:'+12268870667',body,state:'reserved_no_retry'},null,2));
+const r=await fetch(`https://go.quote2move.com/api/marketing/contacts/${c.id}/send-reply`,{method:'POST',headers:{Cookie:'mc_session='+token,'Content-Type':'application/json'},body:JSON.stringify({body,from_number:'+12268870667'}),signal:AbortSignal.timeout(30000)});const result=await r.json();await fs.writeFile(file,JSON.stringify({at:new Date().toISOString(),contact_id:c.id,to:'+15199652299',from:'+12268870667',body,http_status:r.status,result},null,2));console.log({http_status:r.status,result});if(!r.ok)process.exitCode=1;

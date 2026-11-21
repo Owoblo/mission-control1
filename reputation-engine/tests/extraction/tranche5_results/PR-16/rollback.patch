@@ -1,0 +1,666 @@
+--- a/scripts/market_map/cloud/regional_contact_enrichment.py
++++ b/scripts/market_map/cloud/regional_contact_enrichment.py
+@@ -69,7 +69,7 @@
+                 body=source.read_bytes()
+                 if hashlib.sha256(body).hexdigest()!=page['sha256']:raise ValueError('Saved source hash mismatch')
+                 parsed=parse_contact_page(body,{'url':page['url'],'sha256':page['sha256'],'captured_at':page.get('captured_at')})
+-                page.setdefault('parse_history',[]).append({k:page[k] for k in ('emails','phones','context','structured_contacts','decoding_uncertainty','parser_versions','parser_errors','email_extraction_version','processed_at') if k in page})
++                page.setdefault('parse_history',[]).append({k:page[k] for k in ('emails','phones','context','parser_versions','parser_errors','email_extraction_version','processed_at') if k in page})
+                 page.update({k:parsed[k] for k in ('emails','phones','context','structured_contacts','parser_versions','parser_errors','decoding_uncertainty')})
+                 page.update(email_extraction_version=EMAIL_VERSION,processed_at=now(),processing_mode='reparse')
+                 page.pop('email_recheck_error',None)
+--- a/scripts/market_map/contact_capture.py
++++ /dev/null
+@@ -1,139 +0,0 @@
+-"""Opt-in, stateless capture reuse. Every reuse revalidates policy, robots and HTTP."""
+-import fcntl,hashlib,hmac,json,os,time,uuid
+-from datetime import datetime,timezone
+-from pathlib import Path
+-from urllib.parse import urlsplit,urlunsplit
+-from .transport import SourceBlocked,BudgetExceeded,Response
+-from .source_capture_cache import atomic,canonical
+-
+-
+-def normalized_url(url):
+-    p=urlsplit(url)
+-    if p.scheme!='https' or not p.hostname or p.username or p.password or p.port not in (None,443):
+-        raise SourceBlocked('Capture URL outside HTTPS scope',code='scope_denied',url=url)
+-    return urlunsplit(('https',p.netloc.lower(),p.path or '/',p.query,''))
+-
+-
+-def get_or_fetch_capture(url,transport,*,allowed_hosts,root=None,policy_check=None,clock=time.time):
+-    """Return response and immutable source receipt; no queue or CRM writes."""
+-    def receipt(response):
+-        return {'capture_id':uuid.uuid4().hex,'url':response.url,'requested_url':url,
+-                'captured_at':datetime.fromtimestamp(clock(),timezone.utc).isoformat(),
+-                'sha256':hashlib.sha256(response.body).hexdigest(),'retain_body':True}
+-    if root is None:
+-        response=transport.fetch(url,allowed_hosts=allowed_hosts)
+-        return response,receipt(response)
+-    url=normalized_url(url)
+-    if policy_check is None:raise SourceBlocked('Current capture policy required',code='scope_denied',url=url)
+-    def policy_for(target):
+-        policy=policy_check(target)
+-        try:valid_until=datetime.fromisoformat(policy['valid_until'].replace('Z','+00:00')).timestamp()
+-        except (KeyError,ValueError,TypeError,AttributeError):valid_until=0
+-        if not policy.get('allowed') or policy.get('holds') or valid_until<=clock() or urlsplit(target).hostname not in policy.get('allowed_hosts',[]):
+-            raise SourceBlocked('Current source policy denies capture use',code='access_denied',url=target,policy_scope='host')
+-        if policy.get('session_scope')!='stateless' or policy.get('representation')!='static-html':
+-            raise SourceBlocked('Capture session/representation requires review',code='scope_denied',url=target)
+-        if policy.get('rights_status')!='public_capture_reuse_approved' or not policy.get('policy_id') or not policy.get('revision'):raise SourceBlocked('Versioned policy required',code='scope_denied',url=target)
+-        return policy
+-    policy=policy_for(url)
+-    scope={k:policy[k] for k in ('policy_id','revision','session_scope','representation')}
+-    scope['allowed_hosts']=sorted(allowed_hosts)
+-    def access(target):
+-        current=policy_for(target)
+-        if any(current.get(k)!=policy.get(k) for k in ('policy_id','revision','retention_allowed','reuse_allowed','session_scope','representation')):
+-            raise SourceBlocked('Capture policy changed during request',code='access_denied',url=target,policy_scope='host')
+-    if not policy.get('retention_allowed') or not policy.get('reuse_allowed'):
+-        response=transport.fetch_capture(url,allowed_hosts=allowed_hosts,access_check=access)
+-        if response.status!=200:raise SourceBlocked('Unexpected uncached 304',code='http_error',url=url)
+-        access(response.url)
+-        headers={k.lower():v for k,v in response.headers.items()}
+-        return response,{**receipt(response),'retain_body':bool(policy.get('retention_allowed')) and not prohibited(headers) and cache_ttl(headers,3600)>0}
+-    ttl=policy.get('ttl_seconds',3600)
+-    if not isinstance(ttl,(int,float)) or not 0<ttl<=86400:raise ValueError('Capture TTL must be >0 and <=86400')
+-    root=Path(root).resolve();root.mkdir(parents=True,exist_ok=True,mode=0o700)
+-    with (root/'key.lock').open('a+b') as lock:
+-        fcntl.flock(lock,fcntl.LOCK_EX)
+-        keypath=root/'capture.key'
+-        if not keypath.exists():
+-            fd=os.open(str(keypath),os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+-            with os.fdopen(fd,'wb') as stream:stream.write(os.urandom(32))
+-        key=keypath.read_bytes()
+-    cache_id=hashlib.sha256(canonical([url,scope])).hexdigest()
+-    with (root/(cache_id+'.lock')).open('a+b') as lock:
+-        fcntl.flock(lock,fcntl.LOCK_EX);access(url)
+-        index=root/(cache_id+'.json');cached=None;body=None
+-        if index.exists():
+-            try:
+-                envelope=json.loads(index.read_text());payload=envelope['payload']
+-                if not hmac.compare_digest(envelope['signature'],hmac.new(key,canonical(payload),hashlib.sha256).hexdigest()):raise ValueError('signature')
+-                candidate=payload['receipt'];path=root/'objects'/(candidate['sha256']+'.body')
+-                if path.stat().st_size>transport.max_response_bytes:
+-                    raise BudgetExceeded('Cached response exceeds response cap',code='response_too_large',url=url,budget_reason='response_bytes')
+-                body=path.read_bytes()
+-                if hashlib.sha256(body).hexdigest()!=candidate['sha256']:raise ValueError('body hash')
+-                if payload['scope']!=scope or candidate['requested_url']!=url:raise ValueError('scope')
+-                if 0<=clock()-payload['stored_at']<min(ttl,payload['ttl']):cached=payload
+-            except (ValueError,KeyError,OSError,TypeError):
+-                atomic(root/(cache_id+'.held-'+uuid.uuid4().hex+'.json'),index.read_bytes())
+-        validators={}
+-        if cached:
+-            headers=cached['headers']
+-            if headers.get('etag'):validators['If-None-Match']=headers['etag']
+-            elif headers.get('last-modified'):validators['If-Modified-Since']=headers['last-modified']
+-        response=transport.fetch_capture(url,allowed_hosts=allowed_hosts,validators=validators,access_check=access)
+-        headers={k.lower():v for k,v in response.headers.items()}
+-        access(response.url)
+-        if response.status==304:
+-            if not cached or not validators or response.url!=cached['receipt']['url'] or list(response.redirect_chain)!=cached['redirect_chain']:
+-                raise SourceBlocked('Conditional capture identity mismatch',code='capture_integrity_review',url=url)
+-            # Conditional headers can revoke previously permitted reuse.
+-            merged={**cached['headers'],**headers}
+-            if prohibited(merged) or cache_ttl(merged,ttl)<=clock()-cached['stored_at']:
+-                index.replace(root/(cache_id+'.held-'+uuid.uuid4().hex+'.json'))
+-                raise SourceBlocked('Source revoked shared reuse',code='access_denied',url=url)
+-            if len(body)>transport.max_response_bytes or transport.bytes_fetched+transport.capture_reused_bytes+len(body)>transport.max_bytes:
+-                raise BudgetExceeded('Capture processing byte budget exceeded',code='budget_deferred',url=url,retryable=True,budget_reason='reused_bytes')
+-            transport.capture_cache_hits+=1;transport.capture_reused_bytes+=len(body)
+-            return Response(body,cached['original_headers'],response.url,200,True,response.redirect_chain),dict(cached['receipt'])
+-        if response.status!=200:raise SourceBlocked('Unexpected capture response',code='http_error',url=url)
+-        source_receipt=receipt(response)
+-        if prohibited(headers) or cache_ttl(headers,ttl)<=0:
+-            if index.exists():index.replace(root/(cache_id+'.held-'+uuid.uuid4().hex+'.json'))
+-            return response,{**source_receipt,'retain_body':False}
+-        age=0
+-        try:age=max(0,int(headers.get('age','0')))
+-        except ValueError:return response,source_receipt
+-        for directive in headers.get('cache-control','').lower().split(','):
+-            if directive.strip().startswith('max-age='):
+-                try:ttl=min(ttl,max(0,int(directive.split('=',1)[1].strip(' "'))-age))
+-                except ValueError:ttl=0
+-        if ttl<=0:return response,source_receipt
+-        access(response.url)
+-        atomic(root/'objects'/(source_receipt['sha256']+'.body'),response.body)
+-        payload={'scope':scope,'receipt':source_receipt,'headers':headers,'original_headers':response.headers,
+-                 'redirect_chain':list(response.redirect_chain),'stored_at':clock(),'ttl':ttl}
+-        atomic(index,canonical({'payload':payload,'signature':hmac.new(key,canonical(payload),hashlib.sha256).hexdigest()}))
+-        return response,source_receipt
+-
+-
+-def prohibited(headers):
+-    control=headers.get('cache-control','').lower()
+-    return any(flag in control for flag in ('no-store','private','no-cache')) or bool(headers.get('set-cookie')) or bool(headers.get('vary'))
+-
+-
+-def job_capture_options(job,root=None,policy_check=None):
+-    root=root or job.get('capture_root')
+-    if root and policy_check is None and job.get('capture_policy_path'):
+-        path=Path(job['capture_policy_path'])
+-        policy_check=lambda url:json.loads(path.read_text())
+-    return {'root':root,'policy_check':policy_check}
+-
+-
+-def cache_ttl(headers,limit):
+-    try:age=max(0,int(headers.get('age','0')))
+-    except (ValueError,TypeError):return 0
+-    for field in headers.get('cache-control','').lower().split(','):
+-        if field.strip().startswith('max-age='):
+-            try:limit=min(limit,max(0,int(field.split('=',1)[1].strip(' "'))-age))
+-            except (ValueError,TypeError):return 0
+-    return limit
+--- a/scripts/market_map/contact_enrichment.py
++++ b/scripts/market_map/contact_enrichment.py
+@@ -20,7 +20,6 @@
+ from .relationships import canonical_url
+ from .transport import Transport, SourceBlocked, BudgetExceeded
+ from .fetch_outcomes import outcome
+-from .contact_capture import get_or_fetch_capture,job_capture_options
+ from . import frontier_retry, contact_frontier
+ from .verification_pilot import storage_guard,stamp,spreadsheet_cell
+ 
+@@ -71,7 +70,7 @@
+     return len(rows)
+ 
+ 
+-def collect_domain(job,frontier,*,page_limit=4,checkpoint=None,capture_root=None,capture_policy=None):
++def collect_domain(job,frontier,*,page_limit=4,checkpoint=None):
+     from .contact_context import extract_contact_context
+     client=Transport(max_requests=18,max_bytes=4_000_000,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0)
+     hosts={job['domain'],'www.'+job['domain']}
+@@ -90,14 +89,14 @@
+         phase='fetch'
+         if checkpoint:checkpoint(result)
+         try:
+-            response,source_capture=get_or_fetch_capture(url,client,allowed_hosts=hosts,**job_capture_options(job,capture_root,capture_policy))
++            response=client.fetch(url,allowed_hosts=hosts)
+             visited.add(response.url)
+             content_type=next((v for k,v in response.headers.items() if k.lower()=='content-type'),'')
+             if content_type and 'html' not in content_type.lower():
+                 result['frontier_updates'].append((url,'non_html_review',None));continue
+             phase='parse'
+             extracted=extract_contact_context(response.body,response.url)
+-            facts={'url':response.url,'requested_url':url,'content_sha256':hashlib.sha256(response.body).hexdigest(),'observed_at':source_capture['captured_at'],'capture_id':source_capture['capture_id'],'processed_at':stamp(),'capture_reused':response.from_cache}
++            facts={'url':response.url,'requested_url':url,'content_sha256':hashlib.sha256(response.body).hexdigest(),'observed_at':stamp()}
+             result['pages'].append(facts)
+             for category in CATEGORIES:
+                 for record in extracted.get(category,[]):
+@@ -202,7 +201,7 @@
+     return added
+ 
+ 
+-def run(source_queue,output,overlay_path,*,workers=2,max_domains=128,continuous=False,graph_path=None,phone_queue=None,saved_browser=None,collector=None,capture_root=None,capture_policy_path=None):
++def run(source_queue,output,overlay_path,*,workers=2,max_domains=128,continuous=False,graph_path=None,phone_queue=None,saved_browser=None,collector=None):
+     if not 1<=workers<=4 or not 1<=max_domains<=10000:raise ValueError('Bounded worker/domain settings required')
+     output=Path(output);output.mkdir(parents=True,exist_ok=True);storage_guard(output)
+     with (output/'collector.lock').open('a') as lock:
+@@ -229,7 +228,6 @@
+                         for row in db.execute("SELECT * FROM jobs WHERE status='pending' ORDER BY attempts,email_source_pages DESC,domain LIMIT 256").fetchall():
+                             if len(pending)>=workers or completed+len(pending)>=max_domains:break
+                             job=dict(row);domain=job['domain']
+-                            if capture_root:job.update(capture_root=str(capture_root),capture_policy_path=str(capture_policy_path) if capture_policy_path else None)
+                             if domain in busy:continue
+                             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+                                 with db:db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold' WHERE domain=?",(domain,))
+--- a/scripts/market_map/contact_observation_store.py
++++ b/scripts/market_map/contact_observation_store.py
+@@ -47,7 +47,7 @@
+     payload = encoded({k:v for k,v in page.items() if k!='raw_body_base64'})
+     values=(receipt,page['url'],fetched,digest,zlib.compress(raw) if raw is not None else None,provenance,payload)
+     existing=db.execute('SELECT * FROM captures WHERE id=?',(receipt,)).fetchone()
+-    if existing and tuple(existing)[:6]!=values[:6]:raise ValueError('capture receipt reused with different evidence')
++    if existing and tuple(existing)!=values:raise ValueError('capture receipt reused with different evidence')
+     db.execute('INSERT OR IGNORE INTO captures VALUES(?,?,?,?,?,?,?)',values)
+     return receipt
+ 
+--- a/scripts/market_map/email_acquisition.py
++++ b/scripts/market_map/email_acquisition.py
+@@ -30,7 +30,6 @@
+ from .relationships import canonical_url, excluded, identity_supported
+ from .transport import Transport, SourceBlocked, BudgetExceeded
+ from .fetch_outcomes import outcome
+-from .contact_capture import get_or_fetch_capture,job_capture_options
+ from . import frontier_retry, contact_frontier
+ from .verification_pilot import website_candidate, stamp, encode, storage_guard, file_hash, spreadsheet_cell
+ 
+@@ -207,7 +206,7 @@
+         db.execute('ROLLBACK TO email_dual_write');db.execute('RELEASE email_dual_write');raise
+ 
+ 
+-def collect_domain(job, frontier, names, *, page_limit=4, byte_limit=4_000_000, checkpoint=None,capture_root=None,capture_policy=None):
++def collect_domain(job, frontier, names, *, page_limit=4, byte_limit=4_000_000, checkpoint=None):
+     transport = Transport(max_requests=20,max_bytes=byte_limit,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0)
+     allowed = {job["domain"],"www."+job["domain"]}
+     out = {"domain":job["domain"],"observed_at":stamp(),"pages":[],"frontier_updates":[],"discovered":[],"emails":[],
+@@ -227,7 +226,7 @@
+         phase='fetch'
+         if checkpoint:checkpoint(out)
+         try:
+-            response,source_capture = get_or_fetch_capture(url,transport,allowed_hosts=allowed,**job_capture_options(job,capture_root,capture_policy))
++            response = transport.fetch(url,allowed_hosts=allowed)
+             visited.add(response.url)
+             content_type = next((value for key,value in response.headers.items() if key.lower()=="content-type"),"")
+             if content_type and "html" not in content_type.lower():
+@@ -237,9 +236,8 @@
+             doc = html.fromstring(response.body,base_url=response.url)
+             title = " ".join(" ".join(doc.xpath('//title/text() | //h1//text()')).split())[:800]
+             matches = [name for name in names if identity_supported(name,{"title":title})]
+-            facts = {"capture_id":source_capture["capture_id"],"raw_body_base64":base64.b64encode(response.body).decode("ascii"),"extractor_version":EXTRACTOR_VERSION,"url":response.url,"requested_url":url,"checked_at":source_capture["captured_at"],"content_sha256":hashlib.sha256(response.body).hexdigest(),
++            facts = {"capture_id":uuid.uuid4().hex,"raw_body_base64":base64.b64encode(response.body).decode("ascii"),"extractor_version":EXTRACTOR_VERSION,"url":response.url,"requested_url":url,"checked_at":stamp(),"content_sha256":hashlib.sha256(response.body).hexdigest(),
+                      "title":title,"candidate_name_heading_matches":matches,"identity_status":"publisher_self_identification_only" if matches else "not_established"}
+-            if not source_capture["retain_body"]:facts.pop("raw_body_base64",None)
+             out["pages"].append(facts)
+             for record in extract_published_emails(response.body,response.url):
+                 record.update(capture_id=facts["capture_id"],processing_mode="extraction",processed_at=facts["checked_at"],observed_at=facts["checked_at"],candidate_name_heading_matches=matches,
+@@ -313,7 +311,7 @@
+         return _run_workers(queue_path,**kwargs)
+ 
+ 
+-def _run_workers(queue_path, *, max_domains=256, workers=8, page_limit=4, reviews=None, progress=None, isolate_domains=True, deadline_seconds=60,capture_root=None,capture_policy_path=None):
++def _run_workers(queue_path, *, max_domains=256, workers=8, page_limit=4, reviews=None, progress=None, isolate_domains=True, deadline_seconds=60):
+     from .email_domain_process import collect_bounded
+     if not 1<=workers<=16 or not 1<=max_domains<=10000 or not 1<=page_limit<=12:
+         raise ValueError('Explicit bounded worker/domain/page settings required')
+@@ -346,7 +344,6 @@
+                     if row is None:
+                         break
+                     job=dict(row);domain=job['domain']
+-                    if capture_root:job.update(capture_root=str(capture_root),capture_policy_path=str(capture_policy_path) if capture_policy_path else None)
+                     note=review_notes.get(domain,{})
+                     if note.get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+                         with db:db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold' WHERE domain=?",(domain,))
+--- a/scripts/market_map/offline_guard.py
++++ b/scripts/market_map/offline_guard.py
+@@ -14,12 +14,7 @@
+ 
+     def allowed_path(self, path, dir_fd=None):
+         if isinstance(path, int):
+-            try:
+-                if sys.platform == 'darwin':
+-                    import fcntl
+-                    path=os.fsdecode(fcntl.fcntl(path,50,b'\0'*1024).split(b'\0')[0])
+-                else:path=os.readlink('/proc/self/fd/'+str(path))
+-            except (OSError,ValueError):return False
++            return False  # Opening arbitrary inherited descriptors is not allowed.
+         try:
+             if dir_fd not in (None, -1) and not os.path.isabs(path):
+                 if sys.platform == 'darwin':
+--- a/scripts/market_map/phone_acquisition.py
++++ b/scripts/market_map/phone_acquisition.py
+@@ -19,7 +19,6 @@
+ from .relationships import canonical_url
+ from .transport import Transport, SourceBlocked, BudgetExceeded
+ from .fetch_outcomes import outcome
+-from .contact_capture import get_or_fetch_capture,job_capture_options
+ from . import frontier_retry, contact_frontier
+ from .verification_pilot import storage_guard, stamp, spreadsheet_cell
+ 
+@@ -61,7 +60,7 @@
+     return total
+ 
+ 
+-def collect_domain(job,frontier,*,page_limit=3,checkpoint=None,capture_root=None,capture_policy=None):
++def collect_domain(job,frontier,*,page_limit=3,checkpoint=None):
+     from .phone_extraction import extract_published_phones
+     client=Transport(max_requests=16,max_bytes=4_000_000,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0)
+     hosts={job['domain'],'www.'+job['domain']}
+@@ -80,14 +79,14 @@
+         phase='fetch'
+         if checkpoint:checkpoint(result)
+         try:
+-            response,source_capture=get_or_fetch_capture(url,client,allowed_hosts=hosts,**job_capture_options(job,capture_root,capture_policy))
++            response=client.fetch(url,allowed_hosts=hosts)
+             visited.add(response.url)
+             content_type=next((v for k,v in response.headers.items() if k.lower()=='content-type'),'')
+             if content_type and 'html' not in content_type.lower():
+                 result['frontier_updates'].append((url,'non_html_review',None));continue
+             phase='parse'
+             doc=html.fromstring(response.body,base_url=response.url)
+-            facts={'url':response.url,'requested_url':url,'content_sha256':hashlib.sha256(response.body).hexdigest(),'observed_at':source_capture['captured_at'],'capture_id':source_capture['capture_id'],'processed_at':stamp(),'capture_reused':response.from_cache,
++            facts={'url':response.url,'requested_url':url,'content_sha256':hashlib.sha256(response.body).hexdigest(),'observed_at':stamp(),
+                    'page_title':' '.join(' '.join(doc.xpath('//title/text() | //h1//text()')).split())[:500]}
+             result['pages'].append(facts)
+             for phone in extract_published_phones(response.body,response.url):
+@@ -208,7 +207,7 @@
+     return added
+ 
+ 
+-def run(source_queue,output,overlay_path,*,workers=2,max_domains=256,continuous=False,graph_path=None,collector=None,saved_browser=None,capture_root=None,capture_policy_path=None):
++def run(source_queue,output,overlay_path,*,workers=2,max_domains=256,continuous=False,graph_path=None,collector=None,saved_browser=None):
+     if not 1<=workers<=4 or not 1<=max_domains<=10000:raise ValueError('Bounded workers/domain limit required')
+     output=Path(output);output.mkdir(parents=True,exist_ok=True);storage_guard(output)
+     with (output/'collector.lock').open('a') as lock:
+@@ -236,7 +235,6 @@
+                         for row in rows:
+                             if len(pending)>=workers or completed+len(pending)>=max_domains:break
+                             job=dict(row);domain=job['domain']
+-                            if capture_root:job.update(capture_root=str(capture_root),capture_policy_path=str(capture_policy_path) if capture_policy_path else None)
+                             if domain in busy:continue
+                             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+                                 with db:db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold' WHERE domain=?",(domain,))
+--- a/scripts/market_map/transport.py
++++ b/scripts/market_map/transport.py
+@@ -35,7 +35,6 @@
+     url: str
+     status: int = 200
+     from_cache: bool = False
+-    redirect_chain: tuple = ()
+ 
+     def json(self):
+         try:
+@@ -82,7 +81,6 @@
+         self.min_interval, self.retries = min_interval, retries
+         self.allowed_hosts = set(allowed_hosts or [])
+         self.requests = self.bytes_fetched = self.cache_hits = 0
+-        self.capture_cache_hits = self.capture_reused_bytes = 0
+         self.robots_checked, self._robots, self._host_last = {}, {}, {}
+         self.started_at, self._started = self._stamp(), time.monotonic()
+         self._directory_cookies = http.cookiejar.CookieJar() if anonymous_directory_session else None
+@@ -97,7 +95,6 @@
+ 
+     def metrics(self):
+         return {"requests": self.requests, "bytes_fetched": self.bytes_fetched,
+-                "capture_cache_hits":self.capture_cache_hits,"capture_reused_bytes":self.capture_reused_bytes,
+                 "cache_hits": self.cache_hits, "elapsed_seconds": round(time.monotonic()-self._started, 3),
+                 "estimated_cost": 0, "paid_service_calls": 0, "browser_rendered_pages": 0,
+                 "model_tokens": 0, "started_at": self.started_at,
+@@ -117,15 +114,12 @@
+             raise SourceBlocked("Non-public network target: " + host,code="private_target",url=url,policy_scope="host")
+         return parsed
+ 
+-    def _request(self, url, allowed_hosts, headers=None, *, check_redirect_robots=False, data=None, access_check=None):
+-        chain=[]
++    def _request(self, url, allowed_hosts, headers=None, *, check_redirect_robots=False, data=None):
+         for redirect in range(5):
+-            if access_check:access_check(url)
+-            chain.append(url)
+             parsed = self._guard(url, allowed_hosts)
+             host = parsed.hostname
+             for attempt in range(self.retries + 1):
+-                if self.requests >= self.max_requests or self.bytes_fetched + self.capture_reused_bytes >= self.max_bytes:
++                if self.requests >= self.max_requests or self.bytes_fetched >= self.max_bytes:
+                     raise BudgetExceeded("HTTP request/byte budget exhausted",code="budget_deferred",url=url,retryable=True,budget_reason="request_or_total_bytes")
+                 wait = self.min_interval - (time.monotonic() - self._host_last.get(host, 0))
+                 if wait > 10:
+@@ -138,7 +132,7 @@
+                     "Accept": "application/json,text/csv,text/html,*/*;q=0.5", **(headers or {})})
+                 try:
+                     with self.opener.open(request, timeout=self.timeout) as response:
+-                        limit = min(self.max_response_bytes, self.max_bytes - self.bytes_fetched - self.capture_reused_bytes)
++                        limit = min(self.max_response_bytes, self.max_bytes - self.bytes_fetched)
+                         body = response.read(limit + 1)
+                         self.bytes_fetched += len(body)
+                         if len(body) > limit:
+@@ -146,11 +140,11 @@
+                         content = body[:10000].lower()
+                         if any(v in content for v in (b"cf-chl-", b"verify you are human", b".well-known/sgcaptcha")):
+                             raise SourceBlocked("Source access challenge; no bypass attempted",code="access_challenge",url=url,policy_scope="host")
+-                        return Response(body, dict(response.headers), url, response.status,redirect_chain=tuple(chain))
++                        return Response(body, dict(response.headers), url, response.status)
+                 except urllib.error.HTTPError as exc:
+                     retry_at=retry_after((exc.headers or {}).get('Retry-After',''))
+                     if exc.code == 304:
+-                        return Response(b"", dict(exc.headers), url, 304,redirect_chain=tuple(chain))
++                        return Response(b"", dict(exc.headers), url, 304)
+                     if exc.code in (301, 302, 303, 307, 308):
+                         if data is not None:
+                             raise SourceBlocked("Public search form redirected; inspect the offered route before retrying") from exc
+@@ -239,21 +233,6 @@
+             temp = cache_path.with_suffix(".tmp")
+             temp.write_text(json.dumps(record))
+             temp.replace(cache_path)
+-        return response
+-
+-    def fetch_capture(self,url,*,allowed_hosts,validators=None,access_check=None):
+-        """Revalidate source access even for a cached body; HTTP 304 is explicit."""
+-        if self._directory_cookies is not None:
+-            raise SourceBlocked('Shared capture requires a stateless anonymous transport',code='scope_denied',url=url)
+-        allowed=set(allowed_hosts)
+-        if access_check:access_check(url)
+-        self._guard(url,allowed)
+-        # A previous robots decision cannot hide a changed policy on this invocation.
+-        self._robots.clear()
+-        self._check_robots(url,allowed)
+-        response=self._request(url,allowed,validators or {},check_redirect_robots=True,access_check=access_check)
+-        if response.status not in (200,304):
+-            raise SourceBlocked('HTTP %s: %s'%(response.status,url),code='http_missing' if response.status in (404,410) else 'http_error',http_status=response.status,url=url)
+         return response
+ 
+     def fetch_public_form(self, url, fields, *, documentation_url):
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -46,8 +46,6 @@
+ 
+ TESTS['PR-15'] = TESTS['PR-14'] + ['tests/market_map/test_contact_page.py','tests/market_map/test_regional_contact_daily.py']
+ 
+-TESTS['PR-16'] = TESTS['PR-15'] + ['tests/market_map/test_contact_capture.py','tests/market_map/test_source_capture_cache.py','tests/market_map/test_trusted_source_capture.py']
+-
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- a/tests/extraction/test_offline_guard.py
++++ b/tests/extraction/test_offline_guard.py
+@@ -44,10 +44,3 @@
+         self.assertFalse(guard.allowed_path(guard.root / '..' / 'elsewhere'))
+         with guard.expected_denial(), self.assertRaises(PermissionError):
+             os.symlink(Path(__file__).parent, guard.root / 'outside-link')
+-    def test_descriptor_access_stays_scoped_to_temp(self):
+-        guard=globals()['OFFLINE_GUARD']
+-        with tempfile.TemporaryDirectory() as directory:
+-            fd=os.open(str(Path(directory)/'key'),os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+-            self.assertTrue(guard.allowed_path(fd))
+-            with os.fdopen(fd,'wb') as stream:stream.write(b'fixture')
+-        with open(__file__,'rb') as source:self.assertFalse(guard.allowed_path(source.fileno()))
+--- a/tests/extraction/tranche5_replay.py
++++ /dev/null
+@@ -1,55 +0,0 @@
+-"""Offline deterministic frontier and byte-transfer replay; never opens network sockets."""
+-import argparse,importlib.util,json,sys,tempfile
+-from pathlib import Path
+-from unittest.mock import patch
+-ROOT=Path(__file__).resolve().parents[2]
+-
+-def main():
+- p=argparse.ArgumentParser();p.add_argument('--implementation-root',default=str(ROOT));p.add_argument('--output',required=True);a=p.parse_args()
+- out=Path(a.output).resolve()
+- if out.exists() or not out.is_relative_to(Path(tempfile.gettempdir()).resolve()):p.error('new temporary output directory required')
+- sys.path.insert(0,str(Path(a.implementation_root).resolve()))
+- from scripts.market_map.offline_guard import OfflineGuard
+- guard=OfflineGuard(out);guard.install();out.mkdir()
+- from scripts.market_map import email_acquisition,phone_acquisition,contact_enrichment
+- from scripts.market_map.transport import Response
+- graph={'/':b'<a href="/about">About</a><a href="/contact-lenses">Shop</a><a href="/contact">Contact</a><a href="/equipe">Equipe</a>', '/about':b'<p>Our history</p>', '/contact-lenses':b'<p>Shop</p>', '/contact':b'<p>Email desk@business.test Phone (519) 555-0123</p>', '/equipe':b'<p>Our team</p>'}
+- from urllib.parse import urlsplit
+- rows={}
+- for module in [email_acquisition,phone_acquisition,contact_enrichment]:
+-  trace=[]
+-  with patch.object(module,'Transport') as factory:
+-   client=factory.return_value;client.metrics.return_value={}
+-   def fetch(url,**kw):
+-    body=graph[urlsplit(url).path];trace.append({'url':url,'body_bytes':len(body),'labeled_contact_page':urlsplit(url).path=='/contact'});return Response(body,{},url)
+-   client.fetch.side_effect=fetch
+-   args=[{'domain':'business.test','url':'https://business.test/'},[{'url':'https://business.test/','depth':0}]]
+-   if module==email_acquisition:args.append([])
+-   result=module.collect_domain(*args,page_limit=2)
+-   rows[module.__name__]={'requests':trace,'output':result,'contact_page_reached':any(r['labeled_contact_page'] for r in trace)}
+- # Frozen labeled corpus separates extraction/attribution quality from scheduling.
+- from scripts.market_map.extraction_benchmark import benchmark
+- corpus=ROOT/'tests/extraction/tranche3_fixtures'
+- accuracy=benchmark(corpus/'manifest.json',corpus/'labels.jsonl')
+- report={'frontier':rows,'accuracy':accuracy}
+- # Resource replay uses actual guarded Transport with injected HTTP responses.
+- spec=importlib.util.spec_from_file_location('fixture_server',ROOT/'tests/market_map/test_contact_capture.py');fixture=importlib.util.module_from_spec(spec)
+- try:
+-  spec.loader.exec_module(fixture)
+- except ModuleNotFoundError:
+-  fixture=None # pre-PR16 tree intentionally has no adapter
+- if fixture:
+-  from scripts.market_map.contact_capture import get_or_fetch_capture
+-  measured={}
+-  for shared in [False,True]:
+-   server=fixture.Server();metrics=[];receipts=[]
+-   with patch('socket.getaddrinfo',return_value=fixture.PUBLIC):
+-    for _ in range(3):
+-     t=server.transport();response,receipt=get_or_fetch_capture('https://business.test/contact',t,allowed_hosts={'business.test'},root=out/'cache' if shared else None,policy_check=fixture.policy)
+-     metrics.append(t.metrics());receipts.append(receipt)
+-   measured['shared' if shared else 'independent']={'trace':server.trace,'metrics':metrics,'full_body_responses':server.full_bodies(),'http_requests':len(server.trace),'network_body_bytes':sum(m['bytes_fetched'] for m in metrics),'reused_bytes':sum(m['capture_reused_bytes'] for m in metrics),'distinct_capture_receipts':len({r['capture_id'] for r in receipts})}
+-  report['resource_replay']=measured
+- (out/'run.json').write_text(json.dumps(report,indent=2,sort_keys=True,default=str)+'\n')
+- if guard.violations:raise RuntimeError(guard.violations)
+- print(json.dumps({'frontier':{k:v['contact_page_reached'] for k,v in rows.items()},'accuracy':{k:accuracy[k] for k in ['capture_count','extraction','attribution']},'resources':report.get('resource_replay')}))
+-if __name__=='__main__':main()
+--- a/tests/market_map/test_contact_capture.py
++++ /dev/null
+@@ -1,125 +0,0 @@
+-import concurrent.futures,hashlib,json,socket,tempfile,unittest,urllib.error
+-from pathlib import Path
+-from unittest.mock import patch
+-from scripts.market_map.contact_capture import get_or_fetch_capture
+-from scripts.market_map.transport import Transport,SourceBlocked,BudgetExceeded
+-from scripts.market_map.contact_page import parse_contact_page
+-from scripts.market_map import email_acquisition,phone_acquisition,contact_enrichment
+-
+-PUBLIC=[(socket.AF_INET,socket.SOCK_STREAM,6,'',('8.8.8.8',443))]
+-BODY=b'<p>desk@business.test Phone: (519) 555-0123</p>'
+-ROBOTS=b'User-agent: *\nAllow: /\n'
+-
+-def policy(url):return {'allowed':True,'allowed_hosts':['business.test'],'rights_status':'public_capture_reuse_approved','policy_id':'fixture','revision':'1','session_scope':'stateless','representation':'static-html','retention_allowed':True,'reuse_allowed':True,'valid_until':'2099-01-01T00:00:00+00:00','ttl_seconds':3600}
+-class HTTP:
+- def __init__(self,body,headers=None):self.body=body;self.headers=headers or {};self.status=200
+- def __enter__(self):return self
+- def __exit__(self,*args):pass
+- def read(self,limit):return self.body[:limit]
+-class Server:
+- def __init__(self):self.trace=[];self.control='public, max-age=3600';self.deny=False;self.robots=ROBOTS;self.redirect=False;self.cookie=False
+- def open(self,request,timeout=None):
+-  url=request.full_url;conditional=bool(request.get_header('If-none-match'));self.trace.append({'url':url,'conditional':conditional})
+-  if url.endswith('/robots.txt'):return HTTP(self.robots)
+-  if self.deny:raise urllib.error.HTTPError(url,403,'denied',{},None)
+-  if self.redirect and url.endswith('/old'):raise urllib.error.HTTPError(url,302,'redirect',{'Location':'/contact'},None)
+-  headers={'ETag':'"v1"','Content-Type':'text/html','Cache-Control':self.control}
+-  if self.cookie:headers['Set-Cookie']='fixture=private'
+-  if conditional:raise urllib.error.HTTPError(url,304,'unchanged',headers,None)
+-  return HTTP(BODY,headers)
+- def transport(self,**kw):
+-  client=Transport(min_interval=0,retries=0,allowed_hosts={'business.test'},**kw);client.opener.open=self.open;return client
+- def full_bodies(self):return sum(not r['url'].endswith('/robots.txt') and not r['conditional'] and not (self.redirect and r['url'].endswith('/old')) for r in self.trace)
+-
+-class CaptureTests(unittest.TestCase):
+- def setUp(self):self.dns=patch('socket.getaddrinfo',return_value=PUBLIC);self.dns.start();self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)/'cache';self.server=Server()
+- def tearDown(self):self.temp.cleanup();self.dns.stop()
+- def get(self,**kw):return get_or_fetch_capture(kw.pop('url','https://business.test/contact'),kw.pop('transport',self.server.transport()),allowed_hosts={'business.test'},root=self.root,policy_check=kw.pop('policy_check',policy),**kw)
+- def test_three_concurrent_consumers_one_body_and_unchanged_capture_time(self):
+-  def worker(i):
+-   t=self.server.transport();response,receipt=self.get(transport=t);return response,receipt,t.metrics()
+-  with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:rows=list(pool.map(worker,range(3)))
+-  self.assertEqual(self.server.full_bodies(),1);self.assertEqual(len(self.server.trace),6)
+-  self.assertEqual(len({r[1]['capture_id'] for r in rows}),1);self.assertEqual(len({r[1]['captured_at'] for r in rows}),1)
+-  self.assertEqual(sum(r[2]['capture_reused_bytes'] for r in rows),2*len(BODY));self.assertEqual(sum(r[2]['bytes_fetched'] for r in rows),len(BODY)+3*len(ROBOTS))
+-  self.assertTrue(all(parse_contact_page(r[0].body,r[1])['emails'] for r in rows))
+- def test_three_generic_extractors_share_source_receipt(self):
+-  clients=[]
+-  for module in [email_acquisition,phone_acquisition,contact_enrichment]:
+-   client=self.server.transport();clients.append(client)
+-   with patch.object(module,'Transport',return_value=client):
+-    args=[{'domain':'business.test'},[{'url':'https://business.test/contact','depth':0}]]
+-    if module==email_acquisition:args.append([])
+-    result=module.collect_domain(*args,page_limit=1,capture_root=self.root,capture_policy=policy)
+-    self.assertEqual(len(result['pages']),1)
+-  self.assertEqual(self.server.full_bodies(),1);self.assertEqual(sum(t.capture_cache_hits for t in clients),2)
+- def test_current_http_and_robots_denials_never_use_body(self):
+-  self.get();self.server.deny=True
+-  with self.assertRaises(SourceBlocked):self.get()
+-  self.server.deny=False;self.server.robots=b'User-agent: *\nDisallow: /\n'
+-  before=len(self.server.trace)
+-  with self.assertRaises(SourceBlocked):self.get()
+-  self.assertEqual(len(self.server.trace)-before,1)
+- def test_revoked_expired_policy_and_sessions_block_before_requests(self):
+-  self.get();before=len(self.server.trace)
+-  for update in [{'allowed':False},{'valid_until':'2000-01-01T00:00:00+00:00'},{'session_scope':'cookie-session'},{'holds':['manual_hold']}]:
+-   with self.assertRaises(SourceBlocked):self.get(policy_check=lambda url:{**policy(url),**update})
+-  self.assertEqual(len(self.server.trace),before)
+-  with self.assertRaises(SourceBlocked):self.get(transport=self.server.transport(anonymous_directory_session=True))
+- def test_ttl_scope_integrity_and_no_store(self):
+-  self.get(clock=lambda:1000);self.get(clock=lambda:5000);self.assertEqual(self.server.full_bodies(),2)
+-  self.get(policy_check=lambda url:{**policy(url),'revision':'2'},clock=lambda:5001);self.assertEqual(self.server.full_bodies(),3)
+-  next((self.root/'objects').glob('*.body')).write_bytes(b'corrupt')
+-  self.get(clock=lambda:5002);self.assertEqual(self.server.full_bodies(),4)
+-  self.server.control='no-store'
+-  with self.assertRaises(SourceBlocked):self.get(clock=lambda:5003)
+-  response,receipt=self.get(clock=lambda:5004);self.assertFalse(receipt['retain_body'])
+- def test_private_cookie_maxage_zero_and_retention_denied_do_not_share(self):
+-  for i,control in enumerate(['private','no-store','max-age=0']):
+-   self.server.control=control
+-   options=lambda url:{**policy(url),'revision':str(i+10)}
+-   self.get(policy_check=options);self.get(policy_check=options)
+-  self.assertEqual(self.server.full_bodies(),6)
+-  self.server.control='public';self.server.cookie=True
+-  self.get();self.get();self.assertEqual(self.server.full_bodies(),8)
+-  self.server.cookie=False
+-  for _ in range(2):self.get(policy_check=lambda url:{**policy(url),'retention_allowed':False})
+-  self.assertEqual(self.server.full_bodies(),10)
+- def test_redirect_identity_and_budgets_are_not_bypassed(self):
+-  self.server.redirect=True
+-  first=self.get(url='https://business.test/old');second=self.get(url='https://business.test/old')
+-  self.assertEqual(first[1]['url'],'https://business.test/contact');self.assertTrue(second[0].from_cache)
+-  with self.assertRaises(BudgetExceeded):self.get(url='https://business.test/old',transport=self.server.transport(max_requests=1))
+-  with self.assertRaises(BudgetExceeded):self.get(url='https://business.test/old',transport=self.server.transport(max_response_bytes=10))
+- def test_policy_denied_redirect_is_not_requested(self):
+-  self.server.redirect=True
+-  with self.assertRaises(SourceBlocked):self.get(url='https://business.test/old',policy_check=lambda url:{**policy(url),'allowed':not url.endswith('/contact')})
+-  self.assertFalse(any(r['url'].endswith('/contact') for r in self.server.trace))
+-
+- def test_policy_change_during_response_blocks_release_and_recovers(self):
+-  self.get();revoked=[False];original=self.server.open
+-  def changed(request,timeout=None):
+-   try:return original(request,timeout)
+-   finally:
+-    if not request.full_url.endswith('/robots.txt'):revoked[0]=True
+-  client=self.server.transport();client.opener.open=changed
+-  with self.assertRaises(SourceBlocked):self.get(transport=client,policy_check=lambda url:{**policy(url),'allowed':not revoked[0]})
+-  response,receipt=self.get();self.assertTrue(response.from_cache)
+- def test_duplicate_content_after_expiry_is_new_fetch_receipt(self):
+-  _,first=self.get(clock=lambda:1000);_,second=self.get(clock=lambda:5000)
+-  self.assertEqual(first['sha256'],second['sha256']);self.assertNotEqual(first['capture_id'],second['capture_id']);self.assertNotEqual(first['captured_at'],second['captured_at'])
+- def test_reuse_disabled_respects_no_store(self):
+-  self.server.control='no-store'
+-  _,receipt=self.get(policy_check=lambda url:{**policy(url),'reuse_allowed':False})
+-  self.assertFalse(receipt['retain_body']);self.assertFalse(self.root.exists())
+- def test_capture_replay_preserves_original_payload_and_rejects_changed_source(self):
+-  import base64,sqlite3
+-  from scripts.market_map import contact_observation_store as store
+-  _,receipt=self.get()
+-  page={'capture_id':receipt['capture_id'],'url':receipt['url'],'checked_at':receipt['captured_at'],'content_sha256':receipt['sha256'],'raw_body_base64':base64.b64encode(BODY).decode(),'parser_version':'one'}
+-  db=sqlite3.connect(':memory:');store.initialize(db);store.capture(db,page)
+-  original=db.execute('SELECT * FROM captures').fetchone()
+-  store.capture(db,{**page,'parser_version':'two'})
+-  self.assertEqual(db.execute('SELECT * FROM captures').fetchall(),[original])
+-  with self.assertRaises(ValueError):store.capture(db,{**page,'checked_at':'2099-01-01'})
+-  db.close()
+--- a/tests/market_map/test_contact_page.py
++++ b/tests/market_map/test_contact_page.py
+@@ -33,7 +33,6 @@
+    group={'host':'business.test','seeds':['https://business.test/'],'records':[]}
+    first=regional.capture(group);self.assertEqual(client.fetch.call_count,1)
+    page=first['pages'][0];at=page['captured_at']
+-   folder=Path(page['body_path']).parent;old=json.loads((folder/'receipt.json').read_text());old['pages'][0]['parser_versions']={'phone':'old'};old['pages'][0]['structured_contacts']=[{'retained':'old projection'}];(folder/'receipt.json').write_text(json.dumps(old))
++   folder=Path(page['body_path']).parent;old=json.loads((folder/'receipt.json').read_text());old['pages'][0]['parser_versions']={'phone':'old'};(folder/'receipt.json').write_text(json.dumps(old))
+    second=regional.capture(group);self.assertEqual(client.fetch.call_count,1)
+    self.assertEqual(second['pages'][0]['captured_at'],at);self.assertTrue(second['pages'][0]['parse_history']);self.assertEqual(second['pages'][0]['parser_versions'],parser_versions())
+-   self.assertEqual(second['pages'][0]['parse_history'][0]['structured_contacts'],[{'retained':'old projection'}])
+--- a/tests/market_map/test_source_capture_cache.py
++++ b/tests/market_map/test_source_capture_cache.py
+@@ -55,11 +55,6 @@
+         self.assertEqual(self.calls,2)
+         self.assertFalse((self.root/'.runtime/trusted-source-cache/objects').exists())
+     def test_processes_fetch_same_url_once(self):
+-        if globals().get('OFFLINE_GUARD'):
+-            from concurrent.futures import ThreadPoolExecutor
+-            with ThreadPoolExecutor(max_workers=3) as pool:list(pool.map(process_capture,[str(self.root)]*3))
+-            self.assertEqual((self.root/'fetches.txt').read_text().splitlines(),['fetch'])
+-            return
+         context=multiprocessing.get_context('fork')
+         workers=[context.Process(target=process_capture,args=(str(self.root),)) for _ in range(3)]
+         for worker in workers:worker.start()

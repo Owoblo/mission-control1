@@ -1,0 +1,478 @@
+--- a/scripts/discovery_v2/engine.py
++++ b/scripts/discovery_v2/engine.py
+@@ -1,22 +1,45 @@
+ """Category-agnostic, local evidence ledger and deterministic research planner.
+ No network, CRM mutation or outreach side effects. Costs are explicitly supplied.
+ """
+-import hashlib,json,re,sqlite3
++import hashlib,json,re,sqlite3,unicodedata
+ from urllib.parse import urlsplit
+ from datetime import datetime,timezone
+ 
+ def key(*parts):return hashlib.sha256(json.dumps(parts,sort_keys=True).encode()).hexdigest()[:24]
+ def norm(s):return re.sub(r'[^a-z0-9]','',str(s).lower())
++def identity_norm(s):return ' '.join(unicodedata.normalize('NFC',str(s)).casefold().split())
+ def host(s):
+  try:return (urlsplit(s if '://' in s else 'https://'+s).hostname or '').lower().removeprefix('www.')
+  except ValueError:return ''
+ def stamp():return datetime.now(timezone.utc).isoformat()
+ DIMENSIONS=('organization_identity','physical_site_identity','industry_classification','current_employment','role_relevance','email_deliverability','purchasing_relevance')
++IDENTITY_VERSION = 2
++
++class LegacyIdentitySchemaError(RuntimeError):
++ pass
++
++def source_identity(row, namespace):
++ """Publisher keys precede explicit profile contracts; no shared URL fallback."""
++ identity={'name':identity_norm(row.get('name','')), 'domain':host(row.get('website','')),
++           'city':identity_norm(row.get('city','')), 'address':identity_norm(row.get('address','')), 'unit':identity_norm(row.get('unit',''))}
++ for field in ('source_record_id','external_id'):
++  if row.get(field) not in (None,''):
++   return namespace, 'publisher:'+str(row[field]), identity
++ if row.get('source_url_is_record') is True and row.get('source_url'):
++  return namespace, 'profile:'+row['source_url'], identity
++ if all(identity[k] for k in ('name','city','address')):
++  return namespace, 'composite:'+key(identity['name'],identity['city'],identity['address'],identity['unit']), identity
++ return namespace, None, identity
++
+ SCHEMA='''
+ CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, source TEXT, family TEXT, scope TEXT, category TEXT, kind TEXT, captured_at TEXT, cost REAL, result TEXT);
+ CREATE TABLE IF NOT EXISTS entities(id TEXT PRIMARY KEY, name TEXT, domain TEXT, city TEXT, address TEXT);
+ CREATE TABLE IF NOT EXISTS observations(id TEXT PRIMARY KEY, run_id TEXT REFERENCES runs(id), entity_id TEXT REFERENCES entities(id), source_url TEXT, captured_at TEXT, payload TEXT);
+ CREATE TABLE IF NOT EXISTS source_links(source_url TEXT PRIMARY KEY, entity_id TEXT REFERENCES entities(id));
++CREATE TABLE IF NOT EXISTS identity_schema(version INTEGER PRIMARY KEY);
++INSERT OR IGNORE INTO identity_schema VALUES(2);
++CREATE TABLE IF NOT EXISTS source_records(namespace TEXT,record_key TEXT,entity_id TEXT REFERENCES entities(id),identity_json TEXT NOT NULL,first_observation_id TEXT,last_observation_id TEXT,PRIMARY KEY(namespace,record_key));
++CREATE TABLE IF NOT EXISTS unresolved_observations(id TEXT PRIMARY KEY,run_id TEXT NOT NULL REFERENCES runs(id),payload TEXT NOT NULL,reason TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS claims(id TEXT PRIMARY KEY, entity_id TEXT REFERENCES entities(id), dimension TEXT, status TEXT, observation_id TEXT REFERENCES observations(id), reason TEXT);
+ CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY, scope TEXT, category TEXT, family TEXT, status TEXT, priority REAL, reason TEXT, updated_at TEXT);
+ CREATE INDEX IF NOT EXISTS entity_identity ON entities(domain,name,city,address);
+@@ -24,36 +47,55 @@
+ '''
+ class Engine:
+  def __init__(self,path):
+-  self.db=sqlite3.connect(path);self.db.row_factory=sqlite3.Row;self.db.execute('PRAGMA foreign_keys=ON');self.db.executescript(SCHEMA)
+- def ingest(self, *,source,family,scope,category,rows,kind='discovery',cost=0,captured_at=None,attempt_id=None,coverage_complete=False):
++  self.db=sqlite3.connect(path);self.db.row_factory=sqlite3.Row;self.db.execute('PRAGMA foreign_keys=ON')
++  tables={r[0] for r in self.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
++  version=self.db.execute('SELECT version FROM identity_schema').fetchone() if 'identity_schema' in tables else None
++  if 'migration_state' in tables or ('entities' in tables and (not version or version[0]!=IDENTITY_VERSION)):
++   self.db.close()
++   raise LegacyIdentitySchemaError('Legacy identity ledger requires explicit new-file rebuild; in-place upgrade refused')
++  self.db.executescript(SCHEMA)
++ def ingest(self, *,source,family,scope,category,rows,kind='discovery',cost=0,captured_at=None,attempt_id=None,coverage_complete=False,namespace=None,allow_cross_source_match=True):
++  if not getattr(self,'_identity_rebuild',False) and self.db.execute("SELECT 1 FROM sqlite_master WHERE name='migration_state'").fetchone():
++   raise LegacyIdentitySchemaError('Rebuilt ledger is review-held; explicit activation review required')
+   if kind not in ('discovery','enrichment'):raise ValueError('Invalid run kind')
+   if cost<0:raise ValueError('Negative cost')
+   # Identical cached data cannot manufacture additional attempts or saturation.
+-  digest=key(source,family,scope,category,kind,sorted(rows,key=lambda r:json.dumps(r,sort_keys=True)),attempt_id)
++  digest=key('identity-v2',namespace,allow_cross_source_match,source,family,scope,category,kind,sorted(rows,key=lambda r:json.dumps(r,sort_keys=True)),attempt_id)
+   old=self.db.execute('SELECT result FROM runs WHERE id=?',(digest,)).fetchone()
+   if old:return {**json.loads(old[0]),'replayed':True}
+-  when=captured_at or stamp();result={'run_id':digest,'rows':len(rows),'new_entities':0,'overlap_entities':0,'invalid_rows':0,'conflicts':0,'kind':kind,'cost':cost,'coverage_complete':coverage_complete};seen=set()
++  when=captured_at or stamp();result={'run_id':digest,'rows':len(rows),'new_entities':0,'overlap_entities':0,'invalid_rows':0,'unresolved_rows':0,'conflicts':0,'kind':kind,'cost':cost,'coverage_complete':coverage_complete,'identity_version':IDENTITY_VERSION};seen=set()
+   with self.db:
+    self.db.execute('INSERT INTO runs VALUES(?,?,?,?,?,?,?,?,?)',(digest,source,family,scope,category,kind,when,cost,'{}'))
+    for r in rows:
+     url=r.get('source_url','');name=r.get('name','');city=norm(r.get('city',''));address=norm(r.get('address',''));domain=host(r.get('website',''))
+     if not name or not url or r.get('status')=='fetch_error':result['invalid_rows']+=1;continue
+-    linked=self.db.execute('SELECT e.* FROM source_links s JOIN entities e ON e.id=s.entity_id WHERE s.source_url=?',(url,)).fetchone();conflict=False
++    publisher,record_key,identity=source_identity(r,namespace or r.get('source_namespace') or source)
++    if record_key is None:
++     result['invalid_rows']+=1;result['unresolved_rows']+=1
++     self.db.execute('INSERT OR IGNORE INTO unresolved_observations VALUES(?,?,?,?)',(key(digest,r),digest,json.dumps(r,sort_keys=True),'insufficient_publisher_or_site_identity'))
++     continue
++    linked=self.db.execute('SELECT * FROM source_records WHERE namespace=? AND record_key=?',(publisher,record_key)).fetchone();conflict=False
+     if linked:
+-     entity=linked['id'];conflict=(norm(linked['name'])!=norm(name) or (domain and linked['domain'] and domain!=linked['domain']) or (city and linked['city'] and city!=linked['city']) or (address and linked['address'] and address!=linked['address']))
++     entity=linked['entity_id'];prior_identity=json.loads(linked['identity_json'])
++     conflict=any(prior_identity.get(k) and identity.get(k) and prior_identity[k]!=identity[k] for k in identity)
+     else:
+      # Full site match only; a shared domain is never enough. Empty sites cannot merge.
+-     matches=self.db.execute('SELECT * FROM entities WHERE domain=? AND city=? AND address=?',(domain,city,address)).fetchall() if domain and city and address else []
++     matches=self.db.execute('SELECT e.* FROM entities e WHERE domain=? AND city=? AND address=? AND NOT EXISTS(SELECT 1 FROM source_records s WHERE s.entity_id=e.id AND s.namespace=?)',(domain,city,address,publisher)).fetchall() if allow_cross_source_match and domain and city and address else []
+      matches=[x for x in matches if norm(x['name'])==norm(name)]
++     matches=[x for x in matches if all(json.loads(s[0])==identity for s in self.db.execute('SELECT identity_json FROM source_records WHERE entity_id=?',(x['id'],)))]
+      if len(matches)==1:entity=matches[0]['id']
+      else:
+-      entity=key('site-candidate',url);self.db.execute('INSERT INTO entities VALUES(?,?,?,?,?)',(entity,name,domain,city,address));result['new_entities']+=1
+-     self.db.execute('INSERT INTO source_links VALUES(?,?)',(url,entity))
++      entity=key('site-candidate-v2',publisher,record_key);self.db.execute('INSERT INTO entities VALUES(?,?,?,?,?)',(entity,name,domain,city,address));result['new_entities']+=1
++     self.db.execute('INSERT INTO source_records VALUES(?,?,?,?,NULL,NULL)',(publisher,record_key,entity,json.dumps(identity,sort_keys=True)))
+     if entity not in seen:
+      prior=self.db.execute('SELECT 1 FROM observations o JOIN runs r ON r.id=o.run_id WHERE o.entity_id=? AND r.source<>? AND r.kind=? LIMIT 1',(entity,source,'discovery')).fetchone()
+      if prior:result['overlap_entities']+=1
+      seen.add(entity)
+     oid=key(digest,url,r);self.db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?,?,?)',(oid,digest,entity,url,r.get('site_checked_at') or r.get('checked_at') or when,json.dumps(r,sort_keys=True)))
++    self.db.execute('UPDATE source_records SET first_observation_id=COALESCE(first_observation_id,?),last_observation_id=? WHERE namespace=? AND record_key=?',(oid,oid,publisher,record_key))
++    if linked and not conflict:
++     enriched={k:prior_identity.get(k) or identity[k] for k in identity}
++     self.db.execute('UPDATE source_records SET identity_json=? WHERE namespace=? AND record_key=?',(json.dumps(enriched,sort_keys=True),publisher,record_key))
+     if conflict:result['conflicts']+=1
+     claims={'organization_identity':('conflicting' if conflict else 'supported','Source identity changed; review before merge or enrichment' if conflict else 'Directory identity; corroboration still required'), 'physical_site_identity':('supported' if address and city else 'uncertain','Source location fields; not independently confirmed'), 'industry_classification':('supported' if r.get('categories') else 'uncertain','Publisher category; not a validated taxonomy mapping')}
+     for dim,(status,reason) in claims.items():self.db.execute('INSERT OR IGNORE INTO claims VALUES(?,?,?,?,?,?)',(key(oid,dim),entity,dim,status,oid,reason))
+--- a/scripts/discovery_v2/import_overture.py
++++ b/scripts/discovery_v2/import_overture.py
+@@ -12,7 +12,7 @@
+  identifier=p.get('id');name=(p.get('names') or {}).get('primary')
+  if not identifier or not name:raise ValueError('Missing GERS ID or name')
+  addresses=p.get('addresses') or [];address=addresses[0] if addresses else {};taxonomy=p.get('taxonomy') or {};legacy=p.get('categories') or {};category=taxonomy.get('primary') or p.get('basic_category') or legacy.get('primary') or ''
+- return {'name':name,'source_url':f'https://stac.overturemaps.org/{release}/catalog.json#gers={identifier}','city':address.get('locality') or '', 'address':address.get('freeform') or '', 'website':(p.get('websites') or [''])[0],'categories':category,'status':'collected','checked_at':observed_at,'entity_kind':'place_candidate','external_id':identifier,'external_scheme':'overture_gers','release':release,'coordinates':coordinates,'addresses':addresses,'provider_existence_confidence':p.get('confidence'),'source_provenance':p.get('sources') or [],'raw_taxonomy':{'taxonomy':taxonomy,'basic_category':p.get('basic_category'),'categories':legacy},'published_phones':p.get('phones') or [],'scope_note':'Bounding-box place; business identity, serviceability and contact eligibility unverified'}
++ return {'source_namespace':'overture_gers','source_record_id':identifier,'name':name,'source_url':f'https://stac.overturemaps.org/{release}/catalog.json#gers={identifier}','city':address.get('locality') or '', 'address':address.get('freeform') or '', 'website':(p.get('websites') or [''])[0],'categories':category,'status':'collected','checked_at':observed_at,'entity_kind':'place_candidate','external_id':identifier,'external_scheme':'overture_gers','release':release,'coordinates':coordinates,'addresses':addresses,'provider_existence_confidence':p.get('confidence'),'source_provenance':p.get('sources') or [],'raw_taxonomy':{'taxonomy':taxonomy,'basic_category':p.get('basic_category'),'categories':legacy},'published_phones':p.get('phones') or [],'scope_note':'Bounding-box place; business identity, serviceability and contact eligibility unverified'}
+ 
+ def main():
+  a=argparse.ArgumentParser();a.add_argument('--input',type=Path,required=True);a.add_argument('--manifest',type=Path,required=True);a.add_argument('--database',type=Path,required=True);a.add_argument('--output',type=Path,required=True);args=a.parse_args();manifest=json.loads(args.manifest.read_text());release=manifest['release'];bbox=manifest['bbox'];when=datetime.fromtimestamp(args.input.stat().st_mtime,timezone.utc).isoformat();rows=[];held=[]
+@@ -38,6 +38,6 @@
+    if same_name or same_domain:candidates.append({'entity_id':eid,'name':e['name'],'same_normalized_name':same_name,'same_domain':same_domain,'address':e['address']})
+   if candidates:matches.append({'gers':r['external_id'],'name':r['name'],'address':r['address'],'candidates':candidates,'status':'review_required_not_merged'})
+   else:unmatched.append(r['external_id'])
+- result=engine.ingest(source='overture:'+release,family='open_places',scope='woodstock-bbox-pilot',category='*',rows=rows,captured_at=when,coverage_complete=False)
++ result=engine.ingest(source='overture:'+release,namespace='overture_gers',family='open_places',scope='woodstock-bbox-pilot',category='*',rows=rows,captured_at=when,coverage_complete=False)
+  report={'ingestion':result,'release':release,'bbox':bbox,'input_place_records':len(rows),'held':held,'possible_directory_overlaps':len(matches),'no_candidate_match':len(unmatched),'match_candidates':matches,'limitations':['Possible overlaps use exact locality plus name OR domain; they require identity review.','No-candidate-match is not a count of newly discovered companies.','Directory coverage and bounding-box coverage differ. This is not a recall/completeness score.','Provider existence confidence is preserved separately; it is not mailbox or purchasing confidence.'],'unmatched_gers':unmatched};args.output.mkdir(parents=True,exist_ok=True);(args.output/'comparison.json').write_text(json.dumps(report,indent=2));(args.output/'normalized-places.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows));print(json.dumps({k:v for k,v in report.items() if k not in ['match_candidates','unmatched_gers','limitations']}))
+ if __name__=='__main__':main()
+--- /dev/null
++++ b/scripts/discovery_v2/migrate_identity.py
+@@ -0,0 +1,102 @@
++"""Explicit read-only-source, new-file identity rebuild. Never invoked by Engine.
++
++CLI execution on a real ledger requires separate operator authorization. Rebuilt
++ledgers remain write-held until reconciliation is approved. No historical merges.
++"""
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import sqlite3
++from engine import Engine, key, source_identity
++
++
++def rebuild(source_path, target_path):
++    source_path, target_path = Path(source_path).resolve(), Path(target_path).resolve()
++    if source_path == target_path or target_path.exists():
++        raise ValueError('Rebuild requires a distinct new destination')
++    original = sqlite3.connect(source_path.as_uri() + '?mode=ro', uri=True)
++    original.row_factory = sqlite3.Row
++    original.execute('PRAGMA query_only=ON'); original.execute('BEGIN')
++    target = None
++    try:
++        tables = {r[0] for r in original.execute("SELECT name FROM sqlite_master WHERE type='table'")}
++        if 'identity_schema' in tables:
++            raise ValueError('Source is already versioned; this is a legacy-only rebuild')
++        # Reserve destination exclusively before opening SQLite; never overwrite.
++        with target_path.open('xb'): pass
++        target = Engine(target_path)
++        target.db.executescript('''CREATE TABLE legacy_archive(table_name TEXT,row_key TEXT,payload TEXT,PRIMARY KEY(table_name,row_key));
++            CREATE TABLE identity_mapping(old_observation_id TEXT PRIMARY KEY,old_entity_id TEXT,new_entity_id TEXT,status TEXT,reason TEXT);
++            CREATE TABLE migration_state(status TEXT NOT NULL);
++            INSERT INTO migration_state VALUES('rebuild_incomplete_hold');''')
++        # Preserve an exact logical snapshot, including tasks and unsupported tables.
++        snapshot = hashlib.sha256()
++        for table in sorted(tables):
++            if table.startswith('sqlite_'): continue
++            quoted = '"' + table.replace('"','""') + '"'
++            rows = [dict(r) for r in original.execute('SELECT * FROM ' + quoted)]
++            for i, row in enumerate(sorted(rows, key=lambda r:json.dumps(r,sort_keys=True))):
++                payload=json.dumps(row,sort_keys=True)
++                snapshot.update((table+'\n'+payload+'\n').encode())
++                target.db.execute('INSERT INTO legacy_archive VALUES(?,?,?)',(table,str(i),payload))
++        target.db.commit()
++        owners = {}
++        for observation in original.execute('SELECT o.*,r.source FROM observations o JOIN runs r ON r.id=o.run_id'):
++            try:
++                row=json.loads(observation['payload'])
++                namespace='overture_gers' if row.get('external_scheme')=='overture_gers' else row.get('source_namespace') or observation['source']
++                publisher,record_key,_=source_identity(row,namespace)
++                if record_key: owners.setdefault((publisher,record_key),set()).add(observation['entity_id'])
++            except (ValueError,TypeError,AttributeError): pass
++        # Temporary bypass only inside this explicit rebuild; no persisted ready state.
++        target._identity_rebuild = True
++        for run in original.execute('SELECT * FROM runs ORDER BY captured_at,id'):
++            observations = list(original.execute('SELECT * FROM observations WHERE run_id=? ORDER BY captured_at,id',(run['id'],)))
++            rows = []
++            for observation in observations:
++                try:
++                    row=json.loads(observation['payload'])
++                    if not isinstance(row,dict): raise ValueError('not a row')
++                except (ValueError,TypeError):
++                    target.db.execute('INSERT INTO identity_mapping VALUES(?,?,?,?,?)',(observation['id'],observation['entity_id'],None,'unresolved','unreadable_original_row'))
++                    continue
++                if row.get('external_scheme')=='overture_gers': row['source_namespace']='overture_gers'
++                publisher,record_key,_=source_identity(row,row.get('source_namespace') or run['source'])
++                if record_key and len(owners[(publisher,record_key)])>1:
++                    target.db.execute('INSERT INTO identity_mapping VALUES(?,?,?,?,?)',(observation['id'],observation['entity_id'],None,'unresolved','historical_identity_collision_no_merge'))
++                    continue
++                rows.append((observation,row))
++            target.db.commit()
++            if not rows: continue
++            result=target.ingest(source=run['source'],family=run['family'],scope=run['scope'],category=run['category'],
++                rows=[r for _,r in rows],kind=run['kind'],cost=run['cost'],captured_at=run['captured_at'],
++                attempt_id='legacy-run:'+run['id'],coverage_complete=False,allow_cross_source_match=False)
++            for observation,row in rows:
++                namespace,record_key,_=source_identity(row,row.get('source_namespace') or run['source'])
++                match=target.db.execute('SELECT entity_id FROM source_records WHERE namespace=? AND record_key=?',(namespace,record_key)).fetchone() if record_key else None
++                target.db.execute('INSERT INTO identity_mapping VALUES(?,?,?,?,?)',
++                    (observation['id'],observation['entity_id'],match[0] if match else None,'review_required' if match else 'unresolved',
++                     'new_projection_not_authorized_for_use' if match else 'insufficient_original_identity'))
++            target.db.commit()
++        with target.db:
++            for row in original.execute('SELECT * FROM tasks'):
++                target.db.execute('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)',tuple(row))
++            splits=[r[0] for r in target.db.execute('SELECT old_entity_id FROM identity_mapping GROUP BY old_entity_id HAVING count(DISTINCT new_entity_id)>1')]
++            for old_id in splits:
++                target.db.execute("UPDATE identity_mapping SET reason='historical_collision_requires_split_review' WHERE old_entity_id=?",(old_id,))
++            target.db.execute("UPDATE migration_state SET status='review_required'")
++        return {'source':str(source_path),'target':str(target_path),'source_logical_sha256':snapshot.hexdigest(),
++                'status':'review_required','historical_split_candidates':splits,
++                'mapping':[dict(r) for r in target.db.execute('SELECT * FROM identity_mapping ORDER BY old_observation_id')],
++                'tasks_preserved':target.db.execute('SELECT count(*) FROM tasks').fetchone()[0],
++                'worker_jobs':'archived_only; no active workers copied','automatic_merges':0}
++    finally:
++        if target is not None: target.db.close()
++        original.close()
++
++
++if __name__ == '__main__':
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--source',required=True);parser.add_argument('--target',required=True)
++    args=parser.parse_args();print(json.dumps(rebuild(args.source,args.target),indent=2))
+--- a/scripts/discovery_v2/worker.py
++++ b/scripts/discovery_v2/worker.py
+@@ -116,6 +116,12 @@
+    result['rows']=[{**base,'website':external[0] if len(external)==1 else '', 'website_candidates':external,'published_emails':main.xpath('.//a[starts-with(@href,"mailto:")]/@href'),'published_phones':main.xpath('.//a[starts-with(@href,"tel:")]/@href'),'profile_text':' '.join(main.text_content().split()),'checked_at':result['captured_at'],'evidence_level':'directory_profile; contact relevance and mailbox unverified'}]
+    result['coverage_note']='Directory profile enrichment; not an independent source or verified contact.'
+   else:raise SourceHold('Unconfigured parser')
++  for row in result['rows']:
++   # These configured adapters emit dedicated profile URLs, never directory roots.
++   row.setdefault('source_namespace',p.get('source_namespace') or p['source'])
++   if row['source_url'] != p['url'] or job['adapter']=='govstack_profile':
++    row.setdefault('source_record_id',row['source_url'])
++    row['source_url_is_record']=True
+   temp=path.with_suffix('.'+uuid.uuid4().hex+'.tmp');temp.write_text(json.dumps(result));temp.replace(path);return result
+  def finish(self,job,status,result=None,error=None,delay=0):
+   with self.db:
+--- a/tests/discovery_v2/test_engine.py
++++ b/tests/discovery_v2/test_engine.py
+@@ -4,7 +4,7 @@
+ from engine import Engine
+ class EngineTests(unittest.TestCase):
+  def setUp(self):self.e=Engine(':memory:')
+- def row(self,url='https://directory.test/1',**kw):return {'name':'Example Company','source_url':url,'city':'London','address':'12 Test Street','website':'https://example.test','categories':'Consulting',**kw}
++ def row(self,url='https://directory.test/1',**kw):return {'name':'Example Company','source_url':url,'source_url_is_record':True,'city':'London','address':'12 Test Street','website':'https://example.test','categories':'Consulting',**kw}
+  def ingest(self,rows,source='A',**kw):return self.e.ingest(source=source,family=source,scope='region',category='*',rows=rows,**kw)
+  def test_replay_does_not_inflate(self):
+   r=self.ingest([self.row()]);again=self.ingest([self.row()]);self.assertTrue(again['replayed']);self.assertEqual(self.e.db.execute('select count(*) from runs').fetchone()[0],1)
+--- /dev/null
++++ b/tests/discovery_v2/test_identity_migration.py
+@@ -0,0 +1,51 @@
++import hashlib
++import json
++from pathlib import Path
++import sqlite3
++import tempfile
++import unittest
++from engine import Engine, LegacyIdentitySchemaError
++from migrate_identity import rebuild
++
++LEGACY = '''CREATE TABLE runs(id TEXT PRIMARY KEY,source TEXT,family TEXT,scope TEXT,category TEXT,kind TEXT,captured_at TEXT,cost REAL,result TEXT);
++CREATE TABLE entities(id TEXT PRIMARY KEY,name TEXT,domain TEXT,city TEXT,address TEXT);
++CREATE TABLE observations(id TEXT PRIMARY KEY,run_id TEXT,entity_id TEXT,source_url TEXT,captured_at TEXT,payload TEXT);
++CREATE TABLE claims(id TEXT PRIMARY KEY,entity_id TEXT,dimension TEXT,status TEXT,observation_id TEXT,reason TEXT);
++CREATE TABLE tasks(id TEXT PRIMARY KEY,scope TEXT,category TEXT,family TEXT,status TEXT,priority REAL,reason TEXT,updated_at TEXT);
++CREATE TABLE source_links(source_url TEXT PRIMARY KEY,entity_id TEXT);'''
++
++
++class IdentityMigrationTests(unittest.TestCase):
++    def fixture(self, path, same_key=False):
++        with sqlite3.connect(path) as db:
++            db.executescript(LEGACY)
++            db.execute("INSERT INTO runs VALUES('run','publisher','directory','fixture','*','discovery','2026-01-01',0,'{}')")
++            db.execute("INSERT INTO entities VALUES('collapsed','Alpha','','','')")
++            if same_key: db.execute("INSERT INTO entities VALUES('other','Beta','','','')")
++            for i,name in enumerate(['Alpha','Beta','Unknown']):
++                row={'name':name,'source_url':'https://directory.test/list'}
++                if i<2: row['source_record_id']='a' if same_key else str(i)
++                db.execute('INSERT INTO observations VALUES(?,?,?,?,?,?)',(str(i),'run','other' if same_key and i==1 else 'collapsed',row['source_url'],'2026-01-01',json.dumps(row)))
++            db.execute("INSERT INTO tasks VALUES('task','fixture','*','directory','held',1,'manual hold','time')")
++    def test_readonly_new_file_preserves_raw_tasks_and_collision_mapping(self):
++        with tempfile.TemporaryDirectory() as directory:
++            source=Path(directory)/'old.sqlite';target=Path(directory)/'new.sqlite';self.fixture(source)
++            before=hashlib.sha256(source.read_bytes()).hexdigest()
++            with self.assertRaises(LegacyIdentitySchemaError): Engine(source)
++            report=rebuild(source,target)
++            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),before)
++            self.assertEqual(report['historical_split_candidates'],['collapsed'])
++            self.assertEqual(len(report['mapping']),3)
++            self.assertEqual(sum(r['new_entity_id'] is None for r in report['mapping']),1)
++            with sqlite3.connect(target) as db:
++                self.assertEqual(db.execute('SELECT status FROM tasks').fetchone()[0],'held')
++                self.assertEqual(db.execute("SELECT count(*) FROM legacy_archive WHERE table_name='observations'").fetchone()[0],3)
++            with self.assertRaises(LegacyIdentitySchemaError): Engine(target)
++            with self.assertRaises(ValueError): rebuild(source,target)
++            with self.assertRaises(ValueError): rebuild(source,source)
++    def test_historical_many_to_one_keys_are_quarantined_not_merged(self):
++        with tempfile.TemporaryDirectory() as directory:
++            source=Path(directory)/'old.sqlite';target=Path(directory)/'new.sqlite';self.fixture(source,same_key=True)
++            report=rebuild(source,target)
++            self.assertTrue(all(r['new_entity_id'] is None for r in report['mapping']))
++            self.assertEqual(report['automatic_merges'],0)
+--- /dev/null
++++ b/tests/discovery_v2/test_source_identity.py
+@@ -0,0 +1,51 @@
++import unittest
++from engine import Engine
++from import_overture import normalize_feature
++
++
++class SourceIdentityTests(unittest.TestCase):
++    def setUp(self): self.engine=Engine(':memory:')
++    def tearDown(self): self.engine.db.close()
++    def ingest(self, rows, source='publisher', **kwargs):
++        return self.engine.ingest(source=source,family='directory',scope='fixture',category='*',rows=rows,**kwargs)
++    def row(self, name='Office', identifier=None, **kw):
++        row={'name':name,'source_url':'https://directory.test/list',**kw}
++        if identifier is not None: row['source_record_id']=identifier
++        return row
++    def test_shared_directory_separate_publisher_records_and_replay(self):
++        rows=[self.row('Alpha','a'),self.row('Beta','b')]
++        self.assertEqual(self.ingest(rows)['new_entities'],2)
++        self.assertTrue(self.ingest(rows)['replayed'])
++        self.assertEqual(self.engine.db.execute('SELECT count(*) FROM source_records').fetchone()[0],2)
++        self.assertEqual(self.engine.db.execute('SELECT count(*) FROM source_links').fetchone()[0],0)
++    def test_stable_id_conflict_preserved_and_enrichment_keeps_identity(self):
++        self.ingest([self.row('Alpha','a')])
++        self.assertEqual(self.ingest([self.row('Alpha','a',website='https://alpha.test')],kind='enrichment')['new_entities'],0)
++        self.assertEqual(self.ingest([self.row('Beta','a')])['conflicts'],1)
++        entity=self.engine.db.execute('SELECT * FROM entities').fetchone()
++        self.assertEqual(entity['name'],'Alpha')
++        self.assertEqual(self.engine.confidence(entity['id'])['organization_identity']['status'],'conflicting')
++    def test_namespaces_composites_units_and_unknown_identity(self):
++        self.ingest([self.row('Alpha','same')],source='a')
++        self.assertEqual(self.ingest([self.row('Alpha','same')],source='b')['new_entities'],1)
++        rows=[self.row('Office',city='Windsor',address='10 Main',unit=u) for u in ['1','2']]
++        self.assertEqual(self.ingest(rows)['new_entities'],2)
++        result=self.ingest([self.row('Unknown')])
++        self.assertEqual((result['new_entities'],result['unresolved_rows']),(0,1))
++    def test_profile_identity_requires_adapter_declaration(self):
++        self.assertEqual(self.ingest([self.row('Office',source_url_is_record=True)])['new_entities'],1)
++    def test_lossy_ascii_and_word_boundary_matches_do_not_merge(self):
++        for first,second in [('Café','Caf'),('AB Office','A B Office')]:
++            rows=[self.row(n,city='Windsor',address='10 Main',website='shared.test') for n in (first,second)]
++            self.assertEqual(self.ingest(rows,source=first)['new_entities'],2)
++            self.assertEqual(self.ingest([rows[1]],source=second)['new_entities'],0)
++        self.ingest([self.row('Équipe','unicode',city='Windsor',address='20 Main')])
++        self.assertEqual(self.ingest([self.row('E\u0301quipe','unicode',city='Windsor',address='20 Main')])['conflicts'],0)
++    def test_overture_id_survives_releases(self):
++        feature={'geometry':{'type':'Point','coordinates':[1,1]},'properties':{'id':'gers-1','names':{'primary':'Office'}}}
++        first=normalize_feature(feature,'release1',[0,0,2,2],'time1')
++        second=normalize_feature(feature,'release2',[0,0,2,2],'time2')
++        self.ingest([first],source='release1')
++        result=self.ingest([second],source='release2')
++        self.assertEqual(result['new_entities'],0)
++        self.assertEqual(self.engine.db.execute('SELECT namespace FROM source_records').fetchone()[0],'overture_gers')
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -22,6 +22,9 @@
+     'tests/market_map/test_structured_email_recovery.py', 'tests/market_map/test_structured_email_audit.py']
+ TESTS['PR-03'] = TESTS['PR-05'] + ['tests/market_map/test_phone_ingestion.py', 'tests/market_map/test_store.py',
+     'tests/market_map/test_adapters.py', 'tests/market_map/test_reporting.py', 'tests/market_map/test_verification_pilot.py']
++TESTS['PR-04'] = TESTS['PR-03'] + ['tests/discovery_v2/test_engine.py', 'tests/discovery_v2/test_worker.py',
++    'tests/discovery_v2/test_overture.py', 'tests/discovery_v2/test_source_identity.py', 'tests/discovery_v2/test_identity_migration.py',
++    'tests/extraction/test_tranche2_replay.py']
+ 
+ 
+ def main():
+--- /dev/null
++++ b/tests/extraction/test_tranche2_replay.py
+@@ -0,0 +1,29 @@
++import importlib.util
++from pathlib import Path
++import unittest
++
++spec = importlib.util.spec_from_file_location('tranche2_replay', Path(__file__).with_name('tranche2_replay.py'))
++replay = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(replay)
++
++
++class ReplayContractTests(unittest.TestCase):
++    def test_partial_unicode_address_is_inspectable_error(self):
++        row = {'raw': 'élise@fictional.test', 'normalized': None,
++               'extracted': [{'email': 'lise@fictional.test'}]}
++        error = replay.score_contract('email', [row])[0]
++        self.assertEqual(error['category'], 'Normalization error')
++        self.assertEqual(error['basis'], 'observed')
++        self.assertEqual(error['source_record']['raw'], row['raw'])
++        self.assertEqual(error['hypotheses'], [])
++
++    def test_missing_raw_phone_contract_is_failure(self):
++        row = {'raw': '5195550123', 'channels': [{'value': '+15195550123'}]}
++        self.assertEqual(len(replay.score_contract('phone', [row])), 1)
++        row['phone_observations'] = [{'raw_value': row['raw'], 'extension': '', 'format_status': 'normalized'}]
++        self.assertEqual(replay.score_contract('phone', [row]), [])
++
++    def test_correct_identity_abstention_is_not_failure(self):
++        row = {'case': 'ambiguous_missing', 'entities': [],
++               'result': {'conflicts': 0, 'unresolved_rows': 2}}
++        self.assertEqual(replay.score_contract('identity', [row]), [])
+--- a/tests/extraction/tranche2_replay.py
++++ b/tests/extraction/tranche2_replay.py
+@@ -7,6 +7,42 @@
+ import tempfile
+ 
+ ROOT = Path(__file__).resolve().parents[2]
++
++
++def score_contract(stage, results):
++    """Hand-labeled synthetic contracts, independent of the candidate parsers."""
++    errors = []
++    for index, row in enumerate(results):
++        if stage == 'email':
++            expected = [None, None, None, None, 'Sales@business.test', 'sales@business.test',
++                        'Sales+Tag@xn--bcher-kva.test', None, None, None][index]
++            actual = {'normalized': row['normalized'], 'extracted': [x['email'] for x in row['extracted']]}
++            wanted = {'normalized': expected, 'extracted': [expected] if expected else []}
++            category = 'Normalization error'
++        elif stage == 'phone':
++            value, extension, status = [('+15195550123','','normalized'), ('+4422345678','','normalized'),
++                ('+442079460123','09','normalized'), (None,'','invalid'), (None,'','unsupported'),
++                ('+15195550123','42','normalized'), (None,'','invalid')][index]
++            wanted = {'channels': [value] if value else [], 'extension': extension, 'status': status,
++                      'raw_preserved': True}
++            observation = row.get('phone_observations', [{}])[0]
++            actual = {'channels': [r['value'] for r in row['channels']],
++                      'extension': observation.get('extension'), 'status': observation.get('format_status'),
++                      'raw_preserved': observation.get('raw_value') == row['raw']}
++            category = 'Unsupported format' if status == 'unsupported' else 'Normalization error'
++        else:
++            entities, conflicts, unresolved = {'shared_ids':(2,0,0), 'shared_composites':(2,0,0),
++                'stable_conflict':(1,1,0), 'ambiguous_missing':(0,0,2)}[row['case']]
++            wanted = {'entities': entities, 'conflicts': conflicts, 'unresolved': unresolved}
++            actual = {'entities':len(row['entities']), 'conflicts':row['result']['conflicts'],
++                      'unresolved':row['result'].get('unresolved_rows',0)}
++            category = 'Duplicate/entity resolution error'
++        row['contract_expected'], row['contract_actual'] = wanted, actual
++        if actual != wanted:
++            errors.append({'case': row.get('case', row.get('raw')), 'category': category, 'basis':'observed',
++                'evidence':'Controlled input and literal expected contract differ from replay output; no acquisition cause inferred',
++                'expected':wanted,'actual':actual,'source_record':row, 'hypotheses':[]})
++    return errors
+ 
+ 
+ def main():
+@@ -61,10 +97,14 @@
+             rows=[dict(r,source_url='https://directory.test/list') for r in rows]
+             run=engine.ingest(source='publisher',family='directory',scope='fixture',category='*',rows=rows,captured_at='2026-01-01T00:00:00Z')
+             result.append({'case':name,'input':rows,'result':run,'entities':[dict(r) for r in engine.db.execute('SELECT * FROM entities')],
+-                           'claims':[dict(r) for r in engine.db.execute('SELECT * FROM claims')]})
++                           'claims':[dict(r) for r in engine.db.execute('SELECT * FROM claims')],
++                           'observations':[dict(r) for r in engine.db.execute('SELECT * FROM observations')]})
+             engine.db.close()
+     files = ['market_map/email_extraction.py','market_map/contact_normalization.py','market_map/store.py','market_map/adapters.py','discovery_v2/engine.py']
+-    artifact={'stage':args.stage,'implementation_sha256':{f:hashlib.sha256((implementation/'scripts'/f).read_bytes()).hexdigest() for f in files},'results':result}
++    errors=score_contract(args.stage,result)
++    artifact={'stage':args.stage,'corpus':'synthetic development contract cases; not population accuracy',
++              'implementation_sha256':{f:hashlib.sha256((implementation/'scripts'/f).read_bytes()).hexdigest() for f in files},
++              'results':result,'errors':errors,'case_count':len(result),'failing_cases':len(errors)}
+     (output/'run.json').write_text(json.dumps(artifact,indent=2,sort_keys=True,ensure_ascii=False)+'\n')
+     if guard.violations: raise RuntimeError(guard.violations)
+     print(str(output/'run.json'))

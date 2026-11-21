@@ -1,0 +1,115 @@
+import json, csv, re, html
+from pathlib import Path
+from collections import Counter, defaultdict
+
+P = Path('artifacts/all-sales-audit-20261016')
+read = lambda k: json.loads((P / (k + '.json')).read_text())
+norm = lambda x: re.sub(r'\D', '', str(x or ''))[-10:]
+live = [x for x in read('leads') if not x.get('deleted')]
+sms = read('sms'); emails = read('emails'); calls = read('calls'); tasks = read('tasks')
+logs = defaultdict(list)
+for x in read('followups'):
+    if not x.get('deleted'): logs[x['data'].get('leadId')].append(x['data'])
+closed = {'lost','completed','customer_success','booked'}
+peers = defaultdict(list)
+for x in live:
+    phone = norm(x['data'].get('phone'))
+    if len(phone) == 10: peers[phone].append(x['id'])
+rows = []; details = {}
+for x in live:
+    d = x['data']; lid = x['id']; ph = norm(d.get('phone')); em = str(d.get('email') or '').lower()
+    sm = [s for s in sms if s.get('lead_id') == lid or (len(ph)==10 and ph in [norm(s.get('from_number')), norm(s.get('to_number'))])]
+    es = [s['data'] for s in emails if not s.get('deleted') and (s['data'].get('leadId') == lid or (em and em in [str(s['data'].get('to') or '').lower(), str(s['data'].get('from') or '').lower()]))]
+    cs = [s for s in calls if s.get('lead_id') == lid or (len(ph)==10 and norm(s.get('phone_number'))==ph)]
+    events = []
+    for s in sm: events.append((s['created_at'], 'SMS '+s['direction'], s.get('body','')))
+    for s in es: events.append((s.get('sentAt') or s.get('createdAt') or '', 'Email '+str(s.get('direction')), s.get('body','')))
+    for s in d.get('callLogs',[]): events.append((s.get('date',''), 'Call '+str(s.get('repName') or s.get('direction') or ''), s.get('transcript') or s.get('notes') or ''))
+    for s in cs: events.append((s.get('created_at',''), 'Recording', s.get('transcript') or s.get('summary') or ''))
+    events.sort(key=lambda e:e[0])
+    owner = d.get('assignedRepName') or d.get('assignedRep') or d.get('assignedRepUserId') or ''
+    due = d.get('followUpDate') or ''; move = d.get('moveDate') or ''; active = d.get('stage') not in closed
+    flags = []
+    if active:
+        if not owner: flags.append('No explicit assigned rep')
+        if not due: flags.append('No follow-up date')
+        elif due[:10] < '2026-10-16': flags.append('Stored follow-up date overdue')
+        if move and move[:10] < '2026-10-16': flags.append('Past move date; outcome/date needs review')
+    if len(peers.get(ph,[]))>1: flags.append('Shared phone; duplicate/relationship review')
+    r = {'id':lid,'name':d.get('name'),'stage':d.get('stage'),'kind':d.get('leadKind'), 'source':d.get('source'),'created':d.get('createdAt'), 'owner':owner, 'move_date':move,'followup_date':due,'followup_note':d.get('followUpNote') or '', 'last_recorded_communication':events[-1][0] if events else '', 'last_human_outbound_field':d.get('lastHumanOutboundAt') or '', 'automation_status':d.get('automationStatus') or '', 'open_pipeline':active,'flags':'; '.join(flags),'related_records':'; '.join(i for i in peers.get(ph,[]) if i!=lid)}
+    rows.append(r); details[lid] = events[-10:]
+for filename, selected in [('all-records.csv', rows), ('open-pipeline-review.csv', [r for r in rows if r['open_pipeline']])]:
+    with (P/filename).open('w') as f:
+        w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(selected)
+
+# Human-reviewed findings. Recommendations only; no CRM mutation or outreach.
+review = [
+('Pooja','lead_oifg3lfmk','Coverage failure','John promised immediate contact after reps finished at 5 p.m. on Oct 15; identified Sales contact was the following morning. Customer was close to choosing another mover.','John owns the after-hours coverage gap. Respect her latest agreement to reconnect if the alternative falls through; do not restart a generic chase.'),
+('Laura Lee Audy','lead_8y7h0ibcg','Handled by John personally','John confirmed October 16 that he is handling Laura on his personal line. CRM communications do not represent the full current conversation.','Excluded from rep recovery actions. Do not contact or assign to reps based on this audit.'),
+('Kellie Sonderegger','lead_gjgcnxt56','Outcome check today','Quoted move date is today, Oct 16. Last identified SMS Sept 25; Sept 17 call note says thinking on it. No booking established.','Last rep Thelma: check whether move is still required or completed elsewhere; record actual outcome before any fresh quotation.'),
+('Sandra Burns','lead_dj43t8ml7','Near-term follow-up','Oct 22 quote. Sept 29 follow-up SMS and Sept 30 voicemail; no later communication found in joined records.','Last rep Thelma: contextual call about Oct 22, outstanding scope and decision. Record next agreed action and time.'),
+('Sandy','lead_jx8uh3buc','Near-term follow-up','Customer discussed packing and a tentative Oct 20 move Sept 30. Inventory link sent; Oct 1 attempts reached voicemail. No later communication identified.','Assigned Ommy: offer inventory by phone, clarify packing options and confirm date. Do not leave the quote blocked solely on uploading photos.'),
+('Joann Chod','lead_k1gskxr0y','Quote follow-up gap','Nov 18 quote and call Sept 24; no later communication identified. Stored next action remains Sept 25. No explicit rep assignment.','Last rep Thelma: verify the decision and close remaining scope questions; agree a dated next step.'),
+('Jessica Shilson','lead_on1ngnnrm','Past window unresolved','Oct 10 move; estimate sent Oct 5 after customer supplied inventory. No later follow-up/outcome identified.','Last rep Ommy: verify actual outcome and reason. Do not treat the past quote as a future booking.'),
+('Viji Samuel','lead_lc7e5mmoa','Past window unresolved','Oct 11 quoted date. Quote-viewed follow-up failed Oct 8 with invalid API key; an email is stored Oct 9. No final outcome verified.','Check customer outcome and distinguish failed automation from later successful contact; do not assume the failed job means no message ever went out.'),
+('Dayna Langlois','lead_s5lrls706','Warm opportunity; agreed timeline','Oct 15: price is fine; customer will provide date by Monday at latest, possibly Friday. Rep acknowledged.','Keep a named owner and set an agreed Monday Oct 19 checkpoint if no date arrives. This is not an unanswered enquiry or a confirmed booking.'),
+('Jeff Lang','lead_gscn23d3g','Follow customer timing','Oct 14 call explicitly requests mid-next-week callback; stored follow-up Oct 15 is misleading.','Last rep Thelma: schedule Oct 21 callback, preserve tentative date, avoid marking this a missed customer deadline.'),
+('Florence','lead_yyad69oin','Fresh quote checkpoint','Oct 27 move; quote SMS sent Oct 15. Follow-up date Oct 16.','Assign a named owner and check receipt/questions today. Fresh quote, not a multiweek silence finding.'),
+('Jana Tatton','lead_8zu0gb2k7','Incorrect active stage','Sept 30 SMS: found another mover. Oct 2 refund message clarified as wrong company. Still pricing.','Correct the disposition with evidence; exclude from active recovery cadence.'),
+('Keyvan','lead_oktrvqkch','Incorrect active stage','Sept 28 SMS explicitly says not moving forward and selected other solutions. Still quoted.','Correct disposition; do not keep following up as a live November prospect.'),
+('Nadia Califf','lead_iqimgo6cd','Identity/context review','Realtor voicemail and messages asking who the sender is; generic move-date question sent. Stored Oct 23 is not verified customer intent.','Review partnership history before any sales message; do not assume she is moving.'),
+('Steve Saintil / Avery Rivera','lead_3kensjdly','Noncustomer form submissions','Messages advertise interactive videos and VA services. Both records are labelled customer/new; automation is already do_not_contact.','Route as vendor/spam, preserve existing contact restrictions, exclude from genuine sales SLA and conversion denominator.'),
+('Tyler / John SmartMoving call','lead_xnvepgzvf','Noncustomer call/SMS','Oct 16 SMS and call concern SmartMoving software, not a customer move.','Route to business/vendor queue; do not count as an unanswered moving enquiry.'),
+('Diamond / Ali / Pat','', 'Partnership handoff checkpoints','Earlier partnership audit found recent handoffs to Sales requiring explicit acceptance and next action; Pat was awaiting client introduction.','Thelma: acknowledge each handoff and record what is actually due. Check current conversation before following up; do not mistake a realtor introduction for a confirmed customer.'),
+('Jesse / Alexei / Lily / Mary','', 'Duplicate and outcome reconciliation','Earlier audit found Jesse booked plus active duplicate; Alexei lost plus pricing duplicate; Lily served but quoted; Mary served but booked with an unresolved item-return thread.','Link canonical opportunities, reconcile outcomes and route service recovery separately. Never count these as four neglected new prospects.'),
+]
+(P/'reviewed-findings.json').write_text(json.dumps(review,indent=2))
+active=[r for r in rows if r['open_pipeline']]
+stats={'snapshot':read('meta')['at'],'all_stored_records':len(read('leads')),'non_deleted_records':len(rows),'open_pipeline_records':len(active),'open_by_kind':dict(Counter(r['kind'] for r in active)), 'open_without_explicit_rep':sum(not r['owner'] for r in active),'open_without_followup_date':sum(not r['followup_date'] for r in active),'open_with_overdue_stored_date':sum(bool(r['followup_date']) and r['followup_date'][:10]<'2026-10-16' for r in active),'open_with_past_move_date':sum(bool(r['move_date']) and r['move_date'][:10]<'2026-10-16' for r in active),'stages':dict(Counter(r['stage'] for r in rows))}
+(P/'summary.json').write_text(json.dumps(stats,indent=2))
+esc=lambda x:html.escape(str(x or ''))
+style='body{font:16px system-ui;max-width:1200px;margin:35px auto;padding:0 20px;color:#172536;line-height:1.55}h1,h2{line-height:1.2}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #ccd4dd;padding:10px;text-align:left;vertical-align:top}th{background:#eaf1f7}p.note{background:#fff4d4;padding:16px}details{margin:10px 0;border:1px solid #ddd;padding:12px}input{padding:12px;width:80%}pre{white-space:pre-wrap;font:14px system-ui}small{color:#526171}@media print{input{display:none}body{font-size:11px}details{break-inside:avoid}}'
+standard='''<h1>Sales response and follow-up standard</h1>
+<p><b>Recommended operating standard — October 16, 2026.</b> Applies to genuine customer enquiries from every channel and partnership handoffs. This document does not activate routing, change employee schedules or send messages.</p>
+<h2>The rule: every live opportunity has an owner, a next action and a deadline</h2>
+<p>A queue assignment is not acceptance. The assigned person must acknowledge responsibility. A note, page view, automated acknowledgement or voicemail attempt is not a resolved enquiry. Record attempted contact separately from an actual conversation and a completed promise.</p>
+<table><tr><th>Trigger</th><th>Required action</th><th>Escalation</th></tr>
+<tr><td>New enquiry, substantive reply or missed customer call during covered hours</td><td>Target a personal reply or callback attempt within 5 minutes. A short automatic acknowledgement may be immediate but does not satisfy the human target.</td><td>At 5 minutes without action alert the backup; at 10 minutes notify John and transfer active responsibility with acceptance. A missed call needs a return attempt even if an SMS was sent.</td></tr>
+<tr><td>Customer is ready to pay/book, move within 48 hours, or service problem</td><td>Immediate priority. Read context and call where appropriate. Never promise availability, an immediate rep call or a confirmed booking without verification.</td><td>Notify on-duty owner immediately; track the promised next update independently of whether the issue is resolved.</td></tr>
+<tr><td>Rep ends shift at 5 p.m.</td><td>4:45 handoff lists all unanswered messages, promised callbacks, quotes due and urgent jobs. John or the scheduled backup accepts by 5. New enquiries after 5 route to the accepted on-duty person.</td><td>No silent shift-end dismissal. If no one accepts, alert John and retain the exception prominently. Publish actual coverage hours; outside them give a truthful next contact time. Do not promise 24/7 human service without staffing it.</td></tr>
+<tr><td>Promised callback / customer-provided time</td><td>Call at the agreed time, aim within 5 minutes. If delayed, update before the promise expires. Store a timestamp and timezone, not only a date.</td><td>Overdue promise stays visible and escalates; a new generic message must not reset it.</td></tr>
+<tr><td>Quote-ready enquiry</td><td>Target a simple quote within 60 minutes of complete inventory/access information; complex jobs get a named reviewer and an agreed delivery time the same working day. Confirm receipt and agree a decision checkpoint.</td><td>Missing photos are a task: offer phone inventory or virtual review. Do not leave the customer in a silent waiting state.</td></tr>
+<tr><td>Any substantive conversation</td><td>Within 10 minutes log outcome, actual date certainty, objections, promise, next action/time and owner. Record loss reason from evidence; keep completed work out of prospect chasing.</td><td>Blank next step is an exception unless the case is closed or explicitly customer-led with a review date.</td></tr></table>
+<h2>Persistent follow-up with a purpose</h2>
+<p>For an unreached genuine enquiry: initial call and useful SMS; one further attempt later that day at a different time; then day 1, day 3 and day 7. After that, record a final status check and move to a dated nurture review if still relevant. No-answer is not automatically Lost. Cap unsolicited attempts at two calls and one useful written follow-up per day across all reps/numbers; ordinary replies in an active conversation are separate.</p>
+<p>For quotes: confirm receipt, discuss remaining objections within one working day, then use the customer-agreed decision date. Without one, follow up around day 3 and day 7, adjusting for the real move date. A viewed quote is a signal to help, not a reason for multiple simultaneous messages.</p>
+<p>For future moves, house-sale dependencies or “I will call when ready,” record the dependency and agreed checkpoint rather than daily chasing. A new substantive reply creates a new response obligation. Declines, wrong numbers and requests not to contact leave the active cadence. Contractors, vendors, partner introductions and customer complaints each need the appropriate queue and owner.</p>
+<h2>Rep accountability and management coverage</h2>
+<table><tr><th>Measure</th><th>Initial target</th><th>Evidence</th></tr>
+<tr><td>Human first response</td><td>At least 95% within 5 covered minutes; every breach reviewed</td><td>Matched inbound event and human action; automated acknowledgements excluded. Report median and 90th percentile.</td></tr>
+<tr><td>Missed calls and customer promises</td><td>100% accounted for; at least 95% on time</td><td>Call attempt, actual connection, voicemail and promise completion tracked separately.</td></tr>
+<tr><td>Ownership / next step</td><td>100% of genuine open opportunities have both</td><td>Accepted owner plus next action and due timestamp; customer-led waits explicitly documented.</td></tr>
+<tr><td>Overdue work at shift end</td><td>Zero silently abandoned items</td><td>Completed action, documented customer wait or accepted handoff. Moving the due date alone is not completion.</td></tr>
+<tr><td>Quality</td><td>Review 5 conversations per rep weekly plus every serious complaint or missed promise</td><td>Accuracy of inventory, pricing, dates, referral context and commitments; no invented facts.</td></tr>
+<tr><td>Business outcomes</td><td>Track weekly by source, rep and lead age</td><td>Qualified → quote → deposit → completed; reasons for genuine losses. Exclude spam, duplicates, vendors and relationship-only records.</td></tr></table>
+<p>Start-of-shift: work unanswered enquiries, missed promises and urgent moves first. Midday: inspect overdue work and quote blockers. At 4:45 p.m.: perform the accepted handoff. Weekly: coach from actual conversations and distinguish rep execution from staffing, routing and data defects. John is accountable for accepted after-hours coverage, just as reps are accountable during their shifts.</p>
+<h2>Implementation order and acceptance checks</h2>
+<ol><li>Reconcile the reviewed priority cases and set canonical opportunity, owner and truthful next action. Keep service recovery separate.</li><li>Add event-level response obligations and human-response timestamps. Existing <code>firstResponseAt</code> can be written for automation in <code>lib/server/sales-messaging.ts</code>; do not use it as the human SLA metric.</li><li>Implement coverage schedule, accepted handoff and timed 5/10-minute escalation. Each alert needs deduplication, acknowledgement and a fallback owner.</li><li>Make follow-up obligations durable and context-aware: a customer reply can reopen attention while automation is paused, but a decline or agreed future checkpoint prevents generic chasing.</li><li>Surface worker failures and overdue jobs in the same management view; failed sends never count as contacted.</li><li>Release only after checking a 4:58 enquiry, 5:08 enquiry, unavailable owner, missed callback, duplicate inbound webhook, new reply during automation pause, customer-requested future callback, declined lead, failed message and duplicate CRM record. Confirm each produces one correct obligation and no duplicate outreach.</li></ol>
+<p>Capacity planning example: 20 new calls at 10–15 minutes each consume about 3⅓–5 hours before quotes, follow-ups or complaints. Assign rotating first-response duty with backup; size coverage using measured handling time and peak arrivals, not only the daily call count.</p>'''
+(P/'sales-standard.html').write_text('<!doctype html><meta charset="utf-8"><title>Sales operating standard</title><style>'+style+'</style>'+standard)
+out=['<!doctype html><meta charset="utf-8"><title>All Sales audit — October 16</title><style>'+style+'</style><h1>All Sales audit — October 16, 2026</h1>', '<p>Snapshot timestamp is recorded below in the methodology; this is not a live view. <a href="sales-standard.html">Recommended Sales standard</a> · <a href="open-pipeline-review.csv">Open pipeline CSV</a> · <a href="all-records.csv">All nondeleted records CSV</a></p>', '<p class="note">Screened all 1,415 stored lead records; 926 are nondeleted. Reviewed specific conversations for the findings below. This is not a claim that all 926 histories were manually read. This is the pre-cleanup snapshot. Subsequently, six reviewed records were corrected and seven assigned CRM tasks were created; see the team brief. No customer outreach or new routing deployment was performed. Missing recorded activity does not prove no personal-phone conversation occurred.</p>', '<p><a href="sales-team-brief.html">Rep-facing context and work list</a> · <a href="Sales-Team-Response-and-Follow-Up-Brief.docx">Download team Word document</a></p><h2>Queue integrity</h2><ul>']
+for label,value in [('Open pipeline records (not unique qualified customers)',len(active)),('Without explicit assigned rep',stats['open_without_explicit_rep']),('With overdue stored follow-up dates',stats['open_with_overdue_stored_date']),('Without follow-up date',stats['open_without_followup_date']),('With a past move date needing reconciliation',stats['open_with_past_move_date'])]:out.append('<li>'+esc(label)+': <b>'+str(value)+'</b></li>')
+out.append('</ul><p>The 218 open records include 130 labelled customer, 81 partner opportunities, 6 realtor opportunities and 1 without a kind. Flags overlap and are screening indicators, not 218 neglected customers. Existing notes sometimes identify a different owner; an empty assignment does not establish that nobody worked the lead. Future callbacks and duplicate/closed cases need reconciliation before scoring reps.</p><h2>Human-reviewed priorities and exceptions</h2><table><tr><th>Case</th><th>Finding</th><th>Recommended next step</th></tr>')
+for name,lid,category,evidence,action in review:out.append('<tr><td><b>'+esc(name)+'</b><br>'+esc(category)+'<br><small>'+esc(lid)+'</small></td><td>'+esc(evidence)+'</td><td>'+esc(action)+'</td></tr>')
+out.append('</table><h2>Technical findings</h2><p>Automated and human sends can both populate firstResponseAt. The stale-reactivation logic uses the latest of inbound, outbound, automation and log activity, so it is not a pending-customer-obligation clock. Existing policy allows next-morning contact outside staffed hours; that does not meet the owner takeover requested here. These code observations are not proof that every possible runtime routing path is absent.</p><p>Pending/failed automation snapshot contains historic failures, including an Oct 8 quote-viewed email failure for Viji; a later Oct 9 email is stored. No pending job in this snapshot was past its scheduled due time. Do not bulk-replay historic failed jobs.</p><h2>Search all open records</h2><input id="q" placeholder="Search name, owner, stage or flag" oninput="document.querySelectorAll(\'details\').forEach(e=>e.hidden=!e.textContent.toLowerCase().includes(this.value.toLowerCase()))">')
+for r in sorted(active,key=lambda r:(r['name'] or '').lower()):
+    out.append('<details><summary>'+esc(r['name'])+' — '+esc(r['stage'])+' — '+esc(r['owner'] or 'No explicit rep')+'</summary><p>'+esc(r['id'])+'<br>'+esc(r['flags'])+'</p><p>Move: '+esc(r['move_date'])+' · Follow-up: '+esc(r['followup_date'])+'<br>'+esc(r['followup_note'])+'</p>')
+    for at,kind,body in details[r['id']]:
+        safe=re.sub(r'https?://\S+','[link omitted]',str(body))
+        out.append('<p><small>'+esc(at)+' · '+esc(kind)+'</small></p><pre>'+esc(safe[:3500])+'</pre>')
+    out.append('</details>')
+out.append('<p>Exact snapshot (UTC): '+esc(read('meta')['at'])+'</p>')
+out.append('<h2>Method and limits</h2><p>Screen uses all stored lead rows, 6,639 SMS rows, 22,467 follow-up logs, 2,366 tasks and 140 pending/failed jobs. Joined evidence includes 317 call recordings since Sept 16 plus embedded historical call logs, 960 stored emails and earlier partnership audit evidence. Calls/emails came from the immediately preceding audit; this is a snapshot, not live monitoring. Communications are linked by explicit lead ID, exact normalized telephone and email where available. Shared numbers can represent different jobs: matching is evidence for review, not automatic merging. The detail view shows the last ten joined events, clipped for readability; raw extracts retain source data. CSV stage counts, including 657 Lost records, are not validated lost-sale totals. No reliable rep SLA percentages are claimed from these inconsistent timestamps.</p>')
+(P/'report.html').write_text(''.join(out))
+print(json.dumps(stats,indent=2))
+print('Created report.html, sales-standard.html, all-records.csv, open-pipeline-review.csv, reviewed-findings.json')

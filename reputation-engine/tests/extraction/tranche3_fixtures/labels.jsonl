@@ -1,0 +1,18 @@
+{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "repeated-context", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "hidden", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": ["sales@business.test"], "exhaustive": true, "id": "inline", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": ["sales@business.test"], "exhaustive": true, "id": "inline-suffix", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "inline-unicode", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": ["sales@business.test"], "exhaustive": true, "id": "inline-obfuscation", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "cards", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "cells", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "hidden-barrier", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "subtype", "phones": [], "structured_attribution": [{"channel": "desk@business.test", "owner": "Office", "owner_pointer": ""}]}
+{"attribution": [], "attribution_known": true, "emails": ["desk@business.test", "sales@business.test"], "exhaustive": true, "id": "uri-array", "phones": [], "structured_attribution": [{"channel": "desk@business.test", "owner": "Clinic", "owner_pointer": ""}, {"channel": "sales@business.test", "owner": "Clinic", "owner_pointer": ""}]}
+{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "reference", "phones": [], "structured_attribution": [{"channel": "desk@business.test", "owner": "Office", "owner_pointer": "/@graph/0"}]}
+{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "shared-reference", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": ["desk@business.test", "second@business.test"], "exhaustive": true, "id": "duplicate-reference", "phones": [], "structured_attribution": []}
+{"attribution": [{"channel": "jane@business.test", "owner": "Jane Smith", "relation": "person_card"}], "attribution_known": true, "emails": ["jane@business.test"], "exhaustive": true, "id": "person-employer", "phones": [], "structured_attribution": [{"channel": "jane@business.test", "owner": "Jane Smith", "owner_pointer": "/@graph/0"}]}
+{"attribution": [], "attribution_known": true, "emails": ["jane@business.test"], "exhaustive": true, "id": "article-author", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": ["a@business.test", "b@business.test"], "exhaustive": true, "id": "cycle", "phones": [], "structured_attribution": []}
+{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "inline-fax", "phones": [{"extension": "09", "kind": "fax", "phone": "+15195550123"}], "structured_attribution": []}

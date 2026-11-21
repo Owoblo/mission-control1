@@ -14,7 +14,12 @@ export function extractSmsReply(text: string, autoSubmitted = '', attachments = 
   if (autoSubmitted && autoSubmitted.toLowerCase() !== 'no') throw Error('Automatic email replies cannot send SMS')
   if (attachments) throw Error('Attachments require review in CRM')
   if (typeof text !== 'string' || text.length > 50000) throw Error('A plain-text reply is required')
-  const lines = text.replace(/\r\n?/g, '\n').split('\n')
+  const normalized = text.replace(/\r\n?/g, '\n')
+  // Zoho can append its quoted-message divider to the last reply paragraph,
+  // rather than beginning a new line. Remove only a complete bounded divider.
+  const zohoDivider = /[ \t]*-{3,}[ \t]+On [^\n]{1,500}?(?:\n[^\n]{0,500}){0,2}?wrote[ \t]*-{3,}[ \t]*(?:\n|$)/i.exec(normalized)
+  const topReply = zohoDivider ? normalized.slice(0, zohoDivider.index) : normalized
+  const lines = topReply.split('\n')
   const result: string[] = []
   for (const line of lines) {
     if (/^\s*(>|On .{1,500}wrote:|[-_]{3,}|Begin forwarded message:|From:|Sent:|--\s*$|Sent from my |Get Outlook for |Best regards,?\s*$|Kind regards,?\s*$|Regards,?\s*$)/i.test(line)) break

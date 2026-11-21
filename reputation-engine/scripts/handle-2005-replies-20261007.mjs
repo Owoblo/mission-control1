@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises'
+import {dir,db,asset,send,reviewed,task} from './reply-runtime-20261007.mjs'
+const s=JSON.parse(await fs.readFile(dir+'/reply-refresh.json','utf8'));const plans=[];const get=n=>s.threads.find(t=>t.contact.name===n)
+async function add(name,body,card=false,extra={}){const t=get(name),c=t.contact;plans.push({id:c.id,name,phone:c.phone,city:c.city,latest:t.touches.at(-1).id,from:'+14374650584',body,...(card?{media_urls:[await asset(c.city)]}:{}),...extra})}
+await add('JAY KUMAR',"Here you go, Jay! Here's our Toronto card. Feel free to save it and share it when a client needs moving help.",true)
+await add('MOHSIN LAKHANI',"Here you go, Mohsin! Here's our Burlington card. We cover the wider GTA, including Vaughan and Orangeville, as well as Hamilton and Southwestern Ontario. Feel free to share it when a client needs moving help.",true)
+await add('Samar Manuel',"Here you go, Samar! Here's our Oshawa card. Our website is https://starmovers.ca, and you can read our Google reviews here: https://g.page/r/CQN6C4RNFOJ0EAE",true)
+await add('Maya Maria Lavor',"Thanks Maya, I appreciate the referral! We can help assess the condo-to-townhouse move in Vaughan. Please have your clients mention your name when they contact us so we can link the referral back to you. Do you know their moving date? If they'd prefer us to call, you can share their number once they're happy for you to do so.",false,{followup_key:'vaughan-client'})
+await fs.writeFile(dir+'/2005-reply-plan.json',JSON.stringify(plans,null,2));for(const p of plans)await send(p)
+await task(get('Maya Maria Lavor').contact,'20261007-maya-vaughan','Sales: Maya client condo-to-townhouse move in Vaughan','Maya says she will share our contact with her client moving from a condo into a townhouse in Vaughan. Acknowledged and asked moving date, clients to mention Maya, and client number only with permission if they want a call. No client identity/date/addresses or booking yet. Preserve partner attribution when client arrives; do not create duplicate anonymous lead.',{priority:'high'})
+for(const t of s.threads){if(plans.some(p=>p.id===t.contact.id))continue;for(const x of t.touches.filter(x=>x.direction==='inbound'&&!x.metadata?.partnership_review))await reviewed(x.id,t.contact.name==='ANNA EV BELYNTSEVA'?'Viewed inbound image: thank-you/praying-hands avatar, no sales details or reply needed.':'Acknowledgement reviewed; existing owner follow-up tasks retained, no extra message.')}
+console.log('Three cards and Maya referral follow-up sent; sales task created.')

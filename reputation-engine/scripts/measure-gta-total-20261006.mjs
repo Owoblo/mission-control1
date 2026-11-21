@@ -1,0 +1,17 @@
+import fs from 'node:fs/promises'
+import {db,dir} from './evening-reply-runtime-20261006.mjs'
+async function all(t,q){const out=[];for(let offset=0;;offset+=1000){const rows=await db(t,{...q,limit:'1000',offset:String(offset)});out.push(...rows);if(rows.length<1000)return out}}
+const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')
+const cities=JSON.parse(await fs.readFile('lib/data/gta-service-cities.json','utf8'))
+const gta=new Set([...cities,'GTA','Greater Toronto Area'].map(norm))
+const settled=await Promise.allSettled([all('market_contacts',{select:'id,name,city,phone',order:'id.asc'}),all('market_touches',{select:'id,contact_id,channel,direction,notes,metadata,created_at',order:'id.asc'}),all('sequence_jobs',{'sms_payload->>campaign_key':'like.gta-*',select:'id,contact_id,status,provider_sid,sms_payload',order:'id.asc'})]);for(const r of settled)if(r.status==='rejected')throw r.reason
+const [contacts,touches,jobs]=settled.map(r=>r.value)
+const ids=new Set(contacts.filter(c=>gta.has(norm(c.city))).map(c=>c.id));const relevant=touches.filter(t=>ids.has(t.contact_id));const sms=relevant.filter(t=>t.channel==='sms');
+const outbound=sms.filter(t=>t.direction==='outbound');const inbound=sms.filter(t=>t.direction==='inbound'&&/^Inbound SMS:/.test(t.notes||''));
+const receipt=t=>String(t.metadata?.twilioSid||t.metadata?.messageSid||t.metadata?.provider_message_id||'').replace(/^telnyx:/,'')
+const accepted=outbound.filter(t=>receipt(t));const dedup=a=>[...new Map(a.map(t=>[receipt(t)||t.id,t])).values()];const outs=dedup(accepted),ins=dedup(inbound)
+const byid=new Map(contacts.map(c=>[c.id,c]));const person=id=>{const p=byid.get(id)?.phone?.replace(/\D/g,'');return p?p.slice(-10):id}
+const campaigns=[...new Set(jobs.map(j=>j.sms_payload?.campaign_key))].map(key=>{const js=jobs.filter(j=>j.sms_payload?.campaign_key===key),sent=js.filter(j=>j.provider_sid),cohort=new Set(sent.map(j=>j.contact_id));return {key,accepted:sent.length,unique_contacts:new Set(sent.map(j=>person(j.contact_id))).size,inbound_contacts:new Set(ins.filter(t=>cohort.has(t.contact_id)).map(t=>person(t.contact_id))).size}})
+const botCandidates=ins.filter(t=>/automatic|automated|auto.?reply|driving|do not reply|unmonitored|message has been received|out of office|currently unavailable|thank you for contacting|thank you for reaching/i.test(t.notes))
+const summary={at:new Date().toISOString(),scope:cities,all_crm_contacts:contacts.length,all_touches:touches.length,gta_contacts:ids.size,outbound_sms_records:outbound.length,outbound_sms_with_receipts:outs.length,outbound_sms_without_receipts:outbound.filter(t=>!receipt(t)).length,unique_sms_recipients:new Set(outs.map(t=>person(t.contact_id))).size,inbound_sms_messages:ins.length,inbound_sms_contacts:new Set(ins.map(t=>person(t.contact_id))).size,email_outbound:relevant.filter(t=>t.channel==='email'&&t.direction==='outbound').length,first_sent:outs.map(t=>t.created_at).sort()[0],campaigns,bot_candidates:botCandidates.map(t=>({id:t.id,name:byid.get(t.contact_id)?.name,contact_id:t.contact_id,notes:t.notes})),missing_receipts:outbound.filter(t=>!receipt(t)).map(t=>({id:t.id,name:byid.get(t.contact_id)?.name,notes:t.notes,metadata:t.metadata}))}
+await fs.writeFile(dir+'/gta-alltime-source.json',JSON.stringify({contacts:contacts.filter(c=>ids.has(c.id)),touches:relevant,jobs},null,2));await fs.writeFile(dir+'/gta-alltime-summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2))

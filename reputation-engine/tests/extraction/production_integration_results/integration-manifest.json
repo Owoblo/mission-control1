@@ -1,0 +1,1513 @@
+{
+  "deployable": false,
+  "purpose": "source-only offline compatibility evaluation",
+  "baseline_hashes": {
+    "scripts/investor_research/worker.py": "88884981e2eff0bd0c5824939d17212a811fd229c43da832260198981b3bf24c",
+    "scripts/market_map/__init__.py": "5195676747739c35af09af525798f054396534cdd78d16cb31fe55ed4a6f22c0",
+    "scripts/market_map/acquired_inventory.py": "4c67cc7693557929e15fb589545bf30705ff2e75f7827651ceae5ec083c633dd",
+    "scripts/market_map/adapters.py": "206996e01fdba200be6b202e1fd0a593516f6c8873372502ae50e220c2ce0731",
+    "scripts/market_map/additional_phone_relationship_review.mjs": "191bf1a0077f6d07484af586edd038c2053f1232bbe0a1c40eee8e495a3780c9",
+    "scripts/market_map/aggregate_audit.py": "68965c2eb08eb46a28e05b7b2d8d07ac30afb932f1ed0634d7eaaa6334ba0b7d",
+    "scripts/market_map/aggregate_sites.py": "b33ca214f142dd71940ff0d4e48a5a98f2d936f684934f0e67955c54dcb7ce66",
+    "scripts/market_map/aldershot_directory.py": "5da01dd1f460565955df0af6338de44f6b9a8112881f3a65e86e7222a5e51731",
+    "scripts/market_map/apbot_public_emails.py": "86f7127054b4369ced6e532553952b54195df84ff3a9a5bbe20a5df1a91c6d69",
+    "scripts/market_map/audit.py": "4c997161a6d7c3c52b8c1019cb44f5c62959eaa98a008cc3f22890b0718848ba",
+    "scripts/market_map/audit_pilot_technical_recovery.py": "82070f8085635ff97ae8effe4979565f0360bf91315bfb44364bec5b3bf2ba74",
+    "scripts/market_map/bia_rosters.py": "260be9c8ba465269b2700cead041bb1b1e57be065b7832b2b6d9d4ade6c11b89",
+    "scripts/market_map/bia_source_queue.py": "2b16f6a53ef0333414096fee34883fdea6db6a1123f3758693bb3557c01f5102",
+    "scripts/market_map/brock_profiles.py": "0bf2a971125a19041802f1ceaa47dcfb9bcda5cdc43fb5b19aab0c2b230ba442",
+    "scripts/market_map/build_city_category_14day_plan.py": "150c03d8bbea83b2ac2f8f73b878e626126eff1b5f6210727cacbab37627283d",
+    "scripts/market_map/build_coverage_workqueue.py": "b110fef99f6a8a0aff1bff8fed0e0bdcf74dcfff9484fca45e6d76778b87a58e",
+    "scripts/market_map/build_navigator_review_queue.py": "17a4f8e23d6d6fb1fbfc8faae05a9f635dc991ff28ce039aba4f35d549344587",
+    "scripts/market_map/building_address_work_groups.py": "75f398876d5c213883fec1eb175629fea650ec55a5ca5fe631bd5304716d0756",
+    "scripts/market_map/building_research_queue.py": "50e39b17cc461a6e8d31debe2500350ce228bb79cc044177ea42a418c5b8a256",
+    "scripts/market_map/building_research_supervisor.py": "07d6738330b984c54e5e522b90da71aa1bc8a114d1c70f68d7249fe947b77a2b",
+    "scripts/market_map/cap_completion.py": "51f3db3f59981097dad5c5ba95df64cb392120d3a0a6cdc3d1269da06ff61ea2",
+    "scripts/market_map/chamber_rosters.py": "c26b6ad98a23f817ae4275c7a7f174fc0503bc06b9fb39c312ce8134b1ec9ac3",
+    "scripts/market_map/childcare_sources.py": "68cb9551077efe99311221947baf04adc8b272003ccfb14a4225810ae915890b",
+    "scripts/market_map/city_research_coordinator.py": "f273c90605a40e4fef4d6f9e97ca5683505e253a2b8e4f26d42b83f30906f7d8",
+    "scripts/market_map/civic_sources.py": "b62d404b832a52fddf95abef419cea05588a818cbdb37f36efb12e3070d23217",
+    "scripts/market_map/classify.py": "7ab23addc92ceb122f75cfce0644899188dd3027a20f03fddd751470d9f641cb",
+    "scripts/market_map/cli.py": "41db91b5904e29e5e04cf4dd3ecc98bc95416dd1bbefc8f00bb337bb1feb426e",
+    "scripts/market_map/cloud/additional_visible_decisions.py": "6ad1b4f6957ec160a82033426663b04e79f7833dca7ab5fd58bc01d99636b52b",
+    "scripts/market_map/cloud/contact_capacity.py": "d1e0931f3d939ea95fb0a0f8e6dbfefd05247c16e4b0c1a7fb52ef6e93d8a42a",
+    "scripts/market_map/cloud/railway_entry.py": "bbf2d0f07b003493783e21aca7fb9ecf29770f25f5a3d9b5c19012410a4f6a6d",
+    "scripts/market_map/cloud/regional_additional_phone_identity.py": "c7b2a19fffe89733cf18581a5f73e8da54b4a44b8b9b515ab3db87c2fa7e2e66",
+    "scripts/market_map/cloud/regional_additional_phones.py": "ca6934eddd696ce3ed9a8167e8aeef44d47745d3edd42ce60ff027c5d71e7cec",
+    "scripts/market_map/cloud/regional_additional_visible_queue.py": "17098a726348070047f7432b3e261d5213c63e3c8a1d1bbf703b146deb7412a9",
+    "scripts/market_map/cloud/regional_carrier_verification.py": "4aa244b35c1d6587d9b2a02cc0c02bbf251371921b3bb8698be9d469fdb3fe4c",
+    "scripts/market_map/cloud/regional_contact_enrichment.py": "96b04c42180e99ab1daf84c973bfff5b39cab6f227f8f5b6aefb820ec578d600",
+    "scripts/market_map/cloud/regional_coverage_report.py": "75e912d6ad80faeaf86536571968775415b04c661a812075a914b7549c76e237",
+    "scripts/market_map/cloud/regional_daily_supervisor.py": "bb7c9bd7aaeb94fd05688ccf2699820279972159bc67bc5663d072715e078c2a",
+    "scripts/market_map/cloud/regional_dns_diagnostic.py": "28a69604759a912c6de7b3eb8786896902a2498df13a9b16e211c56c6f01c740",
+    "scripts/market_map/cloud/regional_email_inventory.py": "a21d9e13bc956a58f40c4793d6e4b23adf1d11efb9729638509846fbb6226c48",
+    "scripts/market_map/cloud/regional_identity_review.py": "2919dacbea732c272bd1926404f200c6ac23f85bda8cc22f6e9c6c439e28e368",
+    "scripts/market_map/cloud/regional_map.html": "c29240736e4fa85d7a8def2191e1120b94768d95b66e533bf23999136bce8e03",
+    "scripts/market_map/cloud/regional_mapping.py": "7c6e0dadf7e78de4f464140e5cb49bbc9941dd6a757b12904e479ddbc8d0df14",
+    "scripts/market_map/cloud/regional_mobile_crm_review.mjs": "abe3941c9221f50d724616c9b09df56e1e87cb66fc2252385bebd6d41ef11fcc",
+    "scripts/market_map/cloud/regional_mobile_crm_worker.py": "e6208add9f8add8f8ceaed208a284be89b2cc6b5379c2af845e0ff9a870d2ff8",
+    "scripts/market_map/cloud/regional_outcome_monitor.py": "97d41c2c65a7f2363d983c216f3c145f4fe0c6b32a7914b0918f28321d12eef6",
+    "scripts/market_map/cloud/regional_route_overlap.py": "1400212b2f47faeea3b7e0e35fbc7eaf569f910fb2a75a30ae693f3c92737f2e",
+    "scripts/market_map/cloud/regional_visible_review_queue.py": "1d3b293a811025bd5bda82cc511018a45f338f9b93ed556b479beb6ddf44b264",
+    "scripts/market_map/codex_api_worker.py": "536ffa96452347197dfe7eccc31c6785cd9a4c500c3ca62d681a8e99fe5418b6",
+    "scripts/market_map/collect_next_day_sources.py": "aa2661be3aaa6161dcde6ffc5d62641347852740aa90a960584299ae82e9ff4d",
+    "scripts/market_map/commercial_properties.py": "69a94d03dbafcafe242b6bcbce89bb70760c031953b988afba320b469bd8200f",
+    "scripts/market_map/consolidation.py": "cc928ce05c076e9173c0b9a590626c2828e49b1eaba5a8112ceb092283db2661",
+    "scripts/market_map/construction_rosters.py": "07e93cb6a3240873e52614e3d32c38408bbdb0875f8bb4928b4183478ef943e4",
+    "scripts/market_map/contact_context.py": "5d996248c4e5c4759dff9c81b2eb677fafa8278fcf2c36887fc95d1ca5a8c120",
+    "scripts/market_map/contact_enrichment.py": "8bd9c52e5aba770a075e905f2a4e97cc2defdcae2a201b424e500aa19462da33",
+    "scripts/market_map/contact_normalization.py": "9be1c557e7e2c146ae7204c143ea7aab8bfd488922a8ddc4f0a69658c906c983",
+    "scripts/market_map/contact_readiness_ledger.py": "ab27a5146d62d3f3cac1a97972b59182de65b4e8329d8deffea5f5e2f71b0c61",
+    "scripts/market_map/contact_research_queue.py": "6a0be085715b33661bc47d7a0d8b2a992e24026f8836421484ab6406051cae0b",
+    "scripts/market_map/contain_fresh_copy_bug_20261028.mjs": "b2a8be0810a28fda3f135a64bee2b7f87b3e612ff23ef519c0fc3aae65ee1771",
+    "scripts/market_map/context.py": "9e3f5032fb12d985706a0fba094e9463cc57ecef38706ba2735725114963ef4f",
+    "scripts/market_map/context_event_promotion.py": "4c56a389e47d06933ebb5c794c059d3f085b215e08e327f5825304a57fe84d71",
+    "scripts/market_map/continuation.py": "f71f7e0a2bae55eacc2809cbc7cd34d932d368ee137b3ede5f1a84c7c2e132fa",
+    "scripts/market_map/corridors.py": "81d4fb82ebec4bb4aae19eff9f9ec0241a6157f36b906f2f9c34827e62d258fa",
+    "scripts/market_map/coverage_sql.py": "51e3a35205028e5b16610545772c535ce173a1f9709b59372750a0620532085f",
+    "scripts/market_map/crm.py": "6b599d7b105680eca32c3b506a603c9dd80e323fe85c7d407e562f0830807dca",
+    "scripts/market_map/cross_city_carry_forward.py": "086e6220b0e5be580bc78ae1cb6d13055046c2b145b8b67fba8d50a608ea5103",
+    "scripts/market_map/crosscheck_windsor_google_directory.py": "e4a03a30ec926a72f0d95c5d442eab377d4182ccfd4e48865969eda41e1ba713",
+    "scripts/market_map/danforth_public_directory.py": "328b9fffaa535bda2dd81cfa64f3f44601c5b9c9d56e752748136748bbf48829",
+    "scripts/market_map/durham_saved_emails.py": "f8c8660c880e3a4a80eaeff8f7fea780c09add90fdd24489ac16532a8e874d52",
+    "scripts/market_map/eastern_bia.py": "83b35b0468fcd937488c5401f8e34b3389fa7b91e434d6754454ebc950248ca3",
+    "scripts/market_map/eastern_central_bia.py": "ab73f2f6afe166de45facbc5a29bdf335bf2bef3dbb75302eec81b31e27eccb9",
+    "scripts/market_map/eastern_public_rosters.py": "1e8037336db7056e751bf3a77f97bb32927e02b6cc62bb3a2f5eadf393b813b3",
+    "scripts/market_map/eastern_rosters.py": "9e39ed68210bd1415fcb1d05033a446bb5a738ed291acd3be57016028fb78bde",
+    "scripts/market_map/eastern_saved_emails.py": "be4e8db5ad35ebaaf24bb5d5a742910189fe2d16d8e95ce4acecd6879f48e198",
+    "scripts/market_map/eastern_sources.py": "c231774a7c45d2d50d7c5e0aa80b3f418bdd595a4851868ec7d3a09a8bd94245",
+    "scripts/market_map/email_acquisition.py": "75ef028ca0262c586b3df5109547af123de4a685dfb91fb333bcedeac7b4b52c",
+    "scripts/market_map/email_domain_process.py": "c475c72b6a1f2348c3d252a5cbd36b657bf794918283a1e5b75b1bbed68efb87",
+    "scripts/market_map/email_extraction.py": "26d0c0b8805cf6cc374e557886f2590d291f5069274d7ec4251b94f46eccaaef",
+    "scripts/market_map/email_relationship_review.mjs": "7f1ff53b42ca60d4bfa4d0189155cac3e639bcf7f3e535d99ace711e95c46dc3",
+    "scripts/market_map/emery_legacy_index.py": "c7ea53cb078389e2161ffc2e383b89a6686b9526ff83cca0ce42b3f37641d669",
+    "scripts/market_map/essex_physical.py": "648cd16c39f35d02b49289cddf6cc207a93267e8aed1a0310894af51c536b5a3",
+    "scripts/market_map/factual_arcgis.py": "4d0420fe69b8b0c98fd3a8b9214794478016ca7e318b3487627924ec0efd0d8c",
+    "scripts/market_map/factual_promotion.py": "eb27d9e1277e4a83dd8bbee80e2872f8332f63d358442b5e32fb0c5c7ae4b9ba",
+    "scripts/market_map/food_licences.py": "36990e62e5908d55f70a69e939f426692382de39dfd5aeaf0351b3cb17e1823e",
+    "scripts/market_map/geographic_gap_audit.py": "27bf34b546e5dfa866aefd6ee14adae211093593153baff6200dfc519f15ed4e",
+    "scripts/market_map/geography.py": "c77ebe3a2d074a94e5ea435785a6d4f9f0f70d78aaaecfcfe83085ec22f2d43c",
+    "scripts/market_map/geography_official.py": "8120dfba350b68fbaf0face7331e96be9d128e535593265a79a3bc73e15aa3c1",
+    "scripts/market_map/gta_bia_project_relationships.py": "bb39c10748ac09f5efb4b6dda518a570a595a43058779265ef1e81e83d517ca5",
+    "scripts/market_map/gta_email_recovery.py": "ec5164275ed342d5034f6b838fafefd928387d71f90d51de1410c26fa98362a7",
+    "scripts/market_map/gta_saved_partner_rosters.py": "1721a2d00141c3feda553dd0be93cde61ed6e3e3e46c649dff062124174dc7e7",
+    "scripts/market_map/gta_saved_relationships.py": "d3fec23935a40b9d405b5ac4bc869036c76c31c87ae829f3d06c179a74b286d1",
+    "scripts/market_map/gta_sources.py": "3a9da8fbb424e2ece4a37f64f25c77dcd30a09af515835886d1263200aabdc3e",
+    "scripts/market_map/halton_bia_rosters.py": "2f0190b124202e9ef79a7002176d03b462533e577173d4039dedbd11435ee233",
+    "scripts/market_map/html_evidence_metadata.py": "e129ac98fb5d767b21be19b2d9d28427a49f6464b1226f0080f92b374c47a711",
+    "scripts/market_map/ingersoll_bia_browser.mjs": "470b5ce6f5a185fca44450287a8a5f1c387f8fad62ffbf355a97c2f2eedddf24",
+    "scripts/market_map/install_building_research_schedule.py": "a4f6f6dd15a4f368c3ba253e6f90c9aa8ad814a307c1187011440625f9c9c9e7",
+    "scripts/market_map/institution_sources.py": "ffb70b8e6d9525b9e692b309cd84d0e80452513c66568328bea6ea46c55df871",
+    "scripts/market_map/institutions.py": "6f17c15afae5c18b517c6b0f077fc4e0df0602ab2833c3434610f431b366f35e",
+    "scripts/market_map/integrate_navigator_geography.py": "3c838d409043338786f0bcad7bc05c1bbf226a859de62f20b49e670f4a32ee7f",
+    "scripts/market_map/integrate_physical_atlas.py": "8fa752af39350703653f13b4427e0d87ee13e30637cd9151a6fda825394bba09",
+    "scripts/market_map/inventory_navigator_exports.py": "895d2320040fd46c814e425e573be1f257a1e329b7bdd23dca2f3521b558c61c",
+    "scripts/market_map/islington_directory.py": "9a5ee9f124606bbf5e7248ae9e5f767f5076f92f2d3bddf1496803b3c127c1fb",
+    "scripts/market_map/josslin_partner_review.py": "855301eb218ec9b1fd1494e1493e3e20c6fb91652578fbeb8f0066340794bac7",
+    "scripts/market_map/legacy.py": "3326c552a2af6728022ef706b7f32062b1ca055220faf68e3f3b3db1509a55a7",
+    "scripts/market_map/legacy_published_emails.py": "03ecd1e46c69e76603f10d9c0d977a6ebc276b481552b8b24bf97fbe4e8e24b5",
+    "scripts/market_map/legacy_v2_emails.py": "da8463b3656d28cba1e9dfb20c325b4d6e7e0a11c9c8e1325f739fc2c38b9faf",
+    "scripts/market_map/licensed_vertical_view.py": "49ca47e19c64192d6e6c4a2ff29dd4648676231b1d99467ca516c22d6a786f79",
+    "scripts/market_map/local_fact_promotion.py": "88e6b734cfc67d04eb842e4b6b16c0ae2ce1191fe9d31925f30fcbb564a1a88c",
+    "scripts/market_map/locality_audit.py": "02129d75710808eb71ae8c657329495fffea83f5b9fe4edc7fbef51435bcd93d",
+    "scripts/market_map/logo_inventory.py": "9e7b382ee5c80fdd0efa3030d8b3df9b3b83d9c2c828346a09c8d4eede21463a",
+    "scripts/market_map/mailbox_evidence.mjs": "3320a65059fb745116c2b2a620533430ce78c0bcda626122a147e1371c47a1be",
+    "scripts/market_map/maintenance.py": "3a14d2c6bd88189f26ad81503f82d28a9a2025096244e180c754c8eac2f03878",
+    "scripts/market_map/manufacturing_sources.py": "2dbf13e3c351d76115c7ec46c9e00d325535965600f62dc23d13e465b6369ef7",
+    "scripts/market_map/materialize_pilot_review_decisions.py": "c59ea0f3411f7fe3d755af3cff4b29d11cfe1fa5ea4a4bf5de7b521ac2f3ea20",
+    "scripts/market_map/mobile_relationship_review.mjs": "b9a1c14f226759e5e5e25145dc060b66a494a17ceed5043da1eea4fb750e7f59",
+    "scripts/market_map/mobile_review_inputs.mjs": "70b66be2ccd6eb07d9ddb6bee2638db2b040c0529cecc3c2cd7eda8b81929c32",
+    "scripts/market_map/mount_pleasant_roster.py": "74da30e68862bbdf1482a2ff966627ed9a8837923bfee1ddf87e417e1f9ef344",
+    "scripts/market_map/municipal_gap_collection.py": "a1324ecc46154f5a0df655cd497e875a8e1a3765af7e8f5b23edd2750859cec3",
+    "scripts/market_map/municipality_physical_report.py": "37ccf6cc3b0a00c92d6e0177fe14729a5894d31b0601ccc1b8794755e13ebc08",
+    "scripts/market_map/neighbourhood_bia_snapshots.py": "a42167723bcadf2ff4de3dc6aea6c025a60ea69362266e52ca8c2964a522c335",
+    "scripts/market_map/occupancy_research.py": "b7f01914eadec97880fe44c9172940156023a34ec9de41a1484696b9c4bbbd7c",
+    "scripts/market_map/other_structured_emails.py": "60d3c07c39c42a237b732572eb65d80d9395bd4f91a49054c267700569a69176",
+    "scripts/market_map/phone_acquisition.py": "5a17f07f1cb9ce2ed4a1a54e7741582714a9303067836288fc2bdbf29b58b532",
+    "scripts/market_map/phone_extraction.py": "eae9a9a705b07d561b9cf6a2ed845256bf58cc0f2cf967b4e76199b9ef2927ca",
+    "scripts/market_map/physical_tiles.py": "cf0e8014b1c6ba7994dc91f6e21af50fa6856c2d34631dd1156fffa0b9b10e69",
+    "scripts/market_map/pilot_publication_basis_capture.py": "d081166379bf42998fe340f07513b6c708918f56ceb8dd58049ec2d2b3814373",
+    "scripts/market_map/pilot_review_workqueue.py": "db4cb6d5898a6b8b47ebc6427135e58c9e529b6e713a6f1b857999bbae50c2f2",
+    "scripts/market_map/pilot_source_refresh.py": "a674f3de51c8872faec44e8df6b4b01561dbf56709aab1c380b1dbd406e1e1f4",
+    "scripts/market_map/place_import.py": "58e09af5459c8f11bafe0c49978535e84622e2e9bff97ea0f1a40c3b0c4e89ec",
+    "scripts/market_map/places.py": "c0d8cb82354097be192e07a0be5f9e2c430c1ad4c01d7de109e040a98ea6724c",
+    "scripts/market_map/port_credit_profiles.py": "9014204cc82400f5098dceb77a3f4a555f2d175b1590b58dd3f529e909b9df32",
+    "scripts/market_map/prepare_fresh_review_supply.py": "da3fc1adb3ca793723d181c547965f92e4cef63f9d412d7d58f73c621a28fb5e",
+    "scripts/market_map/prepare_fresh_verification_batch.py": "76d907a6fbe265fbe9360c926c8174d55e791eeea6c07e61bc0aa65182bc5b5f",
+    "scripts/market_map/prepare_next_day_research.py": "8da2543bd5a27e3862301e68fee3ba0c0d3609ab7f19eba3086c95d25ce68dcf",
+    "scripts/market_map/preview.py": "b27de18f9e7bc236c9d3c24cb023c13e09360769b2cf052ae6ff22b4612eddfe",
+    "scripts/market_map/promotion.py": "828fd52262ecb8f2b571e6971ee12f49e18091e3f38efab1fc3dbbe8fd4330b5",
+    "scripts/market_map/property_sources.py": "18e0ed6e3c20bbd506c131b8a80f3e5a4bb9b27f5a820347c2456e3e900dff5b",
+    "scripts/market_map/public_chamber_snapshots.py": "79c0ba6ad53f666698003a74075a925d425369b80d82c9ae884dc3a04369930b",
+    "scripts/market_map/published_email_delta.py": "4c7dbacbc9e94adacfa63096327dff167d8c1b2ccdebcd8796683c6fde32a1bc",
+    "scripts/market_map/queries.py": "a8d25f0545efeade78d404d3b197692da37375a26c538d945fc2de4782984ff5",
+    "scripts/market_map/recheck_regional_emails.py": "4cd3acdf209d9a0bf9b51e4f0760e57950c9b6e814d1e99827c065e2e4630710",
+    "scripts/market_map/reconcile_completed_validation_review.py": "ec15932edb4bdd641c6161fcc3f16fafb42a7905ac86c36b54b05f1e6f9e111c",
+    "scripts/market_map/reconcile_coverage_catalogs.py": "11ff25e103a3e528e509c668fcafdd4512c156b273b1aa52067a75c05af1d84f",
+    "scripts/market_map/reconcile_fresh_copy_bug_20261028.mjs": "eacdfd59b4149c9c5f8a2d83ebe5e618b4433fe66949dd40221830106182e8c6",
+    "scripts/market_map/regional_bia_pagination.py": "3bd40eee649d65435286d573dc51a363e6a456be2e761611c2930422bb433d75",
+    "scripts/market_map/regional_directories.py": "20693c9a55519c63f8e6ba63a364f322d6c767f26a4297adc7c65209c079c35c",
+    "scripts/market_map/regional_facilities.py": "06553390874f75897d7dee46bcffaf416eb2175aa54ce5af06cd4e06d2d8c0e7",
+    "scripts/market_map/regional_west.py": "3329a39381b5ac107aaf26a3d5de01c92301c14755c4d09271822d3c55f9a606",
+    "scripts/market_map/relationship_browser_capture.mjs": "2f100ac93bf965dde1d0efd65bfd17a6e70437e6d0a83c0675f4da7adce801fa",
+    "scripts/market_map/relationship_browser_queue.py": "ba1be9c86fe5f39b74dfa70de577f0205ac8a64c369125de5d1bae3d022b6e0b",
+    "scripts/market_map/relationship_context.py": "eb57a5e2add9a5282b3160d7ffd6877e0f12ff6ecb9d9f19bd1609cb13ec24d5",
+    "scripts/market_map/relationship_email_bridge.py": "d4f6b9d047b39134f44dfcc08d5886fece9bfff0ab40db8081b7260a3483c4f3",
+    "scripts/market_map/relationship_observations.py": "9efdc288394ef814056c22fb2d4d5af916d97b43f74ff62bcc866d114492979f",
+    "scripts/market_map/relationship_queue.py": "5ff9dc2cce3ac2eb8602c86d8f106543632e22b7766fc34f41507b085ec7ef83",
+    "scripts/market_map/relationship_recursion.py": "0ec86caa4e729dd98c364eb7c6b0926a956db8e0a170b18dd2177119daff7716",
+    "scripts/market_map/relationship_review.py": "e4361cd7ad57e85196e8e0a8e7a1d6fb61bf3354c744ca9416d1629a0cb071c6",
+    "scripts/market_map/relationship_visual_audit.mjs": "55b7fef84c23531c77bc3a35810cf76f4cbafa97824792ccea3c3c31ba0932b6",
+    "scripts/market_map/relationships.py": "ab4855b96ae926ad435875a1431fd3632d2de384770c21bd7f2cb4b5d6e80fb7",
+    "scripts/market_map/release_accountability.py": "6cd8491969e0fe8bedf3f6dacdb8abb4d0f5a37f0d5c43aee96977a881ef18de",
+    "scripts/market_map/reporting.py": "fddb4a6a6ee793d9667e37810da6c230b22b51766533340b57c9db7a09d75100",
+    "scripts/market_map/research_claim_gate.py": "48e89352ddb6659e6cd58d8a7966a21b95537702e08419513d3ec9b9e11510c9",
+    "scripts/market_map/research_escalation_pilot.py": "f71d6540f0a6c2fbc13392f6c8fe9cd5037a0a3bba4f1367183f3a7fae20a4ce",
+    "scripts/market_map/research_model_benchmark.py": "53f919c4c9c888436519501b062acd3c733fcddcd96eabf120fdd5a1b8aec8a4",
+    "scripts/market_map/resolution_candidates.py": "451e48f617c46cfc8b3e466e931560718edb99c8681c236c459512067079a558",
+    "scripts/market_map/review_fresh_evidence_rules.mjs": "8d10956c2888da9cf65398d87a367643f0b1c1c15b7b836a1d008c7fb5ab7b29",
+    "scripts/market_map/routed_source_research.py": "501a34df81308911576cacc6fa8d37ddc53975cb3a7b723a1f1cfa2ef8b629c7",
+    "scripts/market_map/run_fresh_validation_batches.py": "925ed5e288a5ec52d21119945e93fcfd0f0e42a43e50d6f0ee7b505f89aa5a63",
+    "scripts/market_map/rural_durham_rosters.py": "ae3dc7df53f2310171d09ec5e888e12805668840c8d505585ae97eb3fb9938a2",
+    "scripts/market_map/schema_types.py": "56b50ff6124ac39a3149253497b0ae85e0c22b269ce265b3e5ef0f64da4ba8e5",
+    "scripts/market_map/service_baseline_atlas.py": "96e7be572abd03a71d16c8a703862bcd3c4aad2d59036e4ea9cf79174e8ebded",
+    "scripts/market_map/site_capture.py": "d9e47cf967fa18b0c6832fd5a5e5a2edb52585bdfdff6a4d3980e13206168ad8",
+    "scripts/market_map/site_research_ai.py": "cb047b511c848c360195df3326637f89e1b0ad2c8efe5829b4884a06ee99bf33",
+    "scripts/market_map/site_research_campaign.py": "74ade71dee530436e9c1943aab40f8501f3bf20d80f105dc2647a304d022053d",
+    "scripts/market_map/site_research_evaluation.py": "6c911cf75cf42c748705012a55bf2e21b670e4fca6e0c64ccebe7e22ffb09e0d",
+    "scripts/market_map/site_research_ops.py": "cba31a55e9b1b28238464a6dd3189357fb1fd65213bd744737c9e06bab922767",
+    "scripts/market_map/site_research_queue.py": "82c10eeef97c040ca6e3dde90ac03839738b0846a691eeb0442e397dbbfff9b7",
+    "scripts/market_map/site_research_runner.py": "b7e2b38070eb2bd8cbe9f4962a6e67c7801e34e12638b1c941f1ad61da6d6ffa",
+    "scripts/market_map/site_source_extract.py": "26960d30e6833fd7973d692b501dacaed65a012c5cd3393df58c4ba07b04cc30",
+    "scripts/market_map/site_source_index.py": "99aef779b06c655886a0f6cc389f777b7c6f558580106897d9e3a96ed6fc0aa8",
+    "scripts/market_map/site_source_worker.py": "54f91044b462d9741b880cbf41847fa292592a9136d89a8fb7dc54b30b84ff33",
+    "scripts/market_map/source_capture_cache.py": "39795b735cea5cc270f7e1c01f329b5b676899d7ea9204b0383ad586b46e5143",
+    "scripts/market_map/source_contact_candidates.py": "6de5a2e44bd874183855d852c33197bc8bd1aa31a2f1697eb747eded85f28d33",
+    "scripts/market_map/sources.py": "6cbcf971185973390bfc2f1fc1ceef959a9486481bfa0ea6478e29b37e31381c",
+    "scripts/market_map/spatial_context.py": "25a056288e614eac5dcc7160c78c7b5ae45e20d6ea4de65c1ffbba9e11148bcb",
+    "scripts/market_map/spatial_review.py": "89b13f820dd2820d290050ddd09f49f44d64db255ef288ced6ed56549aef2608",
+    "scripts/market_map/stage_navigator_listing_candidates.py": "27f7c1c97102d48c8fc2dd49bb6174d74a0ea71ef895be09e286b9fa7280496c",
+    "scripts/market_map/store.py": "9dc97ec6886fcf9520cadb014303fa71bac82cd5e2fd28163e80fcc2cc858e31",
+    "scripts/market_map/streetsville_directory.py": "a1ccc31bab14927a579db170e7e00d8fe3a04e2a67227164aed656fe6a16ac93",
+    "scripts/market_map/structured_contacts.py": "aef85bdd81cf0a41aa67254c9a7c553c939db84d9d01174e60669910692b98a2",
+    "scripts/market_map/structured_email_audit.py": "ceeae38b778740a2c12e874b275a0beba6e69b1901cebc7c27085c2bf294c67b",
+    "scripts/market_map/structured_email_recovery.py": "4f10071e7f1f7b726a33492c68d8e517729b5ddd68f3941877279f32e6739e76",
+    "scripts/market_map/toronto_bulk_sources.py": "b403871b43e30e592e77d62c9c68be8907d48b25b13c14c999921102aa031201",
+    "scripts/market_map/toronto_full.py": "865c00015291e528160c0fe20a3b90c5aa7af809e4aaf68b4ca7033f28eed23d",
+    "scripts/market_map/toronto_licences.py": "303f8a251b6f8175089524f9bd407e46807d00a38f3b1fe4ddee8ee48985ed27",
+    "scripts/market_map/toronto_physical_bulk.py": "4e1ee6b4c43b949d89d4f5d0b011ef5108d0fed6039f11a0094f0fc38f52430e",
+    "scripts/market_map/transport.py": "4f86d054a52ebb69811eaf75464f17428a99fd0efe9a4c186ae7732d9a4da152",
+    "scripts/market_map/trusted_source_capture.py": "228e9496371b8df5e9d1fed1ba77c1f432e4ae9b842b32a8682b20759aa0e310",
+    "scripts/market_map/verification_pilot.py": "fcbea4f957f965fd3deb67bb5d90068f3b0f33a848fcfcb5542cd1e5816d7ee0",
+    "scripts/market_map/verification_view.py": "a5195f8a6f0a9427f0f0f042df160c5704fadf16b03f973762b79a17bab24553",
+    "scripts/market_map/visible_contact_evidence.py": "0ccf48b0acb6dcdeb1a72cada5fd3fdf33a038465bc2b01dca30eb4a1ff1cb51",
+    "scripts/market_map/website_verification.py": "42cc08efe7c573ee38e9c2504118788375bcad8647e804902b29358a04cb46ec",
+    "scripts/market_map/western_bia.py": "5b7c52e6d0b062e07e72201aac140e8d4f0ea9a5bb30f041f5edf2e1a5e98ab8",
+    "scripts/market_map/western_bia_browser.mjs": "2be5b230b378d7d73e6116d2da3f6132365eb042f8533e74b8a9f40b42ef8b2b",
+    "scripts/market_map/western_bia_guelph.py": "4cdb674da83b6e334c464c0075a1f24f943e8aa5ffd900f7ea49798c0d29d44a",
+    "scripts/market_map/western_fact_promotion.py": "8394e584474ac70d3bd2e97ce0e50ef9d70eefbe922754f82f268a4f7353ae42",
+    "scripts/market_map/western_rural_rosters.py": "a1c8d5af7d472f45f9c3eb536444f7252719a7844829e9874818c986a0e57705",
+    "scripts/market_map/western_towns.py": "9964d420b02e8fc9707192b9dafbed7e42348a5be8c84f51fbed99281630e788",
+    "scripts/market_map/western_trade_rosters.py": "0601aabe956f00146ea46c0fec353ba3bb0baea39343595c9a4f8035456772d6",
+    "scripts/market_map/windsor_address_investigation.py": "8ac05563f998b1db85d2dbf23c8a62ea6b538f127fd0ebb75648a05342aa0a08",
+    "scripts/market_map/windsor_address_pilot.py": "d67b67ed2ad246d0ad771826cbd75c3d14eed28bebe87d6b244398576dd349dd",
+    "scripts/market_map/windsor_batch_merge.py": "f4d64fe3b85a746061defef374c6730c9764d780c4dab065645afe97fc21b686",
+    "scripts/market_map/windsor_bia_addresses.py": "4c6bf69f3a84cc64a064f198d6341814402a402d73a6048434b204b898d5c33a",
+    "scripts/market_map/windsor_building_ledger.py": "7070fa0de51d7195a4b807398ecc9c10c70bb353c3149948a95bbf1539990438",
+    "scripts/market_map/windsor_evidence_inventory.py": "affe1e99abcfd45f23dfa0e08471a9fe629ceb2c9477aae52fc04fc3d5349234",
+    "scripts/market_map/windsor_existing_comparison.py": "36be2d2a48f26a7f97d16c567c58351d86dcd45647c377309300b47fe3e71a36",
+    "scripts/market_map/windsor_foundation_audit.py": "bbd087e3dd2a11614d07d545ec025fa292932ee3862e38462f13d7f0e0b64726",
+    "scripts/market_map/windsor_geography_pilot.py": "2c41945f7842352afe964094355ab63405a5c19baeb77c80d3a8845cf52c89b6",
+    "scripts/market_map/windsor_operator_groups.py": "c13433db8ed526790df4350ce1ed608bdcf5de49d3457b15698765ffe5f89657",
+    "scripts/market_map/windsor_patterns.py": "da64e370bccd06aded7fedad0edbd3b5401b8048a67b8f5aab2a874b6b8101c5",
+    "scripts/market_map/windsor_physical.py": "cb6049fab865c6770e14b61742a5f3a9084c8d235e4f8aa7c783aea953dc8a72",
+    "scripts/market_map/windsor_physical_report.py": "edf1c2f57925c52d3e0f271125d0a36636db317e0b4c1503fb3212977f4caf87",
+    "scripts/market_map/windsor_progress.py": "ba918807153eb812b99f55c7128bec205e00999cd726be66c672398e9c439c3e",
+    "scripts/market_map/windsor_property_evidence.py": "49271d1ea153a9daf0e38d1a146d859351ae253eb46ce12a7c8494d0fc2b3134",
+    "scripts/market_map/windsor_role_register.py": "bf25116ff0900cab22f7cd213737c740ce8f5e636ff8b60995670bca4d3d23d2",
+    "scripts/market_map/windsor_school_batch.py": "4a2d3ded42420ef702aa649256296e053f64b2ed77fa1b6ea15b41896cb0033f",
+    "scripts/market_map/windsor_stage_metrics.py": "24f7914fb236f833db7e0d9cdf3754f5b510b8be2a4bf81f19e84c5acea9d229",
+    "scripts/market_map/york_public_directory.py": "c89826060f2b11889f5dc2aaf6e77008185c23487a584f744f632ba1d588377b",
+    "scripts/research_hub/__init__.py": "6596dec72a95968895ac03af28bd29480f8b2c6c375bb82b8e201588384a442a",
+    "scripts/research_hub/cloud.py": "be9937b67995a6aa6e0f04be509636a0c6c909d0b6db36ce8363b13368425f29",
+    "scripts/research_hub/contact_routes.py": "19b5a9f803d94adacbd908cf157605e87c8be8ac71a6cc1c426c6534cf271079",
+    "scripts/research_hub/directory.py": "52aa5aa228e48c1e1d6c5e7a5c9a9dbe98ba5bd169c270708780f7dd8af7e784",
+    "scripts/research_hub/listings.py": "82fa79972b9a7715ab33cdb85422f2a612030c7b995de552d0f6670772e37591",
+    "scripts/research_hub/portfolios.py": "89a38c7d3bc9978388a80f577c71518da23e4beeb000fa2024554941b3f734da",
+    "scripts/research_hub/team_batch.py": "a67a904e4c5ddddad6b5350bf1a8835c540b21b60ee3b45f2ace1d726eed520c"
+  },
+  "changes": [
+    {
+      "path": "lib/data/gta-service-cities.json",
+      "before": null,
+      "after": "df0c168f5543e3167955efed24c49632228a010245a1faf544115fffac306512",
+      "action": "add"
+    },
+    {
+      "path": "lib/partnership-core/markets.mjs",
+      "before": null,
+      "after": "37a9a79675e9912b46bca0c4ade86eb2c1591310be72d45b3773325b24581215",
+      "action": "add"
+    },
+    {
+      "path": "partnership-system/catalogs/service-areas.json",
+      "before": null,
+      "after": "9d1c1b42079daf8a3b128a9722cc967fb22e799742838b0995459ab7c4f1d867",
+      "action": "add"
+    },
+    {
+      "path": "scripts/discovery_v2/contacts.py",
+      "before": null,
+      "after": "5f204135ad4bec9e7125d3cf3d8e6faea3d235f75df5983c3c608ac3bcdeeb7b",
+      "action": "add"
+    },
+    {
+      "path": "scripts/discovery_v2/engine.py",
+      "before": null,
+      "after": "d74c5a011756e9d2cca2a414fafff18bdb651b45b5c911dfc3f42b27635b771e",
+      "action": "add"
+    },
+    {
+      "path": "scripts/discovery_v2/import_overture.py",
+      "before": null,
+      "after": "a21ff10e88dfddfecddf11a7abb02056f3f2b7e08a3abc904c9d68dea13a0e38",
+      "action": "add"
+    },
+    {
+      "path": "scripts/discovery_v2/migrate_identity.py",
+      "before": null,
+      "after": "6a9c2c3b9e05525429d217223225564b0b614797afec4f2a269b90ee2e67f127",
+      "action": "add"
+    },
+    {
+      "path": "scripts/discovery_v2/worker.py",
+      "before": null,
+      "after": "301f99c646dfc2beeb0b47a4348023d7e34124e60ac73f3cdd3142f4fce0a30f",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/adapters.py",
+      "before": "206996e01fdba200be6b202e1fd0a593516f6c8873372502ae50e220c2ce0731",
+      "after": "b13c8f353bc2fdfec8fa260425b66c0a05e1f35d36da8195dea27fdba71b43a6",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/capture_inventory.py",
+      "before": null,
+      "after": "2161a04d63b4a843615e7cedee041428fc6dcc2666f35ae9152eb135d153f004",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/cloud/regional_contact_enrichment.py",
+      "before": "96b04c42180e99ab1daf84c973bfff5b39cab6f227f8f5b6aefb820ec578d600",
+      "after": "8b1cc9ecc3d1e0ce29c06feaca132fa8b2e67f51ab43eb0c7e7b56147b3534d9",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/cloud/regional_email_inventory.py",
+      "before": "a21d9e13bc956a58f40c4793d6e4b23adf1d11efb9729638509846fbb6226c48",
+      "after": "a77f7d6530a84c0da890d7ab2d33d45b658c4d31a6b4b1f713e33d9476e49aa5",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/config/sources.json",
+      "before": null,
+      "after": "5047f8f3e12741c165f21270874520cd3ae5474fc80867012fbde431549dab00",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/config/taxonomy.json",
+      "before": null,
+      "after": "7ae88b2c72b4c62dc655b4a32cd1d7b3b24ac603197d5cf5f750ebed710ec31f",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/contact_attribution.py",
+      "before": null,
+      "after": "a528938f7bca98a66926ea5e5eb569c5ad4e33d5b236567d97d6a716d2ce431f",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/contact_capture.py",
+      "before": null,
+      "after": "05b2f385dea0205856b03348e126e8b92e97373c7001c51682dfe3d67d2fadd1",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/contact_context.py",
+      "before": "5d996248c4e5c4759dff9c81b2eb677fafa8278fcf2c36887fc95d1ca5a8c120",
+      "after": "2a4492e5ec595ab8a899e165002b6b0414a7290806ffbaf2a2ddeeff07161f14",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/contact_enrichment.py",
+      "before": "8bd9c52e5aba770a075e905f2a4e97cc2defdcae2a201b424e500aa19462da33",
+      "after": "f4108f0bc709972b74335e4fdd5d723ce2f2525fcc02e7ab545bbe1bf5fbd633",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/contact_frontier.py",
+      "before": null,
+      "after": "2a5aa79eab0dfdcfedb14418f2d12c1b600fdf2d169340b2b87edb4d9b08046b",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/contact_observation_store.py",
+      "before": null,
+      "after": "f98f23481347ddcf7a259e726ebb740fd26a91e0f7d8b5c9fbca23cca5e59a93",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/contact_page.py",
+      "before": null,
+      "after": "e9a795b731eccdea6f955fdbc69e3e86a0d1febf7df533e7b6a9c0f6b3ebaa62",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/contact_text_runs.py",
+      "before": null,
+      "after": "1e58735525843dbf246a8344df6decd41f1f0cdb73e3ab410637a90f0618f1f0",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/email_acquisition.py",
+      "before": "75ef028ca0262c586b3df5109547af123de4a685dfb91fb333bcedeac7b4b52c",
+      "after": "e6d184c2f877b5d715b32d4062dd0595cb3fce42c836a3af772629df5116f5a6",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/email_domain_process.py",
+      "before": "c475c72b6a1f2348c3d252a5cbd36b657bf794918283a1e5b75b1bbed68efb87",
+      "after": "e40d8d82959df3075b39f5ade7491f6f9d4b152ccfa5af53c42b34eb2017c4c9",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/email_extraction.py",
+      "before": "26d0c0b8805cf6cc374e557886f2590d291f5069274d7ec4251b94f46eccaaef",
+      "after": "5f4150a4e5de89f48c24ca98e78a26d666c1b7f6f0d78aa3797f5ea127bcd929",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/evidence_maintenance.py",
+      "before": null,
+      "after": "d1cd8eeb28aad5549cd9878a05b1e8eec0e0d8b35712d478e6d1214e8ddabffd",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/extraction_benchmark.py",
+      "before": null,
+      "after": "ac963f78ee24b551bbf97686d654aa5a5928f345bf2051a73c8cdedc70f8e0e8",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/fetch_outcomes.py",
+      "before": null,
+      "after": "af0bef0fdd00545fe2165a621bd19a51b80999c355fa9b9cc9771dc69a096d19",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/frontier_retry.py",
+      "before": null,
+      "after": "63c34b399061bf16fcbfc5d6dcbda99832e13405a6a556f493331521bdd39e84",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/host_budget.py",
+      "before": null,
+      "after": "c3c814057a4e6226e57c3c7ce7ae2f88adbcc6b9da4a003961992efc370a511e",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/001_market_map.sql",
+      "before": null,
+      "after": "cb0219822fea9a72267a4df6cac7b2197ed6865a5fe3f36d49d9da3535fe7377",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/002_reviewed_resolution.sql",
+      "before": null,
+      "after": "9b3df05e23a8f0704881341134682559ba73e023dfefe68d65416237118608f7",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/003_website_discovery_receipts.sql",
+      "before": null,
+      "after": "cfaa5dd90349ebb2d3d1f65ebe8f7d32ebe16d4bd249ab104ad19d1c7140a198",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/004_compressed_raw_payloads.sql",
+      "before": null,
+      "after": "288d3a4e59b5b76aaf71fc68e9329a13c1c15be0f330971220c12b6526eb6b9c",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/005_grouped_assertions.sql",
+      "before": null,
+      "after": "018d987660e1681931837e0e49f012e0884fa5c88c7e9acbd2609247ab8ab97d",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/006_query_indexes.sql",
+      "before": null,
+      "after": "f9201ff502c4fd1bb1fa21c6d357c034a1f6c6843bfbda0af18b1a6e3ecfd5e9",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/007_location_locality_lookup.sql",
+      "before": null,
+      "after": "cd84e5021e252195739b0b6a9c518bec8047bd64bf4f0a9f618f87302a77c831",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/migrations/008_phone_channel_details.sql",
+      "before": null,
+      "after": "0c19bcd523f68c682366e01d987d9933257c303653d5b6b7a2ec68e33ac36982",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/offline_guard.py",
+      "before": null,
+      "after": "bedf2c0e6972de734f5c91d2224c3747b8d50b336b7f82fb86d2e9da75101137",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/phone_acquisition.py",
+      "before": "5a17f07f1cb9ce2ed4a1a54e7741582714a9303067836288fc2bdbf29b58b532",
+      "after": "0a659f1a907624de6840b0e3e290f793ba1d0575b5b6e43d870951c020e9e7d9",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/phone_extraction.py",
+      "before": "eae9a9a705b07d561b9cf6a2ed845256bf58cc0f2cf967b4e76199b9ef2927ca",
+      "after": "f0a093ce25c60b0260276d09726d6b5fa2452252e61d97243626a86e0a1bafdd",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/regional_occurrences.py",
+      "before": null,
+      "after": "2f23c90a17271864b1f04fbd40c0d0aedc1e20a044af82bcf1deaf171a6d3c7a",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/release_corpus.py",
+      "before": null,
+      "after": "b5a78f3eb5f86a43b0e43eda8e2fd3b02e5837c80de1bd76403d97f61060aa3e",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/release_evaluation.py",
+      "before": null,
+      "after": "1cb3a1c95ff418472b36b0767b64354d8787e4f054f302e989a41910ced08853",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/release_replay.py",
+      "before": null,
+      "after": "718faf4d29f041080595957cdfee67c8f60f8f17ca4aac850bb17b5e4d6dcd9b",
+      "action": "add"
+    },
+    {
+      "path": "scripts/market_map/reporting.py",
+      "before": "fddb4a6a6ee793d9667e37810da6c230b22b51766533340b57c9db7a09d75100",
+      "after": "7f50119f7dae6b0505a25a26d63baa79af4bce3ff54b3bb5a0c50e597edf1d2a",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/site_source_extract.py",
+      "before": "26960d30e6833fd7973d692b501dacaed65a012c5cd3393df58c4ba07b04cc30",
+      "after": "ff44dbb8ab2be37b1d56f6cc40c7c83f55e6a39ce0825736531aba42880f5c4b",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/store.py",
+      "before": "9dc97ec6886fcf9520cadb014303fa71bac82cd5e2fd28163e80fcc2cc858e31",
+      "after": "b824a84548942a07a71b9ce4aa6063195f50420798c719077956e9147969c8a7",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/transport.py",
+      "before": "4f86d054a52ebb69811eaf75464f17428a99fd0efe9a4c186ae7732d9a4da152",
+      "after": "c04bd160e1edb9062bfcad430f34af12065f76e6a86bc0e7e78dc633c30bc470",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/verification_pilot.py",
+      "before": "fcbea4f957f965fd3deb67bb5d90068f3b0f33a848fcfcb5542cd1e5816d7ee0",
+      "after": "d94054e1ce19248e20c187358a7bfb60a4909af9c53e79ce752c67db490f822b",
+      "action": "replace"
+    },
+    {
+      "path": "scripts/market_map/visible_contact_evidence.py",
+      "before": "0ccf48b0acb6dcdeb1a72cada5fd3fdf33a038465bc2b01dca30eb4a1ff1cb51",
+      "after": "c3c3c604ed0bef7774f934dd30d5de0560118e152ceaf0c365e74d978ecf29df",
+      "action": "replace"
+    },
+    {
+      "path": "tests/discovery_v2/test_contacts.py",
+      "before": null,
+      "after": "c10782492f91d5881a0c7ab2223f1f19419b33b951afb76076b100bf9e66b4f5",
+      "action": "add"
+    },
+    {
+      "path": "tests/discovery_v2/test_engine.py",
+      "before": null,
+      "after": "a47bd37e421c7eb55e72d8179f64631bd82b209cdd70a57292f53ce7b2eb46f7",
+      "action": "add"
+    },
+    {
+      "path": "tests/discovery_v2/test_identity_migration.py",
+      "before": null,
+      "after": "a545f014146cc2b226eb6f199e488241db97ebef3ac9c28bc2b536bc3cb2e2d8",
+      "action": "add"
+    },
+    {
+      "path": "tests/discovery_v2/test_overture.py",
+      "before": null,
+      "after": "11646f166ad7c48ee38b8b8ddde167b74d7fd7e3d883333be774d822dc1dfae6",
+      "action": "add"
+    },
+    {
+      "path": "tests/discovery_v2/test_source_identity.py",
+      "before": null,
+      "after": "3bf0239245b0b8a132cede485c31a4e9b6e9ce82649584361190b9a48eea16a2",
+      "action": "add"
+    },
+    {
+      "path": "tests/discovery_v2/test_worker.py",
+      "before": null,
+      "after": "cc0c893ca198e6b3d356d57250fd5d6e661a1861b3bb8f3996fc8c798eaa8d31",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/corrections_measure.py",
+      "before": null,
+      "after": "6cdb09cbcd55a4e04586d7a4103932b02af41d171a94aea7a1ef61e68df587ab",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/adjacent-fax.html",
+      "before": null,
+      "after": "99844a86e3bac4b2b565a028a63876158f400f76a1ae32cc41be85f3a9148c3a",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/empty.html",
+      "before": null,
+      "after": "f70b370debd085dd9e9fb6495c796cdccf41c44574cc185dbe124f3ea8237623",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/extensions.html",
+      "before": null,
+      "after": "70a7a50a126ad58171e71c0ede273b0f0c4950af49b4a141a7f9e52a0f36f239",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/inline-email.html",
+      "before": null,
+      "after": "8051c8edcc152cf2a59423dfde536ea9b67c3bd473948352c4ab550f6636192e",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/international.html",
+      "before": null,
+      "after": "f54c161c4b94d446b974dcb823a320a465f4ba15e4129f3594cb260fb54540b9",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/labels.jsonl",
+      "before": null,
+      "after": "a621650ecb00ce9903cfcfe4813f9146aa0cb5deee6c476e7b15453d8df5af8e",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/malformed-plus.html",
+      "before": null,
+      "after": "d7c4a58fea149356e3e408f6525805c6a47bef31ef0cf8ce6a698fd4bcd25e8c",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/manifest.json",
+      "before": null,
+      "after": "ef6ccc706bce5168b3cbeaae0ca1dd156e6ae30fcd954c6eb6ce3f30609cd08e",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/mixed-field.html",
+      "before": null,
+      "after": "f75fab2559168047b8827e5d1cb6b79099f703d1f0b99ab3e5d62ba37e1867bf",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/nanp-invalid.html",
+      "before": null,
+      "after": "0ed1c8a9c1b637086d45302a634ff65fc01d99b8797d3a4ba0a32f7b8faea3cc",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/noise.html",
+      "before": null,
+      "after": "ca3e1a1c8eadd68bb4238c4897606c2a1ddffd8122ac878b78e05a7e6a4c0e17",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/separate-cards.html",
+      "before": null,
+      "after": "db7918d2f99046e306ac65996be982a666dc394826a4f46ae244cd725e972cf6",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/shared-business-email.html",
+      "before": null,
+      "after": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/shared-route.html",
+      "before": null,
+      "after": "746f7acf22a392bccc7f355887c7c85de0b0d5182a7cf569a95039002777fdd1",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/structured.html",
+      "before": null,
+      "after": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/table-fax.html",
+      "before": null,
+      "after": "fd611e440d439c37971252ccb90d9f77c0a11a487bdfb944f4661270c42b2ad1",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/trailing-fax.html",
+      "before": null,
+      "after": "a31ceac9b1c4238165f85d7223840f9d39b0e3bb03c13b496f724fe9aca233dd",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/two-people.html",
+      "before": null,
+      "after": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/fixtures/unicode-email.html",
+      "before": null,
+      "after": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/network_sandbox.py",
+      "before": null,
+      "after": "f48e96a29c92bc1892d44a699db4fd65ba0fc515a608708ac1bff79ad1ca8079",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/pr17_measure.py",
+      "before": null,
+      "after": "90a2b37a03d18e840e48b5d0f4a8b2f403d8e3e81a62fd3739f3659c7df1be55",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/run_corrective_processes.py",
+      "before": null,
+      "after": "11521e3eac4ef896b6dfd87ad5912f74f6492b336863bbf0eeaf32d096c1e12a",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/run_offline.py",
+      "before": null,
+      "after": "10361caf6b7aad7b3e1536456c46fd74806a42a30bdd45858f07cf4ac39e54a7",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_benchmark.py",
+      "before": null,
+      "after": "64317f1dc5ae9336ff935b4198d89ae26401daaa6d510d3c3bd5b98c48704b74",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_contact_text_runs.py",
+      "before": null,
+      "after": "7f45f763e1e69ee6af2aa56acb4034e157f9781c8f2ff0f4f815f7cad59a12c0",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_email_normalization.py",
+      "before": null,
+      "after": "5e32f49a7ad3d315300abde01686f61271bb67fd572392c89a45720a23aa6f99",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_email_occurrences.py",
+      "before": null,
+      "after": "06e3b51cf8527ad0415acc48fb26358b5a186818082638d08207a0ebda52f861",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_offline_guard.py",
+      "before": null,
+      "after": "ff0c6a297b8350b1b567352f3a657c359f9558157d048d0fe641bab965a06f52",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_phone_labels.py",
+      "before": null,
+      "after": "cd620ed2e335b78e349627d0fc13337e57827b938d1e87c5a89ea99c38895b7c",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_phone_normalization.py",
+      "before": null,
+      "after": "0de043732136f4decb3ae50700af96f7efc68280b73321a08663148fbf4eb6fd",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_readiness_corrections.py",
+      "before": null,
+      "after": "fd5765272f261d025dbc723017cdf4ae8752be1c456706264bf893fa612c11e0",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_release_gates.py",
+      "before": null,
+      "after": "2bfe1a6dab4c55439c46321937e132541bd64e4939fa2d7ed9acbcf8cfd41bf3",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_release_operations.py",
+      "before": null,
+      "after": "a86b4977d16a0174510120df41139f409e76a147647f12e528727b200c2a1bff",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_structured_contacts.py",
+      "before": null,
+      "after": "e68225911ca1be22b663ea9508127f7196098fd2fad341906c81937e34180879",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_tranche2_replay.py",
+      "before": null,
+      "after": "d1dbf4a31620410a72fc682594e07e96532002d6f3280a4613049f0ec3f3dada",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/test_tranche3_replay.py",
+      "before": null,
+      "after": "21dc437e2972b447df62a7a16436cb446567d05357ea07e6d820cfb4c34a6fa0",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche2_replay.py",
+      "before": null,
+      "after": "e6f1296b567e86e2b4bb6b83a861da5f5a9d1357c951ffc1f88fc5a02ede4614",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/article-author.html",
+      "before": null,
+      "after": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/cards.html",
+      "before": null,
+      "after": "a59b6ac83e260d090308ffd352d925336976f99ca5f3a91b16e33ebcb100e363",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/cells.html",
+      "before": null,
+      "after": "33f889484b0dcdf04947410f3710d704182224f71e346837eb4d21f488446f4c",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/cycle.html",
+      "before": null,
+      "after": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/duplicate-reference.html",
+      "before": null,
+      "after": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/hidden-barrier.html",
+      "before": null,
+      "after": "3a2564f93c94f1a9d60ef1a5143fe877c03e48ad609eab4a19da7c5926b6283b",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/hidden.html",
+      "before": null,
+      "after": "4ade4d8d0f2a14666eb7bf421e21c4164ef99035c397655fb67a2680377d4cd8",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/inline-fax.html",
+      "before": null,
+      "after": "b3abe8e4fc137b21642e876e20f9f323d1a70c6d73c82a3c9aed60379caed296",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/inline-obfuscation.html",
+      "before": null,
+      "after": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/inline-suffix.html",
+      "before": null,
+      "after": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/inline-unicode.html",
+      "before": null,
+      "after": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/inline.html",
+      "before": null,
+      "after": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/labels.jsonl",
+      "before": null,
+      "after": "824fed4fe31846be7ebdd54627ff15af00691932bce04840d1927c355ca5e46a",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/manifest.json",
+      "before": null,
+      "after": "360169b8ad5a89312be16501bd854d7d5ca6390c3a22d9dbfe3e7ae203974b3d",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/person-employer.html",
+      "before": null,
+      "after": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/reference.html",
+      "before": null,
+      "after": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/repeated-context.html",
+      "before": null,
+      "after": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/shared-reference.html",
+      "before": null,
+      "after": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/subtype.html",
+      "before": null,
+      "after": "4f689943c25ec09caf30075ed6063c426714cfb6d0b13b5777e38cedb7b978af",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_fixtures/uri-array.html",
+      "before": null,
+      "after": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche3_replay.py",
+      "before": null,
+      "after": "0ae7ab0e0b31c836a78ee8f6849a244addfc56221dcabd9dd239cfe95353160a",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche5_results/PR-16/candidate.json",
+      "before": null,
+      "after": "74099d05923a7d4b7e760ad951aa3fb90356dee6204a563ba21c138e76db8181",
+      "action": "add"
+    },
+    {
+      "path": "tests/extraction/tranche5_results/PR-16/frozen-candidate.json",
+      "before": null,
+      "after": "1bfa4dce9c6582454e2a716697f6aa40ee80af5a21b2eab56f6163e7526ac5be",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_adapters.py",
+      "before": null,
+      "after": "58eeb30246db2884fe2250f570a2e0b9523d8319fd84346a0bc4be584e604f38",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_contact_attribution.py",
+      "before": null,
+      "after": "7c48600bbdcd8c9092c2cdcc01ad8cf643d1b1ac9d30066b488d32f9bc5d414f",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_contact_capture.py",
+      "before": null,
+      "after": "06da3ca863185e36f1fa5687be72c41bc8c33a58d382b5ad31875fe99f82292e",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_contact_context.py",
+      "before": null,
+      "after": "c5c6783910e72e5868af49fb86c2a6cdb1e436a443ef822ed70fde6b9a8fa568",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_contact_enrichment.py",
+      "before": null,
+      "after": "24cce1549ac8666efca51b9c3d3957b6fb6959545e203d7c07aff2cfa43404e9",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_contact_frontier.py",
+      "before": null,
+      "after": "e6d4aa0ed16bcc7646e69d9ad9b35b1a439c8a9595b8aba88433a9f9e1c3bd1d",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_contact_observation_store.py",
+      "before": null,
+      "after": "400eac3b188d95ccfdaf2ef8e195817de10b9e64fcdc5513807a381be18698a0",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_contact_page.py",
+      "before": null,
+      "after": "267e22a6cb183e3510b5aafd05c89ecf8bd29f49ccf32a4e3b3e7423940e17bd",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_email_acquisition.py",
+      "before": null,
+      "after": "1bc4dd65fa96bceabf78d43398904afed0d9b973d10a5c5ee253efd4de58625e",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_email_extraction.py",
+      "before": null,
+      "after": "6b61c46e7ba32080227fdb7eac6471704d5f2bdbc90d1816475fbbcbfd124a40",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_email_persistence.py",
+      "before": null,
+      "after": "ab1b9ea02652b65c612099bc1090199902aa4f34e9ae294883bce8f5e6a727fe",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_fetch_outcomes.py",
+      "before": null,
+      "after": "6a0c5d112e273def4ab39421a43476b0ea8fb60ee8622425b27309ee723ba2f5",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_frontier_retry.py",
+      "before": null,
+      "after": "bf104a383a337026962d7b0e76c83e72ee0f74fb71dd83b5d892411e2bb49a94",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_phone_acquisition.py",
+      "before": null,
+      "after": "35fe965e02641b9bf71a70ae97213b51346f2c5f7a3969e740c2e6ea85cfacba",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_phone_extraction.py",
+      "before": null,
+      "after": "e5023640da7f3eb1abffaabbf09fa00c552ff75641f485a08b3530a26771ed7e",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_phone_ingestion.py",
+      "before": null,
+      "after": "25ae1e47c21abf5d5198fcc6e4b7f74009e7dd64c1478528444e74c34202ea93",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_regional_additional_phones.py",
+      "before": null,
+      "after": "070d0b1946441c81193014f8290fcab15700e4208bd45ae685ac723cdf4d9c3b",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_regional_contact_daily.py",
+      "before": null,
+      "after": "c5082e1e709d15727d46012c799f870d0bf583e267de679d75d2d9ec8d02cbe8",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_regional_email_inventory.py",
+      "before": null,
+      "after": "e85fb10b485bdc4a7225f7c38ee7af708a33ea0359f15d34ef2aab67cb87457f",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_regional_identity_review.py",
+      "before": null,
+      "after": "f3b8ee3f8857470c7573c14ffa16e6a901d84fd518f1df0e191fbd9589ba7e06",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_regional_occurrences.py",
+      "before": null,
+      "after": "926480006497db6739f032d01c7f5a1638101cc84e790b069010caab85f94a8f",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_reporting.py",
+      "before": null,
+      "after": "d32d14d78d17470f1760c1dba81f533168c9fb51fee9bf3768cf558d7571d52f",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_site_source_extract.py",
+      "before": null,
+      "after": "f3d5f3620fc327170b6390b78eb007bc1268b5cdeaf94bdfa9be24bcd564122d",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_source_capture_cache.py",
+      "before": null,
+      "after": "7eefdb138c9fb6555cf58338db1fb5cad6ec56995e193e87c6d89a27358b897c",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_store.py",
+      "before": null,
+      "after": "ae5c100f3c8e47c7e6f30f89b011b89014706b0cb309de66d9d08158b5cedfd4",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_structured_email_audit.py",
+      "before": null,
+      "after": "5db8e768731e6331ef14052f7d4144701041d8bfbe67785bb669d074ffaf8db9",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_structured_email_recovery.py",
+      "before": null,
+      "after": "29bab4c2745ef491cf45d35d1395a3cc0f1f934be211e41ea0affdf94def1d72",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_transport.py",
+      "before": null,
+      "after": "552de46b817e455465895e2615b8ad6277875ad22bd3e01d27fed0bff4e12147",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_transport_directory.py",
+      "before": null,
+      "after": "5cae23a3c3574aa646ec2ba22c116565538f374b3e2f4cab6a7efe8bb7d44609",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_trusted_source_capture.py",
+      "before": null,
+      "after": "58fd54993c7f93ecb0e85462ff17ce62385a5aee656703b3ddb9e0af06fe56dc",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_verification_pilot.py",
+      "before": null,
+      "after": "21301aa334c7e8115baabe8dab8a0a6edc70f8601a4723db5bec6f124da132f5",
+      "action": "add"
+    },
+    {
+      "path": "tests/market_map/test_visible_contact_evidence.py",
+      "before": null,
+      "after": "68212ceae918857a5a9b0bc60a3d473b7de217736deb8441e8f5b4e44c64da7e",
+      "action": "add"
+    }
+  ],
+  "candidate_hashes": {
+    "lib/data/gta-service-cities.json": "df0c168f5543e3167955efed24c49632228a010245a1faf544115fffac306512",
+    "lib/partnership-core/markets.mjs": "37a9a79675e9912b46bca0c4ade86eb2c1591310be72d45b3773325b24581215",
+    "partnership-system/catalogs/service-areas.json": "9d1c1b42079daf8a3b128a9722cc967fb22e799742838b0995459ab7c4f1d867",
+    "scripts/discovery_v2/contacts.py": "5f204135ad4bec9e7125d3cf3d8e6faea3d235f75df5983c3c608ac3bcdeeb7b",
+    "scripts/discovery_v2/engine.py": "d74c5a011756e9d2cca2a414fafff18bdb651b45b5c911dfc3f42b27635b771e",
+    "scripts/discovery_v2/import_overture.py": "a21ff10e88dfddfecddf11a7abb02056f3f2b7e08a3abc904c9d68dea13a0e38",
+    "scripts/discovery_v2/migrate_identity.py": "6a9c2c3b9e05525429d217223225564b0b614797afec4f2a269b90ee2e67f127",
+    "scripts/discovery_v2/worker.py": "301f99c646dfc2beeb0b47a4348023d7e34124e60ac73f3cdd3142f4fce0a30f",
+    "scripts/investor_research/worker.py": "88884981e2eff0bd0c5824939d17212a811fd229c43da832260198981b3bf24c",
+    "scripts/market_map/__init__.py": "5195676747739c35af09af525798f054396534cdd78d16cb31fe55ed4a6f22c0",
+    "scripts/market_map/acquired_inventory.py": "4c67cc7693557929e15fb589545bf30705ff2e75f7827651ceae5ec083c633dd",
+    "scripts/market_map/adapters.py": "b13c8f353bc2fdfec8fa260425b66c0a05e1f35d36da8195dea27fdba71b43a6",
+    "scripts/market_map/additional_phone_relationship_review.mjs": "191bf1a0077f6d07484af586edd038c2053f1232bbe0a1c40eee8e495a3780c9",
+    "scripts/market_map/aggregate_audit.py": "68965c2eb08eb46a28e05b7b2d8d07ac30afb932f1ed0634d7eaaa6334ba0b7d",
+    "scripts/market_map/aggregate_sites.py": "b33ca214f142dd71940ff0d4e48a5a98f2d936f684934f0e67955c54dcb7ce66",
+    "scripts/market_map/aldershot_directory.py": "5da01dd1f460565955df0af6338de44f6b9a8112881f3a65e86e7222a5e51731",
+    "scripts/market_map/apbot_public_emails.py": "86f7127054b4369ced6e532553952b54195df84ff3a9a5bbe20a5df1a91c6d69",
+    "scripts/market_map/audit.py": "4c997161a6d7c3c52b8c1019cb44f5c62959eaa98a008cc3f22890b0718848ba",
+    "scripts/market_map/audit_pilot_technical_recovery.py": "82070f8085635ff97ae8effe4979565f0360bf91315bfb44364bec5b3bf2ba74",
+    "scripts/market_map/bia_rosters.py": "260be9c8ba465269b2700cead041bb1b1e57be065b7832b2b6d9d4ade6c11b89",
+    "scripts/market_map/bia_source_queue.py": "2b16f6a53ef0333414096fee34883fdea6db6a1123f3758693bb3557c01f5102",
+    "scripts/market_map/brock_profiles.py": "0bf2a971125a19041802f1ceaa47dcfb9bcda5cdc43fb5b19aab0c2b230ba442",
+    "scripts/market_map/build_city_category_14day_plan.py": "150c03d8bbea83b2ac2f8f73b878e626126eff1b5f6210727cacbab37627283d",
+    "scripts/market_map/build_coverage_workqueue.py": "b110fef99f6a8a0aff1bff8fed0e0bdcf74dcfff9484fca45e6d76778b87a58e",
+    "scripts/market_map/build_navigator_review_queue.py": "17a4f8e23d6d6fb1fbfc8faae05a9f635dc991ff28ce039aba4f35d549344587",
+    "scripts/market_map/building_address_work_groups.py": "75f398876d5c213883fec1eb175629fea650ec55a5ca5fe631bd5304716d0756",
+    "scripts/market_map/building_research_queue.py": "50e39b17cc461a6e8d31debe2500350ce228bb79cc044177ea42a418c5b8a256",
+    "scripts/market_map/building_research_supervisor.py": "07d6738330b984c54e5e522b90da71aa1bc8a114d1c70f68d7249fe947b77a2b",
+    "scripts/market_map/cap_completion.py": "51f3db3f59981097dad5c5ba95df64cb392120d3a0a6cdc3d1269da06ff61ea2",
+    "scripts/market_map/capture_inventory.py": "2161a04d63b4a843615e7cedee041428fc6dcc2666f35ae9152eb135d153f004",
+    "scripts/market_map/chamber_rosters.py": "c26b6ad98a23f817ae4275c7a7f174fc0503bc06b9fb39c312ce8134b1ec9ac3",
+    "scripts/market_map/childcare_sources.py": "68cb9551077efe99311221947baf04adc8b272003ccfb14a4225810ae915890b",
+    "scripts/market_map/city_research_coordinator.py": "f273c90605a40e4fef4d6f9e97ca5683505e253a2b8e4f26d42b83f30906f7d8",
+    "scripts/market_map/civic_sources.py": "b62d404b832a52fddf95abef419cea05588a818cbdb37f36efb12e3070d23217",
+    "scripts/market_map/classify.py": "7ab23addc92ceb122f75cfce0644899188dd3027a20f03fddd751470d9f641cb",
+    "scripts/market_map/cli.py": "41db91b5904e29e5e04cf4dd3ecc98bc95416dd1bbefc8f00bb337bb1feb426e",
+    "scripts/market_map/cloud/additional_visible_decisions.py": "6ad1b4f6957ec160a82033426663b04e79f7833dca7ab5fd58bc01d99636b52b",
+    "scripts/market_map/cloud/contact_capacity.py": "d1e0931f3d939ea95fb0a0f8e6dbfefd05247c16e4b0c1a7fb52ef6e93d8a42a",
+    "scripts/market_map/cloud/railway_entry.py": "bbf2d0f07b003493783e21aca7fb9ecf29770f25f5a3d9b5c19012410a4f6a6d",
+    "scripts/market_map/cloud/regional_additional_phone_identity.py": "c7b2a19fffe89733cf18581a5f73e8da54b4a44b8b9b515ab3db87c2fa7e2e66",
+    "scripts/market_map/cloud/regional_additional_phones.py": "ca6934eddd696ce3ed9a8167e8aeef44d47745d3edd42ce60ff027c5d71e7cec",
+    "scripts/market_map/cloud/regional_additional_visible_queue.py": "17098a726348070047f7432b3e261d5213c63e3c8a1d1bbf703b146deb7412a9",
+    "scripts/market_map/cloud/regional_carrier_verification.py": "4aa244b35c1d6587d9b2a02cc0c02bbf251371921b3bb8698be9d469fdb3fe4c",
+    "scripts/market_map/cloud/regional_contact_enrichment.py": "8b1cc9ecc3d1e0ce29c06feaca132fa8b2e67f51ab43eb0c7e7b56147b3534d9",
+    "scripts/market_map/cloud/regional_coverage_report.py": "75e912d6ad80faeaf86536571968775415b04c661a812075a914b7549c76e237",
+    "scripts/market_map/cloud/regional_daily_supervisor.py": "bb7c9bd7aaeb94fd05688ccf2699820279972159bc67bc5663d072715e078c2a",
+    "scripts/market_map/cloud/regional_dns_diagnostic.py": "28a69604759a912c6de7b3eb8786896902a2498df13a9b16e211c56c6f01c740",
+    "scripts/market_map/cloud/regional_email_inventory.py": "a77f7d6530a84c0da890d7ab2d33d45b658c4d31a6b4b1f713e33d9476e49aa5",
+    "scripts/market_map/cloud/regional_identity_review.py": "2919dacbea732c272bd1926404f200c6ac23f85bda8cc22f6e9c6c439e28e368",
+    "scripts/market_map/cloud/regional_map.html": "c29240736e4fa85d7a8def2191e1120b94768d95b66e533bf23999136bce8e03",
+    "scripts/market_map/cloud/regional_mapping.py": "7c6e0dadf7e78de4f464140e5cb49bbc9941dd6a757b12904e479ddbc8d0df14",
+    "scripts/market_map/cloud/regional_mobile_crm_review.mjs": "abe3941c9221f50d724616c9b09df56e1e87cb66fc2252385bebd6d41ef11fcc",
+    "scripts/market_map/cloud/regional_mobile_crm_worker.py": "e6208add9f8add8f8ceaed208a284be89b2cc6b5379c2af845e0ff9a870d2ff8",
+    "scripts/market_map/cloud/regional_outcome_monitor.py": "97d41c2c65a7f2363d983c216f3c145f4fe0c6b32a7914b0918f28321d12eef6",
+    "scripts/market_map/cloud/regional_route_overlap.py": "1400212b2f47faeea3b7e0e35fbc7eaf569f910fb2a75a30ae693f3c92737f2e",
+    "scripts/market_map/cloud/regional_visible_review_queue.py": "1d3b293a811025bd5bda82cc511018a45f338f9b93ed556b479beb6ddf44b264",
+    "scripts/market_map/codex_api_worker.py": "536ffa96452347197dfe7eccc31c6785cd9a4c500c3ca62d681a8e99fe5418b6",
+    "scripts/market_map/collect_next_day_sources.py": "aa2661be3aaa6161dcde6ffc5d62641347852740aa90a960584299ae82e9ff4d",
+    "scripts/market_map/commercial_properties.py": "69a94d03dbafcafe242b6bcbce89bb70760c031953b988afba320b469bd8200f",
+    "scripts/market_map/config/sources.json": "5047f8f3e12741c165f21270874520cd3ae5474fc80867012fbde431549dab00",
+    "scripts/market_map/config/taxonomy.json": "7ae88b2c72b4c62dc655b4a32cd1d7b3b24ac603197d5cf5f750ebed710ec31f",
+    "scripts/market_map/consolidation.py": "cc928ce05c076e9173c0b9a590626c2828e49b1eaba5a8112ceb092283db2661",
+    "scripts/market_map/construction_rosters.py": "07e93cb6a3240873e52614e3d32c38408bbdb0875f8bb4928b4183478ef943e4",
+    "scripts/market_map/contact_attribution.py": "a528938f7bca98a66926ea5e5eb569c5ad4e33d5b236567d97d6a716d2ce431f",
+    "scripts/market_map/contact_capture.py": "05b2f385dea0205856b03348e126e8b92e97373c7001c51682dfe3d67d2fadd1",
+    "scripts/market_map/contact_context.py": "2a4492e5ec595ab8a899e165002b6b0414a7290806ffbaf2a2ddeeff07161f14",
+    "scripts/market_map/contact_enrichment.py": "f4108f0bc709972b74335e4fdd5d723ce2f2525fcc02e7ab545bbe1bf5fbd633",
+    "scripts/market_map/contact_frontier.py": "2a5aa79eab0dfdcfedb14418f2d12c1b600fdf2d169340b2b87edb4d9b08046b",
+    "scripts/market_map/contact_normalization.py": "9be1c557e7e2c146ae7204c143ea7aab8bfd488922a8ddc4f0a69658c906c983",
+    "scripts/market_map/contact_observation_store.py": "f98f23481347ddcf7a259e726ebb740fd26a91e0f7d8b5c9fbca23cca5e59a93",
+    "scripts/market_map/contact_page.py": "e9a795b731eccdea6f955fdbc69e3e86a0d1febf7df533e7b6a9c0f6b3ebaa62",
+    "scripts/market_map/contact_readiness_ledger.py": "ab27a5146d62d3f3cac1a97972b59182de65b4e8329d8deffea5f5e2f71b0c61",
+    "scripts/market_map/contact_research_queue.py": "6a0be085715b33661bc47d7a0d8b2a992e24026f8836421484ab6406051cae0b",
+    "scripts/market_map/contact_text_runs.py": "1e58735525843dbf246a8344df6decd41f1f0cdb73e3ab410637a90f0618f1f0",
+    "scripts/market_map/contain_fresh_copy_bug_20261028.mjs": "b2a8be0810a28fda3f135a64bee2b7f87b3e612ff23ef519c0fc3aae65ee1771",
+    "scripts/market_map/context.py": "9e3f5032fb12d985706a0fba094e9463cc57ecef38706ba2735725114963ef4f",
+    "scripts/market_map/context_event_promotion.py": "4c56a389e47d06933ebb5c794c059d3f085b215e08e327f5825304a57fe84d71",
+    "scripts/market_map/continuation.py": "f71f7e0a2bae55eacc2809cbc7cd34d932d368ee137b3ede5f1a84c7c2e132fa",
+    "scripts/market_map/corridors.py": "81d4fb82ebec4bb4aae19eff9f9ec0241a6157f36b906f2f9c34827e62d258fa",
+    "scripts/market_map/coverage_sql.py": "51e3a35205028e5b16610545772c535ce173a1f9709b59372750a0620532085f",
+    "scripts/market_map/crm.py": "6b599d7b105680eca32c3b506a603c9dd80e323fe85c7d407e562f0830807dca",
+    "scripts/market_map/cross_city_carry_forward.py": "086e6220b0e5be580bc78ae1cb6d13055046c2b145b8b67fba8d50a608ea5103",
+    "scripts/market_map/crosscheck_windsor_google_directory.py": "e4a03a30ec926a72f0d95c5d442eab377d4182ccfd4e48865969eda41e1ba713",
+    "scripts/market_map/danforth_public_directory.py": "328b9fffaa535bda2dd81cfa64f3f44601c5b9c9d56e752748136748bbf48829",
+    "scripts/market_map/durham_saved_emails.py": "f8c8660c880e3a4a80eaeff8f7fea780c09add90fdd24489ac16532a8e874d52",
+    "scripts/market_map/eastern_bia.py": "83b35b0468fcd937488c5401f8e34b3389fa7b91e434d6754454ebc950248ca3",
+    "scripts/market_map/eastern_central_bia.py": "ab73f2f6afe166de45facbc5a29bdf335bf2bef3dbb75302eec81b31e27eccb9",
+    "scripts/market_map/eastern_public_rosters.py": "1e8037336db7056e751bf3a77f97bb32927e02b6cc62bb3a2f5eadf393b813b3",
+    "scripts/market_map/eastern_rosters.py": "9e39ed68210bd1415fcb1d05033a446bb5a738ed291acd3be57016028fb78bde",
+    "scripts/market_map/eastern_saved_emails.py": "be4e8db5ad35ebaaf24bb5d5a742910189fe2d16d8e95ce4acecd6879f48e198",
+    "scripts/market_map/eastern_sources.py": "c231774a7c45d2d50d7c5e0aa80b3f418bdd595a4851868ec7d3a09a8bd94245",
+    "scripts/market_map/email_acquisition.py": "e6d184c2f877b5d715b32d4062dd0595cb3fce42c836a3af772629df5116f5a6",
+    "scripts/market_map/email_domain_process.py": "e40d8d82959df3075b39f5ade7491f6f9d4b152ccfa5af53c42b34eb2017c4c9",
+    "scripts/market_map/email_extraction.py": "5f4150a4e5de89f48c24ca98e78a26d666c1b7f6f0d78aa3797f5ea127bcd929",
+    "scripts/market_map/email_relationship_review.mjs": "7f1ff53b42ca60d4bfa4d0189155cac3e639bcf7f3e535d99ace711e95c46dc3",
+    "scripts/market_map/emery_legacy_index.py": "c7ea53cb078389e2161ffc2e383b89a6686b9526ff83cca0ce42b3f37641d669",
+    "scripts/market_map/essex_physical.py": "648cd16c39f35d02b49289cddf6cc207a93267e8aed1a0310894af51c536b5a3",
+    "scripts/market_map/evidence_maintenance.py": "d1cd8eeb28aad5549cd9878a05b1e8eec0e0d8b35712d478e6d1214e8ddabffd",
+    "scripts/market_map/extraction_benchmark.py": "ac963f78ee24b551bbf97686d654aa5a5928f345bf2051a73c8cdedc70f8e0e8",
+    "scripts/market_map/factual_arcgis.py": "4d0420fe69b8b0c98fd3a8b9214794478016ca7e318b3487627924ec0efd0d8c",
+    "scripts/market_map/factual_promotion.py": "eb27d9e1277e4a83dd8bbee80e2872f8332f63d358442b5e32fb0c5c7ae4b9ba",
+    "scripts/market_map/fetch_outcomes.py": "af0bef0fdd00545fe2165a621bd19a51b80999c355fa9b9cc9771dc69a096d19",
+    "scripts/market_map/food_licences.py": "36990e62e5908d55f70a69e939f426692382de39dfd5aeaf0351b3cb17e1823e",
+    "scripts/market_map/frontier_retry.py": "63c34b399061bf16fcbfc5d6dcbda99832e13405a6a556f493331521bdd39e84",
+    "scripts/market_map/geographic_gap_audit.py": "27bf34b546e5dfa866aefd6ee14adae211093593153baff6200dfc519f15ed4e",
+    "scripts/market_map/geography.py": "c77ebe3a2d074a94e5ea435785a6d4f9f0f70d78aaaecfcfe83085ec22f2d43c",
+    "scripts/market_map/geography_official.py": "8120dfba350b68fbaf0face7331e96be9d128e535593265a79a3bc73e15aa3c1",
+    "scripts/market_map/gta_bia_project_relationships.py": "bb39c10748ac09f5efb4b6dda518a570a595a43058779265ef1e81e83d517ca5",
+    "scripts/market_map/gta_email_recovery.py": "ec5164275ed342d5034f6b838fafefd928387d71f90d51de1410c26fa98362a7",
+    "scripts/market_map/gta_saved_partner_rosters.py": "1721a2d00141c3feda553dd0be93cde61ed6e3e3e46c649dff062124174dc7e7",
+    "scripts/market_map/gta_saved_relationships.py": "d3fec23935a40b9d405b5ac4bc869036c76c31c87ae829f3d06c179a74b286d1",
+    "scripts/market_map/gta_sources.py": "3a9da8fbb424e2ece4a37f64f25c77dcd30a09af515835886d1263200aabdc3e",
+    "scripts/market_map/halton_bia_rosters.py": "2f0190b124202e9ef79a7002176d03b462533e577173d4039dedbd11435ee233",
+    "scripts/market_map/host_budget.py": "c3c814057a4e6226e57c3c7ce7ae2f88adbcc6b9da4a003961992efc370a511e",
+    "scripts/market_map/html_evidence_metadata.py": "e129ac98fb5d767b21be19b2d9d28427a49f6464b1226f0080f92b374c47a711",
+    "scripts/market_map/ingersoll_bia_browser.mjs": "470b5ce6f5a185fca44450287a8a5f1c387f8fad62ffbf355a97c2f2eedddf24",
+    "scripts/market_map/install_building_research_schedule.py": "a4f6f6dd15a4f368c3ba253e6f90c9aa8ad814a307c1187011440625f9c9c9e7",
+    "scripts/market_map/institution_sources.py": "ffb70b8e6d9525b9e692b309cd84d0e80452513c66568328bea6ea46c55df871",
+    "scripts/market_map/institutions.py": "6f17c15afae5c18b517c6b0f077fc4e0df0602ab2833c3434610f431b366f35e",
+    "scripts/market_map/integrate_navigator_geography.py": "3c838d409043338786f0bcad7bc05c1bbf226a859de62f20b49e670f4a32ee7f",
+    "scripts/market_map/integrate_physical_atlas.py": "8fa752af39350703653f13b4427e0d87ee13e30637cd9151a6fda825394bba09",
+    "scripts/market_map/inventory_navigator_exports.py": "895d2320040fd46c814e425e573be1f257a1e329b7bdd23dca2f3521b558c61c",
+    "scripts/market_map/islington_directory.py": "9a5ee9f124606bbf5e7248ae9e5f767f5076f92f2d3bddf1496803b3c127c1fb",
+    "scripts/market_map/josslin_partner_review.py": "855301eb218ec9b1fd1494e1493e3e20c6fb91652578fbeb8f0066340794bac7",
+    "scripts/market_map/legacy.py": "3326c552a2af6728022ef706b7f32062b1ca055220faf68e3f3b3db1509a55a7",
+    "scripts/market_map/legacy_published_emails.py": "03ecd1e46c69e76603f10d9c0d977a6ebc276b481552b8b24bf97fbe4e8e24b5",
+    "scripts/market_map/legacy_v2_emails.py": "da8463b3656d28cba1e9dfb20c325b4d6e7e0a11c9c8e1325f739fc2c38b9faf",
+    "scripts/market_map/licensed_vertical_view.py": "49ca47e19c64192d6e6c4a2ff29dd4648676231b1d99467ca516c22d6a786f79",
+    "scripts/market_map/local_fact_promotion.py": "88e6b734cfc67d04eb842e4b6b16c0ae2ce1191fe9d31925f30fcbb564a1a88c",
+    "scripts/market_map/locality_audit.py": "02129d75710808eb71ae8c657329495fffea83f5b9fe4edc7fbef51435bcd93d",
+    "scripts/market_map/logo_inventory.py": "9e7b382ee5c80fdd0efa3030d8b3df9b3b83d9c2c828346a09c8d4eede21463a",
+    "scripts/market_map/mailbox_evidence.mjs": "3320a65059fb745116c2b2a620533430ce78c0bcda626122a147e1371c47a1be",
+    "scripts/market_map/maintenance.py": "3a14d2c6bd88189f26ad81503f82d28a9a2025096244e180c754c8eac2f03878",
+    "scripts/market_map/manufacturing_sources.py": "2dbf13e3c351d76115c7ec46c9e00d325535965600f62dc23d13e465b6369ef7",
+    "scripts/market_map/materialize_pilot_review_decisions.py": "c59ea0f3411f7fe3d755af3cff4b29d11cfe1fa5ea4a4bf5de7b521ac2f3ea20",
+    "scripts/market_map/migrations/001_market_map.sql": "cb0219822fea9a72267a4df6cac7b2197ed6865a5fe3f36d49d9da3535fe7377",
+    "scripts/market_map/migrations/002_reviewed_resolution.sql": "9b3df05e23a8f0704881341134682559ba73e023dfefe68d65416237118608f7",
+    "scripts/market_map/migrations/003_website_discovery_receipts.sql": "cfaa5dd90349ebb2d3d1f65ebe8f7d32ebe16d4bd249ab104ad19d1c7140a198",
+    "scripts/market_map/migrations/004_compressed_raw_payloads.sql": "288d3a4e59b5b76aaf71fc68e9329a13c1c15be0f330971220c12b6526eb6b9c",
+    "scripts/market_map/migrations/005_grouped_assertions.sql": "018d987660e1681931837e0e49f012e0884fa5c88c7e9acbd2609247ab8ab97d",
+    "scripts/market_map/migrations/006_query_indexes.sql": "f9201ff502c4fd1bb1fa21c6d357c034a1f6c6843bfbda0af18b1a6e3ecfd5e9",
+    "scripts/market_map/migrations/007_location_locality_lookup.sql": "cd84e5021e252195739b0b6a9c518bec8047bd64bf4f0a9f618f87302a77c831",
+    "scripts/market_map/migrations/008_phone_channel_details.sql": "0c19bcd523f68c682366e01d987d9933257c303653d5b6b7a2ec68e33ac36982",
+    "scripts/market_map/mobile_relationship_review.mjs": "b9a1c14f226759e5e5e25145dc060b66a494a17ceed5043da1eea4fb750e7f59",
+    "scripts/market_map/mobile_review_inputs.mjs": "70b66be2ccd6eb07d9ddb6bee2638db2b040c0529cecc3c2cd7eda8b81929c32",
+    "scripts/market_map/mount_pleasant_roster.py": "74da30e68862bbdf1482a2ff966627ed9a8837923bfee1ddf87e417e1f9ef344",
+    "scripts/market_map/municipal_gap_collection.py": "a1324ecc46154f5a0df655cd497e875a8e1a3765af7e8f5b23edd2750859cec3",
+    "scripts/market_map/municipality_physical_report.py": "37ccf6cc3b0a00c92d6e0177fe14729a5894d31b0601ccc1b8794755e13ebc08",
+    "scripts/market_map/neighbourhood_bia_snapshots.py": "a42167723bcadf2ff4de3dc6aea6c025a60ea69362266e52ca8c2964a522c335",
+    "scripts/market_map/occupancy_research.py": "b7f01914eadec97880fe44c9172940156023a34ec9de41a1484696b9c4bbbd7c",
+    "scripts/market_map/offline_guard.py": "bedf2c0e6972de734f5c91d2224c3747b8d50b336b7f82fb86d2e9da75101137",
+    "scripts/market_map/other_structured_emails.py": "60d3c07c39c42a237b732572eb65d80d9395bd4f91a49054c267700569a69176",
+    "scripts/market_map/phone_acquisition.py": "0a659f1a907624de6840b0e3e290f793ba1d0575b5b6e43d870951c020e9e7d9",
+    "scripts/market_map/phone_extraction.py": "f0a093ce25c60b0260276d09726d6b5fa2452252e61d97243626a86e0a1bafdd",
+    "scripts/market_map/physical_tiles.py": "cf0e8014b1c6ba7994dc91f6e21af50fa6856c2d34631dd1156fffa0b9b10e69",
+    "scripts/market_map/pilot_publication_basis_capture.py": "d081166379bf42998fe340f07513b6c708918f56ceb8dd58049ec2d2b3814373",
+    "scripts/market_map/pilot_review_workqueue.py": "db4cb6d5898a6b8b47ebc6427135e58c9e529b6e713a6f1b857999bbae50c2f2",
+    "scripts/market_map/pilot_source_refresh.py": "a674f3de51c8872faec44e8df6b4b01561dbf56709aab1c380b1dbd406e1e1f4",
+    "scripts/market_map/place_import.py": "58e09af5459c8f11bafe0c49978535e84622e2e9bff97ea0f1a40c3b0c4e89ec",
+    "scripts/market_map/places.py": "c0d8cb82354097be192e07a0be5f9e2c430c1ad4c01d7de109e040a98ea6724c",
+    "scripts/market_map/port_credit_profiles.py": "9014204cc82400f5098dceb77a3f4a555f2d175b1590b58dd3f529e909b9df32",
+    "scripts/market_map/prepare_fresh_review_supply.py": "da3fc1adb3ca793723d181c547965f92e4cef63f9d412d7d58f73c621a28fb5e",
+    "scripts/market_map/prepare_fresh_verification_batch.py": "76d907a6fbe265fbe9360c926c8174d55e791eeea6c07e61bc0aa65182bc5b5f",
+    "scripts/market_map/prepare_next_day_research.py": "8da2543bd5a27e3862301e68fee3ba0c0d3609ab7f19eba3086c95d25ce68dcf",
+    "scripts/market_map/preview.py": "b27de18f9e7bc236c9d3c24cb023c13e09360769b2cf052ae6ff22b4612eddfe",
+    "scripts/market_map/promotion.py": "828fd52262ecb8f2b571e6971ee12f49e18091e3f38efab1fc3dbbe8fd4330b5",
+    "scripts/market_map/property_sources.py": "18e0ed6e3c20bbd506c131b8a80f3e5a4bb9b27f5a820347c2456e3e900dff5b",
+    "scripts/market_map/public_chamber_snapshots.py": "79c0ba6ad53f666698003a74075a925d425369b80d82c9ae884dc3a04369930b",
+    "scripts/market_map/published_email_delta.py": "4c7dbacbc9e94adacfa63096327dff167d8c1b2ccdebcd8796683c6fde32a1bc",
+    "scripts/market_map/queries.py": "a8d25f0545efeade78d404d3b197692da37375a26c538d945fc2de4782984ff5",
+    "scripts/market_map/recheck_regional_emails.py": "4cd3acdf209d9a0bf9b51e4f0760e57950c9b6e814d1e99827c065e2e4630710",
+    "scripts/market_map/reconcile_completed_validation_review.py": "ec15932edb4bdd641c6161fcc3f16fafb42a7905ac86c36b54b05f1e6f9e111c",
+    "scripts/market_map/reconcile_coverage_catalogs.py": "11ff25e103a3e528e509c668fcafdd4512c156b273b1aa52067a75c05af1d84f",
+    "scripts/market_map/reconcile_fresh_copy_bug_20261028.mjs": "eacdfd59b4149c9c5f8a2d83ebe5e618b4433fe66949dd40221830106182e8c6",
+    "scripts/market_map/regional_bia_pagination.py": "3bd40eee649d65435286d573dc51a363e6a456be2e761611c2930422bb433d75",
+    "scripts/market_map/regional_directories.py": "20693c9a55519c63f8e6ba63a364f322d6c767f26a4297adc7c65209c079c35c",
+    "scripts/market_map/regional_facilities.py": "06553390874f75897d7dee46bcffaf416eb2175aa54ce5af06cd4e06d2d8c0e7",
+    "scripts/market_map/regional_occurrences.py": "2f23c90a17271864b1f04fbd40c0d0aedc1e20a044af82bcf1deaf171a6d3c7a",
+    "scripts/market_map/regional_west.py": "3329a39381b5ac107aaf26a3d5de01c92301c14755c4d09271822d3c55f9a606",
+    "scripts/market_map/relationship_browser_capture.mjs": "2f100ac93bf965dde1d0efd65bfd17a6e70437e6d0a83c0675f4da7adce801fa",
+    "scripts/market_map/relationship_browser_queue.py": "ba1be9c86fe5f39b74dfa70de577f0205ac8a64c369125de5d1bae3d022b6e0b",
+    "scripts/market_map/relationship_context.py": "eb57a5e2add9a5282b3160d7ffd6877e0f12ff6ecb9d9f19bd1609cb13ec24d5",
+    "scripts/market_map/relationship_email_bridge.py": "d4f6b9d047b39134f44dfcc08d5886fece9bfff0ab40db8081b7260a3483c4f3",
+    "scripts/market_map/relationship_observations.py": "9efdc288394ef814056c22fb2d4d5af916d97b43f74ff62bcc866d114492979f",
+    "scripts/market_map/relationship_queue.py": "5ff9dc2cce3ac2eb8602c86d8f106543632e22b7766fc34f41507b085ec7ef83",
+    "scripts/market_map/relationship_recursion.py": "0ec86caa4e729dd98c364eb7c6b0926a956db8e0a170b18dd2177119daff7716",
+    "scripts/market_map/relationship_review.py": "e4361cd7ad57e85196e8e0a8e7a1d6fb61bf3354c744ca9416d1629a0cb071c6",
+    "scripts/market_map/relationship_visual_audit.mjs": "55b7fef84c23531c77bc3a35810cf76f4cbafa97824792ccea3c3c31ba0932b6",
+    "scripts/market_map/relationships.py": "ab4855b96ae926ad435875a1431fd3632d2de384770c21bd7f2cb4b5d6e80fb7",
+    "scripts/market_map/release_accountability.py": "6cd8491969e0fe8bedf3f6dacdb8abb4d0f5a37f0d5c43aee96977a881ef18de",
+    "scripts/market_map/release_corpus.py": "b5a78f3eb5f86a43b0e43eda8e2fd3b02e5837c80de1bd76403d97f61060aa3e",
+    "scripts/market_map/release_evaluation.py": "1cb3a1c95ff418472b36b0767b64354d8787e4f054f302e989a41910ced08853",
+    "scripts/market_map/release_replay.py": "718faf4d29f041080595957cdfee67c8f60f8f17ca4aac850bb17b5e4d6dcd9b",
+    "scripts/market_map/reporting.py": "7f50119f7dae6b0505a25a26d63baa79af4bce3ff54b3bb5a0c50e597edf1d2a",
+    "scripts/market_map/research_claim_gate.py": "48e89352ddb6659e6cd58d8a7966a21b95537702e08419513d3ec9b9e11510c9",
+    "scripts/market_map/research_escalation_pilot.py": "f71d6540f0a6c2fbc13392f6c8fe9cd5037a0a3bba4f1367183f3a7fae20a4ce",
+    "scripts/market_map/research_model_benchmark.py": "53f919c4c9c888436519501b062acd3c733fcddcd96eabf120fdd5a1b8aec8a4",
+    "scripts/market_map/resolution_candidates.py": "451e48f617c46cfc8b3e466e931560718edb99c8681c236c459512067079a558",
+    "scripts/market_map/review_fresh_evidence_rules.mjs": "8d10956c2888da9cf65398d87a367643f0b1c1c15b7b836a1d008c7fb5ab7b29",
+    "scripts/market_map/routed_source_research.py": "501a34df81308911576cacc6fa8d37ddc53975cb3a7b723a1f1cfa2ef8b629c7",
+    "scripts/market_map/run_fresh_validation_batches.py": "925ed5e288a5ec52d21119945e93fcfd0f0e42a43e50d6f0ee7b505f89aa5a63",
+    "scripts/market_map/rural_durham_rosters.py": "ae3dc7df53f2310171d09ec5e888e12805668840c8d505585ae97eb3fb9938a2",
+    "scripts/market_map/schema_types.py": "56b50ff6124ac39a3149253497b0ae85e0c22b269ce265b3e5ef0f64da4ba8e5",
+    "scripts/market_map/service_baseline_atlas.py": "96e7be572abd03a71d16c8a703862bcd3c4aad2d59036e4ea9cf79174e8ebded",
+    "scripts/market_map/site_capture.py": "d9e47cf967fa18b0c6832fd5a5e5a2edb52585bdfdff6a4d3980e13206168ad8",
+    "scripts/market_map/site_research_ai.py": "cb047b511c848c360195df3326637f89e1b0ad2c8efe5829b4884a06ee99bf33",
+    "scripts/market_map/site_research_campaign.py": "74ade71dee530436e9c1943aab40f8501f3bf20d80f105dc2647a304d022053d",
+    "scripts/market_map/site_research_evaluation.py": "6c911cf75cf42c748705012a55bf2e21b670e4fca6e0c64ccebe7e22ffb09e0d",
+    "scripts/market_map/site_research_ops.py": "cba31a55e9b1b28238464a6dd3189357fb1fd65213bd744737c9e06bab922767",
+    "scripts/market_map/site_research_queue.py": "82c10eeef97c040ca6e3dde90ac03839738b0846a691eeb0442e397dbbfff9b7",
+    "scripts/market_map/site_research_runner.py": "b7e2b38070eb2bd8cbe9f4962a6e67c7801e34e12638b1c941f1ad61da6d6ffa",
+    "scripts/market_map/site_source_extract.py": "ff44dbb8ab2be37b1d56f6cc40c7c83f55e6a39ce0825736531aba42880f5c4b",
+    "scripts/market_map/site_source_index.py": "99aef779b06c655886a0f6cc389f777b7c6f558580106897d9e3a96ed6fc0aa8",
+    "scripts/market_map/site_source_worker.py": "54f91044b462d9741b880cbf41847fa292592a9136d89a8fb7dc54b30b84ff33",
+    "scripts/market_map/source_capture_cache.py": "39795b735cea5cc270f7e1c01f329b5b676899d7ea9204b0383ad586b46e5143",
+    "scripts/market_map/source_contact_candidates.py": "6de5a2e44bd874183855d852c33197bc8bd1aa31a2f1697eb747eded85f28d33",
+    "scripts/market_map/sources.py": "6cbcf971185973390bfc2f1fc1ceef959a9486481bfa0ea6478e29b37e31381c",
+    "scripts/market_map/spatial_context.py": "25a056288e614eac5dcc7160c78c7b5ae45e20d6ea4de65c1ffbba9e11148bcb",
+    "scripts/market_map/spatial_review.py": "89b13f820dd2820d290050ddd09f49f44d64db255ef288ced6ed56549aef2608",
+    "scripts/market_map/stage_navigator_listing_candidates.py": "27f7c1c97102d48c8fc2dd49bb6174d74a0ea71ef895be09e286b9fa7280496c",
+    "scripts/market_map/store.py": "b824a84548942a07a71b9ce4aa6063195f50420798c719077956e9147969c8a7",
+    "scripts/market_map/streetsville_directory.py": "a1ccc31bab14927a579db170e7e00d8fe3a04e2a67227164aed656fe6a16ac93",
+    "scripts/market_map/structured_contacts.py": "aef85bdd81cf0a41aa67254c9a7c553c939db84d9d01174e60669910692b98a2",
+    "scripts/market_map/structured_email_audit.py": "ceeae38b778740a2c12e874b275a0beba6e69b1901cebc7c27085c2bf294c67b",
+    "scripts/market_map/structured_email_recovery.py": "4f10071e7f1f7b726a33492c68d8e517729b5ddd68f3941877279f32e6739e76",
+    "scripts/market_map/toronto_bulk_sources.py": "b403871b43e30e592e77d62c9c68be8907d48b25b13c14c999921102aa031201",
+    "scripts/market_map/toronto_full.py": "865c00015291e528160c0fe20a3b90c5aa7af809e4aaf68b4ca7033f28eed23d",
+    "scripts/market_map/toronto_licences.py": "303f8a251b6f8175089524f9bd407e46807d00a38f3b1fe4ddee8ee48985ed27",
+    "scripts/market_map/toronto_physical_bulk.py": "4e1ee6b4c43b949d89d4f5d0b011ef5108d0fed6039f11a0094f0fc38f52430e",
+    "scripts/market_map/transport.py": "c04bd160e1edb9062bfcad430f34af12065f76e6a86bc0e7e78dc633c30bc470",
+    "scripts/market_map/trusted_source_capture.py": "228e9496371b8df5e9d1fed1ba77c1f432e4ae9b842b32a8682b20759aa0e310",
+    "scripts/market_map/verification_pilot.py": "d94054e1ce19248e20c187358a7bfb60a4909af9c53e79ce752c67db490f822b",
+    "scripts/market_map/verification_view.py": "a5195f8a6f0a9427f0f0f042df160c5704fadf16b03f973762b79a17bab24553",
+    "scripts/market_map/visible_contact_evidence.py": "c3c3c604ed0bef7774f934dd30d5de0560118e152ceaf0c365e74d978ecf29df",
+    "scripts/market_map/website_verification.py": "42cc08efe7c573ee38e9c2504118788375bcad8647e804902b29358a04cb46ec",
+    "scripts/market_map/western_bia.py": "5b7c52e6d0b062e07e72201aac140e8d4f0ea9a5bb30f041f5edf2e1a5e98ab8",
+    "scripts/market_map/western_bia_browser.mjs": "2be5b230b378d7d73e6116d2da3f6132365eb042f8533e74b8a9f40b42ef8b2b",
+    "scripts/market_map/western_bia_guelph.py": "4cdb674da83b6e334c464c0075a1f24f943e8aa5ffd900f7ea49798c0d29d44a",
+    "scripts/market_map/western_fact_promotion.py": "8394e584474ac70d3bd2e97ce0e50ef9d70eefbe922754f82f268a4f7353ae42",
+    "scripts/market_map/western_rural_rosters.py": "a1c8d5af7d472f45f9c3eb536444f7252719a7844829e9874818c986a0e57705",
+    "scripts/market_map/western_towns.py": "9964d420b02e8fc9707192b9dafbed7e42348a5be8c84f51fbed99281630e788",
+    "scripts/market_map/western_trade_rosters.py": "0601aabe956f00146ea46c0fec353ba3bb0baea39343595c9a4f8035456772d6",
+    "scripts/market_map/windsor_address_investigation.py": "8ac05563f998b1db85d2dbf23c8a62ea6b538f127fd0ebb75648a05342aa0a08",
+    "scripts/market_map/windsor_address_pilot.py": "d67b67ed2ad246d0ad771826cbd75c3d14eed28bebe87d6b244398576dd349dd",
+    "scripts/market_map/windsor_batch_merge.py": "f4d64fe3b85a746061defef374c6730c9764d780c4dab065645afe97fc21b686",
+    "scripts/market_map/windsor_bia_addresses.py": "4c6bf69f3a84cc64a064f198d6341814402a402d73a6048434b204b898d5c33a",
+    "scripts/market_map/windsor_building_ledger.py": "7070fa0de51d7195a4b807398ecc9c10c70bb353c3149948a95bbf1539990438",
+    "scripts/market_map/windsor_evidence_inventory.py": "affe1e99abcfd45f23dfa0e08471a9fe629ceb2c9477aae52fc04fc3d5349234",
+    "scripts/market_map/windsor_existing_comparison.py": "36be2d2a48f26a7f97d16c567c58351d86dcd45647c377309300b47fe3e71a36",
+    "scripts/market_map/windsor_foundation_audit.py": "bbd087e3dd2a11614d07d545ec025fa292932ee3862e38462f13d7f0e0b64726",
+    "scripts/market_map/windsor_geography_pilot.py": "2c41945f7842352afe964094355ab63405a5c19baeb77c80d3a8845cf52c89b6",
+    "scripts/market_map/windsor_operator_groups.py": "c13433db8ed526790df4350ce1ed608bdcf5de49d3457b15698765ffe5f89657",
+    "scripts/market_map/windsor_patterns.py": "da64e370bccd06aded7fedad0edbd3b5401b8048a67b8f5aab2a874b6b8101c5",
+    "scripts/market_map/windsor_physical.py": "cb6049fab865c6770e14b61742a5f3a9084c8d235e4f8aa7c783aea953dc8a72",
+    "scripts/market_map/windsor_physical_report.py": "edf1c2f57925c52d3e0f271125d0a36636db317e0b4c1503fb3212977f4caf87",
+    "scripts/market_map/windsor_progress.py": "ba918807153eb812b99f55c7128bec205e00999cd726be66c672398e9c439c3e",
+    "scripts/market_map/windsor_property_evidence.py": "49271d1ea153a9daf0e38d1a146d859351ae253eb46ce12a7c8494d0fc2b3134",
+    "scripts/market_map/windsor_role_register.py": "bf25116ff0900cab22f7cd213737c740ce8f5e636ff8b60995670bca4d3d23d2",
+    "scripts/market_map/windsor_school_batch.py": "4a2d3ded42420ef702aa649256296e053f64b2ed77fa1b6ea15b41896cb0033f",
+    "scripts/market_map/windsor_stage_metrics.py": "24f7914fb236f833db7e0d9cdf3754f5b510b8be2a4bf81f19e84c5acea9d229",
+    "scripts/market_map/york_public_directory.py": "c89826060f2b11889f5dc2aaf6e77008185c23487a584f744f632ba1d588377b",
+    "scripts/research_hub/__init__.py": "6596dec72a95968895ac03af28bd29480f8b2c6c375bb82b8e201588384a442a",
+    "scripts/research_hub/cloud.py": "be9937b67995a6aa6e0f04be509636a0c6c909d0b6db36ce8363b13368425f29",
+    "scripts/research_hub/contact_routes.py": "19b5a9f803d94adacbd908cf157605e87c8be8ac71a6cc1c426c6534cf271079",
+    "scripts/research_hub/directory.py": "52aa5aa228e48c1e1d6c5e7a5c9a9dbe98ba5bd169c270708780f7dd8af7e784",
+    "scripts/research_hub/listings.py": "82fa79972b9a7715ab33cdb85422f2a612030c7b995de552d0f6670772e37591",
+    "scripts/research_hub/portfolios.py": "89a38c7d3bc9978388a80f577c71518da23e4beeb000fa2024554941b3f734da",
+    "scripts/research_hub/team_batch.py": "a67a904e4c5ddddad6b5350bf1a8835c540b21b60ee3b45f2ace1d726eed520c",
+    "tests/discovery_v2/test_contacts.py": "c10782492f91d5881a0c7ab2223f1f19419b33b951afb76076b100bf9e66b4f5",
+    "tests/discovery_v2/test_engine.py": "a47bd37e421c7eb55e72d8179f64631bd82b209cdd70a57292f53ce7b2eb46f7",
+    "tests/discovery_v2/test_identity_migration.py": "a545f014146cc2b226eb6f199e488241db97ebef3ac9c28bc2b536bc3cb2e2d8",
+    "tests/discovery_v2/test_overture.py": "11646f166ad7c48ee38b8b8ddde167b74d7fd7e3d883333be774d822dc1dfae6",
+    "tests/discovery_v2/test_source_identity.py": "3bf0239245b0b8a132cede485c31a4e9b6e9ce82649584361190b9a48eea16a2",
+    "tests/discovery_v2/test_worker.py": "cc0c893ca198e6b3d356d57250fd5d6e661a1861b3bb8f3996fc8c798eaa8d31",
+    "tests/extraction/corrections_measure.py": "6cdb09cbcd55a4e04586d7a4103932b02af41d171a94aea7a1ef61e68df587ab",
+    "tests/extraction/fixtures/adjacent-fax.html": "99844a86e3bac4b2b565a028a63876158f400f76a1ae32cc41be85f3a9148c3a",
+    "tests/extraction/fixtures/empty.html": "f70b370debd085dd9e9fb6495c796cdccf41c44574cc185dbe124f3ea8237623",
+    "tests/extraction/fixtures/extensions.html": "70a7a50a126ad58171e71c0ede273b0f0c4950af49b4a141a7f9e52a0f36f239",
+    "tests/extraction/fixtures/inline-email.html": "8051c8edcc152cf2a59423dfde536ea9b67c3bd473948352c4ab550f6636192e",
+    "tests/extraction/fixtures/international.html": "f54c161c4b94d446b974dcb823a320a465f4ba15e4129f3594cb260fb54540b9",
+    "tests/extraction/fixtures/labels.jsonl": "a621650ecb00ce9903cfcfe4813f9146aa0cb5deee6c476e7b15453d8df5af8e",
+    "tests/extraction/fixtures/malformed-plus.html": "d7c4a58fea149356e3e408f6525805c6a47bef31ef0cf8ce6a698fd4bcd25e8c",
+    "tests/extraction/fixtures/manifest.json": "ef6ccc706bce5168b3cbeaae0ca1dd156e6ae30fcd954c6eb6ce3f30609cd08e",
+    "tests/extraction/fixtures/mixed-field.html": "f75fab2559168047b8827e5d1cb6b79099f703d1f0b99ab3e5d62ba37e1867bf",
+    "tests/extraction/fixtures/nanp-invalid.html": "0ed1c8a9c1b637086d45302a634ff65fc01d99b8797d3a4ba0a32f7b8faea3cc",
+    "tests/extraction/fixtures/noise.html": "ca3e1a1c8eadd68bb4238c4897606c2a1ddffd8122ac878b78e05a7e6a4c0e17",
+    "tests/extraction/fixtures/separate-cards.html": "db7918d2f99046e306ac65996be982a666dc394826a4f46ae244cd725e972cf6",
+    "tests/extraction/fixtures/shared-business-email.html": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+    "tests/extraction/fixtures/shared-route.html": "746f7acf22a392bccc7f355887c7c85de0b0d5182a7cf569a95039002777fdd1",
+    "tests/extraction/fixtures/structured.html": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+    "tests/extraction/fixtures/table-fax.html": "fd611e440d439c37971252ccb90d9f77c0a11a487bdfb944f4661270c42b2ad1",
+    "tests/extraction/fixtures/trailing-fax.html": "a31ceac9b1c4238165f85d7223840f9d39b0e3bb03c13b496f724fe9aca233dd",
+    "tests/extraction/fixtures/two-people.html": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+    "tests/extraction/fixtures/unicode-email.html": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+    "tests/extraction/network_sandbox.py": "f48e96a29c92bc1892d44a699db4fd65ba0fc515a608708ac1bff79ad1ca8079",
+    "tests/extraction/pr17_measure.py": "90a2b37a03d18e840e48b5d0f4a8b2f403d8e3e81a62fd3739f3659c7df1be55",
+    "tests/extraction/run_corrective_processes.py": "11521e3eac4ef896b6dfd87ad5912f74f6492b336863bbf0eeaf32d096c1e12a",
+    "tests/extraction/run_offline.py": "10361caf6b7aad7b3e1536456c46fd74806a42a30bdd45858f07cf4ac39e54a7",
+    "tests/extraction/test_benchmark.py": "64317f1dc5ae9336ff935b4198d89ae26401daaa6d510d3c3bd5b98c48704b74",
+    "tests/extraction/test_contact_text_runs.py": "7f45f763e1e69ee6af2aa56acb4034e157f9781c8f2ff0f4f815f7cad59a12c0",
+    "tests/extraction/test_email_normalization.py": "5e32f49a7ad3d315300abde01686f61271bb67fd572392c89a45720a23aa6f99",
+    "tests/extraction/test_email_occurrences.py": "06e3b51cf8527ad0415acc48fb26358b5a186818082638d08207a0ebda52f861",
+    "tests/extraction/test_offline_guard.py": "ff0c6a297b8350b1b567352f3a657c359f9558157d048d0fe641bab965a06f52",
+    "tests/extraction/test_phone_labels.py": "cd620ed2e335b78e349627d0fc13337e57827b938d1e87c5a89ea99c38895b7c",
+    "tests/extraction/test_phone_normalization.py": "0de043732136f4decb3ae50700af96f7efc68280b73321a08663148fbf4eb6fd",
+    "tests/extraction/test_readiness_corrections.py": "fd5765272f261d025dbc723017cdf4ae8752be1c456706264bf893fa612c11e0",
+    "tests/extraction/test_release_gates.py": "2bfe1a6dab4c55439c46321937e132541bd64e4939fa2d7ed9acbcf8cfd41bf3",
+    "tests/extraction/test_release_operations.py": "a86b4977d16a0174510120df41139f409e76a147647f12e528727b200c2a1bff",
+    "tests/extraction/test_structured_contacts.py": "e68225911ca1be22b663ea9508127f7196098fd2fad341906c81937e34180879",
+    "tests/extraction/test_tranche2_replay.py": "d1dbf4a31620410a72fc682594e07e96532002d6f3280a4613049f0ec3f3dada",
+    "tests/extraction/test_tranche3_replay.py": "21dc437e2972b447df62a7a16436cb446567d05357ea07e6d820cfb4c34a6fa0",
+    "tests/extraction/tranche2_replay.py": "e6f1296b567e86e2b4bb6b83a861da5f5a9d1357c951ffc1f88fc5a02ede4614",
+    "tests/extraction/tranche3_fixtures/article-author.html": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+    "tests/extraction/tranche3_fixtures/cards.html": "a59b6ac83e260d090308ffd352d925336976f99ca5f3a91b16e33ebcb100e363",
+    "tests/extraction/tranche3_fixtures/cells.html": "33f889484b0dcdf04947410f3710d704182224f71e346837eb4d21f488446f4c",
+    "tests/extraction/tranche3_fixtures/cycle.html": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+    "tests/extraction/tranche3_fixtures/duplicate-reference.html": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+    "tests/extraction/tranche3_fixtures/hidden-barrier.html": "3a2564f93c94f1a9d60ef1a5143fe877c03e48ad609eab4a19da7c5926b6283b",
+    "tests/extraction/tranche3_fixtures/hidden.html": "4ade4d8d0f2a14666eb7bf421e21c4164ef99035c397655fb67a2680377d4cd8",
+    "tests/extraction/tranche3_fixtures/inline-fax.html": "b3abe8e4fc137b21642e876e20f9f323d1a70c6d73c82a3c9aed60379caed296",
+    "tests/extraction/tranche3_fixtures/inline-obfuscation.html": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+    "tests/extraction/tranche3_fixtures/inline-suffix.html": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+    "tests/extraction/tranche3_fixtures/inline-unicode.html": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+    "tests/extraction/tranche3_fixtures/inline.html": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+    "tests/extraction/tranche3_fixtures/labels.jsonl": "824fed4fe31846be7ebdd54627ff15af00691932bce04840d1927c355ca5e46a",
+    "tests/extraction/tranche3_fixtures/manifest.json": "360169b8ad5a89312be16501bd854d7d5ca6390c3a22d9dbfe3e7ae203974b3d",
+    "tests/extraction/tranche3_fixtures/person-employer.html": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+    "tests/extraction/tranche3_fixtures/reference.html": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+    "tests/extraction/tranche3_fixtures/repeated-context.html": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+    "tests/extraction/tranche3_fixtures/shared-reference.html": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+    "tests/extraction/tranche3_fixtures/subtype.html": "4f689943c25ec09caf30075ed6063c426714cfb6d0b13b5777e38cedb7b978af",
+    "tests/extraction/tranche3_fixtures/uri-array.html": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+    "tests/extraction/tranche3_replay.py": "0ae7ab0e0b31c836a78ee8f6849a244addfc56221dcabd9dd239cfe95353160a",
+    "tests/extraction/tranche5_results/PR-16/candidate.json": "74099d05923a7d4b7e760ad951aa3fb90356dee6204a563ba21c138e76db8181",
+    "tests/extraction/tranche5_results/PR-16/frozen-candidate.json": "1bfa4dce9c6582454e2a716697f6aa40ee80af5a21b2eab56f6163e7526ac5be",
+    "tests/market_map/test_adapters.py": "58eeb30246db2884fe2250f570a2e0b9523d8319fd84346a0bc4be584e604f38",
+    "tests/market_map/test_contact_attribution.py": "7c48600bbdcd8c9092c2cdcc01ad8cf643d1b1ac9d30066b488d32f9bc5d414f",
+    "tests/market_map/test_contact_capture.py": "06da3ca863185e36f1fa5687be72c41bc8c33a58d382b5ad31875fe99f82292e",
+    "tests/market_map/test_contact_context.py": "c5c6783910e72e5868af49fb86c2a6cdb1e436a443ef822ed70fde6b9a8fa568",
+    "tests/market_map/test_contact_enrichment.py": "24cce1549ac8666efca51b9c3d3957b6fb6959545e203d7c07aff2cfa43404e9",
+    "tests/market_map/test_contact_frontier.py": "e6d4aa0ed16bcc7646e69d9ad9b35b1a439c8a9595b8aba88433a9f9e1c3bd1d",
+    "tests/market_map/test_contact_observation_store.py": "400eac3b188d95ccfdaf2ef8e195817de10b9e64fcdc5513807a381be18698a0",
+    "tests/market_map/test_contact_page.py": "267e22a6cb183e3510b5aafd05c89ecf8bd29f49ccf32a4e3b3e7423940e17bd",
+    "tests/market_map/test_email_acquisition.py": "1bc4dd65fa96bceabf78d43398904afed0d9b973d10a5c5ee253efd4de58625e",
+    "tests/market_map/test_email_extraction.py": "6b61c46e7ba32080227fdb7eac6471704d5f2bdbc90d1816475fbbcbfd124a40",
+    "tests/market_map/test_email_persistence.py": "ab1b9ea02652b65c612099bc1090199902aa4f34e9ae294883bce8f5e6a727fe",
+    "tests/market_map/test_fetch_outcomes.py": "6a0c5d112e273def4ab39421a43476b0ea8fb60ee8622425b27309ee723ba2f5",
+    "tests/market_map/test_frontier_retry.py": "bf104a383a337026962d7b0e76c83e72ee0f74fb71dd83b5d892411e2bb49a94",
+    "tests/market_map/test_phone_acquisition.py": "35fe965e02641b9bf71a70ae97213b51346f2c5f7a3969e740c2e6ea85cfacba",
+    "tests/market_map/test_phone_extraction.py": "e5023640da7f3eb1abffaabbf09fa00c552ff75641f485a08b3530a26771ed7e",
+    "tests/market_map/test_phone_ingestion.py": "25ae1e47c21abf5d5198fcc6e4b7f74009e7dd64c1478528444e74c34202ea93",
+    "tests/market_map/test_regional_additional_phones.py": "070d0b1946441c81193014f8290fcab15700e4208bd45ae685ac723cdf4d9c3b",
+    "tests/market_map/test_regional_contact_daily.py": "c5082e1e709d15727d46012c799f870d0bf583e267de679d75d2d9ec8d02cbe8",
+    "tests/market_map/test_regional_email_inventory.py": "e85fb10b485bdc4a7225f7c38ee7af708a33ea0359f15d34ef2aab67cb87457f",
+    "tests/market_map/test_regional_identity_review.py": "f3b8ee3f8857470c7573c14ffa16e6a901d84fd518f1df0e191fbd9589ba7e06",
+    "tests/market_map/test_regional_occurrences.py": "926480006497db6739f032d01c7f5a1638101cc84e790b069010caab85f94a8f",
+    "tests/market_map/test_reporting.py": "d32d14d78d17470f1760c1dba81f533168c9fb51fee9bf3768cf558d7571d52f",
+    "tests/market_map/test_site_source_extract.py": "f3d5f3620fc327170b6390b78eb007bc1268b5cdeaf94bdfa9be24bcd564122d",
+    "tests/market_map/test_source_capture_cache.py": "7eefdb138c9fb6555cf58338db1fb5cad6ec56995e193e87c6d89a27358b897c",
+    "tests/market_map/test_store.py": "ae5c100f3c8e47c7e6f30f89b011b89014706b0cb309de66d9d08158b5cedfd4",
+    "tests/market_map/test_structured_email_audit.py": "5db8e768731e6331ef14052f7d4144701041d8bfbe67785bb669d074ffaf8db9",
+    "tests/market_map/test_structured_email_recovery.py": "29bab4c2745ef491cf45d35d1395a3cc0f1f934be211e41ea0affdf94def1d72",
+    "tests/market_map/test_transport.py": "552de46b817e455465895e2615b8ad6277875ad22bd3e01d27fed0bff4e12147",
+    "tests/market_map/test_transport_directory.py": "5cae23a3c3574aa646ec2ba22c116565538f374b3e2f4cab6a7efe8bb7d44609",
+    "tests/market_map/test_trusted_source_capture.py": "58fd54993c7f93ecb0e85462ff17ce62385a5aee656703b3ddb9e0af06fe56dc",
+    "tests/market_map/test_verification_pilot.py": "21301aa334c7e8115baabe8dab8a0a6edc70f8601a4723db5bec6f124da132f5",
+    "tests/market_map/test_visible_contact_evidence.py": "68212ceae918857a5a9b0bc60a3d473b7de217736deb8441e8f5b4e44c64da7e"
+  },
+  "entrypoint_preserved": true,
+  "release_gate": "NO_GO",
+  "production_mutations": false
+}

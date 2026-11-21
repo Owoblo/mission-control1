@@ -1,0 +1,8 @@
+[
+  {
+    "path": "scripts/market_map/cloud/railway_entry.py",
+    "status": "changed outside this phase; preserved and excluded from rollback",
+    "before_sha256": "96a81bc34572a3068cb5f69e9f25e36b004ecb6c7894b6ba0ab25e03e867065b",
+    "after_sha256": "b21917b24adc4b81b7f2c400135a24c1bfab25e8d270aa391755d138c47da684"
+  }
+]

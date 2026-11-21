@@ -1,0 +1,27 @@
+[Unit]
+Description=Bounded Saturn building research coordinator
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/saturn-research/.runtime/openai-api-codex/auth.json
+
+[Service]
+Type=oneshot
+User=saturnresearch
+Group=saturnresearch
+WorkingDirectory=/opt/saturn-research
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/saturn-research/.runtime/market-map-python/bin/python -B -m scripts.market_map.building_research_supervisor --workers 2 --daily-limit 6 --timeout 360 --pipeline-timeout 900 --batch-size 2 --routed --research-model gpt-6-luna --codex /opt/saturn-research/scripts/market_map/codex_api_worker.py
+TimeoutStartSec=1000
+TimeoutStopSec=45
+KillMode=control-group
+Restart=no
+UMask=0077
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/saturn-research/artifacts /opt/saturn-research/.runtime /var/lib/saturnresearch
+MemoryMax=3G
+CPUQuota=180%
+
+[Install]
+WantedBy=multi-user.target

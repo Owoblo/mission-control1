@@ -1,0 +1,142 @@
+{
+  "baseline": [
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "desk@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "subtype",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "desk@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "desk@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "uri-array",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "desk@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "uri-array",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "person-employer",
+      "outcome": "false_negative",
+      "value": [
+        "jane@business.test",
+        "Jane Smith",
+        "/@graph/0"
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "reference",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Office",
+        "/@graph/0"
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "subtype",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Office",
+        ""
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "uri-array",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Clinic",
+        ""
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "uri-array",
+      "outcome": "false_negative",
+      "value": [
+        "sales@business.test",
+        "Clinic",
+        ""
+      ]
+    }
+  ],
+  "candidate": []
+}

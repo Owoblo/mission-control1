@@ -4,6 +4,7 @@ import { readEnv } from '@/lib/server/runtime'
 import { isOptOutText } from '@/lib/server/partnership-sms'
 import { getPartnershipPrimaryNumberForMarket } from '@/lib/partnership-lines'
 import { detectPartnershipLeadSignal } from '@/lib/server/partnership-lead-detection'
+import { isPartnershipAutomatedAcknowledgement } from '@/lib/partnership-automated-acknowledgement'
 
 const LOCATION_QUESTION_RE = /\b(where\s+(?:(?:are|r)\s+)?(?:you|u)(?:\s+(?:located|based))?|(?:your|physical|street|office|warehouse)\s+(?:location|address)|what\s+areas?\s+do\s+you\s+(?:cover|serve)|do\s+you\s+(?:cover|serve))\b/i
 const PHYSICAL_ADDRESS_RE = /\b(?:address|office|warehouse|pickup|pick.up|visit)\b/i
@@ -29,6 +30,7 @@ export type PartnershipReplyIntent =
   | 'gives_time_window'
   | 'gives_address'
   | 'warm_acknowledgement'
+  | 'automated_acknowledgement'
   | 'positive_vague'
   | 'not_interested'
   | 'wrong_number'
@@ -51,6 +53,7 @@ export type PartnershipGoalStatus =
   | 'ready_to_book'
 
 export type PartnershipRecommendedAction =
+  | 'no_reply'
   | 'draft_reply'
   | 'schedule_delivery'
   | 'book_meeting'
@@ -171,7 +174,7 @@ function firstName(contact: PartnershipAssistantContact) {
   const tokens = beforeDescriptor.split(/\s+/).filter(Boolean)
   const titledPerson = name.match(/^([A-Z][a-z.'-]+)\s+[A-Z][a-z.'-]+(?:\s+[A-Z][a-z.'-]+)?\s+(?:Mortgage|Mortgage Agent|Mortgage Broker|Realtor|Real Estate Agent)\b/)
   if (titledPerson) return titledPerson[1]
-  if (tokens.length >= 2 && !/\b(mortgage|staging|stager|interior|design|realty|real estate|law|moving|movers|team|group|inc|ltd|corp|corporation|brokerage)\b/i.test(beforeDescriptor)) {
+  if (tokens.length && !isBusinessOnlyContact(contact)) {
     return tokens[0]
   }
   return 'there'
@@ -191,6 +194,7 @@ function isBusinessOnlyContact(contact: PartnershipAssistantContact) {
   if (!name) return true
   if (/^[A-Z][a-z.'-]+\s+[A-Z][a-z.'-]+(?:\s+[A-Z][a-z.'-]+)?\s+(?:Mortgage|Mortgage Agent|Mortgage Broker|Realtor|Real Estate Agent)\b/.test(cleanText(contact.name))) return false
   const descriptorFree = cleanText(contact.name).split(/\s+-\s+|\s*:\s*/)[0].trim()
+  if (name === company && descriptorFree === cleanText(contact.name)) return true
   if (descriptorFree.split(/\s+/).filter(Boolean).length >= 2 && !/\b(mortgage|staging|stager|interior|design|realty|real estate|law|moving|movers|team|group|inc|ltd|corp|corporation|brokerage)\b/i.test(descriptorFree)) return false
   if (company && name === company) return true
   return /\b(mortgage|staging|stager|interior|design|realty|real estate|law|lawyers|moving|movers|team|group|inc|ltd|corp|corporation|brokerage)\b/i.test(name)
@@ -253,6 +257,15 @@ function wasSent(touches: PartnershipAssistantTouch[], pattern: RegExp) {
     if (touch.direction !== 'outbound' && touch.direction !== 'system') return false
     return pattern.test(cleanText(touch.notes))
   })
+}
+
+const PARTNER_NAME_ASK = /\b(?:(?:who|what name) should i save (?:this|your) number under|what(?:'s| is) your name)\b/i
+const PARTNER_NAME_QUESTION = 'By the way, who should I save this number under?'
+
+function shouldAskForPartnerName(contact: PartnershipAssistantContact, touches: PartnershipAssistantTouch[], extracted: PartnershipAssistantResult['extracted']) {
+  return isBusinessOnlyContact(contact) && !extracted.person_name && !extracted.asks_name &&
+    !wasSent(touches, PARTNER_NAME_ASK) &&
+    !touches.some(touch => touch.direction === 'inbound' && extractFields(cleanText(touch.notes)).person_name)
 }
 
 function latestEmailInHistory(touches: PartnershipAssistantTouch[]) {
@@ -369,6 +382,7 @@ function detectIntent(text: string, contact: PartnershipAssistantContact, touche
   }
   if (/\b(wrong number|wrong person|not me)\b/i.test(text)) return { intent: 'wrong_number', confidence: 0.96, risk_flags }
   if (stage === 'closed_lost' || /\b(not interested|no thanks|no thank you|remove me|don't contact|do not contact)\b/i.test(text)) return { intent: 'not_interested', confidence: 0.92, risk_flags }
+  if (isPartnershipAutomatedAcknowledgement(text)) return { intent: 'automated_acknowledgement', confidence: 0.98, risk_flags }
   if (IOS_REACTION_RE.test(text.trim())) {
     return { intent: 'warm_acknowledgement', confidence: 0.64, risk_flags: [...risk_flags, 'sms_reaction_only'] }
   }
@@ -446,12 +460,12 @@ function draftFromRules(input: {
   latestText: string
 }): PartnershipAssistantResult {
   const { contact, touches, intent, extracted, config, latestText } = input
-  const askForName = isBusinessOnlyContact(contact) && !extracted.person_name && !extracted.asks_name && [
+  const askForName = shouldAskForPartnerName(contact, touches, extracted) && [
     'asks_for_pricing',
     'asks_for_email',
     'asks_contact_info',
     'asks_social_media',
-    'asks_references',
+    'asks_for_references',
     'postcard_yes',
     'send_digital_package',
     'send_card_or_flyer_media',
@@ -537,9 +551,9 @@ function draftFromRules(input: {
     quick_action = 'needs_follow_up'
   } else if (intent === 'partner_lead_received') {
     const identityQuestion = isBusinessOnlyContact(contact)
-      ? 'What name should I save this number under?'
-      : 'What is the client\'s best contact number?'
-    draft = `Thanks${nameSuffix}. That sounds like a potential client job. I will have our sales team follow up with you directly to collect the client details and scope. ${identityQuestion}`
+      ? shouldAskForPartnerName(contact, touches, extracted) ? ' What name should I save this number under?' : ''
+      : ' What is the client\'s best contact number?'
+    draft = `Thanks${nameSuffix}. That sounds like a potential client job. I will have our sales team follow up with you directly to collect the client details and scope.${identityQuestion}`
     recommended_action = 'human_review'
     quick_action = 'needs_follow_up'
     risk_flags.push('sales_handoff_required')
@@ -608,8 +622,8 @@ function draftFromRules(input: {
     risk_flags.push('package_permission_needed')
   }
 
-  if (askForName && draft && !/what(?:'s| is)\s+(?:your|the)\s+name/i.test(draft)) {
-    draft = `${draft} By the way, who should I save this number under?`
+  if (askForName && draft && !PARTNER_NAME_ASK.test(draft)) {
+    draft = `${draft} ${PARTNER_NAME_QUESTION}`
     risk_flags.push('name_capture_requested')
   }
 
@@ -775,6 +789,23 @@ export async function suggestPartnershipReply(input: {
   const extracted = extractFields(latestText)
   const detected = detectIntent(latestText, input.contact, input.touches)
   const config = getPackageConfig(input.contact)
+  if (detected.intent === 'automated_acknowledgement') {
+    return {
+      intent: detected.intent,
+      confidence: detected.confidence,
+      goal_state: {
+        digital_package: 'not_sent', physical_delivery: 'not_needed',
+        referral_program: 'not_mentioned', meeting: 'not_requested',
+      },
+      extracted: {},
+      recommended_action: 'no_reply',
+      draft_sms: '',
+      suggested_media_urls: [],
+      risk_flags: [],
+      rationale: 'Automated receipt acknowledgement. Wait for a human reply.',
+      package_configured: hasPackage(config),
+    } satisfies PartnershipAssistantResult
+  }
   const fallback = draftFromRules({
     contact: input.contact,
     touches: input.touches,
@@ -804,15 +835,16 @@ export async function suggestPartnershipReply(input: {
     const area = card ? (isOttawa(input.contact.city) && card.city !== 'Ottawa' ? `${card.city}, Ottawa` : card.city) : null
     // A service-area statement is not evidence of a physical branch. Never let
     // optional model refinement turn this into an invented office/address.
+    const askForName = !needsAddress && !!area && shouldAskForPartnerName(input.contact, input.touches, extracted)
     return {
       ...fallback,
       extracted: { ...extracted, asks_service_area: true },
       recommended_action: needsAddress || !area ? 'human_review' as const : 'draft_reply' as const,
-      draft_sms: needsAddress || !area ? '' : `We cover ${area} and surrounding areas.`,
+      draft_sms: needsAddress || !area ? '' : `We cover ${area} and surrounding areas.${askForName ? ` ${PARTNER_NAME_QUESTION}` : ''}`,
       draft_email_subject: undefined,
       draft_email_body: undefined,
       suggested_media_urls: [],
-      risk_flags: needsAddress ? ['verified_physical_address_required'] : !area ? ['service_area_confirmation_required'] : [],
+      risk_flags: needsAddress ? ['verified_physical_address_required'] : !area ? ['service_area_confirmation_required'] : askForName ? ['name_capture_requested'] : [],
       rationale: needsAddress ? 'Confirm a real physical address before answering.' : !area ? 'Confirm the partner service area before localizing.' : 'Answer the local coverage question directly using the configured service city. Do not imply a physical office or add a package pitch.',
     }
   }
@@ -847,6 +879,7 @@ export function partnershipDispositionFromSuggestion(result: PartnershipAssistan
     gives_time_window: 'Confirm time and collect missing delivery address if needed.',
     gives_address: 'Confirm address and collect best time or front-desk instruction.',
     warm_acknowledgement: 'Light follow-up only; avoid pushing unless package permission exists.',
+    automated_acknowledgement: 'Wait for a human reply.',
     positive_vague: 'Use prior thread context before sending; manual review if ambiguous.',
     not_interested: 'Pause automated outreach respectfully. Do not mark opted out or lost unless they explicitly ask not to be contacted.',
     wrong_number: 'Mark wrong number and stop outreach to this phone.',
@@ -875,6 +908,7 @@ export function partnershipDispositionFromSuggestion(result: PartnershipAssistan
     gives_time_window: 'gives_time_window',
     gives_address: 'gives_address',
     warm_acknowledgement: 'warm_acknowledgement',
+    automated_acknowledgement: 'automated_acknowledgement',
     positive_vague: 'positive_vague',
     not_interested: 'polite_decline',
     wrong_number: 'wrong_number',

@@ -1,0 +1,64 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectRegionalLightsailConfiguration",
+      "Effect": "Allow",
+      "Action": [
+        "lightsail:GetRegions",
+        "lightsail:GetBundles",
+        "lightsail:GetBlueprints",
+        "lightsail:GetInstances",
+        "lightsail:GetInstance",
+        "lightsail:GetInstanceState",
+        "lightsail:GetOperations",
+        "lightsail:GetOperation",
+        "lightsail:GetStaticIps",
+        "lightsail:GetStaticIp",
+        "lightsail:GetKeyPairs",
+        "lightsail:GetKeyPair",
+        "lightsail:GetInstancePortStates"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ca-central-1"
+        }
+      }
+    },
+    {
+      "Sid": "CreateTaggedResearchInstance",
+      "Effect": "Allow",
+      "Action": "lightsail:CreateInstances",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ca-central-1",
+          "aws:RequestTag/Project": "SaturnResearch"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "TemporaryCreateTagDependency",
+      "Effect": "Allow",
+      "Action": "lightsail:TagResource",
+      "Resource": "arn:aws:lightsail:ca-central-1:322694470585:Instance/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ca-central-1",
+          "aws:RequestTag/Project": "SaturnResearch"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project"
+          ]
+        }
+      }
+    }
+  ]
+}

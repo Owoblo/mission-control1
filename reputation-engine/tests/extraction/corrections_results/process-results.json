@@ -1,0 +1,150 @@
+{
+  "status": "pass",
+  "tests": {
+    "host_workers": [
+      {
+        "exit": 0,
+        "stderr": "",
+        "stdout": ""
+      },
+      {
+        "exit": 0,
+        "stderr": "",
+        "stdout": ""
+      },
+      {
+        "exit": 0,
+        "stderr": "",
+        "stdout": ""
+      }
+    ],
+    "aggregate_host": {
+      "requests": 2,
+      "peak_concurrency": 1,
+      "request_cap": 2,
+      "pass": true
+    },
+    "killed_host_owner": {
+      "crash": {
+        "exit": 31,
+        "stderr": "",
+        "stdout": ""
+      },
+      "resumed": {
+        "exit": 0,
+        "stderr": "",
+        "stdout": ""
+      },
+      "reservations": 3,
+      "pass": true
+    },
+    "checkpoint": {
+      "exit": 0,
+      "stderr": "",
+      "stdout": ""
+    },
+    "failure_injection": [
+      {
+        "exit": 21,
+        "stderr": "",
+        "stdout": "",
+        "kind": "email",
+        "boundary": "spool",
+        "expected_exit": 21
+      },
+      {
+        "exit": 22,
+        "stderr": "",
+        "stdout": "",
+        "kind": "email",
+        "boundary": "commit",
+        "expected_exit": 22
+      },
+      {
+        "exit": 23,
+        "stderr": "",
+        "stdout": "",
+        "kind": "email",
+        "boundary": "ack",
+        "expected_exit": 23
+      },
+      {
+        "exit": 24,
+        "stderr": "",
+        "stdout": "",
+        "kind": "email",
+        "boundary": "acknowledged",
+        "expected_exit": 24
+      },
+      {
+        "exit": 21,
+        "stderr": "",
+        "stdout": "",
+        "kind": "phone",
+        "boundary": "spool",
+        "expected_exit": 21
+      },
+      {
+        "exit": 22,
+        "stderr": "",
+        "stdout": "",
+        "kind": "phone",
+        "boundary": "commit",
+        "expected_exit": 22
+      },
+      {
+        "exit": 23,
+        "stderr": "",
+        "stdout": "",
+        "kind": "phone",
+        "boundary": "ack",
+        "expected_exit": 23
+      },
+      {
+        "exit": 24,
+        "stderr": "",
+        "stdout": "",
+        "kind": "phone",
+        "boundary": "acknowledged",
+        "expected_exit": 24
+      },
+      {
+        "exit": 21,
+        "stderr": "",
+        "stdout": "",
+        "kind": "context",
+        "boundary": "spool",
+        "expected_exit": 21
+      },
+      {
+        "exit": 22,
+        "stderr": "",
+        "stdout": "",
+        "kind": "context",
+        "boundary": "commit",
+        "expected_exit": 22
+      },
+      {
+        "exit": 23,
+        "stderr": "",
+        "stdout": "",
+        "kind": "context",
+        "boundary": "ack",
+        "expected_exit": 23
+      },
+      {
+        "exit": 24,
+        "stderr": "",
+        "stdout": "",
+        "kind": "context",
+        "boundary": "acknowledged",
+        "expected_exit": 24
+      }
+    ],
+    "recovery": {
+      "exit": 0,
+      "stderr": "",
+      "stdout": "{\"stage\": \"phone_queue_seed\", \"source_domains_seen\": 0}\n{\"stage\": \"phone_queue_seed\", \"source_domains_seen\": 0}\n{\"stage\": \"phone_queue_seed\", \"source_domains_seen\": 0}\n{\"stage\": \"phone_queue_seed\", \"source_domains_seen\": 0}\n{\"stage\": \"contact_context_seed\", \"eligible_email_domains\": 0}\n{\"stage\": \"contact_context_seed\", \"eligible_email_domains\": 0}\n{\"stage\": \"contact_context_seed\", \"eligible_email_domains\": 0}\n{\"stage\": \"contact_context_seed\", \"eligible_email_domains\": 0}\n"
+    }
+  }
+}

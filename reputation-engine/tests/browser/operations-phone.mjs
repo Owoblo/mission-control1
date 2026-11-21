@@ -1,0 +1,38 @@
+import {chromium} from 'playwright';import fs from 'node:fs';import {parseEnv} from 'node:util';import {createHmac} from 'node:crypto';import assert from 'node:assert/strict';
+const base=process.env.OPERATIONS_TEST_URL;if(!base)throw Error('OPERATIONS_TEST_URL required');
+const env=parseEnv(fs.readFileSync('/Users/owoblo/Downloads/mission-control1/reputation-engine/.vercel/.env.production.local','utf8'));
+const secret=env.AUTH_SECRET.replace(/\\[rn]/g,'').trim();const payload=Buffer.from(JSON.stringify({role:'sales_rep',userId:'fixture',name:'Operations test',exp:Date.now()+600000})).toString('base64url');const cookie=payload+'.'+createHmac('sha256',secret).update(payload).digest('base64url');
+const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});
+try{
+const context=await browser.newContext({viewport:{width:1440,height:1050},permissions:['microphone']});await context.addCookies([{name:'mc_session',value:cookie,url:base,httpOnly:true,sameSite:'Lax'}]);const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const project=JSON.parse(fs.readFileSync('/private/tmp/dtmf-prod-project.json','utf8'));const bypass=Object.keys(project.protectionBypass||{})[0];
+await page.route('**/*',r=>r.continue({headers:{...r.request().headers(),...(new URL(r.request().url()).origin===base&&bypass?{'x-vercel-protection-bypass':bypass}:{})}}));
+await page.addInitScript(()=>{
+ window.__digits=[];window.__calls=[];
+ class Call{handlers={};parameters={From:'+14165550198'};state='open';status(){return this.state}on(n,f){(this.handlers[n]??=[]).push(f)}emit(n,...args){for(const f of this.handlers[n]||[])f(...args)}accept(){this.emit('accept')}reject(){this.emit('reject')}disconnect(){this.emit('disconnect')}sendDigits(d){window.__digits.push(d)}mute(m){window.__muted=m}}
+ class Device{handlers={};constructor(){window.__opsDevice=this}on(n,f){(this.handlers[n]??=[]).push(f)}emit(n,...args){for(const f of this.handlers[n]||[])f(...args)}async register(){this.emit('registered')}updateToken(){}destroy(){}async connect(options){window.__calls.push(options);const c=new Call();window.__opsCall=c;setTimeout(()=>c.emit('accept'),100);return c}}
+ window.Twilio={Device};window.__incoming=()=>{const c=new Call();window.__opsCall=c;window.__opsDevice.emit('incoming',c)};
+});
+const contacts=[{phone:'+14165550199',name:'Fixture Contractor',company:'Fixture Logistics',type:'subcontractor'}];const events=[{id:'call:fixture',phone:contacts[0].phone,kind:'call',direction:'outbound',created_at:new Date().toISOString(),payload:{status:'completed',recordingSid:'REfixture',transcript:'Fixture transcript',duration:65}}];const apiPaths=[],sends=[];
+await page.route('**/api/**',async route=>{const req=route.request(),u=new URL(req.url());apiPaths.push(u.pathname);let data={ok:true};
+ if(u.pathname==='/api/auth/me')data={role:'sales_rep',name:'Operations test',userId:'fixture'};
+ else if(u.pathname==='/api/sales/operations/phone'){
+  if(req.method()==='POST'){const body=req.postDataJSON();if(body.action==='note')events.push({id:'note:test',phone:body.phone,kind:'note',direction:'internal',created_at:new Date().toISOString(),payload:{body:body.body}});else contacts.push({...body,phone:body.phone.startsWith('+')?body.phone:'+1'+body.phone})}
+  else data=u.searchParams.has('phone')?{events:events.filter(e=>e.phone===u.searchParams.get('phone')),hasMore:false}:{contacts,threads:events};
+ }else if(u.pathname==='/api/sales/operations/token')data={token:'mock-no-provider-call'};
+ else if(u.pathname==='/api/sales/operations/send-sms'){const body=req.postDataJSON();sends.push(body);events.push({id:'sms:test',phone:body.to,kind:'sms',direction:'outbound',created_at:new Date().toISOString(),payload:{body:body.body,status:'delivered'}})}
+ await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
+});
+await page.goto(base+'/sales/operations/phone',{waitUntil:'domcontentloaded'});await page.getByRole('heading',{name:'Operations Phone',exact:true}).waitFor();
+await page.getByRole('button',{name:/Fixture Contractor/}).waitFor();await page.getByRole('button',{name:'+ New',exact:true}).click();await page.getByLabel('Contact phone').fill('4165550198');await page.getByLabel('Contact type').selectOption('vendor');await page.getByLabel('Contact name').fill('Fixture Vendor');await page.getByLabel('Company',{exact:true}).fill('Fixture Supply');await page.getByRole('button',{name:'Save contact',exact:true}).click();await page.getByRole('heading',{name:'Fixture Vendor',exact:true}).waitFor();
+await page.getByLabel('Text from 226-774-6581').fill('Fixture vendor message');await page.getByRole('button',{name:'Send text',exact:true}).click();await page.getByText('Message accepted for delivery.',{exact:false}).waitFor();assert.equal(sends[0].to,'+14165550198');assert.equal(sends[0].leadId,undefined);
+await page.getByRole('button',{name:'Enable Operations phone',exact:true}).click();await page.getByRole('button',{name:'Phone ready',exact:true}).waitFor();await page.getByRole('button',{name:'Call from 6581',exact:true}).click();await page.getByText('Connected · Recording enabled',{exact:true}).waitFor();
+await page.getByRole('button',{name:'Keypad',exact:true}).click();await page.getByRole('button',{name:'Send 7',exact:true}).click();await page.getByRole('button',{name:'Send #',exact:true}).click();assert.deepEqual(await page.evaluate(()=>window.__digits),['7','#']);assert.deepEqual(await page.evaluate(()=>window.__calls),[{params:{To:'+14165550198'}}]);
+await page.getByRole('button',{name:'Mute',exact:true}).click();assert.equal(await page.evaluate(()=>window.__muted),true);await page.getByRole('button',{name:'End call',exact:true}).click();
+await page.evaluate(()=>window.__incoming());await page.getByRole('button',{name:'Answer',exact:true}).click();await page.getByText('Connected · Recording enabled',{exact:true}).waitFor();await page.getByRole('button',{name:'End call',exact:true}).click();
+await page.getByText('Add internal note',{exact:true}).click();await page.getByLabel('Internal note',{exact:true}).fill('Fixture delivery instructions');await page.getByRole('button',{name:'Save note',exact:true}).click();await page.getByText('Fixture delivery instructions',{exact:true}).waitFor();
+await page.getByRole('button',{name:/Fixture Contractor/}).click();await page.locator('audio').waitFor();assert.match(await page.locator('audio').getAttribute('src'),/operations\/recording/);await page.getByText('Transcript',{exact:true}).click();await page.getByText('Fixture transcript',{exact:true}).waitFor();
+assert.equal(apiPaths.some(p=>p.startsWith('/api/sales/dialer/')||p.startsWith('/api/sales/leads')),false);assert.deepEqual(errors,[]);
+await page.screenshot({path:'/private/tmp/operations-browser-desktop.png',fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/private/tmp/operations-browser-mobile.png',fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
+console.log('PASS: vendor creation, fixed-line texting, outbound/incoming calls, mute, keypad, shared notes, recording/transcript UI, mobile layout, and no sales dialer/lead API traffic. All messages and calls mocked.');
+}catch(e){const page=browser.contexts()[0]?.pages()[0];if(page){console.log((await page.locator('body').innerText()).slice(-4000));await page.screenshot({path:'/private/tmp/operations-browser-failure.png',fullPage:true})}throw e}finally{await browser.close()}

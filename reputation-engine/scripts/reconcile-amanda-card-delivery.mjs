@@ -1,0 +1,20 @@
+import fs from 'node:fs/promises';
+const receipt=JSON.parse(await fs.readFile('partnership-system/state/amanda-card-schedule-20260916.json'));
+const headers={apikey:process.env.SUPABASE_KEY,Authorization:'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=representation'};
+async function db(t,q={},method='GET',body){const r=await fetch(process.env.SUPABASE_URL+'/rest/v1/'+t+'?'+new URLSearchParams(q),{method,headers,body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error('CRM '+r.status);return r.json();}
+const [c]=await db('market_contacts',{id:'eq.'+receipt.contactId,select:'phone'});
+const [job]=await db('sequence_jobs',{id:'eq.'+receipt.result.job.id});
+if(job.status!=='sent')throw Error('Job not yet sent; do not infer delivery');
+const clean=s=>String(s||'').replace(/\\r|\\n|\r|\n/g,'').trim();const sid=clean(process.env.TWILIO_ACCOUNT_SID),token=clean(process.env.TWILIO_AUTH_TOKEN);
+if(!sid.startsWith('AC')||token.includes('SENSITIVE'))throw Error('Missing Twilio credentials');
+const q=new URLSearchParams({To:c.phone,DateSent:'2026-09-16',PageSize:'1000'});
+const r=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json?${q}`,{headers:{Authorization:'Basic '+Buffer.from(sid+':'+token).toString('base64')}});
+if(!r.ok)throw Error('Twilio read '+r.status);const data=await r.json();if(data.next_page_uri)throw Error('Paginate provider results before reconciling');
+const matches=data.messages.filter(m=>m.direction.startsWith('outbound')&&m.body===receipt.body&&Math.abs(Date.parse(m.date_sent)-Date.parse(job.sent_at))<300000);
+if(matches.length!==1)throw Error('Need exactly one provider match, got '+matches.length);
+const m=matches[0];const result={at:new Date().toISOString(),sid:m.sid,status:m.status,errorCode:m.error_code,sentAt:m.date_sent,numMedia:m.num_media,jobId:job.id};
+await fs.writeFile('partnership-system/state/amanda-card-delivery-20260916.json',JSON.stringify(result,null,2));
+const touches=await db('market_touches',{contact_id:'eq.'+receipt.contactId,created_at:'gte.2026-09-16T00:00:00Z',select:'id,direction,metadata'});
+for(const t of touches.filter(t=>t.id===receipt.result.touch.id||t.metadata?.scheduled_touch_id===receipt.result.touch.id))await db('market_touches',{id:'eq.'+t.id},'PATCH',{metadata:{...t.metadata,twilioSid:m.sid,provider_status:m.status,delivery_state:m.status,provider_checked_at:result.at}});
+if(m.status==='delivered')await db('crm_tasks',{id:'eq.0ab14a7c-ba8b-4cf6-b0e9-116d1bcde2d9',status:'in.(open,in_progress)'},'PATCH',{status:'completed',completed_at:result.at,completed_by_name:'John — provider-confirmed fulfilment',outcome_note:'AMANDA15 requested digital card delivered by MMS. Twilio '+m.sid+'. No duplicate send.'});
+console.log(JSON.stringify(result));

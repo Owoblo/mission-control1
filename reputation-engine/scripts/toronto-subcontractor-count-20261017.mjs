@@ -1,0 +1,5 @@
+import './gta-email-recovery-runtime.mjs';import {db} from './reply-runtime-20261015.mjs';import fs from 'node:fs/promises';
+let rows=[];for(let offset=0;;offset+=1000){const page=await db('subcontractors',{order:'id.asc',limit:1000,offset});rows.push(...page);if(page.length<1000)break;}
+const selected=rows.filter(r=>(r.branches||[]).some(b=>/toronto|gta/i.test(b))||/toronto|gta/i.test(r.home_market||''));
+await fs.mkdir('artifacts/toronto-subcontractors-20261017',{recursive:true});await fs.writeFile('artifacts/toronto-subcontractors-20261017/count.json',JSON.stringify({at:new Date().toISOString(),total:rows.length,selected},null,2));
+console.log(JSON.stringify({all:rows.length,toronto:selected.length,statuses:selected.reduce((a,r)=>(a[r.status]=(a[r.status]||0)+1,a),{}),lifecycle:selected.reduce((a,r)=>(a[r.lifecycle_status]=(a[r.lifecycle_status]||0)+1,a),{}),rows:selected.map(r=>({name:r.company_name,status:r.status,lifecycle:r.lifecycle_status,branches:r.branches,cities:r.service_cities}))},null,2));

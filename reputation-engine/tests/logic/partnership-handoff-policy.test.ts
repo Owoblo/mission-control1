@@ -17,12 +17,12 @@ test('natural-language price request creates a handoff even without the words cl
   assert.equal(detectPartnershipLeadSignal(request).is_lead, true)
   assert.equal(selectCurrentHandoffTouches([{...touch, notes: request}], now).size, 1)
 })
-test('partner and referred-customer identities remain separate', () => {
+test('ambiguous customer names remain unconfirmed while phone ownership is checked', () => {
   assert.deepEqual(extractPartnershipReferralDetails([
     'Inbound SMS: John my Grandson needs a small move.',
     'Inbound SMS: Robert said he will confirm with you tomorrow his cell phone is 4374394910 thanks',
   ], '+14162301083'), {
-    customerName: 'John',
+    customerName: undefined,
     customerPhone: '+14374394910',
     phoneOwnershipNote: 'Partner says the referred person will confirm; verify whose number this is before calling.',
   })
@@ -37,4 +37,9 @@ test('existing, archived and human managed handoffs are never reset', () => {
 })
 test('suppressed and declined partners are not handed to sales for contact', () => {
   for(const contact of [{do_not_contact:true}, {decision:'opted_out'}, {stage:'lost'}, {decision:'not_interested'}]) assert.equal(canCreatePartnerHandoff(contact, false),false)
+})
+
+test('an explicit referred name wins over a greeting addressee', () => {
+  const details = extractPartnershipReferralDetails(['Hi John my grandson Robert needs movers next week. His name is Robert.'])
+  assert.equal(details.customerName, 'Robert')
 })

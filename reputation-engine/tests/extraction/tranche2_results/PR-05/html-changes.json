@@ -1,0 +1,366 @@
+[
+  {
+    "id": "adjacent-fax",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "empty",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "extensions",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "inline-email",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "international",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "malformed-plus",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "mixed-field",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "nanp-invalid",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "noise",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "separate-cards",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "shared-business-email",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "desk@shared.test",
+        "extraction_methods": [
+          "visible_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/2",
+        "mailbox_status": "not_checked",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Fictional Alpha desk@shared.test",
+        "source_url": "https://shared-business-email.test/contact"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "desk@shared.test",
+        "extraction_methods": [
+          "visible_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/3",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+        "raw_value": "desk@shared.test",
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Fictional Alpha desk@shared.test",
+        "source_url": "https://shared-business-email.test/contact"
+      }
+    ]
+  },
+  {
+    "id": "shared-business-email",
+    "component": "email_candidates",
+    "before": null,
+    "after": [
+      {
+        "candidate_value": "desk@shared.test",
+        "email": "desk@shared.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/3",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+        "raw_value": "desk@shared.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/div/section[1]/p",
+        "source_url": "https://shared-business-email.test/contact",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "desk@shared.test",
+        "email": "desk@shared.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/3",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+        "raw_value": "desk@shared.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/div/section[2]/p",
+        "source_url": "https://shared-business-email.test/contact",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "shared-route",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "structured",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "info@fictional.test",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/2",
+        "mailbox_status": "not_checked",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+        "role_hint": "general_business",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_url": "https://structured.test/contact"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "info@fictional.test",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/3",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+        "raw_value": "info@fictional.test",
+        "role_hint": "general_business",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_url": "https://structured.test/contact"
+      }
+    ]
+  },
+  {
+    "id": "structured",
+    "component": "email_candidates",
+    "before": null,
+    "after": [
+      {
+        "candidate_value": "info@fictional.test",
+        "email": "info@fictional.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/3",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+        "raw_value": "info@fictional.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": null,
+        "source_url": "https://structured.test/contact",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "table-fax",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "trailing-fax",
+    "component": "email_candidates",
+    "before": null,
+    "after": []
+  },
+  {
+    "id": "two-people",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "jane@fictional.test",
+        "extraction_methods": [
+          "mailto_recipient"
+        ],
+        "extraction_version": "ssm-published-email-extraction/2",
+        "mailbox_status": "not_checked",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Jane Smith Facilities Manager Email",
+        "source_url": "https://two-people.test/contact"
+      },
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "john@fictional.test",
+        "extraction_methods": [
+          "mailto_recipient"
+        ],
+        "extraction_version": "ssm-published-email-extraction/2",
+        "mailbox_status": "not_checked",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "John Jones Office Manager Email",
+        "source_url": "https://two-people.test/contact"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "jane@fictional.test",
+        "extraction_methods": [
+          "mailto_recipient"
+        ],
+        "extraction_version": "ssm-published-email-extraction/3",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+        "raw_value": "jane@fictional.test",
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Jane Smith Facilities Manager Email",
+        "source_url": "https://two-people.test/contact"
+      },
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "john@fictional.test",
+        "extraction_methods": [
+          "mailto_recipient"
+        ],
+        "extraction_version": "ssm-published-email-extraction/3",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+        "raw_value": "john@fictional.test",
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "John Jones Office Manager Email",
+        "source_url": "https://two-people.test/contact"
+      }
+    ]
+  },
+  {
+    "id": "two-people",
+    "component": "email_candidates",
+    "before": null,
+    "after": [
+      {
+        "candidate_value": "jane@fictional.test",
+        "email": "jane@fictional.test",
+        "extraction_method": "mailto_recipient",
+        "extraction_version": "ssm-published-email-extraction/3",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+        "raw_value": "jane@fictional.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/div/div[1]/a",
+        "source_url": "https://two-people.test/contact",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "john@fictional.test",
+        "email": "john@fictional.test",
+        "extraction_method": "mailto_recipient",
+        "extraction_version": "ssm-published-email-extraction/3",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+        "raw_value": "john@fictional.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/div/div[2]/a",
+        "source_url": "https://two-people.test/contact",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "unicode-email",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "email": "lise@fictional.test",
+        "extraction_methods": [
+          "visible_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/2",
+        "mailbox_status": "not_checked",
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "élise@fictional.test",
+        "source_url": "https://unicode-email.test/contact"
+      }
+    ],
+    "after": []
+  },
+  {
+    "id": "unicode-email",
+    "component": "email_candidates",
+    "before": null,
+    "after": [
+      {
+        "candidate_value": "élise@fictional.test",
+        "email": null,
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/3",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+        "raw_value": "élise@fictional.test",
+        "reason": "unicode_local_part",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://unicode-email.test/contact",
+        "status": "unsupported"
+      }
+    ]
+  }
+]

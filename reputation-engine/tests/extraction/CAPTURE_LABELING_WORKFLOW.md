@@ -1,0 +1,15 @@
+# Saved-capture review and labeling workflow
+
+The inventory is read-only discovery, not admission to PR-17 or permission to contact anyone. It does not open databases, credentials, remote sites, or raw email/message stores. Source-bearing files include potentially authored summaries; matching a manifest hash does not prove original HTTP provenance or source rights.
+
+1. Review `corrections_results/corpus-review.csv` and the richer JSON inventory. Start with matching receipt hashes, but require the original fetch/render/document receipt and capture timestamp. Resolve missing/out-of-root references without automatically fetching anything.
+2. The owner or designated reviewer must supply specific acquisition, evaluation and retention permission evidence and its hash. Preserve restrictions such as internal-only use, no redistribution, no automated access and source review holds. A public URL or a vague “internal research” statement is insufficient. Exclude restricted or unverifiable source material until resolved.
+3. Record the retention deadline, deletion authority, legal/suppression preservation flags and current policy approval identifier. Do not invent dates, licenses or approvals. An inventory row with empty approval fields remains unapproved.
+4. Select 300–500 permissioned captures across the PR-17 industry, language, ownership and source-kind strata. Deduplicate exact hashes for sampling; preserve repeat observations separately for freshness evaluation. Do not select examples based on successful extraction results.
+5. Review registrable-domain groups and shared vendor/franchise/template families. Freeze development/holdout assignments by connected domain, template and business identity before labeling/tuning. Keep the adversarial safety set separate.
+6. Have two independent annotators label exhaustive observed contacts, original locators/raw strings, phone/fax/extensions, normalized supported/unsupported status and organization/site/person/shared/unknown relationships. Annotators must not use candidate extractor outputs as truth. Stable entity IDs must come from source evidence, not a shared phone/domain alone.
+7. Adjudicate disagreements, record reviewer identities and evidence, and freeze label version/hashes. Retain original annotations. The CSV is a review worklist, not the gold-label schema.
+8. Assemble the manifest and label JSON defined in `RELEASE_CORPUS.md`; run `release_corpus.load_corpus` and the guarded PR-17 evaluator. Do not automatically promote inventory metadata into approved manifest booleans.
+9. Independently review candidate entity-ID projections. Re-run fixed captures with immutable labels and report all new/resolved errors. Corpus admission and a passing evaluator do not authorize crawlers, marketing or deployment.
+
+Keep real raw captures and annotation evidence in approved access-controlled storage. The checked-in local inventory contains paths, hashes and source metadata, not copied page bodies. Nothing in this phase grants a right to republish source content.

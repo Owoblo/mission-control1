@@ -1,0 +1,16 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {evaluate,evaluateHistory} from '../../lib/partnership-core/policy.mjs';
+import {project,rankActions} from '../../lib/partnership-core/events.mjs';
+const now=Date.parse('2026-09-15T12:00:00Z');const action={id:'a',accountId:'org',kind:'cold_introduction',channel:'email'};
+const state={accountId:'org',observedAt:new Date(now).toISOString(),historyComplete:true,marketActive:true,serviceAvailable:true,channelEligible:true,senderHealthy:true,suppressed:false,notBefore:null,humanReply:false,pendingReferral:false,unresolvedPromise:false,newRecipientsThisWeek:0};
+test('eligible action passes; missing evidence fails closed',()=>{assert.equal(evaluate(action,state,now).allowed,true);assert.equal(evaluate(action,{},now).allowed,false)});
+test('account reply pauses cold touches on every channel',()=>{for(const channel of ['email','sms','phone','direct_mail'])assert.equal(evaluate({...action,channel},{...state,humanReply:true},now).allowed,false)});
+test('suppression wins over fulfilment and positive history',()=>assert.equal(evaluate({...action,kind:'fulfil_promise'},{...state,suppressed:true},now).allowed,false));
+test('reply can continue active conversation',()=>assert.equal(evaluate({...action,kind:'reply'},{...state,humanReply:true},now).allowed,true));
+test('promises referrals timing weekly budget and stale evidence hold',()=>{for(const patch of [{unresolvedPromise:true},{pendingReferral:true},{newRecipientsThisWeek:2},{observedAt:'2020-01-01'},{notBefore:'2027-01-01'}])assert.equal(evaluate(action,{...state,...patch},now).allowed,false)});
+test('shared history preserves legacy holds',()=>{assert.equal(evaluateHistory(action,[{decision:'rejected'}]).allowed,false);assert.equal(evaluateHistory(action,[{last_inbound_at:'today'}]).allowed,false)});
+const event=(id,type,payload={},occurredAt='2026-09-15T10:00:00Z')=>({id,type,payload,accountId:'org',occurredAt,recordedAt:'2026-09-15T12:00:00Z',evidenceRef:'crm:'+id});
+test('replay deduplicates; conflicting event IDs fail',()=>{const e=event('1','interaction.sent');assert.equal(project([e,e])[0].interactions.length,1);assert.throws(()=>project([e,{...e,type:'interaction.human_reply'}]))});
+test('late arrival does not reopen an earlier fulfilled promise',()=>{const created=event('1','promise.created',{promiseId:'p'});const done=event('2','promise.fulfilled',{promiseId:'p'},'2026-09-15T11:00:00Z');assert.equal(project([done,created])[0].unresolvedPromise,false)});
+test('lost job does not erase relationship or suppression',()=>{const a=project([event('1','interaction.human_reply'),event('2','contact.suppressed'),event('3','outcome.recorded',{job:'lost'})])[0];assert.equal(a.humanReply,true);assert.equal(a.suppressed,true)});
+test('promised work ranks ahead of cold introductions',()=>assert.equal(rankActions([{id:'cold',kind:'cold_introduction',status:'open'},{id:'promise',kind:'fulfil_promise',status:'open'}],now)[0].id,'promise'));

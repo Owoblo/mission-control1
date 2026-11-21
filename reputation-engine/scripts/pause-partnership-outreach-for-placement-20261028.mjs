@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import './gta-email-recovery-runtime.mjs';
+import {db} from './reply-runtime-20261015.mjs';
+const at=new Date().toISOString();
+const reason='owner_requested_two_week_inbox_placement_reassessment_20261028';
+const [sender]=await db('email_sender_accounts',{provider:'eq.ses',from_email:'eq.john@saturnstarmovers.ca',limit:'2'});
+const [domain]=await db('crm_email_domains',{domain:'eq.saturnstarmovers.ca',limit:'2'});
+if(!sender||!domain)throw Error('Exact outreach sender/domain not found');
+const [pausedSender]=await db('email_sender_accounts',{id:'eq.'+sender.id},'PATCH',{status:'paused',pause_reason:reason,updated_at:at});
+const [pausedDomain]=await db('crm_email_domains',{domain:'eq.saturnstarmovers.ca'},'PATCH',{status:'paused',pause_reason:reason,updated_at:at});
+if(pausedSender?.status!=='paused'||pausedDomain?.status!=='paused')throw Error('Live pause not confirmed');
+const report={at,reason,sender:{email:pausedSender.from_email,status:pausedSender.status,pause_reason:pausedSender.pause_reason},domain:{domain:pausedDomain.domain,status:pausedDomain.status,pause_reason:pausedDomain.pause_reason}};
+const file='artifacts/partnership-pilot-3000-20261027/placement-pause-20261028.json';
+fs.writeFileSync(file,JSON.stringify(report,null,2));
+console.log(JSON.stringify(report));

@@ -13,11 +13,6 @@ export interface EmailVerificationResult {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const ROLE_ACCOUNTS = new Set([
-  'admin', 'administrator', 'billing', 'bookings', 'careers', 'contact', 'customerservice',
-  'hello', 'help', 'hr', 'info', 'inquiries', 'mail', 'marketing', 'media', 'no-reply',
-  'noreply', 'office', 'orders', 'reception', 'sales', 'service', 'support', 'team',
-])
 const DISPOSABLE_DOMAINS = new Set([
   '10minutemail.com', 'guerrillamail.com', 'mailinator.com', 'tempmail.com', 'yopmail.com',
   'throwawaymail.com', 'trashmail.com', 'getnada.com', 'sharklasers.com',
@@ -34,7 +29,7 @@ function splitEmail(email: string) {
 }
 
 function localRiskCheck(email: string): EmailVerificationResult | null {
-  const { normalizedEmail, localPart, domain } = splitEmail(email)
+  const { normalizedEmail, domain } = splitEmail(email)
   if (!EMAIL_RE.test(normalizedEmail)) {
     return { email, normalizedEmail, status: 'invalid', reason: 'bad_syntax', provider: 'local' }
   }
@@ -44,9 +39,8 @@ function localRiskCheck(email: string): EmailVerificationResult | null {
   if (DISPOSABLE_DOMAINS.has(domain)) {
     return { email, normalizedEmail, status: 'invalid', reason: 'disposable_domain', provider: 'local' }
   }
-  if (ROLE_ACCOUNTS.has(localPart.replace(/[._-].*$/, ''))) {
-    return { email, normalizedEmail, status: 'risky', reason: 'role_based_address', provider: 'local' }
-  }
+  // A published business role inbox is not intrinsically a delivery risk.
+  // Relevance/identity are assessed separately from mailbox verification.
   return null
 }
 
@@ -95,11 +89,11 @@ async function verifyLocally(email: string): Promise<EmailVerificationResult> {
       return { email, normalizedEmail, status: 'invalid', reason: 'no_mx_records', provider: 'local' }
     }
   } catch {
-    return { email, normalizedEmail, status: 'invalid', reason: 'mx_lookup_failed', provider: 'local' }
+    return { email, normalizedEmail, status: 'unknown', reason: 'mx_lookup_failed', provider: 'local' }
   }
 
   if (risk?.status === 'risky') return risk
-  return { email, normalizedEmail, status: 'valid', reason: 'syntax_and_mx_passed', provider: 'local' }
+  return { email, normalizedEmail, status: 'unknown', reason: 'mailbox_not_verified_syntax_and_mx_passed', provider: 'local' }
 }
 
 export async function verifyEmailAddress(email: string): Promise<EmailVerificationResult> {
@@ -112,6 +106,9 @@ export async function verifyEmailAddress(email: string): Promise<EmailVerificati
 }
 
 export function emailVerificationAllowsSend(result: EmailVerificationResult) {
+  // Never promote local syntax/DNS success to confirmed mailbox verification,
+  // including stale results written by the older local-only implementation.
+  if (result.provider === 'local') return false
   if (result.status === 'valid') return true
   if (result.status === 'risky') {
     return ['true', '1', 'yes'].includes(readEnv('PARTNERSHIP_EMAIL_ALLOW_RISKY').toLowerCase())

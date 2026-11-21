@@ -43,6 +43,19 @@ function inbound(notes: string): PartnershipAssistantTouch[] {
   }]
 }
 
+test('a business SMS autoresponder does not get a draft or count as a warm reply', async () => {
+  const notes = 'Inbound SMS: Thank you for texting Delta Power Equipment in Essex. We have received your message and will get back to you as quickly as possible.'
+  const result = await suggestPartnershipReply({ contact, touches: inbound(notes) })
+  assert.equal(result.intent, 'automated_acknowledgement')
+  assert.equal(result.recommended_action, 'no_reply')
+  assert.equal(result.draft_sms, '')
+  assert.equal(result.draft_email_body, undefined)
+  assert.equal(partnershipDispositionFromSuggestion(result).outcome_code, 'automated_acknowledgement')
+
+  const human = await suggestPartnershipReply({ contact, touches: inbound('Thanks for reaching out. Please send it to info@localfloral.test.'), skipAi: true })
+  assert.equal(human.intent, 'asks_for_email')
+})
+
 function conversation(notes: Array<{ direction: 'inbound' | 'outbound'; text: string }>): PartnershipAssistantTouch[] {
   return notes.map((item, index) => ({
     id: `touch_${index + 1}`,
@@ -93,6 +106,34 @@ test('partnership assistant strips inbound prefixes and never greets a directory
   })
   assert.match(person.draft_sms, /Alan/i)
   assert.doesNotMatch(person.draft_sms, /what is your name/i)
+})
+
+test('partnership assistant does not ask again when CRM and inbound already identify the person', async () => {
+  delete process.env.OPENAI_API_KEY
+  const result = await suggestPartnershipReply({
+    contact: { ...contact, name: 'Bushra Helou', company: 'MANOR WINDSOR REALTY LTD.' },
+    touches: inbound('Inbound SMS: Bushra Helou'),
+    skipAi: true,
+  })
+
+  assert.doesNotMatch(result.draft_sms, /what name should I save this number under/i)
+  assert.doesNotMatch(result.draft_sms, /what(?:\'s| is) your name/i)
+})
+
+test('asks for an unknown name after answering and does not repeat the question', async () => {
+  const business = { ...contact, name: 'Florent Floral', company: 'Florent Floral', city: 'Newmarket' }
+  const ask = 'By the way, who should I save this number under?'
+  const reply = await suggestPartnershipReply({ contact: business, touches: inbound('Where are you located?'), skipAi: true })
+  assert.equal(reply.draft_sms, `We cover Newmarket and surrounding areas. ${ask}`)
+
+  const followUp = await suggestPartnershipReply({ contact: business, touches: conversation([
+    { direction: 'outbound', text: ask },
+    { direction: 'inbound', text: 'Do you cover Newmarket and surrounding areas?' },
+  ]), skipAi: true })
+  assert.equal(followUp.draft_sms, 'We cover Newmarket and surrounding areas.')
+
+  const knownName = await suggestPartnershipReply({ contact: { ...business, name: 'Alex' }, touches: inbound('Where are you located?'), skipAi: true })
+  assert.equal(knownName.draft_sms, 'We cover Newmarket and surrounding areas.')
 })
 
 test('partnership assistant treats client email info requests as package-forwarding requests', async () => {

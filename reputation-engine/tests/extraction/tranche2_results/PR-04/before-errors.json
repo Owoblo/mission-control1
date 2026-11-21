@@ -1,0 +1,401 @@
+[
+  {
+    "actual": {
+      "conflicts": 1,
+      "entities": 1,
+      "unresolved": 0
+    },
+    "basis": "observed",
+    "case": "shared_ids",
+    "category": "Duplicate/entity resolution error",
+    "evidence": "Controlled input and literal expected contract differ from replay output; no acquisition cause inferred",
+    "expected": {
+      "conflicts": 0,
+      "entities": 2,
+      "unresolved": 0
+    },
+    "hypotheses": [],
+    "source_record": {
+      "case": "shared_ids",
+      "claims": [
+        {
+          "dimension": "organization_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "107886326aabbcc58c8b98f5",
+          "observation_id": "16cb797cecffba71fc5251d1",
+          "reason": "Directory identity; corroboration still required",
+          "status": "supported"
+        },
+        {
+          "dimension": "physical_site_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "cb2c6ea3e5972fa0d77cf55d",
+          "observation_id": "16cb797cecffba71fc5251d1",
+          "reason": "Source location fields; not independently confirmed",
+          "status": "uncertain"
+        },
+        {
+          "dimension": "industry_classification",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "a960f45d64d32b5004fe5f31",
+          "observation_id": "16cb797cecffba71fc5251d1",
+          "reason": "Publisher category; not a validated taxonomy mapping",
+          "status": "uncertain"
+        },
+        {
+          "dimension": "organization_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "4d808e719bd2c30bbc91e716",
+          "observation_id": "58237f40b290d7c7ec1962d5",
+          "reason": "Source identity changed; review before merge or enrichment",
+          "status": "conflicting"
+        },
+        {
+          "dimension": "physical_site_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "2ca275f28ec326b2190cd2ae",
+          "observation_id": "58237f40b290d7c7ec1962d5",
+          "reason": "Source location fields; not independently confirmed",
+          "status": "uncertain"
+        },
+        {
+          "dimension": "industry_classification",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "ee721920b72bd51194b64903",
+          "observation_id": "58237f40b290d7c7ec1962d5",
+          "reason": "Publisher category; not a validated taxonomy mapping",
+          "status": "uncertain"
+        }
+      ],
+      "contract_actual": {
+        "conflicts": 1,
+        "entities": 1,
+        "unresolved": 0
+      },
+      "contract_expected": {
+        "conflicts": 0,
+        "entities": 2,
+        "unresolved": 0
+      },
+      "entities": [
+        {
+          "address": "",
+          "city": "",
+          "domain": "",
+          "id": "18943fb1717077432a79b682",
+          "name": "Alpha Office"
+        }
+      ],
+      "input": [
+        {
+          "name": "Alpha Office",
+          "source_record_id": "a",
+          "source_url": "https://directory.test/list"
+        },
+        {
+          "name": "Beta Office",
+          "source_record_id": "b",
+          "source_url": "https://directory.test/list"
+        }
+      ],
+      "observations": [
+        {
+          "captured_at": "2026-01-01T00:00:00Z",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "16cb797cecffba71fc5251d1",
+          "payload": "{\"name\": \"Alpha Office\", \"source_record_id\": \"a\", \"source_url\": \"https://directory.test/list\"}",
+          "run_id": "ecab87e0fbce01b42e8f2108",
+          "source_url": "https://directory.test/list"
+        },
+        {
+          "captured_at": "2026-01-01T00:00:00Z",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "58237f40b290d7c7ec1962d5",
+          "payload": "{\"name\": \"Beta Office\", \"source_record_id\": \"b\", \"source_url\": \"https://directory.test/list\"}",
+          "run_id": "ecab87e0fbce01b42e8f2108",
+          "source_url": "https://directory.test/list"
+        }
+      ],
+      "result": {
+        "conflicts": 1,
+        "cost": 0,
+        "cost_per_new_entity": 0.0,
+        "coverage_complete": false,
+        "distinct_entities": 1,
+        "invalid_rows": 0,
+        "kind": "discovery",
+        "new_entities": 1,
+        "novelty": 1.0,
+        "overlap_entities": 0,
+        "rows": 2,
+        "run_id": "ecab87e0fbce01b42e8f2108"
+      }
+    }
+  },
+  {
+    "actual": {
+      "conflicts": 1,
+      "entities": 1,
+      "unresolved": 0
+    },
+    "basis": "observed",
+    "case": "shared_composites",
+    "category": "Duplicate/entity resolution error",
+    "evidence": "Controlled input and literal expected contract differ from replay output; no acquisition cause inferred",
+    "expected": {
+      "conflicts": 0,
+      "entities": 2,
+      "unresolved": 0
+    },
+    "hypotheses": [],
+    "source_record": {
+      "case": "shared_composites",
+      "claims": [
+        {
+          "dimension": "organization_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "6285af350b1c0e63bd3eb760",
+          "observation_id": "7e1b9b1b7b9e5e1a246804de",
+          "reason": "Directory identity; corroboration still required",
+          "status": "supported"
+        },
+        {
+          "dimension": "physical_site_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "7d260c4b0c033d1930bf9007",
+          "observation_id": "7e1b9b1b7b9e5e1a246804de",
+          "reason": "Source location fields; not independently confirmed",
+          "status": "supported"
+        },
+        {
+          "dimension": "industry_classification",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "31a631334015156431fe0cd7",
+          "observation_id": "7e1b9b1b7b9e5e1a246804de",
+          "reason": "Publisher category; not a validated taxonomy mapping",
+          "status": "uncertain"
+        },
+        {
+          "dimension": "organization_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "09a83f3ab9d6e73c10d27c78",
+          "observation_id": "e88d9096025687d689ae0e5d",
+          "reason": "Source identity changed; review before merge or enrichment",
+          "status": "conflicting"
+        },
+        {
+          "dimension": "physical_site_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "26fa4a754a575b903a9bb537",
+          "observation_id": "e88d9096025687d689ae0e5d",
+          "reason": "Source location fields; not independently confirmed",
+          "status": "supported"
+        },
+        {
+          "dimension": "industry_classification",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "3e0f30088895921ae8c6ef7b",
+          "observation_id": "e88d9096025687d689ae0e5d",
+          "reason": "Publisher category; not a validated taxonomy mapping",
+          "status": "uncertain"
+        }
+      ],
+      "contract_actual": {
+        "conflicts": 1,
+        "entities": 1,
+        "unresolved": 0
+      },
+      "contract_expected": {
+        "conflicts": 0,
+        "entities": 2,
+        "unresolved": 0
+      },
+      "entities": [
+        {
+          "address": "10mainst",
+          "city": "windsor",
+          "domain": "",
+          "id": "18943fb1717077432a79b682",
+          "name": "Alpha Office"
+        }
+      ],
+      "input": [
+        {
+          "address": "10 Main St",
+          "city": "Windsor",
+          "name": "Alpha Office",
+          "source_url": "https://directory.test/list"
+        },
+        {
+          "address": "20 Main St",
+          "city": "Windsor",
+          "name": "Beta Office",
+          "source_url": "https://directory.test/list"
+        }
+      ],
+      "observations": [
+        {
+          "captured_at": "2026-01-01T00:00:00Z",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "7e1b9b1b7b9e5e1a246804de",
+          "payload": "{\"address\": \"10 Main St\", \"city\": \"Windsor\", \"name\": \"Alpha Office\", \"source_url\": \"https://directory.test/list\"}",
+          "run_id": "4f27e6ad740119ab41403595",
+          "source_url": "https://directory.test/list"
+        },
+        {
+          "captured_at": "2026-01-01T00:00:00Z",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "e88d9096025687d689ae0e5d",
+          "payload": "{\"address\": \"20 Main St\", \"city\": \"Windsor\", \"name\": \"Beta Office\", \"source_url\": \"https://directory.test/list\"}",
+          "run_id": "4f27e6ad740119ab41403595",
+          "source_url": "https://directory.test/list"
+        }
+      ],
+      "result": {
+        "conflicts": 1,
+        "cost": 0,
+        "cost_per_new_entity": 0.0,
+        "coverage_complete": false,
+        "distinct_entities": 1,
+        "invalid_rows": 0,
+        "kind": "discovery",
+        "new_entities": 1,
+        "novelty": 1.0,
+        "overlap_entities": 0,
+        "rows": 2,
+        "run_id": "4f27e6ad740119ab41403595"
+      }
+    }
+  },
+  {
+    "actual": {
+      "conflicts": 1,
+      "entities": 1,
+      "unresolved": 0
+    },
+    "basis": "observed",
+    "case": "ambiguous_missing",
+    "category": "Duplicate/entity resolution error",
+    "evidence": "Controlled input and literal expected contract differ from replay output; no acquisition cause inferred",
+    "expected": {
+      "conflicts": 0,
+      "entities": 0,
+      "unresolved": 2
+    },
+    "hypotheses": [],
+    "source_record": {
+      "case": "ambiguous_missing",
+      "claims": [
+        {
+          "dimension": "organization_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "b96e081263a31c867728c45e",
+          "observation_id": "7ab51c7a3ee3968790ca98c5",
+          "reason": "Directory identity; corroboration still required",
+          "status": "supported"
+        },
+        {
+          "dimension": "physical_site_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "d69a71ba8b4dca9a8fad5f14",
+          "observation_id": "7ab51c7a3ee3968790ca98c5",
+          "reason": "Source location fields; not independently confirmed",
+          "status": "uncertain"
+        },
+        {
+          "dimension": "industry_classification",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "cb77c6c9c359b40591c9ca5a",
+          "observation_id": "7ab51c7a3ee3968790ca98c5",
+          "reason": "Publisher category; not a validated taxonomy mapping",
+          "status": "uncertain"
+        },
+        {
+          "dimension": "organization_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "81a3659d056004e8f1fca216",
+          "observation_id": "b95ef28ca7f6dee74eac3331",
+          "reason": "Source identity changed; review before merge or enrichment",
+          "status": "conflicting"
+        },
+        {
+          "dimension": "physical_site_identity",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "30c4b52db1516459e24d3241",
+          "observation_id": "b95ef28ca7f6dee74eac3331",
+          "reason": "Source location fields; not independently confirmed",
+          "status": "uncertain"
+        },
+        {
+          "dimension": "industry_classification",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "0e4c02f79fa09b484324699d",
+          "observation_id": "b95ef28ca7f6dee74eac3331",
+          "reason": "Publisher category; not a validated taxonomy mapping",
+          "status": "uncertain"
+        }
+      ],
+      "contract_actual": {
+        "conflicts": 1,
+        "entities": 1,
+        "unresolved": 0
+      },
+      "contract_expected": {
+        "conflicts": 0,
+        "entities": 0,
+        "unresolved": 2
+      },
+      "entities": [
+        {
+          "address": "",
+          "city": "",
+          "domain": "",
+          "id": "18943fb1717077432a79b682",
+          "name": "Alpha Office"
+        }
+      ],
+      "input": [
+        {
+          "name": "Alpha Office",
+          "source_url": "https://directory.test/list"
+        },
+        {
+          "name": "Beta Office",
+          "source_url": "https://directory.test/list"
+        }
+      ],
+      "observations": [
+        {
+          "captured_at": "2026-01-01T00:00:00Z",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "7ab51c7a3ee3968790ca98c5",
+          "payload": "{\"name\": \"Alpha Office\", \"source_url\": \"https://directory.test/list\"}",
+          "run_id": "9d3760e90ba07099ac831402",
+          "source_url": "https://directory.test/list"
+        },
+        {
+          "captured_at": "2026-01-01T00:00:00Z",
+          "entity_id": "18943fb1717077432a79b682",
+          "id": "b95ef28ca7f6dee74eac3331",
+          "payload": "{\"name\": \"Beta Office\", \"source_url\": \"https://directory.test/list\"}",
+          "run_id": "9d3760e90ba07099ac831402",
+          "source_url": "https://directory.test/list"
+        }
+      ],
+      "result": {
+        "conflicts": 1,
+        "cost": 0,
+        "cost_per_new_entity": 0.0,
+        "coverage_complete": false,
+        "distinct_entities": 1,
+        "invalid_rows": 0,
+        "kind": "discovery",
+        "new_entities": 1,
+        "novelty": 1.0,
+        "overlap_entities": 0,
+        "rows": 2,
+        "run_id": "9d3760e90ba07099ac831402"
+      }
+    }
+  }
+]

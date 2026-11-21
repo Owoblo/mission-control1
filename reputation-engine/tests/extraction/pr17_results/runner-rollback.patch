@@ -1,0 +1,11 @@
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -48,8 +48,6 @@
+ 
+ TESTS['PR-16'] = TESTS['PR-15'] + ['tests/market_map/test_contact_capture.py','tests/market_map/test_source_capture_cache.py','tests/market_map/test_trusted_source_capture.py']
+ 
+-TESTS['PR-17'] = TESTS['PR-16'] + ['tests/extraction/test_release_gates.py','tests/extraction/test_release_operations.py']
+-
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)

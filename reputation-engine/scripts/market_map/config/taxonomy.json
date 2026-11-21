@@ -1,0 +1,445 @@
+{
+  "version": "2026-10-26.1",
+  "industry_taxonomy": "ssm_industry_family",
+  "naics_taxonomy": "NAICS-CA-2022",
+  "classification_policy": {
+    "source_assertions_retained": true,
+    "keyword_matches_are": "suggestions_for_review",
+    "naics_requires_source_evidence": true,
+    "unclassified_records_retained": true,
+    "industry_never_proves_active_buying_intent": true,
+    "industry_never_proves_fulfilment_capability": true,
+    "overlapping_naics_prefixes": "review_required; use most-specific supported code and explicit mapping evidence"
+  },
+  "industry_families": [
+    {
+      "id": "manufacturing",
+      "label": "Manufacturing / OEMs and suppliers",
+      "naics_prefix_hints": [
+        "31",
+        "32",
+        "33"
+      ],
+      "review_keywords": [
+        "manufacturing",
+        "manufacturer",
+        "fabrication",
+        "oem"
+      ]
+    },
+    {
+      "id": "wholesale_distribution",
+      "label": "Wholesale / distribution",
+      "naics_prefix_hints": [
+        "41"
+      ],
+      "review_keywords": [
+        "wholesale",
+        "distributor",
+        "distribution"
+      ]
+    },
+    {
+      "id": "retail_franchises",
+      "label": "Retail / franchises",
+      "naics_prefix_hints": [
+        "44",
+        "45"
+      ],
+      "review_keywords": [
+        "retail",
+        "store",
+        "franchise"
+      ]
+    },
+    {
+      "id": "construction_fitout",
+      "label": "Construction / general contractors / fit-out",
+      "naics_prefix_hints": [
+        "23"
+      ],
+      "review_keywords": [
+        "construction",
+        "contractor",
+        "fit-out",
+        "fitout"
+      ]
+    },
+    {
+      "id": "property_facilities",
+      "label": "Commercial property / facilities",
+      "naics_prefix_hints": [
+        "531"
+      ],
+      "review_keywords": [
+        "property management",
+        "commercial property",
+        "facilities",
+        "landlord"
+      ]
+    },
+    {
+      "id": "professional_offices",
+      "label": "Professional services / corporate offices",
+      "naics_prefix_hints": [
+        "54",
+        "55"
+      ],
+      "review_keywords": [
+        "professional services",
+        "accounting",
+        "legal",
+        "corporate office",
+        "consulting"
+      ]
+    },
+    {
+      "id": "technology_telecom",
+      "label": "Technology / telecom",
+      "naics_prefix_hints": [
+        "5112",
+        "517",
+        "518",
+        "5415"
+      ],
+      "review_keywords": [
+        "software",
+        "telecom",
+        "technology",
+        "it services"
+      ]
+    },
+    {
+      "id": "finance_insurance",
+      "label": "Finance / insurance",
+      "naics_prefix_hints": [
+        "52"
+      ],
+      "review_keywords": [
+        "financial",
+        "insurance",
+        "bank",
+        "mortgage"
+      ]
+    },
+    {
+      "id": "healthcare",
+      "label": "Healthcare",
+      "naics_prefix_hints": [
+        "621",
+        "622"
+      ],
+      "review_keywords": [
+        "healthcare",
+        "medical",
+        "clinic",
+        "hospital",
+        "dental"
+      ]
+    },
+    {
+      "id": "education_research",
+      "label": "Education / research",
+      "naics_prefix_hints": [
+        "61",
+        "5417"
+      ],
+      "review_keywords": [
+        "education",
+        "school",
+        "university",
+        "college",
+        "research"
+      ]
+    },
+    {
+      "id": "hospitality",
+      "label": "Hospitality",
+      "naics_prefix_hints": [
+        "72"
+      ],
+      "review_keywords": [
+        "hotel",
+        "hospitality",
+        "restaurant"
+      ]
+    },
+    {
+      "id": "senior_living",
+      "label": "Senior living",
+      "naics_prefix_hints": [
+        "623"
+      ],
+      "review_keywords": [
+        "senior living",
+        "retirement",
+        "long-term care",
+        "nursing home"
+      ]
+    },
+    {
+      "id": "government_agencies",
+      "label": "Government / public agencies",
+      "naics_prefix_hints": [
+        "91"
+      ],
+      "review_keywords": [
+        "government",
+        "public agency",
+        "municipal"
+      ]
+    },
+    {
+      "id": "nonprofit_community",
+      "label": "Nonprofit / community / faith organisations",
+      "naics_prefix_hints": [
+        "813"
+      ],
+      "review_keywords": [
+        "nonprofit",
+        "non-profit",
+        "faith",
+        "charity",
+        "community association"
+      ]
+    },
+    {
+      "id": "sports",
+      "label": "Sports teams / leagues / venues",
+      "naics_prefix_hints": [
+        "7112",
+        "7139"
+      ],
+      "review_keywords": [
+        "sports",
+        "sport",
+        "team",
+        "league",
+        "arena",
+        "stadium"
+      ]
+    },
+    {
+      "id": "arts_culture_events_media",
+      "label": "Arts / culture / events / media",
+      "naics_prefix_hints": [
+        "51",
+        "711",
+        "712"
+      ],
+      "review_keywords": [
+        "arts",
+        "culture",
+        "museum",
+        "event",
+        "media",
+        "theatre"
+      ]
+    },
+    {
+      "id": "restoration_storage_logistics",
+      "label": "Restoration / storage / logistics",
+      "naics_prefix_hints": [
+        "48",
+        "49",
+        "5617"
+      ],
+      "review_keywords": [
+        "restoration",
+        "storage",
+        "logistics",
+        "moving",
+        "warehousing"
+      ]
+    },
+    {
+      "id": "agriculture_food",
+      "label": "Agriculture / food processing",
+      "naics_prefix_hints": [
+        "11",
+        "311",
+        "312"
+      ],
+      "review_keywords": [
+        "agriculture",
+        "food processing",
+        "farm",
+        "agrifood",
+        "agri-food"
+      ]
+    },
+    {
+      "id": "utilities_infrastructure",
+      "label": "Utilities / infrastructure",
+      "naics_prefix_hints": [
+        "22"
+      ],
+      "review_keywords": [
+        "utilities",
+        "utility",
+        "infrastructure",
+        "energy"
+      ]
+    },
+    {
+      "id": "uncategorised",
+      "label": "Uncategorised",
+      "naics_prefix_hints": [],
+      "review_keywords": []
+    }
+  ],
+  "entity_types": [
+    "company",
+    "government_body",
+    "institution",
+    "nonprofit",
+    "team",
+    "league",
+    "association",
+    "property_owner",
+    "franchisee",
+    "brand",
+    "operating_partner",
+    "unknown",
+    "licensed_business_candidate"
+  ],
+  "location_types": [
+    "headquarters",
+    "branch_office",
+    "retail",
+    "plant",
+    "warehouse",
+    "distribution_centre",
+    "hotel",
+    "school",
+    "arena",
+    "clinic",
+    "storage",
+    "other",
+    "unknown",
+    "programme",
+    "virtual"
+  ],
+  "service_opportunities": [
+    "office_relocation",
+    "internal_move",
+    "employee_relocation",
+    "furniture_delivery",
+    "installation_support",
+    "fixture_transfer",
+    "retail_opening",
+    "retail_closure",
+    "clear_out",
+    "junk_removal",
+    "contents_move",
+    "storage_transfer",
+    "project_logistics",
+    "other",
+    "unknown"
+  ],
+  "service_opportunity_default_status": "hypothesis",
+  "account_roles": [
+    "buyer",
+    "referral_source",
+    "project_intermediary",
+    "operating_partner",
+    "supplier"
+  ],
+  "account_roles_multiple_allowed": true,
+  "fulfilment_qualifications": [
+    "standard_capability",
+    "specialist_partner_required",
+    "scope_unknown",
+    "unsupported"
+  ],
+  "fulfilment_default": "scope_unknown",
+  "source_families": [
+    "municipal_directory",
+    "economic_development",
+    "employment_survey",
+    "open_data_locations",
+    "chamber",
+    "bia",
+    "industrial_directory",
+    "manufacturers_association",
+    "landlord_portfolio",
+    "shopping_centre_tenants",
+    "contractor_projects",
+    "franchise_locator",
+    "league_roster",
+    "provincial_association",
+    "institutional_directory",
+    "procurement_awards",
+    "commercial_zoning_parcels",
+    "business_licences",
+    "industrial_park_roster",
+    "school_board_portfolio",
+    "corporate_branch_locator",
+    "installer_renovator_directory",
+    "appliance_dealer_directory",
+    "news_projects"
+  ],
+  "coverage_statuses": [
+    "not_searched",
+    "searched_no_source_found",
+    "source_identified",
+    "access_blocked",
+    "ingestion_pending",
+    "partially_ingested",
+    "ingested",
+    "stale"
+  ],
+  "sports_subcategories": [
+    "professional",
+    "junior",
+    "collegiate",
+    "amateur_club",
+    "venue",
+    "unknown"
+  ],
+  "benchmark_policy": {
+    "requires_matching_geography": true,
+    "requires_matching_unit": true,
+    "requires_matching_date": true,
+    "requires_matching_industry": true,
+    "finite_roster_requires_name_and_season": true,
+    "unbounded_market_completeness_percentage": null
+  },
+  "corridor_research_seeds": [
+    {
+      "label": "Walker Road",
+      "city": "Windsor",
+      "status": "source_research_required",
+      "purpose": "Commercial/industrial corridor: occupants, properties, landlords, logistics/manufacturing anchors and official branch pages."
+    },
+    {
+      "label": "Yonge Street",
+      "city": "Toronto",
+      "status": "source_research_required",
+      "purpose": "Street corridor: offices, retail, property portfolios and shopping-centre tenant lists."
+    },
+    {
+      "label": "Bloor Street",
+      "city": "Toronto",
+      "status": "source_research_required",
+      "purpose": "Street corridor: offices, retail, property portfolios and shopping-centre tenant lists."
+    },
+    {
+      "label": "Lowson Road",
+      "city": null,
+      "status": "geography_review_required",
+      "purpose": "User-supplied road spelling/location unresolved. Do not assume Lawson Road or infer a city."
+    }
+  ],
+  "relationship_discovery_lanes": [
+    "parent_and_subsidiary",
+    "brand_and_franchisee",
+    "property_owner_and_manager",
+    "tenant_and_property",
+    "supplier_and_installer",
+    "contractor_and_project",
+    "anchor_and_neighbouring_business",
+    "school_board_and_school",
+    "corporate_branch_and_headquarters"
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "status": "pass",
+  "thread_substitution": false,
+  "tests": {
+    "interrupted_transaction": {
+      "exit": 19,
+      "receipt_count": 0,
+      "pass": true,
+      "stderr": ""
+    },
+    "sqlite": {
+      "workers": [
+        {
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "exit": 0,
+          "stderr": ""
+        }
+      ],
+      "elapsed_seconds": 0.44282841600000006,
+      "pass": true,
+      "receipt_count": 1
+    },
+    "cache": {
+      "workers": [
+        {
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "exit": 0,
+          "stderr": ""
+        },
+        {
+          "exit": 0,
+          "stderr": ""
+        }
+      ],
+      "elapsed_seconds": 0.18311833300000002,
+      "pass": true,
+      "full_body_responses": 1,
+      "distinct_receipts": 1
+    }
+  },
+  "disk_bytes": 32231
+}

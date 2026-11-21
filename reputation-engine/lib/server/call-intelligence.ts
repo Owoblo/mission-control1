@@ -106,7 +106,7 @@ export async function transcribeConsultationRecording(recordingDataUrl: string) 
   return payload.text?.trim() || null
 }
 
-export async function transcribeAudioBuffer(buffer: Buffer, contentType: string, filenamePrefix = 'call') {
+export async function transcribeAudioBuffer(buffer: Buffer, contentType: string, filenamePrefix = 'call', options?: { timeoutMs?: number; attempts?: number }) {
   const apiKey = getOpenAIKey()
   if (!apiKey) return null
 
@@ -121,8 +121,9 @@ export async function transcribeAudioBuffer(buffer: Buffer, contentType: string,
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}` },
       body: buildAudioTranscriptionForm(buffer, `${filenamePrefix}.${ext}`, contentType),
-      signal: AbortSignal.timeout(45_000),
-    })
+      signal: AbortSignal.timeout(options?.timeoutMs ?? 45_000),
+    }),
+    options
   )
 
   if (!response.ok) {

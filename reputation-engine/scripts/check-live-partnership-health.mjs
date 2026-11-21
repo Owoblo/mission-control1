@@ -1,0 +1,3 @@
+import fs from 'node:fs/promises';import {createHmac} from 'node:crypto';
+const payload=Buffer.from(JSON.stringify({role:'owner',name:'John',exp:Date.now()+5*60*1000})).toString('base64url');const token=payload+'.'+createHmac('sha256',process.env.AUTH_SECRET).update(payload).digest('base64url');
+const r=await fetch('https://go.quote2move.com/api/marketing/delivery-health',{headers:{Cookie:'mc_session='+token},signal:AbortSignal.timeout(120000)});const result=await r.json();await fs.writeFile('partnership-system/markets/ca/on/windsor-essex/runs/2026-09-15/send-release/live-delivery-health.json',JSON.stringify({http_status:r.status,...result},null,2));console.log(JSON.stringify({http_status:r.status,...result},null,2));

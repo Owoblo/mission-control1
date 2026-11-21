@@ -1,0 +1,135 @@
+{
+  "baseline": [
+    {
+      "id": "swapped",
+      "capture_sha256": "20a898d9c1c2e858ec1fec14127e9a00c61620db484c3a2e42a2ad583c9900bb",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "38ba7441d2ab3577a35a1785",
+          "source_record_id": "swapped",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Sales Manager jane@business.test Bob Jones Facilities Manager bob@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    {
+      "id": "duplicate-person",
+      "capture_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "dd12c4dc120a81ebfb1c79e4",
+          "source_record_id": "duplicate-person",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    {
+      "id": "shared-inbox",
+      "capture_sha256": "dea59145de167b22b3de6671d0fa0219c3c96d97f917e37606cb6123c6c21a2d",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "f3f8dcf8ad25475951e19b31",
+          "source_record_id": "shared-inbox",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "info@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager info@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    {
+      "id": "legacy-text",
+      "capture_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "8480b0443f78c06c963011f4",
+          "source_record_id": "legacy-text",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    {
+      "id": "multiple-named",
+      "capture_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "602bb4283b881c9d5430de4b",
+          "source_record_id": "multiple-named",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Bob Jones",
+          "recipient_role": "Sales Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test Bob Jones Sales Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  ],
+  "candidate": []
+}

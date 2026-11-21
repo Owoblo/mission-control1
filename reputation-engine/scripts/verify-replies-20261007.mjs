@@ -1,0 +1,5 @@
+import fs from 'node:fs/promises'
+import {dir,db} from './reply-runtime-20261007.mjs'
+const files=(await fs.readdir(dir)).filter(f=>/^evening-(send|email)-.*\.json$/.test(f));const results=[]
+for(const f of files){const r=JSON.parse(await fs.readFile(dir+'/'+f));if(r.state!=='accepted')throw Error('Unresolved receipt '+f);const rows=await db('market_touches',r.touch_id?{id:'eq.'+r.touch_id}:{contact_id:'eq.'+r.plan.id,direction:'eq.outbound',created_at:'gte.2026-10-07T04:00:00Z'});const provider=r.result?.sid||r.messageId;const matches=rows.filter(t=>t.metadata?.twilioSid===provider||t.metadata?.provider_message_id===provider);if(matches.length!==1)throw Error('Receipt mismatch '+f);results.push({name:r.name||r.plan.name,contact_id:matches[0].contact_id,channel:matches[0].channel,provider_id:provider,touch_id:matches[0].id})}
+const summary={at:new Date().toISOString(),accepted:results.length,crm_receipts_verified:true,results};await fs.writeFile(dir+'/reply-verification.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));

@@ -88,6 +88,19 @@ test('quote line-item reconciliation protects local and long-distance locked pri
   }
 })
 
+test('cross-border premium reconciliation removes duplicates and remains stable', () => {
+  const moving = { description: 'Long-Distance Moving Service', amount: 3000 }
+  const premium = { description: 'Cross-Border Logistics Premium', amount: CROSS_BORDER_LOGISTICS_PREMIUM }
+  const manual = { description: 'Piano handling', amount: 250 }
+  const calculated = [moving, premium]
+  const reconciled = reconcileEstimatedQuoteLineItems([moving, premium, premium, premium, manual], calculated)
+
+  assert.deepEqual(reconciled, [moving, premium, manual])
+  assert.equal(reconcileEstimatedQuoteLineItems(reconciled, calculated), reconciled)
+  assert.deepEqual(reconcileEstimatedQuoteLineItems(reconciled, [moving]), [moving, manual],
+    'a premium must be removed when the recalculated route no longer requires it')
+})
+
 test('cross-border long-distance quotes include a fixed logistics premium', () => {
   const estimate = estimateLeadQuote(
     makeLead({

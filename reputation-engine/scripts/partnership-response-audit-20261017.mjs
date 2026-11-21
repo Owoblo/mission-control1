@@ -1,0 +1,3 @@
+import './gta-email-recovery-runtime.mjs';import {db} from './reply-runtime-20261015.mjs';import fs from 'node:fs/promises';
+const rows=[];for(let offset=0;;offset+=1000){const page=await db('market_touches',{direction:'eq.inbound',select:'id,contact_id,channel,created_at,notes,outcome_code,metadata',order:'id.asc',limit:1000,offset});rows.push(...page);if(page.length<1000)break;}
+await fs.mkdir('artifacts/partnership-response-alltime-20261017',{recursive:true});await fs.writeFile('artifacts/partnership-response-alltime-20261017/data.json',JSON.stringify({at:new Date().toISOString(),rows}));console.log(JSON.stringify({total:rows.length,channels:rows.reduce((a,r)=>(a[r.channel]=(a[r.channel]||0)+1,a),{})}));

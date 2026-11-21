@@ -266,6 +266,10 @@ export function ensureSmsOptOutLine(message: string) {
   return normalizeSmsToGsm(message)
 }
 
+export function isInboundOptOut(channel: string, notes?: string | null) {
+  return isOptOutText(channel === 'sms' ? notes?.replace(/^Inbound SMS:\s*/i, '') : notes)
+}
+
 export function isOptOutText(value?: string | null) {
   const text = (value || '').trim().toLowerCase()
   return /^(stop|unsubscribe|remove|remove me|do not text|don't text|dont text|opt out|cancel)\b/.test(text)

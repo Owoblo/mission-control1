@@ -1,0 +1,45 @@
+const assert=require('node:assert/strict'),path=require('node:path'),{pathToFileURL}=require('node:url');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{
+ const browser=await chromium.launch({headless:true});
+ try{
+  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(pathToFileURL(path.resolve(process.argv[2])).href,{waitUntil:'load',timeout:120000});
+  assert.equal(await page.locator('[data-status]').count(),4);
+  const counts=await page.evaluate(()=>({n:D.buildings.length,counts:D.summary.all_status_counts,visible:visible.length}));
+  assert.equal(counts.n,139074);
+  assert.equal(Object.values(counts.counts).reduce((a,b)=>a+b,0),counts.n);
+  assert(counts.visible>0&&counts.visible<counts.n);
+  await page.locator('#include-places').uncheck();
+  assert.equal(await page.evaluate(()=>visible.length),4656);
+  await page.locator('#include-places').check();
+  assert(await page.evaluate(()=>visible.length)>4656);
+  await page.locator('#search').fill('Maggio Group');
+  assert(await page.locator('#results button').count()>0);
+  await page.locator('#results button').first().click();
+  assert.match(await page.locator('#detail').textContent(),/Portfolio: Maggio Group/);
+  await page.locator('#search').fill('Station 2');
+  assert(await page.locator('#results button').count()>0);
+  await page.locator('#results button').first().click();
+  assert.match(await page.locator('#detail').textContent(),/3121 MILLOY ST/);
+  await page.locator('#example').click();
+  assert.match(await page.locator('#detail').textContent(),/Parcel address; no place point/);
+  assert.match(await page.locator('#detail').textContent(),/Exact footprint occupancy not verified/);
+  await page.locator('#search').fill('wyandotte');
+  assert(await page.locator('#results button').count()>0);
+  await page.locator('#results button').first().click();
+  assert.match(await page.locator('#detail').textContent(),/wyandotte/i);
+  for(const el of await page.locator('[data-status]').all())await el.uncheck();
+  assert.equal(await page.evaluate(()=>visible.length),0);
+  for(const el of await page.locator('[data-status]').all())await el.check();
+  await page.locator('#focus').uncheck();
+  assert.equal(await page.evaluate(()=>visible.length),139074);
+  await page.locator('#focus').check();
+  await page.locator('#search').fill('');
+  await page.locator('#example').click();
+  assert.deepEqual(errors,[]);
+  if(process.argv[3])await page.screenshot({path:process.argv[3],fullPage:true});
+  console.log('PASS: all feature counts conserved; filters, address search, candidate selection and evidence warnings render without JS errors');
+ }finally{await browser.close()}
+})().catch(e=>{console.error(e);process.exit(1)});

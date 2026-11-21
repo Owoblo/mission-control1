@@ -1,0 +1,1 @@
+Applied runner inverse patch to disposable copy; bytes match pre-PR17 runner. Working tree untouched.

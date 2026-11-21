@@ -1,0 +1,127 @@
+[
+  {
+    "id": "ca1d366f-4a0b-4503-8455-f5e756f36939",
+    "status": "SUCCESS",
+    "createdAt": "2026-11-11T19:39:11.209Z",
+    "meta": {
+      "buildOnly": false,
+      "cliAgentSessionId": "01a1c946-105e-7070-a4eb-cfd23f4e4572",
+      "cliCaller": "codex",
+      "cliMessage": "7be91aa07774768293eac2ac9d883e5811d32150",
+      "duration": 15,
+      "fileServiceManifest": {},
+      "imageDigest": "sha256:1d57ca8656d86d0214ad732ff12c6018554e497fdf79afb2a7b66972ab542b3f",
+      "logsV2": true,
+      "nixpacksProviders": [],
+      "propertyFileMapping": {
+        "build.builder": "$.build.builder",
+        "build.dockerfilePath": "$.build.dockerfilePath",
+        "deploy.numReplicas": "$.deploy.numReplicas",
+        "deploy.restartPolicyType": "$.deploy.restartPolicyType"
+      },
+      "reason": "deploy",
+      "rootDirectory": null,
+      "runtime": "V2",
+      "serviceManifest": {
+        "build": {
+          "buildCommand": null,
+          "buildEnvironment": "V3",
+          "builder": "DOCKERFILE",
+          "dockerfilePath": "/Dockerfile",
+          "nixpacksConfigPath": null,
+          "nixpacksPlan": null,
+          "watchPatterns": []
+        },
+        "deploy": {
+          "cronSchedule": null,
+          "drainingSeconds": null,
+          "healthcheckPath": null,
+          "healthcheckTimeout": null,
+          "ipv6EgressEnabled": false,
+          "limitOverride": null,
+          "multiRegionConfig": {
+            "europe-west4-drams3a": {
+              "numReplicas": 1
+            }
+          },
+          "numReplicas": 1,
+          "overlapSeconds": null,
+          "preDeployCommand": null,
+          "preDeployTimeoutSeconds": null,
+          "region": null,
+          "registryCredentials": null,
+          "requiredMountPath": null,
+          "restartPolicyMaxRetries": null,
+          "restartPolicyType": "NEVER",
+          "runtime": "V2",
+          "sleepApplication": false,
+          "startCommand": null,
+          "useLegacyStacker": false
+        }
+      },
+      "volumeMounts": []
+    }
+  },
+  {
+    "id": "3f5c1e55-2632-4404-9332-5eeb894d2e15",
+    "status": "REMOVED",
+    "createdAt": "2026-11-11T19:37:16.877Z",
+    "meta": {
+      "buildOnly": false,
+      "cliAgentSessionId": "01a1c946-105e-7070-a4eb-cfd23f4e4572",
+      "cliCaller": "codex",
+      "duration": 15,
+      "fileServiceManifest": {},
+      "imageDigest": "sha256:31634908a654f562638d4c608a3d6071bf3886853d4de8e40813dc4b8f36f0d6",
+      "logsV2": true,
+      "nixpacksProviders": [],
+      "propertyFileMapping": {
+        "build.builder": "$.build.builder",
+        "build.dockerfilePath": "$.build.dockerfilePath",
+        "deploy.numReplicas": "$.deploy.numReplicas",
+        "deploy.restartPolicyType": "$.deploy.restartPolicyType"
+      },
+      "reason": "deploy",
+      "rootDirectory": null,
+      "runtime": "V2",
+      "serviceManifest": {
+        "build": {
+          "buildCommand": null,
+          "buildEnvironment": "V3",
+          "builder": "RAILPACK",
+          "dockerfilePath": "/Dockerfile",
+          "nixpacksConfigPath": null,
+          "nixpacksPlan": null,
+          "watchPatterns": []
+        },
+        "deploy": {
+          "cronSchedule": null,
+          "drainingSeconds": null,
+          "healthcheckPath": null,
+          "healthcheckTimeout": null,
+          "ipv6EgressEnabled": false,
+          "limitOverride": null,
+          "multiRegionConfig": {
+            "europe-west4-drams3a": {
+              "numReplicas": 1
+            }
+          },
+          "numReplicas": 1,
+          "overlapSeconds": null,
+          "preDeployCommand": null,
+          "preDeployTimeoutSeconds": null,
+          "region": null,
+          "registryCredentials": null,
+          "requiredMountPath": null,
+          "restartPolicyMaxRetries": 0,
+          "restartPolicyType": "NEVER",
+          "runtime": "UNSPECIFIED",
+          "sleepApplication": false,
+          "startCommand": null,
+          "useLegacyStacker": false
+        }
+      },
+      "volumeMounts": []
+    }
+  }
+]

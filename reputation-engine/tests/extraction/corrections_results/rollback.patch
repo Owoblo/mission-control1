@@ -1,0 +1,1077 @@
+--- a/scripts/market_map/capture_inventory.py
++++ /dev/null
+@@ -1,62 +0,0 @@
+-"""Read-only local capture discovery. Never opens databases, credentials, or remote sources."""
+-import argparse,hashlib,json,os,tempfile
+-from pathlib import Path
+-
+-def file_hash(p):
+-    h=hashlib.sha256()
+-    with p.open('rb') as stream:
+-        for chunk in iter(lambda:stream.read(1024*1024),b''):h.update(chunk)
+-    return h.hexdigest()
+-
+-def inventory(roots):
+-    rows=[];manifests=[];excluded=0
+-    for supplied in roots:
+-        root=Path(supplied).resolve()
+-        if not root.is_dir():continue
+-        for directory,dirs,files in os.walk(root,followlinks=False):
+-            dirs[:]=[d for d in dirs if not d.startswith('.') and d.lower() not in {'node_modules','credentials','backups','exports','tests','venv','dist','build'}]
+-            for name in files:
+-                path=Path(directory)/name
+-                if path.is_symlink() or any(word in name.lower() for word in ['credential','secret','token','password']):continue
+-                is_capture=path.suffix.lower() in {'.html','.pdf','.body'} and any(word in str(path.relative_to(root)).lower() for word in ['source','capture','browser'])
+-                is_meta=path.suffix=='.json' and any(word in name.lower() for word in ['manifest','receipt']) and any(word in str(path.relative_to(root)).lower() for word in ['source','capture','heldout'])
+-                if not (is_capture or is_meta):continue
+-                if path.stat().st_size>20_000_000:excluded+=1;continue
+-                if is_capture:rows.append({'path':str(path),'bytes':path.stat().st_size,'sha256':file_hash(path),'metadata':[]})
+-                if is_meta:
+-                    try:data=json.loads(path.read_text())
+-                    except (ValueError,UnicodeError):continue
+-                    items=data if isinstance(data,list) else sum([data.get(k,[]) for k in ['sources','captures','pages','receipts'] if isinstance(data.get(k),list)],[])
+-                    if isinstance(data,dict) and any(k in data for k in ['body_path','source_url','raw_evidence_reference']):items.append(data)
+-                    for item in items:
+-                        if not isinstance(item,dict):continue
+-                        filename=item.get('body_path') or item.get('path') or item.get('file') or item.get('raw_evidence_reference')
+-                        if not isinstance(filename,str):continue
+-                        candidates=[Path(filename),path.parent/filename,root/filename]
+-                        resolved=next((p.resolve() for p in candidates if p.resolve().is_relative_to(root) and p.is_file()),None)
+-                        manifests.append({'manifest':str(path),'referenced_path':filename,'resolved_path':str(resolved) if resolved else None,'source_url':item.get('source_url') or item.get('url'),'claimed_sha256':item.get('body_sha256') or item.get('sha256'),
+-                          'capture_version':item.get('capture_version'),'captured_at':item.get('retrieved_at') or item.get('captured_at'),
+-                          'rights_statement':item.get('rights_status') or item.get('licence_status') or item.get('rights'),
+-                          'owner_approval_recorded':isinstance(item.get('permission'),dict) and item['permission'].get('owner_approved') is True,
+-                          'retention_deadline_recorded':isinstance(item.get('permission'),dict) and bool(item['permission'].get('retain_until')),
+-                          'review_adjudication_recorded':isinstance(item.get('review'),dict) and item['review'].get('adjudicated') is True})
+-    bypath={r['path']:r for r in rows}
+-    for meta in manifests:
+-        if meta['resolved_path'] in bypath:
+-            row=bypath[meta['resolved_path']];meta['hash_matches']=meta['claimed_sha256']==row['sha256'];row['metadata'].append(meta)
+-    for r in rows:
+-        r['eligibility']='review_required_not_approved'
+-        r['missing']=['independent exhaustive PR17 labels','reviewed domain/template split','validated approval and retention evidence']
+-        if not any(m['hash_matches'] for m in r['metadata']):r['missing'].append('matching original-capture receipt hash')
+-    return {'scan_mode':'read_only_files_only_no_databases','roots':[str(Path(r).resolve()) for r in roots],
+-       'source_bearing_files':len(rows),'bytes':sum(r['bytes'] for r in rows),'files_with_matching_receipt_hash':sum(any(m['hash_matches'] for m in r['metadata']) for r in rows),
+-       'approved_for_pr17':0,'oversize_excluded':excluded,'files':rows,'unresolved_metadata':[m for m in manifests if m['resolved_path'] not in bypath]}
+-
+-def main():
+-    p=argparse.ArgumentParser();p.add_argument('--root',action='append',required=True);p.add_argument('--output',required=True);args=p.parse_args();out=Path(args.output).resolve()
+-    if out.exists() or not out.is_relative_to(Path(tempfile.gettempdir()).resolve()):p.error('new temporary output file required')
+-    from .offline_guard import OfflineGuard
+-    guard=OfflineGuard(out.parent);guard.install();report=inventory(args.root);out.write_text(json.dumps(report,indent=2)+'\n')
+-    if guard.violations:raise RuntimeError(guard.violations)
+-    print(json.dumps({k:report[k] for k in ['source_bearing_files','bytes','files_with_matching_receipt_hash','approved_for_pr17']}))
+-if __name__=='__main__':main()
+--- a/scripts/market_map/cloud/railway_control.py
++++ b/scripts/market_map/cloud/railway_control.py
+@@ -39,9 +39,7 @@
+         password_file=ROOT/'.runtime/railway-research/dashboard-password'
+         if not password_file.exists():
+             password_file.write_text(secrets.token_urlsafe(32));password_file.chmod(0o600)
+-        current_key=ROOT/'.runtime/railway-research/openai-current.json'
+-        if not current_key.exists():current_key=ROOT/'.runtime/openai-api-codex/auth.json'
+-        values={'OPENAI_API_KEY':json.loads(current_key.read_text())['OPENAI_API_KEY'],
++        values={'OPENAI_API_KEY':json.loads((ROOT/'.runtime/openai-api-codex/auth.json').read_text())['OPENAI_API_KEY'],
+             'DASHBOARD_PASSWORD':password_file.read_text()}
+         for name,value in values.items():
+             result=subprocess.run([str(CLI),'variable','set',name,'--stdin','--skip-deploys'],
+--- a/scripts/market_map/contact_capture.py
++++ b/scripts/market_map/contact_capture.py
+@@ -5,8 +5,6 @@
+ from urllib.parse import urlsplit,urlunsplit
+ from .transport import SourceBlocked,BudgetExceeded,Response
+ from .source_capture_cache import atomic,canonical
+-
+-CACHE_MAX_BYTES=20_000_000
+ 
+ 
+ def normalized_url(url):
+@@ -17,16 +15,6 @@
+ 
+ 
+ def get_or_fetch_capture(url,transport,*,allowed_hosts,root=None,policy_check=None,clock=time.time):
+-    if root is None:return _get_or_fetch_capture(url,transport,allowed_hosts=allowed_hosts,clock=clock)
+-    from .evidence_maintenance import maintenance_lock
+-    try:
+-        with maintenance_lock(root):
+-            return _get_or_fetch_capture(url,transport,allowed_hosts=allowed_hosts,root=root,policy_check=policy_check,clock=clock)
+-    except BlockingIOError as error:
+-        raise BudgetExceeded('Capture maintenance in progress',code='budget_deferred',url=url,retryable=True,budget_reason='capture_maintenance') from error
+-
+-
+-def _get_or_fetch_capture(url,transport,*,allowed_hosts,root=None,policy_check=None,clock=time.time):
+     """Return response and immutable source receipt; no queue or CRM writes."""
+     def receipt(response):
+         return {'capture_id':uuid.uuid4().hex,'url':response.url,'requested_url':url,
+@@ -46,17 +34,13 @@
+         if policy.get('session_scope')!='stateless' or policy.get('representation')!='static-html':
+             raise SourceBlocked('Capture session/representation requires review',code='scope_denied',url=target)
+         if policy.get('rights_status')!='public_capture_reuse_approved' or not policy.get('policy_id') or not policy.get('revision'):raise SourceBlocked('Versioned policy required',code='scope_denied',url=target)
+-        if policy.get('retention_allowed') and policy.get('reuse_allowed'):
+-            try:expiry=datetime.fromisoformat(policy['retain_until'].replace('Z','+00:00')).timestamp()
+-            except (KeyError,ValueError,TypeError):raise SourceBlocked('Explicit retention deadline required',code='scope_denied',url=target)
+-            if expiry<=clock():raise SourceBlocked('Source retention expired',code='access_denied',url=target)
+         return policy
+     policy=policy_for(url)
+     scope={k:policy[k] for k in ('policy_id','revision','session_scope','representation')}
+     scope['allowed_hosts']=sorted(allowed_hosts)
+     def access(target):
+         current=policy_for(target)
+-        if any(current.get(k)!=policy.get(k) for k in ('policy_id','revision','retention_allowed','reuse_allowed','session_scope','representation','retain_until','retention_approval_id','delete_expired','legal_hold','suppression_evidence')):
++        if any(current.get(k)!=policy.get(k) for k in ('policy_id','revision','retention_allowed','reuse_allowed','session_scope','representation')):
+             raise SourceBlocked('Capture policy changed during request',code='access_denied',url=target,policy_scope='host')
+     if not policy.get('retention_allowed') or not policy.get('reuse_allowed'):
+         response=transport.fetch_capture(url,allowed_hosts=allowed_hosts,access_check=access)
+@@ -113,8 +97,6 @@
+             return Response(body,cached['original_headers'],response.url,200,True,response.redirect_chain),dict(cached['receipt'])
+         if response.status!=200:raise SourceBlocked('Unexpected capture response',code='http_error',url=url)
+         source_receipt=receipt(response)
+-        retention={'retain_until':datetime.fromisoformat(policy['retain_until'].replace('Z','+00:00')).timestamp(),'approval_id':policy.get('retention_approval_id'),'delete_expired':policy.get('delete_expired') is True,'legal_hold':policy.get('legal_hold',False),'suppression_evidence':policy.get('suppression_evidence',False)}
+-        source_receipt['retain_until']=policy['retain_until']
+         if prohibited(headers) or cache_ttl(headers,ttl)<=0:
+             if index.exists():index.replace(root/(cache_id+'.held-'+uuid.uuid4().hex+'.json'))
+             return response,{**source_receipt,'retain_body':False}
+@@ -127,17 +109,10 @@
+                 except ValueError:ttl=0
+         if ttl<=0:return response,source_receipt
+         access(response.url)
+-        payload={'retention':retention,'scope':scope,'receipt':source_receipt,'headers':headers,'original_headers':response.headers,
++        atomic(root/'objects'/(source_receipt['sha256']+'.body'),response.body)
++        payload={'scope':scope,'receipt':source_receipt,'headers':headers,'original_headers':response.headers,
+                  'redirect_chain':list(response.redirect_chain),'stored_at':clock(),'ttl':ttl}
+-        encoded=canonical({'payload':payload,'signature':hmac.new(key,canonical(payload),hashlib.sha256).hexdigest()})
+-        with (root/'key.lock').open('a+b') as capacity_lock:
+-            fcntl.flock(capacity_lock,fcntl.LOCK_EX)
+-            body_path=root/'objects'/(source_receipt['sha256']+'.body')
+-            used=sum(p.stat().st_size for p in root.rglob('*') if p.is_file())
+-            if used+len(encoded)+(0 if body_path.exists() else len(response.body))>CACHE_MAX_BYTES:
+-                raise BudgetExceeded('Shared capture root capacity reached',code='budget_deferred',url=url,retryable=True,budget_reason='capture_disk_bytes')
+-            atomic(body_path,response.body)
+-            atomic(index,encoded)
++        atomic(index,canonical({'payload':payload,'signature':hmac.new(key,canonical(payload),hashlib.sha256).hexdigest()}))
+         return response,source_receipt
+ 
+ 
+--- a/scripts/market_map/contact_enrichment.py
++++ b/scripts/market_map/contact_enrichment.py
+@@ -1,6 +1,5 @@
+ """Public role/department evidence for domains already yielding published emails."""
+ from __future__ import annotations
+-from .host_budget import job_options as host_budget_options
+ import uuid
+ import argparse
+ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+@@ -74,7 +73,7 @@
+ 
+ def collect_domain(job,frontier,*,page_limit=4,checkpoint=None,capture_root=None,capture_policy=None):
+     from .contact_context import extract_contact_context
+-    client=Transport(max_requests=18,max_bytes=4_000_000,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0,**host_budget_options(job))
++    client=Transport(max_requests=18,max_bytes=4_000_000,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0)
+     hosts={job['domain'],'www.'+job['domain']}
+     result={'domain':job['domain'],'pages':[],'claims':[],'frontier_updates':[],'discovered':[],
+             'full_site_exhausted':False,'main_database_writes':0,'messages_sent':0,'people_verified':0,'authority_verified':0}
+@@ -143,13 +142,13 @@
+         db.execute('BEGIN IMMEDIATE')
+         if not frontier_retry.accept_visit(db,result):return frontier_retry.job_state(db,domain)
+         for url,depth,state in result.get('discovered',[]):contact_frontier.upsert_link(db,domain,url,depth,state)
+-        for url,state,error in result.get('frontier_updates',[]):frontier_retry.update_frontier(db,domain,url,state,error)
++        for url,state,error in result.get('frontier_updates',[]):db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,error,domain,url))
+         for page in result.get('pages',[]):db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['content_sha256'],page['observed_at'],json.dumps(page)))
+         for claim in result.get('claims',[]):save_claim(db,domain,claim['claim_type'],claim['evidence'])
+         contact_frontier.remember_links(db,result)
+         frontier_retry.apply_result(db,result)
+         remaining=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+-        state=frontier_retry.result_state(db,result)
++        state=(result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain)
+         db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',(state,stamp(),domain))
+         db.execute('INSERT INTO visits(domain,status,observed_at,payload) VALUES(?,?,?,?)',(domain,state,stamp(),json.dumps(result)))
+     return state
+@@ -203,7 +202,7 @@
+     return added
+ 
+ 
+-def run(source_queue,output,overlay_path,*,workers=2,max_domains=128,continuous=False,graph_path=None,phone_queue=None,saved_browser=None,collector=None,capture_root=None,capture_policy_path=None,host_budget_root=None):
++def run(source_queue,output,overlay_path,*,workers=2,max_domains=128,continuous=False,graph_path=None,phone_queue=None,saved_browser=None,collector=None,capture_root=None,capture_policy_path=None):
+     if not 1<=workers<=4 or not 1<=max_domains<=10000:raise ValueError('Bounded worker/domain settings required')
+     output=Path(output);output.mkdir(parents=True,exist_ok=True);storage_guard(output)
+     with (output/'collector.lock').open('a') as lock:
+@@ -230,7 +229,6 @@
+                         for row in db.execute("SELECT * FROM jobs WHERE status='pending' ORDER BY attempts,email_source_pages DESC,domain LIMIT 256").fetchall():
+                             if len(pending)>=workers or completed+len(pending)>=max_domains:break
+                             job=dict(row);domain=job['domain']
+-                            if host_budget_root:job['host_budget_root']=str(host_budget_root)
+                             if capture_root:job.update(capture_root=str(capture_root),capture_policy_path=str(capture_policy_path) if capture_policy_path else None)
+                             if domain in busy:continue
+                             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+--- a/scripts/market_map/email_acquisition.py
++++ b/scripts/market_map/email_acquisition.py
+@@ -4,7 +4,6 @@
+ separate research queue, never contacts, CRM, messages or mailbox probes.
+ """
+ from __future__ import annotations
+-from .host_budget import job_options as host_budget_options
+ 
+ import argparse
+ import base64
+@@ -209,7 +208,7 @@
+ 
+ 
+ def collect_domain(job, frontier, names, *, page_limit=4, byte_limit=4_000_000, checkpoint=None,capture_root=None,capture_policy=None):
+-    transport = Transport(max_requests=20,max_bytes=byte_limit,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0,**host_budget_options(job))
++    transport = Transport(max_requests=20,max_bytes=byte_limit,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0)
+     allowed = {job["domain"],"www."+job["domain"]}
+     out = {"domain":job["domain"],"observed_at":stamp(),"pages":[],"frontier_updates":[],"discovered":[],"emails":[],
+            "full_site_exhausted":False,"main_database_writes":0,"messages_sent":0}
+@@ -285,7 +284,7 @@
+                         ON CONFLICT(domain,url) DO UPDATE SET depth=MIN(frontier.depth,excluded.depth),
+                         status=CASE WHEN frontier.status='depth_deferred' AND excluded.status='pending' THEN 'pending' ELSE frontier.status END""",(domain,url,depth,state))
+                 for url,state,error in result['frontier_updates']:
+-                    frontier_retry.update_frontier(db,domain,url,state,error)
++                    db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,error,domain,url))
+                 capture_by_url={}
+                 for page in result['pages']:
+                     cid=observations.capture(db,page)
+@@ -297,7 +296,7 @@
+                 contact_frontier.remember_links(db,result)
+                 frontier_retry.apply_result(db,result)
+                 remains=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+-                db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',(frontier_retry.result_state(db,result),stamp(),domain))
++                db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',((result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain),stamp(),domain))
+             return remains
+         except sqlite3.OperationalError as error:
+             if not any(word in str(error).lower() for word in ('locked','busy')) or attempt+1>=attempts:
+@@ -314,7 +313,7 @@
+         return _run_workers(queue_path,**kwargs)
+ 
+ 
+-def _run_workers(queue_path, *, max_domains=256, workers=8, page_limit=4, reviews=None, progress=None, isolate_domains=True, deadline_seconds=60,capture_root=None,capture_policy_path=None,host_budget_root=None):
++def _run_workers(queue_path, *, max_domains=256, workers=8, page_limit=4, reviews=None, progress=None, isolate_domains=True, deadline_seconds=60,capture_root=None,capture_policy_path=None):
+     from .email_domain_process import collect_bounded
+     if not 1<=workers<=16 or not 1<=max_domains<=10000 or not 1<=page_limit<=12:
+         raise ValueError('Explicit bounded worker/domain/page settings required')
+@@ -347,7 +346,6 @@
+                     if row is None:
+                         break
+                     job=dict(row);domain=job['domain']
+-                    if host_budget_root:job['host_budget_root']=str(host_budget_root)
+                     if capture_root:job.update(capture_root=str(capture_root),capture_policy_path=str(capture_policy_path) if capture_policy_path else None)
+                     note=review_notes.get(domain,{})
+                     if note.get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+--- a/scripts/market_map/evidence_maintenance.py
++++ /dev/null
+@@ -1,120 +0,0 @@
+-"""Explicit maintenance on approved roots. No discovery, default deletion or production CLI."""
+-import contextlib,fcntl,hashlib,hmac,json,os,shutil,sqlite3,time,uuid
+-from datetime import datetime
+-from pathlib import Path
+-from .source_capture_cache import atomic,canonical
+-
+-def sha(path):
+-    h=hashlib.sha256()
+-    with Path(path).open('rb') as stream:
+-        for chunk in iter(lambda:stream.read(1024*1024),b''):h.update(chunk)
+-    return h.hexdigest()
+-
+-@contextlib.contextmanager
+-def maintenance_lock(root,*,exclusive=False):
+-    root=Path(root);root.mkdir(parents=True,exist_ok=True)
+-    with (root/'.maintenance.lock').open('a+b') as lock:
+-        fcntl.flock(lock,(fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)|fcntl.LOCK_NB)
+-        yield
+-
+-def cleanup_capture_cache(root,*,apply=False,now=None,policy_check=None):
+-    """Only signed, explicitly deletion-approved expired receipts; protect all unknown references."""
+-    root=Path(root).resolve();now=time.time() if now is None else now
+-    if apply and policy_check is None:return {'status':'held_current_policy_required','applied':False,'files':[]}
+-    with maintenance_lock(root,exclusive=True):
+-        if (root/'objects').is_symlink() or (root/'capture.key').is_symlink():return {'status':'held_symlink','applied':False,'files':[]}
+-        key=(root/'capture.key').read_bytes();entries=[];protected=set();eligible=[]
+-        for path in root.glob('*.json'):
+-            if '.deleted-' in path.name:continue
+-            try:
+-                if path.is_symlink():raise ValueError('symlink')
+-                envelope=json.loads(path.read_text());p=envelope['payload']
+-                if not hmac.compare_digest(envelope['signature'],hmac.new(key,canonical(p),hashlib.sha256).hexdigest()):raise ValueError('signature')
+-                digest=p['receipt']['sha256']
+-                if len(digest)!=64 or any(c not in '0123456789abcdef' for c in digest):raise ValueError('digest')
+-                r=p.get('retention',{})
+-                if policy_check is not None:
+-                    current=policy_check(p['receipt']['url'])
+-                    deadline=datetime.fromisoformat(current['retain_until'].replace('Z','+00:00')).timestamp()
+-                    valid=datetime.fromisoformat(current['valid_until'].replace('Z','+00:00')).timestamp()
+-                    r={**r,'retain_until':min(r.get('retain_until',float('inf')),deadline),
+-                       'delete_expired':r.get('delete_expired') is True and current.get('delete_expired') is True and bool(current.get('retention_approval_id')) and valid>now,
+-                       'legal_hold':r.get('legal_hold') or current.get('legal_hold') or bool(current.get('holds')),
+-                       'suppression_evidence':r.get('suppression_evidence') or current.get('suppression_evidence')}
+-                delete=(r.get('delete_expired') is True and r.get('approval_id') and isinstance(r.get('retain_until'),(int,float)) and r['retain_until']<=now and not r.get('legal_hold') and not r.get('suppression_evidence'))
+-                entries.append((path,digest,r))
+-                if delete:eligible.append((path,digest,r))
+-                else:protected.add(digest)
+-            except (ValueError,KeyError,TypeError):
+-                # Unknown or corrupt metadata may conceal an active/legally protected reference.
+-                return {'status':'held_unknown_metadata','applied':False,'files':[]}
+-        actions=[]
+-        for path,digest,r in eligible:
+-            body=root/'objects'/(digest+'.body')
+-            if body.is_symlink() or (body.exists() and sha(body)!=digest):return {'status':'held_body_integrity','applied':False,'files':[]}
+-            actions.append({'receipt':path.name,'body':str(body.relative_to(root)) if digest not in protected else None,'sha256':digest,'approval_id':r['approval_id']})
+-        if apply:
+-            for path,digest,r in eligible:
+-                current=policy_check(json.loads(path.read_text())['payload']['receipt']['url'])
+-                if current.get('legal_hold') or current.get('suppression_evidence') or current.get('holds') or current.get('delete_expired') is not True or not current.get('retention_approval_id') or datetime.fromisoformat(current['valid_until'].replace('Z','+00:00')).timestamp()<=now:
+-                    return {'status':'held_policy_changed','applied':False,'files':[]}
+-            # Tombstones commit before unlink; interruption never erases the deletion decision.
+-            for row in actions:
+-                atomic(root/(row['receipt']+'.deleted-'+uuid.uuid4().hex),canonical({'decision':row,'deleted_at':now}))
+-                (root/row['receipt']).unlink(missing_ok=True)
+-            for filename in sorted({r['body'] for r in actions if r['body']}):(root/filename).unlink(missing_ok=True)
+-        return {'status':'applied' if apply else 'dry_run','applied':apply,'files':actions,'protected_body_count':len(protected)}
+-
+-def contained(root,relative):
+-    path=(root/relative).resolve()
+-    if not path.is_relative_to(root) or path==root:raise ValueError('Path outside approved root')
+-    return path
+-
+-def backup_bundle(root,destination,*,queues,cache_roots):
+-    """Quiesce explicitly listed local coordinators and caches; snapshot all files, including holds."""
+-    root=Path(root).resolve();dest=Path(destination).resolve()
+-    if dest.exists() or dest.is_relative_to(root) or root.is_relative_to(dest):raise ValueError('New disjoint backup destination required')
+-    queue_paths={contained(root,p) for p in queues};cache_paths=[contained(root,p) for p in cache_roots]
+-    locks={Path(str(p)+'.workers.lock') for p in queue_paths}|{p.parent/'collector.lock' for p in queue_paths}
+-    with contextlib.ExitStack() as stack:
+-        for path in sorted(locks):
+-            stream=stack.enter_context(path.open('a+b'));fcntl.flock(stream,fcntl.LOCK_EX|fcntl.LOCK_NB)
+-        for path in sorted(cache_paths):stack.enter_context(maintenance_lock(path,exclusive=True))
+-        dest.mkdir(parents=True,mode=0o700);files={};databases={}
+-        for path in sorted(root.rglob('*')):
+-            if path.is_symlink():raise ValueError('Backup refuses symlinks')
+-            if not path.is_file():continue
+-            if path.name.endswith(('.lock','-wal','-shm','.tmp')):continue
+-            rel=str(path.relative_to(root));target=dest/rel;target.parent.mkdir(parents=True,exist_ok=True)
+-            if path in queue_paths:
+-                source=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True);copy=sqlite3.connect(target)
+-                try:
+-                    source.backup(copy)
+-                    copy.execute('PRAGMA journal_mode=DELETE') # Portable snapshot has no WAL sidecars.
+-                    if copy.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise ValueError('Backup database integrity failure')
+-                    databases[rel]=hashlib.sha256('\n'.join(copy.iterdump()).encode()).hexdigest()
+-                finally:source.close();copy.close()
+-            else:
+-                if path.suffix in {'.sqlite','.sqlite3','.db'}:raise ValueError('Unregistered database; enumerate every queue')
+-                shutil.copy2(path,target)
+-            files[rel]=sha(target)
+-        manifest={'version':1,'files':files,'database_logical_sha256':databases,'queues':list(queues),'cache_roots':list(cache_roots),'source_root':str(root)}
+-        atomic(dest/'backup-manifest.json',canonical(manifest))
+-        return manifest
+-
+-def restore_bundle(backup,destination):
+-    backup=Path(backup).resolve();dest=Path(destination).resolve()
+-    if dest.exists():raise ValueError('Restore requires new destination; never overwrite live evidence')
+-    m=json.loads((backup/'backup-manifest.json').read_text())
+-    for rel,digest in m['files'].items():
+-        source=contained(backup,rel)
+-        if source.is_symlink() or sha(source)!=digest:raise ValueError('Backup hash mismatch')
+-    dest.mkdir(parents=True,mode=0o700)
+-    for rel,digest in m['files'].items():
+-        target=contained(dest,rel);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(contained(backup,rel),target)
+-    for rel,digest in m['database_logical_sha256'].items():
+-        db=sqlite3.connect(contained(dest,rel).as_uri()+'?mode=ro',uri=True)
+-        try:
+-            if db.execute('PRAGMA integrity_check').fetchone()[0]!='ok' or hashlib.sha256('\n'.join(db.iterdump()).encode()).hexdigest()!=digest:raise ValueError('Restored database differs')
+-        finally:db.close()
+-    return {'restored_files':len(m['files']),'restored_databases':len(m['database_logical_sha256']),'verified':True}
+--- a/scripts/market_map/frontier_retry.py
++++ b/scripts/market_map/frontier_retry.py
+@@ -24,8 +24,6 @@
+  attempts=(old['attempts'] if old else 0)+1;code=failure['code'];next_at=None
+  policy=code in POLICY_CODES
+  state='policy_hold' if policy else 'retry_exhausted' if failure.get('retryable') and code in RETRY_CODES and attempts>=max_attempts else 'retry_deferred' if failure.get('retryable') and code in RETRY_CODES else 'terminal_review'
+- existing_frontier=db.execute('SELECT status FROM frontier WHERE domain=? AND url=?',(domain,url)).fetchone()
+- if existing_frontier and 'hold' in existing_frontier[0]:state=existing_frontier[0]
+  if state=='retry_deferred':
+   jitter=int(hashlib.sha256((domain+url+str(attempts)).encode()).hexdigest()[:4],16)%16
+   due=now+timedelta(seconds=60*2**(attempts-1)+jitter)
+@@ -36,10 +34,10 @@
+  # A late result cannot release an existing terminal/policy decision.
+  if old and old['state'] in ('policy_hold','terminal_review','retry_exhausted'):return
+  db.execute('INSERT INTO frontier_attempt_state VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(domain,url) DO UPDATE SET attempts=excluded.attempts,error_code=excluded.error_code,next_attempt_at=excluded.next_attempt_at,last_attempt_at=excluded.last_attempt_at,policy_scope=excluded.policy_scope,state=excluded.state',(domain,url,attempts,code,next_at,now.isoformat(),failure.get('policy_scope','url'),state))
+- update_frontier(db,domain,url,state,json.dumps(failure,sort_keys=True))
++ db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,json.dumps(failure,sort_keys=True),domain,url))
+  if policy:
+   db.execute("UPDATE frontier SET status='policy_hold' WHERE domain=? AND status IN ('pending','retry_deferred')",(domain,))
+-  db.execute("UPDATE jobs SET status='access_policy_hold' WHERE domain=? AND status NOT LIKE '%hold%'",(domain,))
++  db.execute("UPDATE jobs SET status='access_policy_hold' WHERE domain=?",(domain,))
+ 
+ def apply_result(db,result,*,now=None):
+  domain=result['domain'];receipt=result.get('visit_id') or hashlib.sha256(json.dumps(result,sort_keys=True).encode()).hexdigest()
+@@ -111,14 +109,3 @@
+   held=list(source.execute('SELECT domain FROM jobs WHERE status IN ('+','.join('?' for _ in holds)+')',sorted(holds)))
+  finally:source.close()
+  with db:db.executemany("UPDATE jobs SET status='upstream_review_hold' WHERE domain=? AND status IN ('pending','retry_deferred')",held)
+-
+-
+-def update_frontier(db,domain,url,state,error):
+-    """Late worker completion cannot clear a decision made while it was running."""
+-    db.execute("UPDATE frontier SET status=?,error=? WHERE domain=? AND url=? AND status NOT LIKE '%hold%' AND status NOT IN ('terminal_review','retry_exhausted')",(state,error,domain,url))
+-
+-
+-def result_state(db,result):
+-    current=db.execute('SELECT status FROM jobs WHERE domain=?',(result['domain'],)).fetchone()
+-    if current and ('hold' in current[0] or current[0] in ('terminal_review','domain_timeout_review','domain_worker_error_review')):return current[0]
+-    return (result.get('job_status') if not result.get('frontier_failures') else None) or job_state(db,result['domain'])
+--- a/scripts/market_map/host_budget.py
++++ /dev/null
+@@ -1,69 +0,0 @@
+-"""Single-machine aggregate host limits. Kernel locks survive worker interruption safely."""
+-import contextlib,fcntl,hashlib,json,math,os,sqlite3,time
+-from datetime import datetime,timezone
+-from pathlib import Path
+-from .transport import BudgetExceeded
+-
+-class HostDeferred(BudgetExceeded):
+-    def __init__(self,host,reason,until=None):
+-        super().__init__('Shared host budget: '+reason,code='budget_deferred',url=None,
+-          retryable=True,budget_reason=reason,retry_after_at=datetime.fromtimestamp(until,timezone.utc).isoformat() if until else None)
+-
+-def configure(root,*,requests=12,window_seconds=3600,min_interval=1):
+-    """Explicit new-root initialization, never overwrites an operational policy."""
+-    root=Path(root);policy={'requests':requests,'window_seconds':window_seconds,'min_interval':min_interval,'concurrency':1}
+-    validate(policy);root.mkdir(parents=True,exist_ok=False,mode=0o700)
+-    (root/'policy.json').write_text(json.dumps(policy,sort_keys=True))
+-
+-def validate(p):
+-    if type(p.get('requests')) is not int or not 1<=p['requests']<=10000 or p.get('concurrency')!=1:raise ValueError('Bounded request limit and concurrency=1 required')
+-    if any(not isinstance(p.get(k),(int,float)) or not math.isfinite(p[k]) or p[k]<=0 for k in ['window_seconds','min_interval']):raise ValueError('Positive finite shared timing limits required')
+-
+-def host_key(host):
+-    return host.rstrip('.').encode('idna').decode().lower().removeprefix('www.')
+-
+-class HostBudget:
+-    def __init__(self,root,*,clock=time.time):
+-        self.root=Path(root).resolve();self.clock=clock
+-        if not (self.root/'policy.json').is_file():raise ValueError('Explicit shared host policy required')
+-    def db(self):
+-        db=sqlite3.connect(self.root/'host-budget.sqlite',timeout=5)
+-        db.execute('PRAGMA synchronous=FULL')
+-        db.executescript('CREATE TABLE IF NOT EXISTS budget_settings(id INTEGER PRIMARY KEY,policy_hash TEXT NOT NULL); CREATE TABLE IF NOT EXISTS host_state(host TEXT PRIMARY KEY,last_clock REAL NOT NULL,next_at REAL NOT NULL); CREATE TABLE IF NOT EXISTS host_requests(host TEXT,started_at REAL); CREATE INDEX IF NOT EXISTS host_time ON host_requests(host,started_at);')
+-        return db
+-    @contextlib.contextmanager
+-    def slot(self,host,*,interval=0):
+-        host=host_key(host)
+-        key=hashlib.sha256(host.encode()).hexdigest()
+-        with (self.root/(key+'.lock')).open('a+b') as lock:
+-            try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+-            except BlockingIOError:raise HostDeferred(host,'host_concurrency') from None
+-            policy=json.loads((self.root/'policy.json').read_text());validate(policy);now=self.clock()
+-            db=self.db()
+-            try:
+-                with db:
+-                    db.execute('BEGIN IMMEDIATE')
+-                    digest=hashlib.sha256(json.dumps(policy,sort_keys=True).encode()).hexdigest()
+-                    prior=db.execute('SELECT policy_hash FROM budget_settings WHERE id=1').fetchone()
+-                    if prior and prior[0]!=digest:raise HostDeferred(host,'policy_change_requires_review')
+-                    db.execute('INSERT OR IGNORE INTO budget_settings VALUES(1,?)',(digest,))
+-                    old=db.execute('SELECT last_clock,next_at FROM host_state WHERE host=?',(host,)).fetchone()
+-                    if old and now<max(old):raise HostDeferred(host,'host_cooldown_or_clock_reversal',max(old))
+-                    rows=db.execute('SELECT started_at FROM host_requests WHERE host=? AND started_at>? ORDER BY started_at',(host,now-policy['window_seconds'])).fetchall()
+-                    if len(rows)>=policy['requests']:raise HostDeferred(host,'host_request_window',rows[0][0]+policy['window_seconds'])
+-                    db.execute('DELETE FROM host_requests WHERE host=? AND started_at<=?',(host,now-policy['window_seconds']))
+-                    db.execute('INSERT INTO host_requests VALUES(?,?)',(host,now))
+-                    db.execute('INSERT INTO host_state VALUES(?,?,?) ON CONFLICT(host) DO UPDATE SET last_clock=excluded.last_clock,next_at=excluded.next_at',(host,now,now+max(policy['min_interval'],interval)))
+-                # Reservation is committed before any socket attempt. A crash consumes it.
+-                yield
+-            finally:db.close()
+-    def defer(self,host,until):
+-        host=host_key(host)
+-        db=self.db()
+-        try:
+-            with db:
+-                db.execute('INSERT INTO host_state VALUES(?,?,?) ON CONFLICT(host) DO UPDATE SET next_at=MAX(next_at,excluded.next_at)',(host,self.clock(),until))
+-        finally:db.close()
+-
+-def job_options(job):
+-    return {'host_budget_root':job.get('host_budget_root') or os.environ.get('SSM_HOST_BUDGET_ROOT'),'require_host_budget':True}
+--- a/scripts/market_map/phone_acquisition.py
++++ b/scripts/market_map/phone_acquisition.py
+@@ -1,6 +1,5 @@
+ """Resumable public phone collection; research evidence only, no calls or MAIN writes."""
+ from __future__ import annotations
+-from .host_budget import job_options as host_budget_options
+ import uuid
+ import argparse
+ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+@@ -64,7 +63,7 @@
+ 
+ def collect_domain(job,frontier,*,page_limit=3,checkpoint=None,capture_root=None,capture_policy=None):
+     from .phone_extraction import extract_published_phones
+-    client=Transport(max_requests=16,max_bytes=4_000_000,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0,**host_budget_options(job))
++    client=Transport(max_requests=16,max_bytes=4_000_000,max_response_bytes=2_000_000,timeout=12,min_interval=.5,retries=0)
+     hosts={job['domain'],'www.'+job['domain']}
+     result={'domain':job['domain'],'pages':[],'phones':[],'frontier_updates':[],'discovered':[],
+             'full_site_exhausted':False,'main_database_writes':0,'messages_sent':0,'phone_calls_made':0}
+@@ -140,14 +139,14 @@
+         for url,depth,state in result.get('discovered',[]):
+             contact_frontier.upsert_link(db,domain,url,depth,state)
+         for url,state,error in result.get('frontier_updates',[]):
+-            frontier_retry.update_frontier(db,domain,url,state,error)
++            db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,error,domain,url))
+         for page in result.get('pages',[]):
+             db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['content_sha256'],page['observed_at'],json.dumps(page)))
+         for record in result.get('phones',[]):save_phone(db,record,domain)
+         contact_frontier.remember_links(db,result)
+         frontier_retry.apply_result(db,result)
+         remaining=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+-        state=frontier_retry.result_state(db,result)
++        state=(result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain)
+         db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',(state,stamp(),domain))
+         db.execute('INSERT INTO visits(domain,status,observed_at,payload) VALUES(?,?,?,?)',(domain,state,stamp(),json.dumps(result)))
+     return state
+@@ -209,7 +208,7 @@
+     return added
+ 
+ 
+-def run(source_queue,output,overlay_path,*,workers=2,max_domains=256,continuous=False,graph_path=None,collector=None,saved_browser=None,capture_root=None,capture_policy_path=None,host_budget_root=None):
++def run(source_queue,output,overlay_path,*,workers=2,max_domains=256,continuous=False,graph_path=None,collector=None,saved_browser=None,capture_root=None,capture_policy_path=None):
+     if not 1<=workers<=4 or not 1<=max_domains<=10000:raise ValueError('Bounded workers/domain limit required')
+     output=Path(output);output.mkdir(parents=True,exist_ok=True);storage_guard(output)
+     with (output/'collector.lock').open('a') as lock:
+@@ -237,7 +236,6 @@
+                         for row in rows:
+                             if len(pending)>=workers or completed+len(pending)>=max_domains:break
+                             job=dict(row);domain=job['domain']
+-                            if host_budget_root:job['host_budget_root']=str(host_budget_root)
+                             if capture_root:job.update(capture_root=str(capture_root),capture_policy_path=str(capture_policy_path) if capture_policy_path else None)
+                             if domain in busy:continue
+                             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
+--- a/scripts/market_map/transport.py
++++ b/scripts/market_map/transport.py
+@@ -4,7 +4,6 @@
+ from .fetch_outcomes import FetchFailure, retry_after
+ from http.client import HTTPException
+ import hashlib
+-import contextlib,os
+ import http.cookiejar
+ import ipaddress
+ import json
+@@ -70,15 +69,11 @@
+ 
+     def __init__(self, cache_dir=None, *, max_requests=100, max_bytes=100_000_000,
+                  max_response_bytes=10_000_000, timeout=20, min_interval=.25,
+-                 retries=2, allowed_hosts=None, anonymous_directory_session=False,host_budget_root=None,require_host_budget=False):
++                 retries=2, allowed_hosts=None, anonymous_directory_session=False):
+         if not 1 <= max_requests <= 10000 or max_bytes < 1 or max_response_bytes < 1:
+             raise ValueError("Positive bounded request/byte budgets required")
+         if not 0 <= retries <= 3 or not 0 < timeout <= 60 or min_interval < 0:
+             raise ValueError("Invalid retry, timeout or throttle configuration")
+-        from .host_budget import HostBudget
+-        root=host_budget_root or os.environ.get('SSM_HOST_BUDGET_ROOT')
+-        if require_host_budget and not root:raise SourceBlocked('Shared host budget configuration required',code='scope_denied')
+-        self.host_budget=HostBudget(root) if root else None
+         self.cache_dir = Path(cache_dir) if cache_dir else None
+         if self.cache_dir:
+             self.cache_dir.mkdir(parents=True, exist_ok=True)
+@@ -121,19 +116,6 @@
+         if not answers or any(not ipaddress.ip_address(a[4][0]).is_global for a in answers):
+             raise SourceBlocked("Non-public network target: " + host,code="private_target",url=url,policy_scope="host")
+         return parsed
+-
+-    @contextlib.contextmanager
+-    def _open_budgeted(self,request,host):
+-        slot=self.host_budget.slot(host,interval=self.min_interval) if self.host_budget else contextlib.nullcontext()
+-        with slot:
+-            try:
+-                with self.opener.open(request,timeout=self.timeout) as response:yield response
+-            except urllib.error.HTTPError as error:
+-                if self.host_budget and error.code in (429,500,502,503,504):
+-                    value=retry_after((error.headers or {}).get('Retry-After',''))
+-                    until=datetime.fromisoformat(value).timestamp() if value else time.time()+2
+-                    self.host_budget.defer(host,until)
+-                raise
+ 
+     def _request(self, url, allowed_hosts, headers=None, *, check_redirect_robots=False, data=None, access_check=None):
+         chain=[]
+@@ -155,7 +137,7 @@
+                 request = urllib.request.Request(url, data=data, headers={"User-Agent": self.USER_AGENT,
+                     "Accept": "application/json,text/csv,text/html,*/*;q=0.5", **(headers or {})})
+                 try:
+-                    with self._open_budgeted(request,host) as response:
++                    with self.opener.open(request, timeout=self.timeout) as response:
+                         limit = min(self.max_response_bytes, self.max_bytes - self.bytes_fetched - self.capture_reused_bytes)
+                         body = response.read(limit + 1)
+                         self.bytes_fetched += len(body)
+--- a/tests/extraction/CAPTURE_LABELING_WORKFLOW.md
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Saved-capture review and labeling workflow
+-
+-The inventory is read-only discovery, not admission to PR-17 or permission to contact anyone. It does not open databases, credentials, remote sites, or raw email/message stores. Source-bearing files include potentially authored summaries; matching a manifest hash does not prove original HTTP provenance or source rights.
+-
+-1. Review `corrections_results/corpus-review.csv` and the richer JSON inventory. Start with matching receipt hashes, but require the original fetch/render/document receipt and capture timestamp. Resolve missing/out-of-root references without automatically fetching anything.
+-2. The owner or designated reviewer must supply specific acquisition, evaluation and retention permission evidence and its hash. Preserve restrictions such as internal-only use, no redistribution, no automated access and source review holds. A public URL or a vague “internal research” statement is insufficient. Exclude restricted or unverifiable source material until resolved.
+-3. Record the retention deadline, deletion authority, legal/suppression preservation flags and current policy approval identifier. Do not invent dates, licenses or approvals. An inventory row with empty approval fields remains unapproved.
+-4. Select 300–500 permissioned captures across the PR-17 industry, language, ownership and source-kind strata. Deduplicate exact hashes for sampling; preserve repeat observations separately for freshness evaluation. Do not select examples based on successful extraction results.
+-5. Review registrable-domain groups and shared vendor/franchise/template families. Freeze development/holdout assignments by connected domain, template and business identity before labeling/tuning. Keep the adversarial safety set separate.
+-6. Have two independent annotators label exhaustive observed contacts, original locators/raw strings, phone/fax/extensions, normalized supported/unsupported status and organization/site/person/shared/unknown relationships. Annotators must not use candidate extractor outputs as truth. Stable entity IDs must come from source evidence, not a shared phone/domain alone.
+-7. Adjudicate disagreements, record reviewer identities and evidence, and freeze label version/hashes. Retain original annotations. The CSV is a review worklist, not the gold-label schema.
+-8. Assemble the manifest and label JSON defined in `RELEASE_CORPUS.md`; run `release_corpus.load_corpus` and the guarded PR-17 evaluator. Do not automatically promote inventory metadata into approved manifest booleans.
+-9. Independently review candidate entity-ID projections. Re-run fixed captures with immutable labels and report all new/resolved errors. Corpus admission and a passing evaluator do not authorize crawlers, marketing or deployment.
+-
+-Keep real raw captures and annotation evidence in approved access-controlled storage. The checked-in local inventory contains paths, hashes and source metadata, not copied page bodies. Nothing in this phase grants a right to republish source content.
+--- a/tests/extraction/corrections_measure.py
++++ /dev/null
+@@ -1,26 +0,0 @@
+-"""Guarded maintenance measurements using the same disposable regression fixtures."""
+-import argparse,importlib.util,json,sys,tempfile,unittest
+-from pathlib import Path
+-from unittest.mock import patch
+-ROOT=Path(__file__).resolve().parents[2];sys.path.insert(0,str(ROOT));sys.dont_write_bytecode=True
+-
+-def main():
+- p=argparse.ArgumentParser();p.add_argument('--output',required=True);a=p.parse_args();out=Path(a.output).resolve()
+- if out.exists() or not out.is_relative_to(Path(tempfile.gettempdir()).resolve()):p.error('new temporary directory required')
+- out.mkdir();tempfile.tempdir=str(out)
+- from scripts.market_map.offline_guard import OfflineGuard
+- guard=OfflineGuard(out);guard.install()
+- from scripts.market_map import evidence_maintenance as maintenance
+- spec=importlib.util.spec_from_file_location('measured_tests',ROOT/'tests/extraction/test_readiness_corrections.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+- records=[];backup=maintenance.backup_bundle;restore=maintenance.restore_bundle;cleanup=maintenance.cleanup_capture_cache
+- def measured_backup(root,dest,**kwargs):
+-  result=backup(root,dest,**kwargs);records.append({'stage':'backup','files':len(result['files']),'databases':len(result['database_logical_sha256']),'bytes':sum(p.stat().st_size for p in Path(dest).rglob('*') if p.is_file()),'body_files':sum(p.endswith('.body') for p in result['files'])});return result
+- def measured_restore(*args,**kw):
+-  result=restore(*args,**kw);records.append({'stage':'restore',**result});return result
+- def measured_cleanup(*args,**kw):
+-  result=cleanup(*args,**kw);records.append({'stage':'cleanup','status':result['status'],'applied':result['applied'],'receipt_actions':len(result['files']),'body_actions':sum(bool(r['body']) for r in result['files'])});return result
+- suite=unittest.TestSuite([module.MaintenanceTests('test_bundle_three_queues_captures_history_holds_and_corruption'),module.MaintenanceTests('test_expiry_dry_run_protected_unknown_and_quota'),module.AdditionalSafetyTests('test_active_reference_and_maintenance_lock_protect_shared_body')])
+- with patch.object(maintenance,'backup_bundle',side_effect=measured_backup),patch.object(maintenance,'restore_bundle',side_effect=measured_restore),patch.object(maintenance,'cleanup_capture_cache',side_effect=measured_cleanup):result=unittest.TextTestRunner(verbosity=2).run(suite)
+- report={'tests_run':result.testsRun,'success':result.wasSuccessful(),'measurements':records,'guard_violations':guard.violations}
+- (out/'maintenance-measurements.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report));return 0 if result.wasSuccessful() and not guard.violations else 1
+-if __name__=='__main__':sys.exit(main())
+--- a/tests/extraction/run_corrective_processes.py
++++ /dev/null
+@@ -1,179 +0,0 @@
+-"""OS-isolated, injected-HTTP tests for shared budgets and actual bounded-worker recovery."""
+-import argparse,contextlib,fcntl,hashlib,importlib.util,json,os,sqlite3,subprocess,sys,tempfile,time
+-from pathlib import Path
+-from unittest.mock import patch
+-ROOT=Path(__file__).resolve().parents[2];sys.path.insert(0,str(ROOT));sys.dont_write_bytecode=True
+-PROFILE='(version 1)(allow default)(deny network*)'
+-BODY=b'<div class="person"><h2>Jane Smith</h2><p>Facilities Manager</p><a href="mailto:jane@business.test">Email</a><p>Phone: (519) 555-0123</p></div>'
+-PUBLIC=[(2,1,6,'',('8.8.8.8',443))]
+-
+-def denied_network():
+- import socket
+- sock=None
+- try:sock=socket.socket();sock.bind(('127.0.0.1',0))
+- except PermissionError:return
+- finally:
+-  if sock:sock.close()
+- raise RuntimeError('OS network denial not enforced')
+-
+-def fixture_module():
+- spec=importlib.util.spec_from_file_location('injected_fixture',ROOT/'tests/market_map/test_contact_capture.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+-
+-def module_for(kind):
+- from scripts.market_map import email_acquisition,phone_acquisition,contact_enrichment
+- return {'email':email_acquisition,'phone':phone_acquisition,'context':contact_enrichment}[kind]
+-
+-def append(path,row):
+- with path.open('a') as file:
+-  fcntl.flock(file,fcntl.LOCK_EX);file.write(json.dumps(row)+'\n');file.flush()
+-
+-def bounded_fixture_worker(path,job,frontier,names,page_limit):
+- denied_network()
+- from scripts.market_map.offline_guard import OfflineGuard
+- from scripts.market_map.transport import Transport
+- from scripts.market_map.email_domain_process import _worker
+- guard=OfflineGuard(Path(job['test_root']).parent);guard.install()
+- module=module_for(job['kind']);m=fixture_module()
+- client=Transport(max_requests=10,min_interval=0,retries=0,host_budget_root=job['host_budget_root'],allowed_hosts={'business.test'})
+- def opened(request,timeout=None):
+-  if request.full_url.endswith('/robots.txt'):return m.HTTP(b'User-agent: *\nAllow: /\n')
+-  if request.full_url.endswith('/contact-slow'):
+-   (Path(job['test_root'])/'slow-entered').write_text('waiting after completed-page checkpoint')
+-   time.sleep(30)
+-  return m.HTTP(BODY)
+- client.opener.open=opened
+- target={'email':_worker,'phone':module._phone_child if job['kind']=='phone' else _worker,'context':module._context_child if job['kind']=='context' else _worker}[job['kind']]
+- with patch.object(module,'Transport',return_value=client),patch('socket.getaddrinfo',return_value=PUBLIC):target(path,job,frontier,names,page_limit)
+-
+-
+-def connect_fixture(folder,kind):
+- module=module_for(kind)
+- with patch.object(module,'storage_guard'):db=module.connect(folder/'queue.sqlite')
+- return module,db
+-
+-def seed(db,kind):
+- module=module_for(kind)
+- with db:
+-  if kind=='email':module.add_seed(db,'office','Office','https://business.test/contact')
+-  else:
+-   db.execute("INSERT INTO jobs(domain,url) VALUES('business.test','https://business.test/contact')");db.execute("INSERT INTO frontier(domain,url,depth) VALUES('business.test','https://business.test/contact',0)")
+-  db.execute("INSERT OR IGNORE INTO frontier(domain,url,depth) VALUES('business.test','https://business.test/contact-slow',0)")
+-  db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold'");db.execute("UPDATE frontier SET status='policy_hold'")
+-
+-def persistence(module,db,result):return (module.persist_visit if module.__name__.endswith('email_acquisition') else module.persist)(db,result)
+-
+-def child(root,mode,index):
+- denied_network()
+- if mode=='checkpoint':
+-  tempfile.tempdir=str(root)
+-  # This parent must spawn the real bounded child; OS profile denies all networking.
+-  from scripts.market_map.email_domain_process import collect_bounded
+-  from scripts.market_map.host_budget import configure
+-  for kind in ['email','phone','context']:
+-   folder=root/kind;folder.mkdir();configure(folder/'budget',requests=100,min_interval=.00001)
+-   job={'domain':'business.test','kind':kind,'test_root':str(folder),'host_budget_root':str(folder/'budget')}
+-   result=collect_bounded(job,[{'url':'https://business.test/contact','depth':0},{'url':'https://business.test/contact-slow','depth':0}],[],page_limit=2,deadline_seconds=2,worker_target=bounded_fixture_worker)
+-   assert (folder/'slow-entered').exists(),result
+-   assert len(result['pages'])==1,result
+-   assert result['worker_exitcode']!=0 and result['frontier_failures'][-1]['code']=='timeout',result
+-   (folder/'checkpoint-result.json').write_text(json.dumps(result))
+-  return {'verified':True,'actual_bounded_workers':3,'completed_pages_preserved':3,'timeout_observed':3,'os_network_denial_verified':True}
+- from scripts.market_map.offline_guard import OfflineGuard
+- guard=OfflineGuard(root);guard.install()
+- if mode in {'host','host-crash'}:
+-  from scripts.market_map.transport import Transport
+-  from scripts.market_map.host_budget import HostDeferred
+-  m=fixture_module();client=Transport(max_requests=4,min_interval=0,retries=0,host_budget_root=root/'host-budget',allowed_hosts={'business.test'})
+-  def opened(request,timeout=None):
+-   append(root/'http-trace.jsonl',{'event':'start','pid':os.getpid(),'at':time.monotonic(),'url':request.full_url})
+-   if mode=='host-crash':os._exit(31)
+-   time.sleep(.1)
+-   append(root/'http-trace.jsonl',{'event':'end','pid':os.getpid(),'at':time.monotonic()})
+-   return m.HTTP(b'User-agent: *\nAllow: /\n' if request.full_url.endswith('/robots.txt') else BODY)
+-  client.opener.open=opened
+-  with patch('socket.getaddrinfo',return_value=PUBLIC):
+-   try:client.fetch('https://business.test/contact');status='fetched'
+-   except HostDeferred as e:status=e.budget_reason
+-  return {'status':status,'metrics':client.metrics(),'os_network_denial_verified':True}
+- if mode=='crash':
+-  from scripts.market_map import frontier_retry
+-  kind,boundary=index.split(':');folder=root/(kind+'-'+boundary);folder.mkdir();module,db=connect_fixture(folder,kind);seed(db,kind)
+-  result=json.loads((root/kind/'checkpoint-result.json').read_text());spool=frontier_retry.spool_result(folder/'pending-visit-results',result)
+-  if boundary=='spool':os._exit(21)
+-  if boundary=='commit':
+-   db.set_trace_callback(lambda sql:os._exit(22) if sql.strip().upper()=='COMMIT' else None)
+-  persistence(module,db,result)
+-  if boundary=='ack':os._exit(23)
+-  spool.unlink();os._exit(24)
+- if mode=='recover':
+-  from scripts.market_map import frontier_retry
+-  results=[]
+-  for kind in ['email','phone','context']:
+-   for boundary in ['spool','commit','ack','acknowledged']:
+-    folder=root/(kind+'-'+boundary);module,db=connect_fixture(folder,kind)
+-    original=json.loads((root/kind/'checkpoint-result.json').read_text())
+-    frontier_retry.replay_spool(db,folder/'pending-visit-results',lambda db,result:persistence(module,db,result))
+-    persistence(module,db,original);persistence(module,db,original)
+-    assert db.execute('SELECT count(*) FROM frontier_visit_receipts').fetchone()[0]==1
+-    assert db.execute('SELECT status FROM jobs').fetchone()[0]=='manual_identity_or_reuse_hold'
+-    assert {r[0] for r in db.execute('SELECT status FROM frontier')}=={'policy_hold'}
+-    table={'email':'email_occurrences','phone':'phone_evidence','context':'context_claims'}[kind]
+-    count=db.execute('SELECT count(*) FROM '+table).fetchone()[0];assert count>0,(kind,original)
+-    assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+-    results.append({'kind':kind,'boundary':boundary,'receipts':1,'observations':count,'hold_preserved':True,'pending_spools':len(list((folder/'pending-visit-results').glob('*.json')))})
+-    # Exercise real coordinator restart logic with an abandoned lease and no fetchable frontier.
+-    with db:
+-     if kind=='email':db.execute("INSERT INTO jobs(domain,url,priority,status) VALUES('stale.test','https://stale.test','fixture','running:dead')")
+-     else:db.execute("INSERT INTO jobs(domain,url,status) VALUES('stale.test','https://stale.test','running')")
+-    db.close()
+-    with patch.object(module,'storage_guard'):
+-     if kind=='email':module.run_workers(folder/'queue.sqlite',workers=1,max_domains=1,isolate_domains=False)
+-     else:
+-      source_folder=folder/'source';source_folder.mkdir();source_module,source=connect_fixture(source_folder,'email');source.close()
+-      module.run(source_folder/'queue.sqlite',folder,None,workers=1,max_domains=1,collector=lambda *a,**k:(_ for _ in ()).throw(AssertionError('No fetch allowed during restart')))
+-    module,db=connect_fixture(folder,kind)
+-    assert db.execute("SELECT status FROM jobs WHERE domain='business.test'").fetchone()[0]=='manual_identity_or_reuse_hold'
+-    assert db.execute("SELECT status FROM jobs WHERE domain='stale.test'").fetchone()[0]=='known_frontier_processed'
+-    results[-1]['stale_lease_recovered_by_coordinator']=True;db.close()
+-  return {'verified':True,'boundaries':results,'os_network_denial_verified':True}
+- raise ValueError(mode)
+-
+-def main():
+- p=argparse.ArgumentParser();p.add_argument('--output',required=True);p.add_argument('--mode');p.add_argument('--index',default='0');args=p.parse_args();root=Path(args.output).resolve()
+- if not root.is_relative_to(Path(tempfile.gettempdir()).resolve()):p.error('temporary output required')
+- if args.mode:
+-  result=child(root,args.mode,args.index);(root/(args.mode+'-'+args.index+'.json')).write_text(json.dumps(result,indent=2)+'\n');return
+- if root.exists():p.error('new temporary output required')
+- root.mkdir();sandbox='/usr/bin/sandbox-exec';report={'status':'unverified','tests':{}}
+- probe=subprocess.run([sandbox,'-p',PROFILE,'/usr/bin/true'],capture_output=True,text=True) if Path(sandbox).exists() else None
+- if not probe or probe.returncode:
+-  report['reason']=probe.stderr if probe else 'OS launcher unavailable'
+- else:
+-  from scripts.market_map.host_budget import configure
+-  configure(root/'host-budget',requests=2,min_interval=.001)
+-  def launch(mode,index='0'):
+-   return subprocess.Popen([sandbox,'-p',PROFILE,sys.executable,'-B',str(Path(__file__).resolve()),'--output',str(root),'--mode',mode,'--index',index],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+-  def finish(process,timeout=40):
+-   try:out,err=process.communicate(timeout=timeout)
+-   except subprocess.TimeoutExpired:process.kill();out,err=process.communicate()
+-   return {'exit':process.returncode,'stderr':err,'stdout':out}
+-  hosts=[launch('host',str(i)) for i in range(3)];report['tests']['host_workers']=[finish(c) for c in hosts]
+-  trace=[json.loads(line) for line in (root/'http-trace.jsonl').read_text().splitlines()];active=peak=starts=0
+-  for row in sorted(trace,key=lambda r:r['at']):
+-   active+=1 if row['event']=='start' else -1;peak=max(peak,active);starts+=row['event']=='start'
+-  report['tests']['aggregate_host']={'requests':starts,'peak_concurrency':peak,'request_cap':2,'pass':starts==2 and peak==1}
+-  crashroot=root/'host-crash-case';crashroot.mkdir();configure(crashroot/'host-budget',requests=4,min_interval=.001)
+-  def launch_crash(mode,index):return subprocess.Popen([sandbox,'-p',PROFILE,sys.executable,'-B',str(Path(__file__).resolve()),'--output',str(crashroot),'--mode',mode,'--index',index],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+-  killed=finish(launch_crash('host-crash','0'));resumed=finish(launch_crash('host','1'))
+-  db=sqlite3.connect(crashroot/'host-budget/host-budget.sqlite');reserved=db.execute('SELECT count(*) FROM host_requests').fetchone()[0];db.close()
+-  report['tests']['killed_host_owner']={'crash':killed,'resumed':resumed,'reservations':reserved,'pass':killed['exit']==31 and resumed['exit']==0 and reserved==3}
+-  report['tests']['checkpoint']=finish(launch('checkpoint'))
+-  failures=[]
+-  if report['tests']['checkpoint']['exit']==0:
+-   for kind in ['email','phone','context']:
+-    for boundary,code in [('spool',21),('commit',22),('ack',23),('acknowledged',24)]:
+-     result=finish(launch('crash',kind+':'+boundary));result.update(kind=kind,boundary=boundary,expected_exit=code);failures.append(result)
+-   report['tests']['failure_injection']=failures;report['tests']['recovery']=finish(launch('recover'))
+-  report['status']='pass' if report['tests']['aggregate_host']['pass'] and report['tests']['killed_host_owner']['pass'] and all(r['exit']==0 for r in report['tests']['host_workers']) and report['tests'].get('recovery',{}).get('exit')==0 and all(r['exit']==r['expected_exit'] for r in failures) else 'fail'
+- (root/'corrective-process-results.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report));return 0 if report['status']=='pass' else 2
+-if __name__=='__main__':sys.exit(main())
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -50,8 +50,6 @@
+ 
+ TESTS['PR-17'] = TESTS['PR-16'] + ['tests/extraction/test_release_gates.py','tests/extraction/test_release_operations.py']
+ 
+-TESTS['CORRECTIONS'] = TESTS['PR-17'] + ['tests/extraction/test_readiness_corrections.py']
+-
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- a/tests/extraction/test_readiness_corrections.py
++++ /dev/null
+@@ -1,172 +0,0 @@
+-import json,tempfile,unittest,sqlite3,hashlib
+-from pathlib import Path
+-from unittest.mock import patch
+-from scripts.market_map.host_budget import HostBudget,HostDeferred,configure
+-from scripts.market_map.transport import Transport,SourceBlocked
+-
+-class BudgetTests(unittest.TestCase):
+- def test_aggregate_window_concurrency_clock_and_policy(self):
+-  with tempfile.TemporaryDirectory() as temp:
+-   root=Path(temp)/'budget';configure(root,requests=2,window_seconds=60,min_interval=.01);clock=[100];a=HostBudget(root,clock=lambda:clock[0]);b=HostBudget(root,clock=lambda:clock[0])
+-   with a.slot('a.test'):
+-    with self.assertRaises(HostDeferred):
+-     with b.slot('a.test'):pass
+-   clock[0]=101
+-   with b.slot('www.a.test'):pass
+-   clock[0]=102
+-   with self.assertRaises(HostDeferred):
+-    with a.slot('a.test'):pass
+-   clock[0]=99
+-   with self.assertRaises(HostDeferred):
+-    with a.slot('a.test'):pass
+-   clock[0]=161
+-   with a.slot('a.test'):pass
+-   p=json.loads((root/'policy.json').read_text());p['requests']=3;(root/'policy.json').write_text(json.dumps(p))
+-   clock[0]=162
+-   with self.assertRaises(HostDeferred):
+-    with a.slot('a.test'):pass
+- def test_retry_after_shared_and_configuration_required(self):
+-  import urllib.error
+-  with tempfile.TemporaryDirectory() as temp:
+-   root=Path(temp)/'budget';configure(root,min_interval=.001)
+-   t=Transport(host_budget_root=root,min_interval=0,retries=0)
+-   with patch('socket.getaddrinfo',return_value=[(2,1,6,'',('8.8.8.8',443))]),patch.object(t.opener,'open',side_effect=urllib.error.HTTPError('https://a.test',429,'busy',{'Retry-After':'120'},None)):
+-    with self.assertRaises(SourceBlocked):t.fetch('https://a.test',allowed_hosts={'a.test'},robots=False)
+-   other=Transport(host_budget_root=root,min_interval=0,retries=0)
+-   with patch('socket.getaddrinfo',return_value=[(2,1,6,'',('8.8.8.8',443))]),patch.object(other.opener,'open') as opened:
+-    with self.assertRaises(HostDeferred):other.fetch('https://a.test',allowed_hosts={'a.test'},robots=False)
+-    opened.assert_not_called()
+-   with patch.dict('os.environ',{},clear=True):
+-    with self.assertRaises(SourceBlocked):Transport(require_host_budget=True)
+-
+- def test_production_recovery_low_disk_guard_is_unchanged(self):
+-  from scripts.market_map.structured_email_recovery import guard
+-  from types import SimpleNamespace
+-  with tempfile.TemporaryDirectory() as temp,patch('scripts.market_map.structured_email_recovery.shutil.disk_usage',return_value=SimpleNamespace(free=0)):
+-   with self.assertRaises(SourceBlocked):guard(Path(temp))
+-
+-class MaintenanceTests(unittest.TestCase):
+- def fixture(self,root):
+-  import importlib.util
+-  path=Path(__file__).resolve().parents[1]/'market_map/test_contact_capture.py';spec=importlib.util.spec_from_file_location('maint_fixture',path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+-  from scripts.market_map.contact_capture import get_or_fetch_capture
+-  server=m.Server()
+-  with patch('socket.getaddrinfo',return_value=m.PUBLIC):get_or_fetch_capture('https://business.test/contact',server.transport(),allowed_hosts={'business.test'},root=root,policy_check=m.policy)
+-  return m,server
+- def test_expiry_dry_run_protected_unknown_and_quota(self):
+-  import hmac
+-  from scripts.market_map.evidence_maintenance import cleanup_capture_cache
+-  from scripts.market_map.source_capture_cache import canonical
+-  from scripts.market_map.contact_capture import get_or_fetch_capture
+-  from scripts.market_map.transport import BudgetExceeded
+-  with tempfile.TemporaryDirectory() as temp:
+-   root=Path(temp)/'cache';m,server=self.fixture(root);current=lambda url:{**m.policy(url),'valid_until':'2200-01-01T00:00:00+00:00'};index=next(root.glob('*.json'));original=index.read_bytes();envelope=json.loads(original);key=(root/'capture.key').read_bytes()
+-   envelope['payload']['retention']['legal_hold']=True;envelope['signature']=hmac.new(key,canonical(envelope['payload']),hashlib.sha256).hexdigest();index.write_bytes(canonical(envelope))
+-   self.assertEqual(cleanup_capture_cache(root,now=5e9,apply=True,policy_check=current)['files'],[])
+-   index.write_bytes(original)
+-   self.assertEqual(cleanup_capture_cache(root,now=5e9,apply=True)['status'],'held_current_policy_required')
+-   self.assertEqual(cleanup_capture_cache(root,now=5e9,apply=True,policy_check=lambda url:{**current(url),'legal_hold':True})['files'],[])
+-   dry=cleanup_capture_cache(root,now=5e9);self.assertTrue(dry['files']);self.assertTrue(index.exists())
+-   (root/'unknown.json').write_text('{}');self.assertEqual(cleanup_capture_cache(root,now=5e9,apply=True,policy_check=current)['status'],'held_unknown_metadata');(root/'unknown.json').unlink()
+-   clean=cleanup_capture_cache(root,now=5e9,apply=True,policy_check=current);self.assertTrue(clean['files']);self.assertFalse(index.exists());self.assertEqual(list((root/'objects').glob('*')),[])
+-   self.assertTrue(list(root.glob('*.deleted-*')))
+-   with patch('scripts.market_map.contact_capture.CACHE_MAX_BYTES',100),patch('socket.getaddrinfo',return_value=m.PUBLIC):
+-    with self.assertRaises(BudgetExceeded):get_or_fetch_capture('https://business.test/contact',server.transport(),allowed_hosts={'business.test'},root=root,policy_check=m.policy)
+- def test_missing_or_expired_retention_blocks(self):
+-  from scripts.market_map.contact_capture import get_or_fetch_capture
+-  with tempfile.TemporaryDirectory() as temp:
+-   root=Path(temp)/'cache';m,server=self.fixture(root)
+-   for deadline in [None,'2000-01-01T00:00:00+00:00']:
+-    def policy(url):
+-     row=m.policy(url)
+-     if deadline is None:row.pop('retain_until')
+-     else:row['retain_until']=deadline
+-     return row
+-    with self.assertRaises(SourceBlocked):get_or_fetch_capture('https://business.test/contact',server.transport(),allowed_hosts={'business.test'},root=root,policy_check=policy)
+- def test_bundle_three_queues_captures_history_holds_and_corruption(self):
+-  from scripts.market_map import email_acquisition as email,phone_acquisition as phone,contact_enrichment as context
+-  from scripts.market_map.evidence_maintenance import backup_bundle,restore_bundle
+-  with tempfile.TemporaryDirectory() as temp:
+-   base=Path(temp);root=base/'live';root.mkdir();m,server=self.fixture(root/'cache');queues=[];counts={}
+-   for module in [email,phone,context]:
+-    relative=module.__name__.rsplit('.',1)[-1]+'/queue.sqlite';queues.append(relative)
+-    with patch.object(module,'storage_guard'):db=module.connect(root/relative)
+-    with db:
+-     if module==email:email.add_seed(db,'business','Business','https://business.test/contact')
+-     else:
+-      db.execute("INSERT INTO jobs(domain,url,status) VALUES('business.test','https://business.test/contact','pending')");db.execute("INSERT INTO frontier(domain,url,depth) VALUES('business.test','https://business.test/contact',0)")
+-    with patch.object(module,'Transport',return_value=server.transport()),patch('socket.getaddrinfo',return_value=m.PUBLIC):
+-     args=[{'domain':'business.test'},[{'url':'https://business.test/contact','depth':0}]]
+-     if module==email:args.append([])
+-     result=module.collect_domain(*args,page_limit=1,capture_root=root/'cache',capture_policy=m.policy)
+-    (email.persist_visit if module==email else module.persist)(db,result)
+-    with db:db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold'")
+-    counts[relative]=list(db.iterdump());db.close()
+-   manifest=backup_bundle(root,base/'backup',queues=queues,cache_roots=['cache']);r=restore_bundle(base/'backup',base/'restore');self.assertEqual(r['restored_databases'],3)
+-   for relative in queues:
+-    db=sqlite3.connect(base/'restore'/relative);self.assertEqual(list(db.iterdump()),counts[relative]);self.assertEqual(db.execute('SELECT status FROM jobs').fetchone()[0],'manual_identity_or_reuse_hold');db.close()
+-   db=sqlite3.connect(base/'restore'/queues[0]);self.assertGreater(db.execute('SELECT count(*) FROM email_occurrences').fetchone()[0],0);db.close()
+-   original=next((root/'cache/objects').glob('*'));self.assertEqual(original.read_bytes(),(base/'restore/cache/objects'/original.name).read_bytes())
+-   from scripts.market_map.contact_capture import get_or_fetch_capture
+-   with patch('socket.getaddrinfo',return_value=m.PUBLIC):
+-    response,receipt=get_or_fetch_capture('https://business.test/contact',server.transport(),allowed_hosts={'business.test'},root=base/'restore/cache',policy_check=m.policy)
+-   self.assertTrue(response.from_cache);self.assertEqual(response.body,original.read_bytes())
+-   (base/'backup/cache/objects'/original.name).write_bytes(b'corrupt')
+-   with self.assertRaises(ValueError):restore_bundle(base/'backup',base/'bad-restore')
+-   self.assertFalse((base/'bad-restore').exists())
+-
+-class RecoveryHoldTests(unittest.TestCase):
+- def test_late_worker_result_must_preserve_job_and_frontier_holds(self):
+-  from scripts.market_map import email_acquisition as email,phone_acquisition as phone,contact_enrichment as context
+-  for module in [email,phone,context]:
+-   with self.subTest(module=module.__name__),tempfile.TemporaryDirectory() as temp,patch.object(module,'storage_guard'):
+-    db=module.connect(Path(temp)/'queue.sqlite')
+-    with db:
+-     if module==email:email.add_seed(db,'one','Office','https://business.test/contact')
+-     else:
+-      db.execute("INSERT INTO jobs(domain,url) VALUES('business.test','https://business.test/contact')");db.execute("INSERT INTO frontier(domain,url,depth) VALUES('business.test','https://business.test/contact',0)")
+-     db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold'");db.execute("UPDATE frontier SET status='policy_hold',error='original preservation reason'")
+-    result={'domain':'business.test','visit_id':'late','job_status':'domain_timeout_review','pages':[],'emails':[],'discovered':[],'frontier_updates':[('https://business.test/contact','observed',None)]}
+-    (email.persist_visit if module==email else module.persist)(db,result)
+-    self.assertEqual(db.execute('SELECT status FROM jobs').fetchone()[0],'manual_identity_or_reuse_hold')
+-    self.assertEqual(db.execute('SELECT status FROM frontier').fetchone()[0],'policy_hold')
+-    failed={**result,'visit_id':'late-failure','frontier_failures':[{'url':'https://business.test/contact','code':'timeout','retryable':True}]}
+-    (email.persist_visit if module==email else module.persist)(db,failed)
+-    self.assertEqual(db.execute('SELECT status,error FROM frontier').fetchone()[:],('policy_hold','original preservation reason'));db.close()
+-
+-class AdditionalSafetyTests(unittest.TestCase):
+- fixture=MaintenanceTests.fixture
+- def test_active_reference_and_maintenance_lock_protect_shared_body(self):
+-  import hmac
+-  from scripts.market_map.evidence_maintenance import cleanup_capture_cache,maintenance_lock
+-  from scripts.market_map.source_capture_cache import canonical
+-  from scripts.market_map.contact_capture import get_or_fetch_capture
+-  from scripts.market_map.transport import BudgetExceeded
+-  with tempfile.TemporaryDirectory() as temp:
+-   root=Path(temp)/'cache';m,server=self.fixture(root);original=next(root.glob('*.json'));payload=json.loads(original.read_text())['payload'];key=(root/'capture.key').read_bytes()
+-   payload['receipt']['url']='https://business.test/protected';payload['retention']['retain_until']=6e9
+-   (root/'protected.json').write_bytes(canonical({'payload':payload,'signature':hmac.new(key,canonical(payload),hashlib.sha256).hexdigest()}))
+-   def current(url):return {**m.policy(url),'valid_until':'2200-01-01T00:00:00+00:00',**({'retain_until':'2200-01-01T00:00:00+00:00'} if url.endswith('/protected') else {})}
+-   r=cleanup_capture_cache(root,now=5e9,apply=True,policy_check=current);self.assertEqual(len(r['files']),1);self.assertIsNone(r['files'][0]['body']);self.assertTrue(list((root/'objects').glob('*.body')))
+-   with maintenance_lock(root,exclusive=True):
+-    with self.assertRaises(BudgetExceeded):get_or_fetch_capture('https://business.test/contact',server.transport(),allowed_hosts={'business.test'},root=root,policy_check=m.policy)
+-
+-class InventoryAndDeferralTests(unittest.TestCase):
+- def test_inventory_reads_sources_but_never_databases_or_credentials(self):
+-  from scripts.market_map.capture_inventory import inventory
+-  with tempfile.TemporaryDirectory() as temp:
+-   root=Path(temp);source=root/'sources';source.mkdir();body=source/'one.html';body.write_bytes(b'<p>Fixture</p>');digest=hashlib.sha256(body.read_bytes()).hexdigest()
+-   (source/'manifest.json').write_text(json.dumps([{'path':str(body),'sha256':digest,'source_url':'https://business.test'}]))
+-   (source/'data.sqlite').write_bytes(b'not opened');(source/'credential-manifest.json').write_text('DO NOT PARSE')
+-   with patch('sqlite3.connect',side_effect=AssertionError('database access forbidden')):r=inventory([root])
+-   self.assertEqual(r['source_bearing_files'],1);self.assertEqual(r['files_with_matching_receipt_hash'],1);self.assertEqual(r['approved_for_pr17'],0);self.assertEqual(body.read_bytes(),b'<p>Fixture</p>')
+- def test_host_deferral_retains_the_actual_frontier_url(self):
+-  from scripts.market_map import email_acquisition as email
+-  from scripts.market_map.host_budget import configure
+-  with tempfile.TemporaryDirectory() as temp:
+-   root=Path(temp);configure(root/'budget',requests=1,min_interval=.00001)
+-   m,server=MaintenanceTests().fixture(root/'cache')
+-   client=server.transport(host_budget_root=root/'budget')
+-   with patch.object(email,'Transport',return_value=client),patch('socket.getaddrinfo',return_value=m.PUBLIC):
+-    result=email.collect_domain({'domain':'business.test'},[{'url':'https://business.test/contact','depth':0}],[],page_limit=1)
+-   self.assertEqual(result['frontier_failures'][0]['url'],'https://business.test/contact');self.assertEqual(result['frontier_failures'][0]['code'],'budget_deferred')
+--- a/tests/market_map/test_contact_capture.py
++++ b/tests/market_map/test_contact_capture.py
+@@ -10,7 +10,7 @@
+ BODY=b'<p>desk@business.test Phone: (519) 555-0123</p>'
+ ROBOTS=b'User-agent: *\nAllow: /\n'
+ 
+-def policy(url):return {'allowed':True,'allowed_hosts':['business.test'],'rights_status':'public_capture_reuse_approved','policy_id':'fixture','revision':'1','session_scope':'stateless','representation':'static-html','retention_allowed':True,'reuse_allowed':True,'retain_until':'2099-01-01T00:00:00+00:00','retention_approval_id':'synthetic-fixture-only','delete_expired':True,'valid_until':'2099-01-01T00:00:00+00:00','ttl_seconds':3600}
++def policy(url):return {'allowed':True,'allowed_hosts':['business.test'],'rights_status':'public_capture_reuse_approved','policy_id':'fixture','revision':'1','session_scope':'stateless','representation':'static-html','retention_allowed':True,'reuse_allowed':True,'valid_until':'2099-01-01T00:00:00+00:00','ttl_seconds':3600}
+ class HTTP:
+  def __init__(self,body,headers=None):self.body=body;self.headers=headers or {};self.status=200
+  def __enter__(self):return self
+@@ -111,7 +111,7 @@
+  def test_reuse_disabled_respects_no_store(self):
+   self.server.control='no-store'
+   _,receipt=self.get(policy_check=lambda url:{**policy(url),'reuse_allowed':False})
+-  self.assertFalse(receipt['retain_body']);self.assertFalse((self.root/'objects').exists())
++  self.assertFalse(receipt['retain_body']);self.assertFalse(self.root.exists())
+  def test_capture_replay_preserves_original_payload_and_rejects_changed_source(self):
+   import base64,sqlite3
+   from scripts.market_map import contact_observation_store as store
+--- a/tests/market_map/test_structured_email_audit.py
++++ b/tests/market_map/test_structured_email_audit.py
+@@ -1,5 +1,3 @@
+-from unittest.mock import patch
+-from types import SimpleNamespace
+ import gzip
+ import json
+ import tempfile
+@@ -14,11 +12,6 @@
+ 
+ 
+ class StructuredEmailAuditTests(unittest.TestCase):
+-    def setUp(self):
+-        # These small fixtures test parsing, not the workstation's current free space.
+-        disk=patch('scripts.market_map.structured_email_recovery.shutil.disk_usage',return_value=SimpleNamespace(free=3*1024**3))
+-        disk.start();self.addCleanup(disk.stop)
+-
+     def fixture(self, root):
+         helper = fixtures.StructuredRecoveryTests();spec = helper.spec(root, 'one', [helper.row('GERS1', ['shared@company.test']), helper.row('GERS2', ['shared@company.test'])])
+         output = root / 'recovery';recover([spec], output);return spec, output
+--- a/tests/market_map/test_structured_email_recovery.py
++++ b/tests/market_map/test_structured_email_recovery.py
+@@ -1,5 +1,3 @@
+-from unittest.mock import patch
+-from types import SimpleNamespace
+ import gzip
+ import hashlib
+ import json
+@@ -12,11 +10,6 @@
+ 
+ 
+ class StructuredRecoveryTests(unittest.TestCase):
+-    def setUp(self):
+-        # These small fixtures test parsing, not the workstation's current free space.
+-        disk=patch('scripts.market_map.structured_email_recovery.shutil.disk_usage',return_value=SimpleNamespace(free=3*1024**3))
+-        disk.start();self.addCleanup(disk.stop)
+-
+     def spec(self, root, name, rows, *, expected=None):
+         path = root / (name + '.jsonl.gz');body = ''.join(json.dumps(row) + '\n' for row in rows).encode();path.write_bytes(gzip.compress(body));manifest = root / (name + '.manifest.json');manifest.write_text('{}')
+         return {'file': str(path), 'file_sha256': sha(path), 'uncompressed_sha256': hashlib.sha256(body).hexdigest(),

@@ -1,0 +1,3119 @@
+[
+  {
+    "id": "article-author",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_methods": [
+          "public_person_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/author/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "jane@business.test",
+            "extraction_method": "public_person_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/author/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "d91bc57ed8d41c487a6ea3353f714d613e679a0ee9e5cdf4e3e396f64ce2e0c8",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+            "raw_value": "jane@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/article-author",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+        "raw_value": "jane@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/article-author",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": true,
+          "candidate_employers": [],
+          "candidate_owners": [],
+          "node_pointer": "/author",
+          "ownership_status": "unresolved"
+        },
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_methods": [
+          "public_person_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/author/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": true,
+              "candidate_employers": [],
+              "candidate_owners": [],
+              "node_pointer": "/author",
+              "ownership_status": "unresolved"
+            },
+            "email": "jane@business.test",
+            "extraction_method": "public_person_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/author/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "834a0022b4d3501316f5c89e8658aaedd44eeab99f3e33b07a87c0069f77dea2",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+            "raw_value": "jane@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/article-author",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+        "raw_value": "jane@business.test",
+        "review_warnings": [
+          "multiple_or_ambiguous_occurrence_owners_require_review"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/article-author",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "article-author",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "jane@business.test",
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+        "raw_value": "jane@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/article-author",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "jane@business.test",
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
+        "raw_value": "jane@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/article-author",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "cycle",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "a@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/@graph/0/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "a@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/@graph/0/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "c48f3ac60eec82a39eba3f11fcbd7786919f25290916a90a1a3676a9deec9395",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+            "raw_value": "a@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/cycle",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "a@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      },
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "b@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/@graph/1/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "b@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/@graph/1/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "37dc20d238a952a579c0666c4fec4d8b58aecae45f21554dcf74620c9f02b64d",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+            "raw_value": "b@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/cycle",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "b@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": true,
+          "candidate_employers": [],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": "#a",
+              "json_pointer": "/@graph/0",
+              "name": null,
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Organization"
+              ]
+            }
+          ],
+          "node_pointer": "/@graph/0",
+          "ownership_status": "unresolved"
+        },
+        "email": "a@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/@graph/0/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": true,
+              "candidate_employers": [],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": "#a",
+                  "json_pointer": "/@graph/0",
+                  "name": null,
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Organization"
+                  ]
+                }
+              ],
+              "node_pointer": "/@graph/0",
+              "ownership_status": "unresolved"
+            },
+            "email": "a@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/@graph/0/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "5a274ad0977c775287f816ca1cb27382b4c72f98fbeb897f363f500711e55c19",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+            "raw_value": "a@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/cycle",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "a@business.test",
+        "review_warnings": [
+          "multiple_or_ambiguous_occurrence_owners_require_review"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      },
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": true,
+          "candidate_employers": [],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": "#a",
+              "json_pointer": "/@graph/0",
+              "name": null,
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Organization"
+              ]
+            }
+          ],
+          "node_pointer": "/@graph/1",
+          "ownership_status": "unresolved"
+        },
+        "email": "b@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/@graph/1/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": true,
+              "candidate_employers": [],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": "#a",
+                  "json_pointer": "/@graph/0",
+                  "name": null,
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Organization"
+                  ]
+                }
+              ],
+              "node_pointer": "/@graph/1",
+              "ownership_status": "unresolved"
+            },
+            "email": "b@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/@graph/1/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "14ac091ba6ed973da0d0419a8ffef927c435eeab438a86e815abaab0d7a2cd5c",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+            "raw_value": "b@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/cycle",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "b@business.test",
+        "review_warnings": [
+          "multiple_or_ambiguous_occurrence_owners_require_review"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "cycle",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "a@business.test",
+        "email": "a@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "a@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "b@business.test",
+        "email": "b@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "b@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "a@business.test",
+        "email": "a@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "a@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "b@business.test",
+        "email": "b@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
+        "raw_value": "b@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/cycle",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "duplicate-reference",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/@graph/1/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/@graph/1/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "2ba06a8e69a6b89ccd660cdb4a07cbf8f30af11fff4f8d6de494ac768086944a",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/duplicate-reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "desk@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      },
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "second@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/@graph/2/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "second@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/@graph/2/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "8373b016b5318d1fa4769e5945ff795b3afbd71094ddaead5a10d9408141c9fa",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+            "raw_value": "second@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/duplicate-reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "second@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": true,
+          "candidate_employers": [],
+          "candidate_owners": [],
+          "node_pointer": "/@graph/1",
+          "ownership_status": "unresolved"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/@graph/1/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": true,
+              "candidate_employers": [],
+              "candidate_owners": [],
+              "node_pointer": "/@graph/1",
+              "ownership_status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/@graph/1/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "bd2a3ad48eb58e465b3f14a4e5b8b903acebf019babfc9ac5e8477407d4ae143",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/duplicate-reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "desk@business.test",
+        "review_warnings": [
+          "multiple_or_ambiguous_occurrence_owners_require_review"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      },
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": true,
+          "candidate_employers": [],
+          "candidate_owners": [],
+          "node_pointer": "/@graph/2",
+          "ownership_status": "unresolved"
+        },
+        "email": "second@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/@graph/2/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": true,
+              "candidate_employers": [],
+              "candidate_owners": [],
+              "node_pointer": "/@graph/2",
+              "ownership_status": "unresolved"
+            },
+            "email": "second@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/@graph/2/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "8530e3765e1a7957f212ca8dacc0eaaa01d7700943b5b97a2626403950074d13",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+            "raw_value": "second@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/duplicate-reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "second@business.test",
+        "review_warnings": [
+          "multiple_or_ambiguous_occurrence_owners_require_review"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "duplicate-reference",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "second@business.test",
+        "email": "second@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "second@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "second@business.test",
+        "email": "second@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
+        "raw_value": "second@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/duplicate-reference",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "inline",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/p",
+          "status": "unresolved"
+        },
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_methods": [
+          "bounded_inline_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "sales@business.test",
+            "extraction_method": "bounded_inline_text",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "9fdd0de9c0734f50af5449d739d959034d652d5f4e272eaf842940126a808c1a",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+            "raw_value": "sales@business.test",
+            "role_hint": "sales",
+            "short_supporting_context": "sales @ business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/inline",
+            "text_position": {
+              "end": 19,
+              "offset_basis": "literal_run",
+              "raw_text": "sales@business.test",
+              "segments": [
+                {
+                  "end": 5,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p",
+                  "start": 0
+                },
+                {
+                  "end": 6,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span",
+                  "start": 5
+                },
+                {
+                  "end": 19,
+                  "field": "tail",
+                  "source_dom_locator": "/html/body/p/span",
+                  "start": 6
+                }
+              ],
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+        "raw_value": "sales@business.test",
+        "review_warnings": [],
+        "role_hint": "sales",
+        "short_supporting_context": "sales @ business.test",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline",
+        "text_position": {
+          "end": 19,
+          "offset_basis": "literal_run",
+          "raw_text": "sales@business.test",
+          "segments": [
+            {
+              "end": 5,
+              "field": "text",
+              "source_dom_locator": "/html/body/p",
+              "start": 0
+            },
+            {
+              "end": 6,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span",
+              "start": 5
+            },
+            {
+              "end": 19,
+              "field": "tail",
+              "source_dom_locator": "/html/body/p/span",
+              "start": 6
+            }
+          ],
+          "start": 0
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/p",
+          "status": "unresolved"
+        },
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_methods": [
+          "bounded_inline_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "sales@business.test",
+            "extraction_method": "bounded_inline_text",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "a6b290695283384ad240cc3e450745c4970b9f4dd1304804067ebf4d9003a471",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+            "raw_value": "sales@business.test",
+            "role_hint": "sales",
+            "short_supporting_context": "sales @ business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/inline",
+            "text_position": {
+              "end": 19,
+              "offset_basis": "literal_run",
+              "raw_text": "sales@business.test",
+              "segments": [
+                {
+                  "end": 5,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p",
+                  "start": 0
+                },
+                {
+                  "end": 6,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span",
+                  "start": 5
+                },
+                {
+                  "end": 19,
+                  "field": "tail",
+                  "source_dom_locator": "/html/body/p/span",
+                  "start": 6
+                }
+              ],
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+        "raw_value": "sales@business.test",
+        "review_warnings": [],
+        "role_hint": "sales",
+        "short_supporting_context": "sales @ business.test",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline",
+        "text_position": {
+          "end": 19,
+          "offset_basis": "literal_run",
+          "raw_text": "sales@business.test",
+          "segments": [
+            {
+              "end": 5,
+              "field": "text",
+              "source_dom_locator": "/html/body/p",
+              "start": 0
+            },
+            {
+              "end": 6,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span",
+              "start": 5
+            },
+            {
+              "end": 19,
+              "field": "tail",
+              "source_dom_locator": "/html/body/p/span",
+              "start": 6
+            }
+          ],
+          "start": 0
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ]
+  },
+  {
+    "id": "inline",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "sales@business.test",
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+        "raw_value": "sales@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "sales@business.test",
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
+        "raw_value": "sales@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "inline-fax",
+    "component": "phones",
+    "before": [
+      {
+        "branch_ownership_status": "not_verified",
+        "context": "Fax: (519) 555-0123 ext. 09",
+        "extension": "09",
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-phone-extraction/3",
+        "kind": "fax",
+        "kind_review_required": false,
+        "normalization_version": "ssm-phone-normalization/1",
+        "organisation_ownership_status": "not_verified",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b3abe8e4fc137b21642e876e20f9f323d1a70c6d73c82a3c9aed60379caed296",
+        "phone": "+15195550123",
+        "raw_value": "(519) 555-0123 ext. 09",
+        "source_dom_locator": "/html/body/p",
+        "source_segments": [
+          {
+            "end": 5,
+            "field": "text",
+            "source_dom_locator": "/html/body/p",
+            "start": 0
+          },
+          {
+            "end": 10,
+            "field": "text",
+            "source_dom_locator": "/html/body/p/span",
+            "start": 5
+          },
+          {
+            "end": 25,
+            "field": "tail",
+            "source_dom_locator": "/html/body/p/span",
+            "start": 10
+          },
+          {
+            "end": 27,
+            "field": "text",
+            "source_dom_locator": "/html/body/p/b",
+            "start": 25
+          }
+        ],
+        "source_url": "https://business.test/inline-fax",
+        "verification_status": "source_published_unverified"
+      }
+    ],
+    "after": [
+      {
+        "branch_ownership_status": "not_verified",
+        "context": "Fax: (519) 555-0123 ext. 09",
+        "extension": "09",
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-phone-extraction/4",
+        "kind": "fax",
+        "kind_review_required": false,
+        "normalization_version": "ssm-phone-normalization/1",
+        "organisation_ownership_status": "not_verified",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b3abe8e4fc137b21642e876e20f9f323d1a70c6d73c82a3c9aed60379caed296",
+        "phone": "+15195550123",
+        "raw_value": "(519) 555-0123 ext. 09",
+        "source_dom_locator": "/html/body/p",
+        "source_segments": [
+          {
+            "end": 5,
+            "field": "text",
+            "source_dom_locator": "/html/body/p",
+            "start": 0
+          },
+          {
+            "end": 10,
+            "field": "text",
+            "source_dom_locator": "/html/body/p/span",
+            "start": 5
+          },
+          {
+            "end": 25,
+            "field": "tail",
+            "source_dom_locator": "/html/body/p/span",
+            "start": 10
+          },
+          {
+            "end": 27,
+            "field": "text",
+            "source_dom_locator": "/html/body/p/b",
+            "start": 25
+          }
+        ],
+        "source_url": "https://business.test/inline-fax",
+        "structured_evidence": null,
+        "verification_status": "source_published_unverified"
+      }
+    ]
+  },
+  {
+    "id": "inline-obfuscation",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/p",
+          "status": "unresolved"
+        },
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_at_dot",
+        "extraction_methods": [
+          "bounded_inline_at_dot"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "sales@business.test",
+            "extraction_method": "bounded_inline_at_dot",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "a29ba6df4c5a064196a00acb70d6161cfe20314f8242bb0ec6a0315375a6a7f2",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+            "raw_value": "sales@business.test",
+            "role_hint": "sales",
+            "short_supporting_context": "sales [at] business [dot] test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/inline-obfuscation",
+            "text_position": {
+              "end": 19,
+              "offset_basis": "decoded_run",
+              "raw_text": "sales[at]business[dot]test",
+              "segments": [
+                {
+                  "end": 5,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p",
+                  "start": 0
+                },
+                {
+                  "end": 9,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span[1]",
+                  "start": 5
+                },
+                {
+                  "end": 17,
+                  "field": "tail",
+                  "source_dom_locator": "/html/body/p/span[1]",
+                  "start": 9
+                },
+                {
+                  "end": 22,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span[2]",
+                  "start": 17
+                },
+                {
+                  "end": 26,
+                  "field": "tail",
+                  "source_dom_locator": "/html/body/p/span[2]",
+                  "start": 22
+                }
+              ],
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+        "raw_value": "sales@business.test",
+        "review_warnings": [],
+        "role_hint": "sales",
+        "short_supporting_context": "sales [at] business [dot] test",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-obfuscation",
+        "text_position": {
+          "end": 19,
+          "offset_basis": "decoded_run",
+          "raw_text": "sales[at]business[dot]test",
+          "segments": [
+            {
+              "end": 5,
+              "field": "text",
+              "source_dom_locator": "/html/body/p",
+              "start": 0
+            },
+            {
+              "end": 9,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span[1]",
+              "start": 5
+            },
+            {
+              "end": 17,
+              "field": "tail",
+              "source_dom_locator": "/html/body/p/span[1]",
+              "start": 9
+            },
+            {
+              "end": 22,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span[2]",
+              "start": 17
+            },
+            {
+              "end": 26,
+              "field": "tail",
+              "source_dom_locator": "/html/body/p/span[2]",
+              "start": 22
+            }
+          ],
+          "start": 0
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/p",
+          "status": "unresolved"
+        },
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_at_dot",
+        "extraction_methods": [
+          "bounded_inline_at_dot"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "sales@business.test",
+            "extraction_method": "bounded_inline_at_dot",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "e041d0cc69a2861217ef418db627465e2a75e951880f2cde7445f9ff088703eb",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+            "raw_value": "sales@business.test",
+            "role_hint": "sales",
+            "short_supporting_context": "sales [at] business [dot] test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/inline-obfuscation",
+            "text_position": {
+              "end": 19,
+              "offset_basis": "decoded_run",
+              "raw_text": "sales[at]business[dot]test",
+              "segments": [
+                {
+                  "end": 5,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p",
+                  "start": 0
+                },
+                {
+                  "end": 9,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span[1]",
+                  "start": 5
+                },
+                {
+                  "end": 17,
+                  "field": "tail",
+                  "source_dom_locator": "/html/body/p/span[1]",
+                  "start": 9
+                },
+                {
+                  "end": 22,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span[2]",
+                  "start": 17
+                },
+                {
+                  "end": 26,
+                  "field": "tail",
+                  "source_dom_locator": "/html/body/p/span[2]",
+                  "start": 22
+                }
+              ],
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+        "raw_value": "sales@business.test",
+        "review_warnings": [],
+        "role_hint": "sales",
+        "short_supporting_context": "sales [at] business [dot] test",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-obfuscation",
+        "text_position": {
+          "end": 19,
+          "offset_basis": "decoded_run",
+          "raw_text": "sales[at]business[dot]test",
+          "segments": [
+            {
+              "end": 5,
+              "field": "text",
+              "source_dom_locator": "/html/body/p",
+              "start": 0
+            },
+            {
+              "end": 9,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span[1]",
+              "start": 5
+            },
+            {
+              "end": 17,
+              "field": "tail",
+              "source_dom_locator": "/html/body/p/span[1]",
+              "start": 9
+            },
+            {
+              "end": 22,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span[2]",
+              "start": 17
+            },
+            {
+              "end": 26,
+              "field": "tail",
+              "source_dom_locator": "/html/body/p/span[2]",
+              "start": 22
+            }
+          ],
+          "start": 0
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ]
+  },
+  {
+    "id": "inline-obfuscation",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "sales@business.test",
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_at_dot",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+        "raw_value": "sales@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-obfuscation",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "sales@business.test",
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_at_dot",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
+        "raw_value": "sales@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-obfuscation",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "inline-suffix",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/p",
+          "status": "unresolved"
+        },
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_methods": [
+          "bounded_inline_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "sales@business.test",
+            "extraction_method": "bounded_inline_text",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "3a56d8584dfbd72bc260ba3dfab948ec03d36f5f1e7ae569f2c9b3f3c602cc66",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "sales@business.test",
+            "role_hint": "sales",
+            "short_supporting_context": "sal es@business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/inline-suffix",
+            "text_position": {
+              "end": 19,
+              "offset_basis": "literal_run",
+              "raw_text": "sales@business.test",
+              "segments": [
+                {
+                  "end": 3,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p",
+                  "start": 0
+                },
+                {
+                  "end": 19,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span",
+                  "start": 3
+                }
+              ],
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+        "raw_value": "sales@business.test",
+        "review_warnings": [],
+        "role_hint": "sales",
+        "short_supporting_context": "sal es@business.test",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-suffix",
+        "text_position": {
+          "end": 19,
+          "offset_basis": "literal_run",
+          "raw_text": "sales@business.test",
+          "segments": [
+            {
+              "end": 3,
+              "field": "text",
+              "source_dom_locator": "/html/body/p",
+              "start": 0
+            },
+            {
+              "end": 19,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span",
+              "start": 3
+            }
+          ],
+          "start": 0
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/p",
+          "status": "unresolved"
+        },
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_methods": [
+          "bounded_inline_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "sales@business.test",
+            "extraction_method": "bounded_inline_text",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "eea69865ed6cd35f289d65ce918fb5795542d15159e3624d900955a0bf066a9c",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "sales@business.test",
+            "role_hint": "sales",
+            "short_supporting_context": "sal es@business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/inline-suffix",
+            "text_position": {
+              "end": 19,
+              "offset_basis": "literal_run",
+              "raw_text": "sales@business.test",
+              "segments": [
+                {
+                  "end": 3,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p",
+                  "start": 0
+                },
+                {
+                  "end": 19,
+                  "field": "text",
+                  "source_dom_locator": "/html/body/p/span",
+                  "start": 3
+                }
+              ],
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+        "raw_value": "sales@business.test",
+        "review_warnings": [],
+        "role_hint": "sales",
+        "short_supporting_context": "sal es@business.test",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-suffix",
+        "text_position": {
+          "end": 19,
+          "offset_basis": "literal_run",
+          "raw_text": "sales@business.test",
+          "segments": [
+            {
+              "end": 3,
+              "field": "text",
+              "source_dom_locator": "/html/body/p",
+              "start": 0
+            },
+            {
+              "end": 19,
+              "field": "text",
+              "source_dom_locator": "/html/body/p/span",
+              "start": 3
+            }
+          ],
+          "start": 0
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ]
+  },
+  {
+    "id": "inline-suffix",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "sales@business.test",
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+        "raw_value": "sales@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-suffix",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "sales@business.test",
+        "email": "sales@business.test",
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+        "raw_value": "sales@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-suffix",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "inline-unicode",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "élise@business.test",
+        "email": null,
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+        "raw_value": "élise@business.test",
+        "reason": "unicode_local_part",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-unicode",
+        "status": "unsupported"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "élise@business.test",
+        "email": null,
+        "extraction_method": "bounded_inline_text",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+        "raw_value": "élise@business.test",
+        "reason": "unicode_local_part",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/inline-unicode",
+        "status": "unsupported"
+      }
+    ]
+  },
+  {
+    "id": "person-employer",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_methods": [
+          "public_person_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/@graph/0/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "jane@business.test",
+            "extraction_method": "public_person_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/@graph/0/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "42b05cd0fb16dd6f281e429cb14a59fb47c4ab5cd8c7e050024502227b4323c2",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+            "raw_value": "jane@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/person-employer",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "raw_value": "jane@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/person-employer",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": false,
+          "candidate_employers": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": "#org",
+              "json_pointer": "/@graph/1",
+              "name": "Office",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Organization"
+              ]
+            }
+          ],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": null,
+              "json_pointer": "/@graph/0",
+              "name": "Jane Smith",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Person"
+              ]
+            }
+          ],
+          "node_pointer": "/@graph/0",
+          "ownership_status": "explicit_document_edge_not_verified"
+        },
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_methods": [
+          "public_person_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/@graph/0/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": false,
+              "candidate_employers": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": "#org",
+                  "json_pointer": "/@graph/1",
+                  "name": "Office",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Organization"
+                  ]
+                }
+              ],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": null,
+                  "json_pointer": "/@graph/0",
+                  "name": "Jane Smith",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Person"
+                  ]
+                }
+              ],
+              "node_pointer": "/@graph/0",
+              "ownership_status": "explicit_document_edge_not_verified"
+            },
+            "email": "jane@business.test",
+            "extraction_method": "public_person_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/@graph/0/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+            "raw_value": "jane@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/person-employer",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "raw_value": "jane@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/person-employer",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "person-employer",
+    "component": "context",
+    "before": {
+      "department_contacts": [],
+      "organisation_assertions": [],
+      "people": [
+        {
+          "authority_scope": "not_established",
+          "email_association_status": "same_unambiguous_public_card_not_verified",
+          "emails": [
+            "jane@business.test"
+          ],
+          "employer_identity_status": "not_verified",
+          "employment_relationship_status": "not_established",
+          "excerpt": "{\"name\": \"Jane Smith\", \"jobTitle\": \"Facilities Manager\", \"worksFor\": {\"@id\": \"#org\"}, \"email\": \"jane@business.test\"}",
+          "extraction_method": "json_ld_person_role",
+          "name": "Jane Smith",
+          "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+          "published_employer": null,
+          "purchasing_authority_verified": false,
+          "review_status": "source_published_candidate_requires_review",
+          "role_function": "facilities",
+          "role_title": "Facilities Manager",
+          "source_listing_context": null,
+          "source_listing_kind": "public_role_listing",
+          "source_url": "https://business.test/person-employer",
+          "ssm_route_hypothesis": {
+            "role_function": "facilities",
+            "status": "service_fit_hypothesis_only"
+          },
+          "unassigned_published_emails": []
+        }
+      ],
+      "relevant_links": []
+    },
+    "after": {
+      "department_contacts": [],
+      "organisation_assertions": [],
+      "people": [
+        {
+          "authority_scope": "not_established",
+          "email_association_status": "same_unambiguous_public_card_not_verified",
+          "emails": [
+            "jane@business.test"
+          ],
+          "employer_identity_status": "not_verified",
+          "employment_relationship_status": "not_established",
+          "excerpt": "{\"json_pointer\": \"/@graph/0\", \"id\": null, \"name\": \"Jane Smith\", \"types\": [\"Person\"], \"address\": null, \"contactType\": null, \"status\": \"explicit_document_node_not_verified\"}",
+          "extraction_method": "json_ld_person_role",
+          "name": "Jane Smith",
+          "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+          "published_employer": "Office",
+          "purchasing_authority_verified": false,
+          "review_status": "source_published_candidate_requires_review",
+          "role_function": "facilities",
+          "role_title": "Facilities Manager",
+          "source_dom_locator": "/html/head/script",
+          "source_listing_context": null,
+          "source_listing_kind": "public_role_listing",
+          "source_url": "https://business.test/person-employer",
+          "ssm_route_hypothesis": {
+            "role_function": "facilities",
+            "status": "service_fit_hypothesis_only"
+          },
+          "structured_evidence": {
+            "ambiguity_review_required": false,
+            "candidate_employers": [
+              {
+                "address": null,
+                "contactType": null,
+                "id": "#org",
+                "json_pointer": "/@graph/1",
+                "name": "Office",
+                "status": "explicit_document_node_not_verified",
+                "types": [
+                  "Organization"
+                ]
+              }
+            ],
+            "candidate_owners": [
+              {
+                "address": null,
+                "contactType": null,
+                "id": null,
+                "json_pointer": "/@graph/0",
+                "name": "Jane Smith",
+                "status": "explicit_document_node_not_verified",
+                "types": [
+                  "Person"
+                ]
+              }
+            ],
+            "channel": "person",
+            "excluded_context": false,
+            "job_title": "Facilities Manager",
+            "json_pointer": "/@graph/0",
+            "node": {
+              "address": null,
+              "contactType": null,
+              "id": null,
+              "json_pointer": "/@graph/0",
+              "name": "Jane Smith",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Person"
+              ]
+            },
+            "node_pointer": "/@graph/0",
+            "ownership_status": "explicit_document_edge_not_verified",
+            "value": "Jane Smith"
+          },
+          "unassigned_published_emails": []
+        }
+      ],
+      "relevant_links": []
+    }
+  },
+  {
+    "id": "person-employer",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "jane@business.test",
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "raw_value": "jane@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/person-employer",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "jane@business.test",
+        "email": "jane@business.test",
+        "extraction_method": "public_person_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "raw_value": "jane@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/person-employer",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "reference",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/@graph/1/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/@graph/1/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "a3a003f775a2e6bb9426fbce962d8fe1a98ae7b216bec856d4c86e3991b0941f",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "raw_value": "desk@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": false,
+          "candidate_employers": [],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": "#org",
+              "json_pointer": "/@graph/0",
+              "name": "Office",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Organization"
+              ]
+            }
+          ],
+          "node_pointer": "/@graph/1",
+          "ownership_status": "explicit_document_edge_not_verified"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/@graph/1/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": false,
+              "candidate_employers": [],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": "#org",
+                  "json_pointer": "/@graph/0",
+                  "name": "Office",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Organization"
+                  ]
+                }
+              ],
+              "node_pointer": "/@graph/1",
+              "ownership_status": "explicit_document_edge_not_verified"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/@graph/1/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "raw_value": "desk@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "reference",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/reference",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/reference",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "repeated-context",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "possible_website_vendor_contact_requires_review",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/p",
+          "status": "unresolved"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_methods": [
+          "visible_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "562cf06cb4eba39eda4bc73945391ef685c1b00eab762f5473c2be07aedd6ee7",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "desk@business.test desk@business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/repeated-context",
+            "text_position": {
+              "end": 37,
+              "field": "text",
+              "node": "/html/body/p",
+              "start": 19
+            },
+            "visibility_basis": "visible_dom"
+          },
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "568b4b8b92a551f84352f4e36cd3ac80f8bd0262d2bd55fb7fa3d68eaa42b4fc",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "desk@business.test desk@business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/repeated-context",
+            "text_position": {
+              "end": 18,
+              "field": "text",
+              "node": "/html/body/p",
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          },
+          {
+            "association_status": "possible_website_vendor_contact_requires_review",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/footer",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "c65e9563fcbf43b9d69fc7c0938d8edf0c306df67934661bccb64d71ed838905",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Website by desk@business.test",
+            "source_dom_locator": "/html/body/footer",
+            "source_url": "https://business.test/repeated-context",
+            "text_position": {
+              "end": 29,
+              "field": "text",
+              "node": "/html/body/footer",
+              "start": 11
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "review_warnings": [
+          "conflicting_occurrence_contexts"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "desk@business.test desk@business.test",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/repeated-context",
+        "text_position": {
+          "end": 37,
+          "field": "text",
+          "node": "/html/body/p",
+          "start": 19
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "possible_website_vendor_contact_requires_review",
+        "candidate_owner": {
+          "source_dom_locator": "/html/body/footer",
+          "status": "unresolved"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_methods": [
+          "visible_text"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": null,
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "possible_website_vendor_contact_requires_review",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/footer",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Website by desk@business.test",
+            "source_dom_locator": "/html/body/footer",
+            "source_url": "https://business.test/repeated-context",
+            "text_position": {
+              "end": 29,
+              "field": "text",
+              "node": "/html/body/footer",
+              "start": 11
+            },
+            "visibility_basis": "visible_dom"
+          },
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "desk@business.test desk@business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/repeated-context",
+            "text_position": {
+              "end": 18,
+              "field": "text",
+              "node": "/html/body/p",
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          },
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "desk@business.test desk@business.test",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/repeated-context",
+            "text_position": {
+              "end": 37,
+              "field": "text",
+              "node": "/html/body/p",
+              "start": 19
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "review_warnings": [
+          "conflicting_occurrence_contexts",
+          "multiple_or_ambiguous_occurrence_owners_require_review"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Website by desk@business.test",
+        "source_dom_locator": "/html/body/footer",
+        "source_url": "https://business.test/repeated-context",
+        "text_position": {
+          "end": 29,
+          "field": "text",
+          "node": "/html/body/footer",
+          "start": 11
+        },
+        "visibility_basis": "visible_dom"
+      }
+    ]
+  },
+  {
+    "id": "repeated-context",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/repeated-context",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/repeated-context",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/footer",
+        "source_url": "https://business.test/repeated-context",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/repeated-context",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://business.test/repeated-context",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/body/footer",
+        "source_url": "https://business.test/repeated-context",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "shared-reference",
+    "component": "emails",
+    "before": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "source_dom_locator": "/html/head/script",
+          "status": "unresolved"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/5",
+        "json_pointer": "/@graph/2/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/head/script",
+              "status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/5",
+            "json_pointer": "/@graph/2/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "ad7751e44857ea9e043e0a3fb7a62fc37cd2e80d8f5fdcc7607c2169cca4f049",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/shared-reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "raw_value": "desk@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/shared-reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": true,
+          "candidate_employers": [],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": "#org",
+              "json_pointer": "/@graph/0",
+              "name": "Office",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Organization"
+              ]
+            },
+            {
+              "address": null,
+              "contactType": null,
+              "id": "#other",
+              "json_pointer": "/@graph/1",
+              "name": "Other",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Organization"
+              ]
+            }
+          ],
+          "node_pointer": "/@graph/2",
+          "ownership_status": "unresolved"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/@graph/2/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": true,
+              "candidate_employers": [],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": "#org",
+                  "json_pointer": "/@graph/0",
+                  "name": "Office",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Organization"
+                  ]
+                },
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": "#other",
+                  "json_pointer": "/@graph/1",
+                  "name": "Other",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Organization"
+                  ]
+                }
+              ],
+              "node_pointer": "/@graph/2",
+              "ownership_status": "unresolved"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/@graph/2/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/shared-reference",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "raw_value": "desk@business.test",
+        "review_warnings": [
+          "multiple_or_ambiguous_occurrence_owners_require_review"
+        ],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/shared-reference",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "shared-reference",
+    "component": "email_candidates",
+    "before": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/5",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/shared-reference",
+        "status": "normalized"
+      }
+    ],
+    "after": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/shared-reference",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "subtype",
+    "component": "emails",
+    "before": [],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": false,
+          "candidate_employers": [],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": null,
+              "json_pointer": "",
+              "name": "Office",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "RealEstateAgent"
+              ]
+            }
+          ],
+          "node_pointer": "",
+          "ownership_status": "explicit_document_edge_not_verified"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/email",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": false,
+              "candidate_employers": [],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": null,
+                  "json_pointer": "",
+                  "name": "Office",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "RealEstateAgent"
+                  ]
+                }
+              ],
+              "node_pointer": "",
+              "ownership_status": "explicit_document_edge_not_verified"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/email",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "4668814e33c7dffde7f3571b97d88da1b04b0b83d3b0cc4aa7037f419a0280dd",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "4f689943c25ec09caf30075ed6063c426714cfb6d0b13b5777e38cedb7b978af",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/subtype",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "4f689943c25ec09caf30075ed6063c426714cfb6d0b13b5777e38cedb7b978af",
+        "raw_value": "desk@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/subtype",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "subtype",
+    "component": "email_candidates",
+    "before": [],
+    "after": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "4f689943c25ec09caf30075ed6063c426714cfb6d0b13b5777e38cedb7b978af",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/subtype",
+        "status": "normalized"
+      }
+    ]
+  },
+  {
+    "id": "uri-array",
+    "component": "emails",
+    "before": [],
+    "after": [
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": false,
+          "candidate_employers": [],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": null,
+              "json_pointer": "",
+              "name": "Clinic",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Dentist"
+              ]
+            }
+          ],
+          "node_pointer": "",
+          "ownership_status": "explicit_document_edge_not_verified"
+        },
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/email/0",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": false,
+              "candidate_employers": [],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": null,
+                  "json_pointer": "",
+                  "name": "Clinic",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Dentist"
+                  ]
+                }
+              ],
+              "node_pointer": "",
+              "ownership_status": "explicit_document_edge_not_verified"
+            },
+            "email": "desk@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/email/0",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "7c330ee1b1e4069abf9a0da680acdf0fdb42bf42ad0e852c37bb28b0aab69028",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+            "raw_value": "desk@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/uri-array",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+        "raw_value": "desk@business.test",
+        "review_warnings": [],
+        "role_hint": "unspecified_published_inbox",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/uri-array",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      },
+      {
+        "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+        "candidate_owner": {
+          "ambiguity_review_required": false,
+          "candidate_employers": [],
+          "candidate_owners": [
+            {
+              "address": null,
+              "contactType": null,
+              "id": null,
+              "json_pointer": "",
+              "name": "Clinic",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "Dentist"
+              ]
+            }
+          ],
+          "node_pointer": "",
+          "ownership_status": "explicit_document_edge_not_verified"
+        },
+        "email": "sales@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_methods": [
+          "public_organisation_jsonld"
+        ],
+        "extraction_version": "ssm-published-email-extraction/6",
+        "json_pointer": "/email/1",
+        "mailbox_status": "not_checked",
+        "normalization_version": "ssm-email-normalization/1",
+        "occurrences": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "ambiguity_review_required": false,
+              "candidate_employers": [],
+              "candidate_owners": [
+                {
+                  "address": null,
+                  "contactType": null,
+                  "id": null,
+                  "json_pointer": "",
+                  "name": "Clinic",
+                  "status": "explicit_document_node_not_verified",
+                  "types": [
+                    "Dentist"
+                  ]
+                }
+              ],
+              "node_pointer": "",
+              "ownership_status": "explicit_document_edge_not_verified"
+            },
+            "email": "sales@business.test",
+            "extraction_method": "public_organisation_jsonld",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": "/email/1",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrence_id": "c9748f32d3491c0db097d8a539ba47e55bdedb13102a027031da86669bad9994",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+            "raw_value": "sales@business.test",
+            "role_hint": "sales",
+            "short_supporting_context": "Public structured contact field; ownership unverified",
+            "source_dom_locator": "/html/head/script",
+            "source_url": "https://business.test/uri-array",
+            "text_position": null,
+            "visibility_basis": "structured_assertion"
+          }
+        ],
+        "outreach_eligibility": "research_only",
+        "ownership_status": "not_checked",
+        "page_content_sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+        "raw_value": "sales@business.test",
+        "review_warnings": [],
+        "role_hint": "sales",
+        "short_supporting_context": "Public structured contact field; ownership unverified",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/uri-array",
+        "text_position": null,
+        "visibility_basis": "structured_assertion"
+      }
+    ]
+  },
+  {
+    "id": "uri-array",
+    "component": "context",
+    "before": {
+      "department_contacts": [],
+      "organisation_assertions": [],
+      "people": [],
+      "relevant_links": []
+    },
+    "after": {
+      "department_contacts": [
+        {
+          "basis": "published_inbox_prefix",
+          "department_identity_status": "inferred_route_requires_review",
+          "email": "sales@business.test",
+          "excerpt": "Public structured contact field; ownership unverified",
+          "extraction_method": "published_inbox_context",
+          "mailbox_verified": false,
+          "page_content_sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+          "person_name": null,
+          "purchasing_authority_verified": false,
+          "review_status": "source_published_candidate_requires_review",
+          "role_function": "sales_partnerships",
+          "source_association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "source_url": "https://business.test/uri-array"
+        }
+      ],
+      "organisation_assertions": [],
+      "people": [],
+      "relevant_links": []
+    }
+  },
+  {
+    "id": "uri-array",
+    "component": "email_candidates",
+    "before": [],
+    "after": [
+      {
+        "candidate_value": "desk@business.test",
+        "email": "desk@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+        "raw_value": "desk@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/uri-array",
+        "status": "normalized"
+      },
+      {
+        "candidate_value": "sales@business.test",
+        "email": "sales@business.test",
+        "extraction_method": "public_organisation_jsonld",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
+        "raw_value": "sales@business.test",
+        "reason": "supported_syntax_only",
+        "source_dom_locator": "/html/head/script",
+        "source_url": "https://business.test/uri-array",
+        "status": "normalized"
+      }
+    ]
+  }
+]

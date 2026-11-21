@@ -1,0 +1,5 @@
+import './gta-email-recovery-runtime.mjs';import {db} from './reply-runtime-20261015.mjs';import fs from 'node:fs/promises';
+const dir='artifacts/news-radar-outreach-20261016',all=JSON.parse(await fs.readFile(dir+'/matched-contacts.json'));
+const people=all.filter(c=>c.email&&/chatham-kent|trident-builders|windsorpubliclibrary|viprail|wellington.ca|och.ca|arriv.ca|gohba|omegatool/.test(c.email));
+const out=[];for(const c of people){const [touches,tasks]=await Promise.all([db('market_touches',{contact_id:'eq.'+c.id,order:'created_at.asc',limit:'1000'}),db('crm_tasks',{related_id:'eq.'+c.id,status:'in.(open,in_progress)'})]);out.push({contact:c,touches,tasks});console.log(JSON.stringify({name:c.name,email:c.email,companyId:c.partner_company_id,notes:c.notes,touches:touches.map(t=>({at:t.created_at,d:t.direction,ch:t.channel,text:t.notes,metadata:t.metadata})),tasks:tasks.map(t=>({id:t.id,title:t.title,description:t.description}))}));}
+await fs.writeFile(dir+'/existing-context.json',JSON.stringify(out,null,2));

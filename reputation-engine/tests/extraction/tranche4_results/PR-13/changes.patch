@@ -1,0 +1,919 @@
+--- a/scripts/market_map/contact_enrichment.py
++++ b/scripts/market_map/contact_enrichment.py
+@@ -1,5 +1,6 @@
+ """Public role/department evidence for domains already yielding published emails."""
+ from __future__ import annotations
++import uuid
+ import argparse
+ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+ import csv
+@@ -18,6 +19,8 @@
+ from .phone_acquisition import HOLDS,busy_domains
+ from .relationships import canonical_url
+ from .transport import Transport, SourceBlocked, BudgetExceeded
++from .fetch_outcomes import outcome
++from . import frontier_retry
+ from .verification_pilot import storage_guard,stamp,spreadsheet_cell
+ 
+ CATEGORIES=('organisation_assertions','people','department_contacts')
+@@ -44,7 +47,7 @@
+       CREATE TABLE IF NOT EXISTS visits(id INTEGER PRIMARY KEY,domain TEXT,status TEXT,observed_at TEXT,payload TEXT);
+       CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,payload TEXT);
+       CREATE TABLE IF NOT EXISTS mined_artifacts(path TEXT,sha256 TEXT,observed_at TEXT,PRIMARY KEY(path,sha256));
+-    ''');return db
++    ''');frontier_retry.initialize(db);return db
+ 
+ 
+ def seed(db,source_queue):
+@@ -64,7 +67,7 @@
+         db.executemany('INSERT OR IGNORE INTO jobs(domain,url,status,email_source_pages) VALUES(?,?,?,?)',rows)
+         db.executemany('INSERT OR IGNORE INTO frontier(domain,url,depth) VALUES(?,?,0)',[(r[0],r[1]) for r in rows])
+         db.executemany('UPDATE jobs SET email_source_pages=? WHERE domain=?',[(r[3],r[0]) for r in rows])
+-        db.executemany("UPDATE jobs SET status='upstream_review_hold' WHERE domain=? AND status='pending'",[(r[0],) for r in rows if r[2]=='upstream_review_hold'])
++        db.executemany("UPDATE jobs SET status='upstream_review_hold' WHERE domain=? AND status IN ('pending','retry_deferred')",[(r[0],) for r in rows if r[2]=='upstream_review_hold'])
+         db.execute('INSERT OR REPLACE INTO metadata VALUES(?,?)',('source_reference',json.dumps({'source_queue':str(Path(source_queue).resolve()),'association_table':'associations','seeded_at':stamp(),'eligible_email_domains':len(rows),'identity_rule':'Existing email-evidence domain joins an existing website job; provider/directory attribution and ownership remain unverified; join source associations by domain without automatic person/company assignment'})))
+     return len(rows)
+ 
+@@ -75,17 +78,23 @@
+     hosts={job['domain'],'www.'+job['domain']}
+     result={'domain':job['domain'],'pages':[],'claims':[],'frontier_updates':[],'discovered':[],
+             'full_site_exhausted':False,'main_database_writes':0,'messages_sent':0,'people_verified':0,'authority_verified':0}
++    result['visit_id']=uuid.uuid4().hex
++    result['frontier_failures']=[]
+     visited=set()
+     for item in frontier:
+         if len(visited)>=page_limit:break
+         url=item['url'];depth=item['depth']
+         if url in visited:continue
+         visited.add(url)
++        result['active_url']=url
++        phase='fetch'
++        if checkpoint:checkpoint(result)
+         try:
+             response=client.fetch(url,allowed_hosts=hosts)
+             content_type=next((v for k,v in response.headers.items() if k.lower()=='content-type'),'')
+             if content_type and 'html' not in content_type.lower():
+                 result['frontier_updates'].append((url,'non_html_review',None));continue
++            phase='parse'
+             extracted=extract_contact_context(response.body,response.url)
+             facts={'url':response.url,'requested_url':url,'content_sha256':hashlib.sha256(response.body).hexdigest(),'observed_at':stamp()}
+             result['pages'].append(facts)
+@@ -100,9 +109,11 @@
+                 if state=='pending' and target not in visited and len(frontier)<50:frontier.append({'url':target,'depth':depth+1})
+             result['frontier_updates'].append((url,'observed',None))
+         except (SourceBlocked,BudgetExceeded,ValueError,ParserError,HTTPException) as error:
+-            result['frontier_updates'].append((url,'access_or_budget_review',str(error)[:500]))
+-            if isinstance(error,BudgetExceeded):break
++            failure=outcome(error,url,phase=phase);result['frontier_failures'].append(failure)
++            result['frontier_updates'].append((url,'typed_failure',str(error)[:500]))
++            if isinstance(error,BudgetExceeded) or failure['code'] in frontier_retry.POLICY_CODES:break
+         finally:
++            result['active_url']=None
+             result['transport']=client.metrics()
+             if checkpoint:checkpoint(result)
+     result['transport']=client.metrics();return result
+@@ -123,12 +134,15 @@
+ def persist(db,result):
+     domain=result['domain']
+     with db:
++        db.execute('BEGIN IMMEDIATE')
++        if not frontier_retry.accept_visit(db,result):return frontier_retry.job_state(db,domain)
+         for url,depth,state in result.get('discovered',[]):db.execute('INSERT OR IGNORE INTO frontier(domain,url,depth,status) VALUES(?,?,?,?)',(domain,url,depth,state))
+         for url,state,error in result.get('frontier_updates',[]):db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,error,domain,url))
+         for page in result.get('pages',[]):db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['content_sha256'],page['observed_at'],json.dumps(page)))
+         for claim in result.get('claims',[]):save_claim(db,domain,claim['claim_type'],claim['evidence'])
++        frontier_retry.apply_result(db,result)
+         remaining=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+-        state=result.get('job_status') or ('pending' if remaining else 'known_frontier_processed')
++        state=(result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain)
+         db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',(state,stamp(),domain))
+         db.execute('INSERT INTO visits(domain,status,observed_at,payload) VALUES(?,?,?,?)',(domain,state,stamp(),json.dumps(result)))
+     return state
+@@ -166,7 +180,7 @@
+             manifest=json.loads(manifest_path.read_text());url=manifest['source_url'];domain=(urlsplit(url).hostname or '').removeprefix('www.')
+             if manifest.get('status') not in {'captured_with_rendering_gaps','captured_pending_relationship_review'}:continue
+             job=db.execute('SELECT status FROM jobs WHERE domain=?',(domain,)).fetchone()
+-            if not job or job['status'] in {'upstream_review_hold','manual_identity_or_reuse_hold'}:continue
++            if not job or job['status'] in {'access_policy_hold','upstream_review_hold','manual_identity_or_reuse_hold'}:continue
+             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:continue
+             body=file.read_bytes();digest=hashlib.sha256(body).hexdigest()
+             if db.execute('SELECT 1 FROM mined_artifacts WHERE path=? AND sha256=?',(str(file),digest)).fetchone():continue
+@@ -189,6 +203,7 @@
+         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+         db=connect(output/'queue.sqlite')
+         try:
++            frontier_retry.replay_spool(db,output/'pending-visit-results',persist)
+             with db:db.execute("UPDATE jobs SET status='pending' WHERE status='running'")
+             while True:
+                 print(json.dumps({'stage':'contact_context_seed','eligible_email_domains':seed(db,source_queue)}),flush=True)
+@@ -202,6 +217,9 @@
+                         if phone_queue and Path(phone_queue).exists():
+                             phones=sqlite3.connect('file:'+str(Path(phone_queue).resolve())+'?mode=ro',uri=True,timeout=30)
+                             busy.update(r[0] for r in phones.execute("SELECT domain FROM jobs WHERE status='running'"));phones.close()
++                        reviews=json.loads(Path(overlay_path).read_text()).get('reviews',{}) if overlay_path else {}
++                        frontier_retry.inherit_source_holds(db,source_queue,HOLDS)
++                        frontier_retry.release_due(db,reviews)
+                         for row in db.execute("SELECT * FROM jobs WHERE status='pending' ORDER BY attempts,email_source_pages DESC,domain LIMIT 256").fetchall():
+                             if len(pending)>=workers or completed+len(pending)>=max_domains:break
+                             job=dict(row);domain=job['domain']
+@@ -222,7 +240,8 @@
+                             domain=pending.pop(future)
+                             try:result=future.result()
+                             except Exception as error:result={'domain':domain,'job_status':'domain_worker_error_review','error':str(error),'transport':{'requests':None,'bytes_fetched':None}}
+-                            state=persist(db,result);completed+=1
++                            receipt=frontier_retry.spool_result(output/'pending-visit-results',result)
++                            state=persist(db,result);receipt.unlink();completed+=1
+                             (output/'status.json').write_text(json.dumps({**summary(db),'workers':workers},indent=2)+'\n')
+                             print(json.dumps({'stage':'contact_context_visit','domain':domain,'status':state,'pages':len(result.get('pages',[])),'claim_observations':len(result.get('claims',[])),'visits_completed':completed}),flush=True)
+                 export(db,output);(output/'status.json').write_text(json.dumps({**summary(db),'workers':workers},indent=2)+'\n')
+--- a/scripts/market_map/email_acquisition.py
++++ b/scripts/market_map/email_acquisition.py
+@@ -29,6 +29,8 @@
+ from . import contact_observation_store as observations
+ from .relationships import canonical_url, excluded, identity_supported
+ from .transport import Transport, SourceBlocked, BudgetExceeded
++from .fetch_outcomes import outcome
++from . import frontier_retry
+ from .verification_pilot import website_candidate, stamp, encode, storage_guard, file_hash, spreadsheet_cell
+ 
+ VERSION = "ssm-email-acquisition/1"
+@@ -61,6 +63,7 @@
+         CREATE TABLE IF NOT EXISTS seed_sweeps(id TEXT PRIMARY KEY,started_at TEXT,completed_at TEXT,status TEXT,
+             records_seen INTEGER,source_path TEXT,notes TEXT);
+     """)
++    frontier_retry.initialize(db)
+     observations.initialize(db)
+     return db
+ 
+@@ -208,6 +211,8 @@
+     allowed = {job["domain"],"www."+job["domain"]}
+     out = {"domain":job["domain"],"observed_at":stamp(),"pages":[],"frontier_updates":[],"discovered":[],"emails":[],
+            "full_site_exhausted":False,"main_database_writes":0,"messages_sent":0}
++    out['visit_id']=uuid.uuid4().hex
++    out['frontier_failures']=[]
+     visited = set()
+     for item in frontier:
+         if len(visited) >= page_limit:
+@@ -216,12 +221,16 @@
+         if url in visited:
+             continue
+         visited.add(url)
++        out['active_url']=url
++        phase='fetch'
++        if checkpoint:checkpoint(out)
+         try:
+             response = transport.fetch(url,allowed_hosts=allowed)
+             content_type = next((value for key,value in response.headers.items() if key.lower()=="content-type"),"")
+             if content_type and "html" not in content_type.lower():
+                 out["frontier_updates"].append((url,"non_html_review",None))
+                 continue
++            phase='parse'
+             doc = html.fromstring(response.body,base_url=response.url)
+             title = " ".join(" ".join(doc.xpath('//title/text() | //h1//text()')).split())[:800]
+             matches = [name for name in names if identity_supported(name,{"title":title})]
+@@ -245,10 +254,11 @@
+                         frontier.append({"url":linked,"depth":next_depth})
+             out["frontier_updates"].append((url,"observed",None))
+         except (SourceBlocked,BudgetExceeded,ValueError,ParserError,HTTPException) as error:
+-            out["frontier_updates"].append((url,"access_or_budget_review",str(error)[:500]))
+-            if isinstance(error,BudgetExceeded):
+-                break
++            failure=outcome(error,url,phase=phase);out['frontier_failures'].append(failure)
++            out['frontier_updates'].append((url,'typed_failure',str(error)[:500]))
++            if isinstance(error,BudgetExceeded) or failure['code'] in frontier_retry.POLICY_CODES:break
+         finally:
++            out['active_url']=None
+             if checkpoint:
+                 out["transport"] = transport.metrics()
+                 checkpoint(out)
+@@ -263,6 +273,7 @@
+         try:
+             with db:
+                 db.execute('BEGIN IMMEDIATE')
++                if not frontier_retry.accept_visit(db,result):return db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+                 for url,depth,state in result['discovered']:
+                     db.execute("""INSERT INTO frontier(domain,url,depth,status) VALUES(?,?,?,?)
+                         ON CONFLICT(domain,url) DO UPDATE SET depth=MIN(frontier.depth,excluded.depth),
+@@ -277,8 +288,9 @@
+                     db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['checked_at'],page['content_sha256'],zlib.compress(encode(page).encode(),6)))
+                 for record in result['emails']:
+                     save_email(db,dict(record,**({'capture_id':capture_by_url[record['source_url']]} if record['source_url'] in capture_by_url and not record.get('capture_id') else {})),domain,'website-domain:'+domain)
++                frontier_retry.apply_result(db,result)
+                 remains=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+-                db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',(result.get('job_status') or ('pending' if remains else 'known_frontier_processed'),stamp(),domain))
++                db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',((result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain),stamp(),domain))
+             return remains
+         except sqlite3.OperationalError as error:
+             if not any(word in str(error).lower() for word in ('locked','busy')) or attempt+1>=attempts:
+@@ -322,6 +334,8 @@
+             while checked<max_domains or pending:
+                 while len(pending)<workers and checked+len(pending)<max_domains:
+                     storage_guard(Path(queue_path).parent)
++                    review_notes=json.loads(Path(reviews).read_text()).get('reviews',{}) if reviews else {}
++                    frontier_retry.release_due(db,review_notes)
+                     row=db.execute("SELECT * FROM jobs WHERE status='pending' ORDER BY attempts,priority LIMIT 1").fetchone()
+                     if row is None:
+                         break
+@@ -344,7 +358,9 @@
+                 done,_=wait(pending,timeout=10,return_when=FIRST_COMPLETED)
+                 for future in done:
+                     domain=pending.pop(future)
+-                    result=future.result()
++                    try:result=future.result()
++                    except Exception as error:
++                        result={'domain':domain,'visit_id':uuid.uuid4().hex,'job_status':'domain_worker_error_review','error':str(error)[:500],'pages':[],'emails':[],'discovered':[],'frontier_updates':[],'transport':{'requests':None,'bytes_fetched':None}}
+                     spool=Path(queue_path).parent/'pending-visit-results'
+                     spool.mkdir(exist_ok=True)
+                     receipt=spool/(hashlib.sha256(domain.encode()).hexdigest()+'.json')
+--- a/scripts/market_map/email_domain_process.py
++++ b/scripts/market_map/email_domain_process.py
+@@ -40,6 +40,11 @@
+                 'frontier_updates': [], 'full_site_exhausted': False,
+                 'main_database_writes': 0, 'messages_sent': 0}
+             if timed_out or process.exitcode != 0 or not result.get('worker_complete'):
++                if timed_out and result.get('active_url'):
++                    import uuid
++                    result.setdefault('visit_id',uuid.uuid4().hex)
++                    result.setdefault('frontier_failures',[]).append({'url':result['active_url'],'code':'timeout','retryable':True,'http_status':None,'retry_after_at':None,'budget_reason':None,'policy_scope':'url','message':'Worker deadline interrupted active page processing; completion unknown'})
++                    result.setdefault('frontier_updates',[]).append((result['active_url'],'typed_failure','worker deadline'))
+                 result['job_status'] = 'domain_timeout_review' if timed_out else 'domain_worker_error_review'
+                 result['transport_checkpoint'] = result.get('transport')
+                 result['transport'] = {'requests': None, 'bytes_fetched': None}
+--- /dev/null
++++ b/scripts/market_map/frontier_retry.py
+@@ -0,0 +1,111 @@
++"""Additive durable retry state; no network or automatic release of old holds."""
++import hashlib,json
++from datetime import datetime,timezone,timedelta
++
++POLICY_CODES={'robots_denied','robots_unresolved','access_denied','access_challenge','private_target','scope_denied','crawl_delay_review'}
++RETRY_CODES={'http_temporary','timeout','network_failure','dns_transient','budget_deferred'}
++
++def utc():return datetime.now(timezone.utc)
++def at(value):return datetime.fromisoformat(value.replace('Z','+00:00'))
++def initialize(db):
++ db.executescript('''CREATE TABLE IF NOT EXISTS frontier_attempt_state(domain TEXT,url TEXT,attempts INTEGER NOT NULL,error_code TEXT,next_attempt_at TEXT,last_attempt_at TEXT,policy_scope TEXT,state TEXT NOT NULL,PRIMARY KEY(domain,url));
++ CREATE TABLE IF NOT EXISTS frontier_visit_receipts(id TEXT PRIMARY KEY,payload_sha256 TEXT NOT NULL);
++ CREATE TABLE IF NOT EXISTS frontier_outcomes(id TEXT PRIMARY KEY,domain TEXT,url TEXT,payload TEXT NOT NULL);
++ ''')
++
++def eligible_at(row,now=None):
++ return row['state']=='retry_deferred' and bool(row['next_attempt_at']) and at(row['next_attempt_at'])<=(now or utc())
++
++def record_failure(db,domain,url,failure,receipt_id,*,now=None,max_attempts=3):
++ now=now or utc();event=hashlib.sha256(json.dumps([receipt_id,url],sort_keys=True).encode()).hexdigest()
++ if db.execute('SELECT 1 FROM frontier_outcomes WHERE id=?',(event,)).fetchone():return
++ db.execute('INSERT INTO frontier_outcomes VALUES(?,?,?,?)',(event,domain,url,json.dumps(failure,sort_keys=True)))
++ old=db.execute('SELECT * FROM frontier_attempt_state WHERE domain=? AND url=?',(domain,url)).fetchone()
++ attempts=(old['attempts'] if old else 0)+1;code=failure['code'];next_at=None
++ policy=code in POLICY_CODES
++ state='policy_hold' if policy else 'retry_exhausted' if failure.get('retryable') and code in RETRY_CODES and attempts>=max_attempts else 'retry_deferred' if failure.get('retryable') and code in RETRY_CODES else 'terminal_review'
++ if state=='retry_deferred':
++  jitter=int(hashlib.sha256((domain+url+str(attempts)).encode()).hexdigest()[:4],16)%16
++  due=now+timedelta(seconds=60*2**(attempts-1)+jitter)
++  if failure.get('retry_after_at'):
++   try:due=max(due,at(failure['retry_after_at']))
++   except (ValueError,TypeError):state='terminal_review'
++  if state=='retry_deferred':next_at=due.isoformat()
++ # A late result cannot release an existing terminal/policy decision.
++ if old and old['state'] in ('policy_hold','terminal_review','retry_exhausted'):return
++ db.execute('INSERT INTO frontier_attempt_state VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(domain,url) DO UPDATE SET attempts=excluded.attempts,error_code=excluded.error_code,next_attempt_at=excluded.next_attempt_at,last_attempt_at=excluded.last_attempt_at,policy_scope=excluded.policy_scope,state=excluded.state',(domain,url,attempts,code,next_at,now.isoformat(),failure.get('policy_scope','url'),state))
++ db.execute('UPDATE frontier SET status=?,error=? WHERE domain=? AND url=?',(state,json.dumps(failure,sort_keys=True),domain,url))
++ if policy:
++  db.execute("UPDATE frontier SET status='policy_hold' WHERE domain=? AND status IN ('pending','retry_deferred')",(domain,))
++  db.execute("UPDATE jobs SET status='access_policy_hold' WHERE domain=?",(domain,))
++
++def apply_result(db,result,*,now=None):
++ domain=result['domain'];receipt=result.get('visit_id') or hashlib.sha256(json.dumps(result,sort_keys=True).encode()).hexdigest()
++ failures={row['url']:row for row in result.get('frontier_failures',[])}
++ for url,failure in failures.items():record_failure(db,domain,url,failure,receipt,now=now)
++ for url,state,error in result.get('frontier_updates',[]):
++  if url in failures:continue
++  prior=db.execute('SELECT * FROM frontier_attempt_state WHERE domain=? AND url=?',(domain,url)).fetchone()
++  if prior and prior['state'] in ('policy_hold','terminal_review','retry_exhausted'):
++   db.execute('UPDATE frontier SET status=? WHERE domain=? AND url=?',(prior['state'],domain,url));continue
++  if state=='observed' and prior:
++   db.execute("UPDATE frontier_attempt_state SET state='succeeded',next_attempt_at=NULL WHERE domain=? AND url=?",(domain,url))
++ # Replay must restore durable deferred state after legacy frontier update statements.
++ for row in db.execute("SELECT url,state FROM frontier_attempt_state WHERE domain=? AND state IN ('retry_deferred','retry_exhausted','terminal_review','policy_hold')",(domain,)).fetchall():
++  db.execute('UPDATE frontier SET status=? WHERE domain=? AND url=?',(row['state'],domain,row['url']))
++
++def job_state(db,domain):
++ current=db.execute('SELECT status FROM jobs WHERE domain=?',(domain,)).fetchone()
++ if current and ('hold' in current[0] or current[0] in ('domain_timeout_review','domain_worker_error_review')):return current[0]
++ states={r[0] for r in db.execute('SELECT status FROM frontier WHERE domain=?',(domain,))}
++ if 'policy_hold' in states:return 'access_policy_hold'
++ if 'pending' in states:return 'pending'
++ if 'retry_deferred' in states:return 'retry_deferred'
++ if states & {'terminal_review','retry_exhausted'}:return 'terminal_review'
++ return 'known_frontier_processed'
++
++def release_due(db,reviews=None,*,now=None):
++ now=now or utc();reviews=reviews or {}
++ with db:
++  for row in db.execute("SELECT s.* FROM frontier_attempt_state s JOIN frontier f ON f.domain=s.domain AND f.url=s.url JOIN jobs j ON j.domain=s.domain WHERE s.state='retry_deferred' AND f.status='retry_deferred' AND j.status IN ('pending','retry_deferred')").fetchall():
++   if reviews.get(row['domain'],{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:
++    db.execute("UPDATE jobs SET status='manual_identity_or_reuse_hold' WHERE domain=?",(row['domain'],));continue
++   if eligible_at(row,now):
++    db.execute("UPDATE frontier SET status='pending' WHERE domain=? AND url=?",(row['domain'],row['url']))
++    db.execute("UPDATE frontier_attempt_state SET state='retry_eligible' WHERE domain=? AND url=?",(row['domain'],row['url']))
++    db.execute("UPDATE jobs SET status='pending' WHERE domain=? AND status='retry_deferred'",(row['domain'],))
++
++
++def accept_visit(db,result):
++ payload=hashlib.sha256(json.dumps(result,sort_keys=True).encode()).hexdigest()
++ receipt=result.get('visit_id') or payload
++ prior=db.execute('SELECT payload_sha256 FROM frontier_visit_receipts WHERE id=?',(receipt,)).fetchone()
++ if prior:
++  if prior[0]!=payload:raise ValueError('visit receipt reused with changed result')
++  return False
++ db.execute('INSERT INTO frontier_visit_receipts VALUES(?,?)',(receipt,payload));return True
++
++
++def spool_result(folder,result):
++ from pathlib import Path
++ folder=Path(folder);folder.mkdir(parents=True,exist_ok=True)
++ key=hashlib.sha256(json.dumps(result,sort_keys=True).encode()).hexdigest()
++ target=folder/(key+'.json');temporary=target.with_suffix('.tmp')
++ temporary.write_text(json.dumps(result,sort_keys=True));temporary.replace(target)
++ return target
++
++
++def replay_spool(db,folder,persist):
++ from pathlib import Path
++ for path in sorted(Path(folder).glob('*.json')):
++  persist(db,json.loads(path.read_text()));path.unlink()
++
++
++def inherit_source_holds(db,source_path,holds):
++ import sqlite3
++ from pathlib import Path
++ source=sqlite3.connect(Path(source_path).resolve().as_uri()+'?mode=ro',uri=True)
++ try:
++  held=list(source.execute('SELECT domain FROM jobs WHERE status IN ('+','.join('?' for _ in holds)+')',sorted(holds)))
++ finally:source.close()
++ with db:db.executemany("UPDATE jobs SET status='upstream_review_hold' WHERE domain=? AND status IN ('pending','retry_deferred')",held)
+--- a/scripts/market_map/mobile_relationship_review.mjs
++++ b/scripts/market_map/mobile_relationship_review.mjs
+@@ -27,12 +27,14 @@
+     suppressed:!!(r.do_not_contact || r.cross_channel_suppressed_at || r.stage === 'dnc' || r.decision === 'opted_out')
+   })).filter(r => r.reasons.length);
+   const leads = sales.map(r => ({id:r.id, reasons:reasons(r.data || {})})).filter(r => r.reasons.length);
+-  const holds = ['category_message_approval_required', 'owner_send_hold', 'fresh_pre_release_history_check_required'];
++  const holds = [...(candidate.release_holds||[]),'category_message_approval_required', 'owner_send_hold', 'fresh_pre_release_history_check_required'];
++  const occurrenceEvidence=candidate.occurrence_evidence||candidate.evidence||candidate.matches;
++  if(!occurrenceEvidence.length||occurrenceEvidence.some(e=>!e.source_dom_locator||!(e.page_content_sha256||e.source_sha256)))holds.push('attribution_evidence_incomplete');
+   const fresh = value => { const age = now - new Date(value); return Number.isFinite(age) && age >= -60000 && age <= 86400000; };
+   if (!number || candidate.state !== 'source_identity_and_mobile_checks_passed_needs_crm_review' || !candidate.matches.length) holds.push('source_identity_review');
+   if (!fresh(candidate.carrier_checked_at) || !candidate.matches.every(m => fresh(m.captured_at))) holds.push('evidence_refresh_required');
+   if (firms.length || peers.length || leads.length) holds.push('existing_relationship_review');
+   if (peers.some(r => r.suppressed)) holds.push('possible_suppressed_relationship');
+   return {...candidate, crm_checked_at:now.toISOString(), contacts:peers, companies:firms, sales:leads,
+-    crm_match_found:!!(firms.length || peers.length || leads.length), release_holds:holds, send_ready:false, owner_send_hold:true};
++    crm_match_found:!!(firms.length || peers.length || leads.length), release_holds:[...new Set(holds)],occurrence_evidence:occurrenceEvidence,relationship_status:'candidate_only_not_verified', send_ready:false, owner_send_hold:true};
+ }
+--- a/scripts/market_map/mobile_review_inputs.mjs
++++ b/scripts/market_map/mobile_review_inputs.mjs
+@@ -19,7 +19,8 @@
+   inputs.set(row.phone,{phone:row.phone,organization:record.organization,carrier_checked_at:live.carrier_checked_at,
+    state:'source_identity_and_mobile_checks_passed_needs_crm_review',source_review_method:'reviewed_visible_contact_excerpt',reviewed_at:row.reviewed_at,
+    contact_kind:'business_route',person_name:null,owner_send_hold:true,send_ready:false,
+-   matches:evidence.map(e=>({source_record_id:record.source_record_id,organization:record.organization,street:record.address,locality:record.source_city_label||record.municipality,source_url:e.source_url,source_sha256:e.page_content_sha256,captured_at:e.captured_at}))});
++   occurrence_evidence:evidence,relationship_status:'candidate_only_not_verified',
++   matches:evidence.map(e=>({...e,source_record_id:record.source_record_id,organization:record.organization,street:record.address,locality:record.source_city_label||record.municipality,source_url:e.source_url,source_sha256:e.page_content_sha256,captured_at:e.captured_at}))});
+  }
+  return {inputs:[...inputs.values()],holds};
+ }
+--- a/scripts/market_map/phone_acquisition.py
++++ b/scripts/market_map/phone_acquisition.py
+@@ -1,5 +1,6 @@
+ """Resumable public phone collection; research evidence only, no calls or MAIN writes."""
+ from __future__ import annotations
++import uuid
+ import argparse
+ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+ import csv
+@@ -17,10 +18,12 @@
+ from .email_domain_process import collect_bounded
+ from .relationships import canonical_url
+ from .transport import Transport, SourceBlocked, BudgetExceeded
++from .fetch_outcomes import outcome
++from . import frontier_retry
+ from .verification_pilot import storage_guard, stamp, spreadsheet_cell
+ 
+ CONTACT = re.compile(r'contact|locations?|branches|about',re.I)
+-HOLDS = {'manual_identity_or_reuse_hold','relationship_quality_review_hold','relationship_utility_review_hold'}
++HOLDS = {'access_policy_hold','upstream_review_hold','manual_identity_or_reuse_hold','relationship_quality_review_hold','relationship_utility_review_hold'}
+ 
+ 
+ def connect(path):
+@@ -36,7 +39,7 @@
+       CREATE TABLE IF NOT EXISTS visits(id INTEGER PRIMARY KEY,domain TEXT,status TEXT,observed_at TEXT,payload TEXT);
+       CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,payload TEXT);
+       CREATE TABLE IF NOT EXISTS mined_artifacts(path TEXT,sha256 TEXT,observed_at TEXT,PRIMARY KEY(path,sha256));
+-    ''');return db
++    ''');frontier_retry.initialize(db);return db
+ 
+ 
+ def seed(db,source_queue):
+@@ -50,7 +53,7 @@
+             db.executemany('INSERT OR IGNORE INTO jobs(domain,url,priority,status) VALUES(?,?,?,?)',
+                 [(d,u,p,'upstream_review_hold' if state in HOLDS else 'pending') for d,u,p,state in rows])
+             db.executemany('INSERT OR IGNORE INTO frontier(domain,url,depth) VALUES(?,?,0)',[(d,u) for d,u,_,_ in rows])
+-            db.executemany("UPDATE jobs SET status='upstream_review_hold' WHERE domain=? AND status='pending'",[(d,) for d,_,_,state in rows if state in HOLDS])
++            db.executemany("UPDATE jobs SET status='upstream_review_hold' WHERE domain=? AND status IN ('pending','retry_deferred')",[(d,) for d,_,_,state in rows if state in HOLDS])
+         total+=len(rows)
+     source.close()
+     with db:db.execute('INSERT OR REPLACE INTO metadata VALUES(?,?)',('source_reference',json.dumps({'source_queue':str(Path(source_queue).resolve()),'association_table':'associations','relationship':'Join domain to original organisation associations; shared domains do not establish branch ownership','seeded_at':stamp(),'source_domains_seen':total})))
+@@ -63,17 +66,23 @@
+     hosts={job['domain'],'www.'+job['domain']}
+     result={'domain':job['domain'],'pages':[],'phones':[],'frontier_updates':[],'discovered':[],
+             'full_site_exhausted':False,'main_database_writes':0,'messages_sent':0,'phone_calls_made':0}
++    result['visit_id']=uuid.uuid4().hex
++    result['frontier_failures']=[]
+     visited=set()
+     for item in frontier:
+         if len(visited)>=page_limit:break
+         url=item['url'];depth=item['depth']
+         if url in visited:continue
+         visited.add(url)
++        result['active_url']=url
++        phase='fetch'
++        if checkpoint:checkpoint(result)
+         try:
+             response=client.fetch(url,allowed_hosts=hosts)
+             content_type=next((v for k,v in response.headers.items() if k.lower()=='content-type'),'')
+             if content_type and 'html' not in content_type.lower():
+                 result['frontier_updates'].append((url,'non_html_review',None));continue
++            phase='parse'
+             doc=html.fromstring(response.body,base_url=response.url)
+             facts={'url':response.url,'requested_url':url,'content_sha256':hashlib.sha256(response.body).hexdigest(),'observed_at':stamp(),
+                    'page_title':' '.join(' '.join(doc.xpath('//title/text() | //h1//text()')).split())[:500]}
+@@ -92,9 +101,11 @@
+                 if state=='pending' and target not in visited and len(frontier)<50:frontier.append({'url':target,'depth':depth+1})
+             result['frontier_updates'].append((url,'observed',None))
+         except (SourceBlocked,BudgetExceeded,ValueError,ParserError,HTTPException) as error:
+-            result['frontier_updates'].append((url,'access_or_budget_review',str(error)[:500]))
+-            if isinstance(error,BudgetExceeded):break
++            failure=outcome(error,url,phase=phase);result['frontier_failures'].append(failure)
++            result['frontier_updates'].append((url,'typed_failure',str(error)[:500]))
++            if isinstance(error,BudgetExceeded) or failure['code'] in frontier_retry.POLICY_CODES:break
+         finally:
++            result['active_url']=None
+             result['transport']=client.metrics()
+             if checkpoint:checkpoint(result)
+     result['transport']=client.metrics();return result
+@@ -119,6 +130,8 @@
+ def persist(db,result):
+     domain=result['domain']
+     with db:
++        db.execute('BEGIN IMMEDIATE')
++        if not frontier_retry.accept_visit(db,result):return frontier_retry.job_state(db,domain)
+         for url,depth,state in result.get('discovered',[]):
+             db.execute('INSERT OR IGNORE INTO frontier(domain,url,depth,status) VALUES(?,?,?,?)',(domain,url,depth,state))
+         for url,state,error in result.get('frontier_updates',[]):
+@@ -126,8 +139,9 @@
+         for page in result.get('pages',[]):
+             db.execute('INSERT OR REPLACE INTO page_evidence VALUES(?,?,?,?,?)',(domain,page['url'],page['content_sha256'],page['observed_at'],json.dumps(page)))
+         for record in result.get('phones',[]):save_phone(db,record,domain)
++        frontier_retry.apply_result(db,result)
+         remaining=db.execute("SELECT COUNT(*) FROM frontier WHERE domain=? AND status='pending'",(domain,)).fetchone()[0]
+-        state=result.get('job_status') or ('pending' if remaining else 'known_frontier_processed')
++        state=(result.get('job_status') if not result.get('frontier_failures') else None) or frontier_retry.job_state(db,domain)
+         db.execute('UPDATE jobs SET status=?,last_checked=? WHERE domain=?',(state,stamp(),domain))
+         db.execute('INSERT INTO visits(domain,status,observed_at,payload) VALUES(?,?,?,?)',(domain,state,stamp(),json.dumps(result)))
+     return state
+@@ -175,7 +189,7 @@
+             url=manifest['source_url'];domain=(urlsplit(url).hostname or '').removeprefix('www.')
+             if reviews.get(domain,{}).get('reuse_status') in {'hold_pending_permission','do_not_apply_to_candidate'}:continue
+             job=db.execute('SELECT status FROM jobs WHERE domain=?',(domain,)).fetchone()
+-            if job and job['status'] in {'upstream_review_hold','manual_identity_or_reuse_hold'}:continue
++            if job and job['status'] in {'access_policy_hold','upstream_review_hold','manual_identity_or_reuse_hold'}:continue
+             body=file.read_bytes();digest=hashlib.sha256(body).hexdigest()
+             if db.execute('SELECT 1 FROM mined_artifacts WHERE path=? AND sha256=?',(str(file),digest)).fetchone():continue
+             with db:
+@@ -196,6 +210,7 @@
+         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+         db=connect(output/'queue.sqlite')
+         try:
++            frontier_retry.replay_spool(db,output/'pending-visit-results',persist)
+             with db:db.execute("UPDATE jobs SET status='pending' WHERE status='running'")
+             while True:
+                 count=seed(db,source_queue)
+@@ -209,6 +224,9 @@
+                     while completed<max_domains or pending:
+                         storage_guard(output)
+                         busy=busy_domains(source_queue,graph_path)
++                        reviews=json.loads(Path(overlay_path).read_text()).get('reviews',{}) if overlay_path else {}
++                        frontier_retry.inherit_source_holds(db,source_queue,HOLDS)
++                        frontier_retry.release_due(db,reviews)
+                         rows=db.execute("SELECT * FROM jobs WHERE status='pending' ORDER BY attempts,priority DESC LIMIT 256").fetchall()
+                         for row in rows:
+                             if len(pending)>=workers or completed+len(pending)>=max_domains:break
+@@ -230,7 +248,8 @@
+                             domain=pending.pop(future)
+                             try:result=future.result()
+                             except Exception as error:result={'domain':domain,'job_status':'domain_worker_error_review','error':str(error),'transport':{'requests':None,'bytes_fetched':None}}
+-                            state=persist(db,result);completed+=1
++                            receipt=frontier_retry.spool_result(output/'pending-visit-results',result)
++                            state=persist(db,result);receipt.unlink();completed+=1
+                             report=summary(db);report['workers']=workers
+                             (output/'status.json').write_text(json.dumps(report,indent=2)+'\n')
+                             print(json.dumps({'stage':'phone_domain_visit','domain':domain,'status':state,'pages':len(result.get('pages',[])),'phone_observations':len(result.get('phones',[])),'visits_completed':completed}),flush=True)
+--- a/scripts/market_map/transport.py
++++ b/scripts/market_map/transport.py
+@@ -169,10 +169,12 @@
+                     if exc.code in (404, 410):
+                         return Response(b"", dict(exc.headers), url, exc.code)
+                     raise SourceBlocked("HTTP %s: %s" % (exc.code, url[:300]),code="http_temporary" if exc.code in (429,500,502,503,504) else "access_denied" if exc.code in (401,403) else "http_error",url=url,http_status=exc.code,retryable=exc.code in (429,500,502,503,504),retry_after_at=retry_at,policy_scope="host" if exc.code in (401,403) else "url") from exc
+-                except (urllib.error.URLError, TimeoutError, OSError, HTTPException) as exc:
++                except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                     if attempt >= self.retries:
+                         raise SourceBlocked("Network retrieval failed: " + str(exc),code="timeout" if isinstance(getattr(exc,"reason",exc),TimeoutError) else "network_failure",url=url,retryable=True) from exc
+                     time.sleep(2 ** attempt)
++                except HTTPException as exc:
++                    raise SourceBlocked("HTTP protocol retrieval failed: " + str(exc),code="network_failure",url=url,retryable=True) from exc
+             else:
+                 raise SourceBlocked("Retry limit exhausted")
+         raise SourceBlocked("Redirect limit exhausted")
+--- /dev/null
++++ b/tests/extraction/offline_node_guard.mjs
+@@ -0,0 +1,7 @@
++// Trusted pure fixture tests only; block Node network APIs, not an OS sandbox.
++import net from 'node:net';import tls from 'node:tls';import http from 'node:http';import https from 'node:https';import dgram from 'node:dgram';import dns from 'node:dns';import {syncBuiltinESMExports} from 'node:module';
++const blocked=()=>{throw new Error('offline test: network forbidden')};
++globalThis.fetch=blocked;net.connect=blocked;net.createConnection=blocked;net.Socket.prototype.connect=blocked;tls.connect=blocked;
++http.request=blocked;http.get=blocked;https.request=blocked;https.get=blocked;dgram.createSocket=blocked;
++for(const key of ['lookup','resolve','resolve4','resolve6','resolveMx','reverse']){dns[key]=blocked;if(dns.promises[key])dns.promises[key]=blocked;}
++syncBuiltinESMExports();
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -40,6 +40,8 @@
+ 
+ TESTS['PR-12'] = TESTS['PR-11'] + ['tests/market_map/test_transport.py','tests/market_map/test_transport_directory.py','tests/market_map/test_fetch_outcomes.py']
+ 
++TESTS['PR-13'] = TESTS['PR-12'] + ['tests/market_map/test_frontier_retry.py']
++
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/duplicate-person.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><div class="staff"><h2>Jane Smith</h2><p>Facilities Manager</p><a href="mailto:jane@business.test">jane@business.test</a></div><div class="staff"><h2>Jane Smith</h2><p>Facilities Manager</p><a href="mailto:jane@business.test">jane@business.test</a></div>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/exact.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><div class="staff"><h2>Jane Smith</h2><p>Facilities Manager</p><a href="mailto:jane@business.test">jane@business.test</a></div>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/legacy-text.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><div class="staff"><h2>Jane Smith</h2><p>Facilities Manager</p><a href="mailto:jane@business.test">jane@business.test</a></div>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/manifest.json
+@@ -0,0 +1,112 @@
++[
++  {
++    "id": "exact",
++    "file": "exact.html",
++    "sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
++    "named": [
++      {
++        "to": "jane@business.test",
++        "recipient_name": "Jane Smith",
++        "recipient_role": "Facilities Manager"
++      }
++    ],
++    "expected_supported": true,
++    "use_capture": true,
++    "approval": "synthetic_authorized_by_implementation_request"
++  },
++  {
++    "id": "swapped",
++    "file": "swapped.html",
++    "sha256": "20a898d9c1c2e858ec1fec14127e9a00c61620db484c3a2e42a2ad583c9900bb",
++    "named": [
++      {
++        "to": "jane@business.test",
++        "recipient_name": "Jane Smith",
++        "recipient_role": "Facilities Manager"
++      }
++    ],
++    "expected_supported": false,
++    "use_capture": true,
++    "approval": "synthetic_authorized_by_implementation_request"
++  },
++  {
++    "id": "duplicate-person",
++    "file": "duplicate-person.html",
++    "sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
++    "named": [
++      {
++        "to": "jane@business.test",
++        "recipient_name": "Jane Smith",
++        "recipient_role": "Facilities Manager"
++      }
++    ],
++    "expected_supported": false,
++    "use_capture": true,
++    "approval": "synthetic_authorized_by_implementation_request"
++  },
++  {
++    "id": "shared-inbox",
++    "file": "shared-inbox.html",
++    "sha256": "dea59145de167b22b3de6671d0fa0219c3c96d97f917e37606cb6123c6c21a2d",
++    "named": [
++      {
++        "to": "info@business.test",
++        "recipient_name": "Jane Smith",
++        "recipient_role": "Facilities Manager"
++      }
++    ],
++    "expected_supported": false,
++    "use_capture": true,
++    "approval": "synthetic_authorized_by_implementation_request"
++  },
++  {
++    "id": "legacy-text",
++    "file": "legacy-text.html",
++    "sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
++    "named": [
++      {
++        "to": "jane@business.test",
++        "recipient_name": "Jane Smith",
++        "recipient_role": "Facilities Manager"
++      }
++    ],
++    "expected_supported": false,
++    "use_capture": false,
++    "approval": "synthetic_authorized_by_implementation_request"
++  },
++  {
++    "id": "structured",
++    "file": "structured.html",
++    "sha256": "368b0ad6fe737f615235a6dc9f9fb2783ba26d9e76c872b07f1d5f54ebea60bb",
++    "named": [
++      {
++        "to": "jane@business.test",
++        "recipient_name": "Jane Smith",
++        "recipient_role": "Facilities Manager"
++      }
++    ],
++    "expected_supported": true,
++    "use_capture": true,
++    "approval": "synthetic_authorized_by_implementation_request"
++  },
++  {
++    "id": "multiple-named",
++    "file": "multiple-named.html",
++    "sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
++    "named": [
++      {
++        "to": "jane@business.test",
++        "recipient_name": "Jane Smith",
++        "recipient_role": "Facilities Manager"
++      },
++      {
++        "to": "jane@business.test",
++        "recipient_name": "Bob Jones",
++        "recipient_role": "Sales Manager"
++      }
++    ],
++    "expected_supported": false,
++    "use_capture": true,
++    "approval": "synthetic_authorized_by_implementation_request"
++  }
++]
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/multiple-named.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><div class="staff"><h2>Jane Smith</h2><p>Facilities Manager</p><a href="mailto:jane@business.test">jane@business.test</a></div><div class="staff"><h2>Bob Jones</h2><p>Sales Manager</p><a href="mailto:jane@business.test">jane@business.test</a></div>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/shared-inbox.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><div class="staff"><h2>Jane Smith</h2><p>Facilities Manager</p><a href="mailto:info@business.test">info@business.test</a></div>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/structured.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@type": "Person", "name": "Jane Smith", "jobTitle": "Facilities Manager", "email": "jane@business.test"}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche4_fixtures/swapped.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><div class="staff"><h2>Jane Smith</h2><p>Sales Manager</p><a href="mailto:jane@business.test">jane@business.test</a></div><div class="staff"><h2>Bob Jones</h2><p>Facilities Manager</p><a href="mailto:bob@business.test">bob@business.test</a></div>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche4_replay.py
+@@ -0,0 +1,45 @@
++"""Offline route-attribution comparison using identical hash-checked synthetic pages."""
++import argparse,hashlib,inspect,json,sys,tempfile
++from pathlib import Path
++ROOT=Path(__file__).resolve().parents[2]
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--implementation-root',default=str(ROOT));p.add_argument('--output',required=True);a=p.parse_args()
++ implementation=Path(a.implementation_root).resolve();output=Path(a.output).resolve()
++ if output.exists() or not output.is_relative_to(Path(tempfile.gettempdir()).resolve()):p.error('new system temporary output directory required')
++ sys.path[:0]=[str(implementation),str(implementation/'scripts/discovery_v2')]
++ from scripts.market_map.offline_guard import OfflineGuard
++ guard=OfflineGuard(output);guard.install();output.mkdir()
++ from contacts import extract
++ from scripts.market_map.extraction_benchmark import counts
++ from lxml import html
++ base=ROOT/'tests/extraction/tranche4_fixtures';manifest=json.loads((base/'manifest.json').read_text());results=[];actual=set();expected=set()
++ for row in manifest:
++  body=(base/row['file']).read_bytes()
++  if hashlib.sha256(body).hexdigest()!=row['sha256']:raise ValueError('capture hash mismatch')
++  url='https://business.test/team';email=row['named'][0]['to']
++  # Legacy flattened payload is identical for both implementations, including explicit script values.
++  text='Office Windsor '+' '.join(html.fromstring(body).itertext())
++  review={'id':row['id'],'name':'Office','city':'Windsor','pages':[{'url':url,'text':text,'emails':[email]}]}
++  kwargs={'evidence':{url:{'body':body,'sha256':row['sha256']}} if row['use_capture'] else None} if 'evidence' in inspect.signature(extract).parameters else {}
++  routes,holds=extract([review],row['named'],**kwargs)
++  supported=any(r['role_supported'] for r in routes)
++  if supported:actual.add(row['id'])
++  if row['expected_supported']:expected.add(row['id'])
++  results.append({'id':row['id'],'capture_sha256':row['sha256'],'expected_supported':row['expected_supported'],'actual_supported':supported,'routes':routes,'holds':holds})
++ from scripts.market_map.cloud.regional_email_inventory import inventory,pilot_candidates
++ from scripts.market_map.email_extraction import extract_published_emails
++ regional=[];corpus=ROOT/'tests/extraction/tranche3_fixtures'
++ captures={r['id']:r for r in json.loads((corpus/'manifest.json').read_text())['pages']}
++ for case in ['reference','shared-reference','repeated-context','person-employer']:
++  capture=captures[case];body=(corpus/capture['file']).read_bytes()
++  if hashlib.sha256(body).hexdigest()!=capture['sha256']:raise ValueError('regional capture hash mismatch')
++  records=[{'source_record_id':'local-office','organization':'Office','municipality':'Windsor'}]
++  rows=inventory([{'records':records,'pages':[{'url':capture['url'],'emails':extract_published_emails(body,capture['url'])}]}])
++  regional.append({'id':case,'capture_sha256':capture['sha256'],'rows':rows,'pilot_candidates':[r['email'] for r in pilot_candidates(rows)]})
++ result={'regional':regional,'scope':'synthetic scoped named-route support; not verified employment','metrics':counts(actual,expected),'results':results,
++         'errors':[r for r in results if r['expected_supported']!=r['actual_supported']],
++         'implementation_sha256':{str(f.relative_to(implementation)):hashlib.sha256(f.read_bytes()).hexdigest() for f in [implementation/'scripts/discovery_v2/contacts.py',implementation/'scripts/market_map/contact_context.py']}}
++ (output/'run.json').write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n')
++ if guard.violations:raise RuntimeError(guard.violations)
++ print(json.dumps(result['metrics']))
++if __name__=='__main__':main()
+--- a/tests/market_map/mobile_relationship_review.test.mjs
++++ b/tests/market_map/mobile_relationship_review.test.mjs
+@@ -8,3 +8,8 @@
+ test('company domain links other channel contacts without merging them',()=>{const r=reviewMobile(candidate,[{id:'person',partner_company_id:'firm'}],[{id:'firm',website:'https://www.fixture.test'}],[],now);assert.deepEqual(r.contacts[0].reasons,['linked_company']);assert.equal(r.person_name,undefined);});
+ test('sales account holds and stale evidence survive',()=>{const r=reviewMobile({...candidate,carrier_checked_at:'2026-11-01'},[],[],[{id:'lead',data:{company:'Fixture Business'}}],now);assert.equal(r.sales.length,1);assert.ok(r.release_holds.includes('evidence_refresh_required'));});
+ test('empty fields do not match unrelated accounts',()=>{const r=reviewMobile(candidate,[{id:'empty'}],[{id:'empty'}],[{id:'empty',data:{}}],now);assert.equal(r.crm_match_found,false);});
++test('phone occurrence context and existing holds survive review',()=>{
++ const evidence={source_dom_locator:'/html/body/p',page_content_sha256:'hash',context:'Office phone',phone:'+15195550123'};
++ const row=reviewMobile({phone:'+15195550123',matches:[],occurrence_evidence:[evidence],release_holds:['prior_manual_hold']},[],[],[]);
++ assert.deepEqual(row.occurrence_evidence,[evidence]);assert.ok(row.release_holds.includes('prior_manual_hold'));assert.equal(row.relationship_status,'candidate_only_not_verified');assert.equal(row.send_ready,false);
++});
+--- a/tests/market_map/test_email_acquisition.py
++++ b/tests/market_map/test_email_acquisition.py
+@@ -30,7 +30,8 @@
+         client.fetch.side_effect = [InvalidURL('URL contains a space'), Response(b'<p>info@business.test</p>', {'Content-Type':'text/html'}, 'https://business.test/contact')]
+         client.metrics.return_value = {'requests':2,'bytes_fetched':30}
+         result = collect_domain({'domain':'business.test'}, [{'url':'https://business.test/ /about','depth':0},{'url':'https://business.test/contact','depth':0}], ['Business'])
+-        self.assertEqual(result['frontier_updates'][0][1], 'access_or_budget_review')
++        self.assertEqual(result['frontier_updates'][0][1], 'typed_failure')
++        self.assertEqual(result['frontier_failures'][0]['code'], 'unknown_review')
+         self.assertEqual(result['frontier_updates'][1][1], 'observed')
+         self.assertEqual(result['emails'][0]['email'], 'info@business.test')
+ 
+--- a/tests/market_map/test_fetch_outcomes.py
++++ b/tests/market_map/test_fetch_outcomes.py
+@@ -29,3 +29,9 @@
+   with patch('socket.getaddrinfo',return_value=PUBLIC),patch.object(t.opener,'open',side_effect=TimeoutError()):
+    with self.assertRaises(SourceBlocked) as caught:t.fetch('https://business.test',robots=False)
+   self.assertEqual(caught.exception.code,'timeout');self.assertTrue(caught.exception.retryable)
++ def test_protocol_failure_does_not_add_in_call_retries(self):
++  from http.client import BadStatusLine
++  t=Transport(retries=2,min_interval=0,allowed_hosts={'business.test'})
++  with patch('socket.getaddrinfo',return_value=PUBLIC),patch.object(t.opener,'open',side_effect=BadStatusLine('bad')) as op,patch('time.sleep') as sleep:
++   with self.assertRaises(SourceBlocked) as caught:t.fetch('https://business.test',robots=False)
++   self.assertEqual(caught.exception.code,'network_failure');self.assertEqual(op.call_count,1);sleep.assert_not_called()
+--- /dev/null
++++ b/tests/market_map/test_frontier_retry.py
+@@ -0,0 +1,124 @@
++import json,sqlite3,tempfile,unittest
++from datetime import datetime,timezone,timedelta
++from pathlib import Path
++from unittest.mock import patch
++from scripts.market_map import frontier_retry as retry
++from scripts.market_map import email_acquisition,phone_acquisition,contact_enrichment
++from scripts.market_map.transport import SourceBlocked,Response
++
++class RetryTests(unittest.TestCase):
++ def setUp(self):
++  self.db=sqlite3.connect(':memory:');self.db.row_factory=sqlite3.Row
++  self.db.executescript("CREATE TABLE jobs(domain TEXT PRIMARY KEY,status TEXT);CREATE TABLE frontier(domain TEXT,url TEXT,status TEXT,error TEXT);INSERT INTO jobs VALUES('a.test','pending');INSERT INTO frontier VALUES('a.test','https://a.test','pending',NULL);")
++  retry.initialize(self.db);self.now=datetime(2026,1,1,tzinfo=timezone.utc)
++ def tearDown(self):self.db.close()
++ def failure(self,code='http_temporary',**kw):return {'code':code,'retryable':True,'url':'https://a.test','policy_scope':'url',**kw}
++ def record(self,receipt='a',**kw):
++  with self.db:
++   retry.record_failure(self.db,'a.test','https://a.test',self.failure(**kw),receipt,now=self.now)
++   self.db.execute('UPDATE jobs SET status=?',(retry.job_state(self.db,'a.test'),))
++ def test_later_retry_after_restart_and_attempt_limit(self):
++  self.record(retry_after_at='2026-01-02T00:00:00+00:00')
++  retry.release_due(self.db,now=self.now+timedelta(hours=1));self.assertEqual(self.db.execute('SELECT status FROM frontier').fetchone()[0],'retry_deferred')
++  retry.release_due(self.db,now=self.now+timedelta(days=1));self.assertEqual(self.db.execute('SELECT status FROM frontier').fetchone()[0],'pending')
++  self.record('b');self.record('c');self.assertEqual(self.db.execute('SELECT state,attempts FROM frontier_attempt_state').fetchone()[:],('retry_exhausted',3))
++ def test_duplicate_ack_and_new_manual_hold(self):
++  self.record();self.record();self.assertEqual(self.db.execute('SELECT attempts FROM frontier_attempt_state').fetchone()[0],1)
++  retry.release_due(self.db,{'a.test':{'reuse_status':'hold_pending_permission'}},now=self.now+timedelta(days=2))
++  self.assertEqual(self.db.execute('SELECT status FROM jobs').fetchone()[0],'manual_identity_or_reuse_hold')
++ def test_policy_and_oversize_never_release(self):
++  self.record(code='robots_denied',retryable=False)
++  retry.release_due(self.db,now=self.now+timedelta(days=365));self.assertEqual(self.db.execute('SELECT status FROM jobs').fetchone()[0],'access_policy_hold')
++ def test_all_queue_failure_success_replay_preserves_observation_and_no_early_fetch(self):
++  for module in [email_acquisition,phone_acquisition,contact_enrichment]:
++   with self.subTest(module=module.__name__),tempfile.TemporaryDirectory() as temp,patch.object(module,'storage_guard'):
++    db=module.connect(Path(temp)/'queue.sqlite')
++    with db:
++     db.execute("INSERT INTO jobs(domain,url,status) VALUES('a.test','https://a.test','pending')" if module!=email_acquisition else "INSERT INTO jobs(domain,url,priority,status) VALUES('a.test','https://a.test','x','pending')")
++     db.execute("INSERT INTO frontier(domain,url,depth) VALUES('a.test','https://a.test',0)")
++    failure={'domain':'a.test','visit_id':'first','discovered':[],'pages':[],'emails':[],'frontier_updates':[('https://a.test','typed_failure','busy')],'frontier_failures':[self.failure(retry_after_at='2099-01-01T00:00:00+00:00')]}
++    persist=module.persist_visit if module==email_acquisition else module.persist
++    persist(db,failure);persist(db,failure)
++    retry.release_due(db,now=self.now);self.assertEqual(db.execute('SELECT status FROM jobs').fetchone()[0],'retry_deferred')
++    retry.release_due(db,now=datetime(2100,1,1,tzinfo=timezone.utc))
++    success={**failure,'visit_id':'second','frontier_updates':[('https://a.test','observed',None)],'frontier_failures':[]}
++    persist(db,success);persist(db,success);persist(db,failure)
++    self.assertEqual(db.execute('SELECT status FROM frontier').fetchone()[0],'observed');self.assertEqual(db.execute('SELECT count(*) FROM frontier_visit_receipts').fetchone()[0],2)
++    db.close()
++ def test_collectors_classify_parse_separately_and_stop_on_policy(self):
++  for module in [email_acquisition,phone_acquisition,contact_enrichment]:
++   with patch.object(module,'Transport') as factory:
++    client=factory.return_value;client.metrics.return_value={};client.fetch.side_effect=SourceBlocked('denied',code='robots_denied',retryable=False)
++    args=({'domain':'a.test'},[{'url':'https://a.test','depth':0},{'url':'https://a.test/other','depth':0}])
++    result=module.collect_domain(*args,*([[]] if module==email_acquisition else []))
++    self.assertEqual(client.fetch.call_count,1);self.assertEqual(result['frontier_failures'][0]['code'],'robots_denied')
++ def test_budget_deferral_oversize_parse_and_spool_crash(self):
++  with self.db:
++   retry.record_failure(self.db,'a.test','https://a.test',self.failure(code='budget_deferred'),'budget',now=self.now)
++  self.assertEqual(self.db.execute('SELECT state FROM frontier_attempt_state').fetchone()[0],'retry_deferred')
++  with self.db:retry.record_failure(self.db,'a.test','https://a.test',self.failure(code='response_too_large',retryable=False),'oversize',now=self.now)
++  self.assertEqual(self.db.execute('SELECT state FROM frontier_attempt_state').fetchone()[0],'terminal_review')
++  with tempfile.TemporaryDirectory() as temp:
++   payload={'domain':'a.test','visit_id':'receipt'};file=retry.spool_result(temp,payload)
++   with self.assertRaises(RuntimeError):retry.replay_spool(self.db,temp,lambda *args:(_ for _ in ()).throw(RuntimeError('locked')))
++   self.assertTrue(file.exists())
++   seen=[];retry.replay_spool(self.db,temp,lambda db,result:seen.append(result));self.assertEqual(seen,[payload]);self.assertFalse(file.exists())
++ def test_parse_failure_does_not_schedule_network_retry(self):
++  with patch.object(email_acquisition,'Transport') as factory:
++   client=factory.return_value;client.metrics.return_value={};client.fetch.return_value=Response(b'',{},'https://a.test')
++   result=email_acquisition.collect_domain({'domain':'a.test'},[{'url':'https://a.test','depth':0}],[])
++   self.assertEqual(result['frontier_failures'][0]['code'],'parse_error');self.assertFalse(result['frontier_failures'][0]['retryable'])
++ def test_actual_mocked_503_then_success_persists_one_capture(self):
++  with tempfile.TemporaryDirectory() as temp,patch.object(email_acquisition,'storage_guard'),patch.object(email_acquisition,'Transport') as factory:
++   client=factory.return_value;client.metrics.return_value={'requests':1,'bytes_fetched':0}
++   db=email_acquisition.connect(Path(temp)/'queue.sqlite')
++   with db:
++    db.execute("INSERT INTO jobs(domain,url,priority) VALUES('a.test','https://a.test','x')")
++    db.execute("INSERT INTO frontier(domain,url,depth) VALUES('a.test','https://a.test',0)")
++   client.fetch.side_effect=SourceBlocked('HTTP 503',code='http_temporary',retryable=True,http_status=503)
++   first=email_acquisition.collect_domain({'domain':'a.test'},[{'url':'https://a.test','depth':0}],[])
++   email_acquisition.persist_visit(db,first)
++   retry.release_due(db,now=self.now);self.assertEqual(db.execute("SELECT count(*) FROM frontier WHERE status='pending'").fetchone()[0],0)
++   db.close();db=email_acquisition.connect(Path(temp)/'queue.sqlite')
++   retry.release_due(db,now=datetime(2100,1,1,tzinfo=timezone.utc))
++   client.fetch.side_effect=None;client.fetch.return_value=Response(b'<p>desk@business.test</p>',{},'https://a.test')
++   second=email_acquisition.collect_domain({'domain':'a.test'},[dict(r) for r in db.execute("SELECT url,depth FROM frontier WHERE status='pending'")],[])
++   email_acquisition.persist_visit(db,second);email_acquisition.persist_visit(db,second)
++   self.assertEqual(client.fetch.call_count,2);self.assertEqual(db.execute('SELECT count(*) FROM email_evidence').fetchone()[0],1)
++   self.assertEqual(db.execute('SELECT count(*) FROM captures').fetchone()[0],1);db.close()
++ def test_worker_deadline_retains_checkpoint_and_marks_active_url_only(self):
++  from scripts.market_map.email_domain_process import collect_bounded
++  class Process:
++   def __init__(self,**kw):self.args=kw['args'];self.alive=True;self.exitcode=None
++   def start(self):Path(self.args[0]).write_text(json.dumps({'domain':'a.test','visit_id':'worker','active_url':'https://a.test/slow','pages':[{'url':'https://a.test/done'}],'frontier_updates':[('https://a.test/done','observed',None)]}))
++   def join(self,*args):pass
++   def is_alive(self):return self.alive
++   def terminate(self):self.alive=False;self.exitcode=-15
++   def close(self):pass
++  with patch('scripts.market_map.email_domain_process.multiprocessing.get_context') as context:
++   context.return_value.Process.side_effect=Process
++   result=collect_bounded({'domain':'a.test'},[],[],deadline_seconds=1)
++  self.assertEqual(result['pages'],[{'url':'https://a.test/done'}]);self.assertEqual(result['frontier_failures'][0]['url'],'https://a.test/slow');self.assertTrue(result['frontier_failures'][0]['retryable'])
++ def test_upstream_policy_hold_is_rechecked_before_retry_release(self):
++  self.record()
++  with tempfile.TemporaryDirectory() as temp:
++   path=Path(temp)/'source.sqlite';source=sqlite3.connect(path);source.execute('CREATE TABLE jobs(domain TEXT,status TEXT)');source.execute("INSERT INTO jobs VALUES('a.test','access_policy_hold')");source.commit();source.close()
++   retry.inherit_source_holds(self.db,path,phone_acquisition.HOLDS)
++   retry.release_due(self.db,now=datetime(2100,1,1,tzinfo=timezone.utc))
++   self.assertEqual(self.db.execute('SELECT status FROM jobs').fetchone()[0],'upstream_review_hold')
++ def test_policy_held_queue_cannot_mine_saved_browser_as_alternative(self):
++  for module in [phone_acquisition,contact_enrichment]:
++   with self.subTest(module=module.__name__),tempfile.TemporaryDirectory() as temp,patch.object(module,'storage_guard'):
++    root=Path(temp);folder=root/'saved/pages/a';folder.mkdir(parents=True)
++    (folder/'browser-capture-manifest.json').write_text(json.dumps({'source_url':'https://a.test','status':'captured_pending_relationship_review'}))
++    (folder/'rendered-dom.html').write_text('<p>Phone: (519) 555-0123</p>')
++    db=module.connect(root/'queue.sqlite')
++    with db:db.execute("INSERT INTO jobs(domain,url,status) VALUES('a.test','https://a.test','access_policy_hold')")
++    self.assertEqual(module.mine_browser(db,root/'saved',{}),0);db.close()
++ def test_unknown_email_worker_failure_is_review_only(self):
++  with tempfile.TemporaryDirectory() as temp,patch.object(email_acquisition,'storage_guard'),patch.object(email_acquisition,'collect_domain',side_effect=RuntimeError('unexpected')):
++   path=Path(temp)/'queue.sqlite';db=email_acquisition.connect(path)
++   with db:email_acquisition.add_seed(db,'one','Office','https://a.test')
++   db.close()
++   result=email_acquisition.run_workers(path,max_domains=1,workers=1,isolate_domains=False)
++   self.assertEqual(result['job_status_counts'],{'domain_worker_error_review':1})

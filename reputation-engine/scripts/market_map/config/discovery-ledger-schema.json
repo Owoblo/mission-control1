@@ -1,0 +1,212 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SSM raw-source discovery operation ledger v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "operation_id",
+    "checked_at",
+    "operational_area",
+    "configured_labels",
+    "source_family",
+    "status",
+    "query_or_entry_url",
+    "evidence_urls",
+    "market_completeness_verified"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "operation_id": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "operational_area": {
+      "enum": [
+        "windsor",
+        "chatham-kent",
+        "sarnia",
+        "london",
+        "woodstock",
+        "WKG",
+        "ottawa",
+        "toronto",
+        "provincewide"
+      ]
+    },
+    "configured_labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_family": {
+      "enum": [
+        "municipal_directory",
+        "economic_development",
+        "employment_survey",
+        "open_data_locations",
+        "chamber",
+        "bia",
+        "industrial_directory",
+        "manufacturers_association",
+        "landlord_portfolio",
+        "shopping_centre_tenants",
+        "contractor_projects",
+        "franchise_locator",
+        "league_roster",
+        "provincial_association",
+        "institutional_directory",
+        "procurement_awards",
+        "commercial_zoning_parcels",
+        "business_licences",
+        "industrial_park_roster",
+        "school_board_portfolio",
+        "corporate_branch_locator",
+        "installer_renovator_directory",
+        "appliance_dealer_directory",
+        "news_projects"
+      ]
+    },
+    "industry_families": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "enum": [
+        "unsearched",
+        "search_attempted_no_candidate",
+        "source_identified",
+        "source_reviewed",
+        "acquired_complete",
+        "acquired_partial",
+        "blocked",
+        "unavailable",
+        "permission_required",
+        "covered_by_existing_source"
+      ]
+    },
+    "query_or_entry_url": {
+      "type": "string"
+    },
+    "evidence_urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "publisher": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rights_status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rights_evidence_urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "record_unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "publisher_scope": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scope_basis": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reported_row_count": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "count_definition": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "acquired_raw_rows": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "unique_source_ids": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "source_inventory_exhausted": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "source_publication_or_reference_period": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artifact_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "block_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "next_action": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "market_completeness_verified": {
+      "const": false
+    }
+  },
+  "additionalProperties": true,
+  "$comment": "One JSONL row per actual operation/candidate. Planned/unsearched entries are never executed searches. Reused publisher data can cover multiple configured labels only with explicit scope evidence; do not sum reused counts as new businesses. Source inventory exhaustion never establishes a complete city/category market."
+}

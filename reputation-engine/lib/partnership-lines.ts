@@ -210,6 +210,9 @@ const OTTAWA_CITIES = [
   'manotick',
   'rockland',
   'carp',
+  'arnprior',
+  'carleton place',
+  'russell',
 ]
 
 export const PARTNERSHIP_LINES: PartnershipLine[] = [

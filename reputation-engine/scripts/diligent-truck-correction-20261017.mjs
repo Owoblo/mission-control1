@@ -1,0 +1,13 @@
+import './gta-email-recovery-runtime.mjs';
+import {db} from './reply-runtime-20261015.mjs';
+import fs from 'node:fs/promises';
+const id='772266aa-1c5b-4171-8b39-a68e7ce5f3be';
+const [before]=await db('subcontractors',{id:'eq.'+id});
+if(before?.phone!=='+16476166601')throw Error('Contact mismatch');
+const marker='Owner correction 2026-10-17: Diligent Movers owns 26 ft and 20 ft trucks. John corrected the call transcription “46” to “26”.';
+const notes=before.notes?.includes(marker)?before.notes:(before.notes||'')+'\n\n'+marker;
+await db('subcontractors',{id:'eq.'+id},'PATCH',{truck_access:'owns',truck_sizes:['26 ft','20 ft'],notes,availability_notes:'Recruiting candidate; owns 26 ft and 20 ft trucks (John confirmed October 17). Availability, crew size, insurance and rates remain unverified. Not eligible for job dispatch.',updated_at:new Date().toISOString()});
+const [after]=await db('subcontractors',{id:'eq.'+id});
+if(after.truck_access!=='owns'||JSON.stringify(after.truck_sizes)!==JSON.stringify(['26 ft','20 ft']))throw Error('Verification failed');
+await fs.writeFile('artifacts/call-investigation-20261017/truck-correction.json',JSON.stringify({at:new Date().toISOString(),before,after,source:'John explicit correction in conversation'},null,2));
+console.log(JSON.stringify({company:after.company_name,truck_access:after.truck_access,truck_sizes:after.truck_sizes}));

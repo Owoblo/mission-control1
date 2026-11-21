@@ -480,16 +480,29 @@ async function isSalesLeadArchived(leadId: string) {
 
 async function selectProjectedLeadRows<T>(select: string): Promise<T[]> {
   const { url, headers } = requireSupabase()
+  // Sorting the JSONB projection in Postgres can time out on the full lead
+  // table. Preserve newest-first results by sorting the fetched rows instead.
   const response = await fetchSupabaseWithRetry(
-    `${url}/rest/v1/crm_leads?select=${encodeURIComponent(select)}&deleted=eq.false&order=updated_at.desc`,
+    `${url}/rest/v1/crm_leads?select=${encodeURIComponent(`${select},updated_at`)}&deleted=eq.false`,
     { headers, cache: 'no-store' }
   )
 
   if (!response.ok) {
-    throw new Error('Failed to read projected crm_leads rows')
+    const error = await response.json().catch(() => null) as { code?: unknown } | null
+    // Keep the database code without copying potentially sensitive row details.
+    const code = typeof error?.code === 'string' && /^[A-Z0-9_]{1,32}$/.test(error.code)
+      ? ` (${error.code})`
+      : ''
+    throw new Error(`Failed to read projected crm_leads rows: Supabase ${response.status}${code}`)
   }
 
-  return (await response.json()) as T[]
+  const rows = await response.json() as Array<T & { updated_at?: string | null }>
+  rows.sort((a, b) => {
+    if (a.updated_at == null) return b.updated_at == null ? 0 : -1
+    if (b.updated_at == null) return 1
+    return Date.parse(b.updated_at) - Date.parse(a.updated_at)
+  })
+  return rows.map(({ updated_at: _updatedAt, ...row }) => row as T)
 }
 
 async function selectAll<T>(table: TableName): Promise<T[]> {

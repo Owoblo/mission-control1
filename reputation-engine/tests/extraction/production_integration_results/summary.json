@@ -1,0 +1,15 @@
+{
+  "tests_passed": 400,
+  "test_seconds": 6.64,
+  "guard_violations": 0,
+  "process_status": "pass",
+  "baseline_source_files": 233,
+  "baseline_changed_during_test": [],
+  "candidate_source_files": 367,
+  "entrypoint_preserved": true,
+  "production_changed": false,
+  "deployable": false,
+  "release": "NO_GO",
+  "frozen_prediction_changes": 0,
+  "extended_prediction_changes": 0
+}

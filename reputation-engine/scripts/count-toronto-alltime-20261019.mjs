@@ -1,0 +1,21 @@
+import fs from 'node:fs/promises';import {db} from './reply-runtime-20261015.mjs';
+const dir='artifacts/toronto-alltime-20261019';await fs.mkdir(dir,{recursive:true});const sender='+14374650584';
+async function all(t,q){const rows=[];for(let offset=0;;offset+=1000){const p=await db(t,{...q,limit:'1000',offset:String(offset)});rows.push(...p);if(p.length<1000)return rows;}}
+const results=await Promise.allSettled([
+ all('market_touches',{channel:'eq.sms',direction:'eq.outbound','metadata->>from':'eq.'+sender,select:'id,contact_id,created_at,notes,metadata',order:'created_at.asc,id.asc'}),
+ all('market_touches',{direction:'eq.inbound',select:'id,contact_id,channel,created_at,notes,metadata',order:'created_at.asc,id.asc'}),
+ all('crm_sms_provider_events',{'payload->from->>phone_number':'eq.'+sender,'payload->>direction':'eq.outbound',event_type:'eq.message.finalized',select:'event_id,provider_message_id,status,occurred_at',order:'occurred_at.asc,event_id.asc'}),
+ all('sequence_jobs',{'sms_payload->>from':'eq.'+sender,select:'id,contact_id,status,provider_sid,sms_payload,scheduled_at',order:'id.asc'})
+]);for(const r of results)if(r.status==='rejected')throw r.reason;const[touches,inbound,events,jobs]=results.map(r=>r.value);
+const sid=m=>String(m?.twilioSid||m?.messageSid||m?.provider_message_id||'').replace(/^telnyx:/,'');
+const sent=new Map(),excluded=[];
+for(const t of touches){const id=sid(t.metadata);if(!id){excluded.push({id:t.id,reason:'no provider receipt'});continue;}sent.set(id,{...t,phone:t.metadata?.to});}
+for(const j of jobs){if(j.provider_sid){const id=j.provider_sid.replace(/^telnyx:/,'');if(!sent.has(id))sent.set(id,{contact_id:j.contact_id,phone:j.sms_payload?.to,created_at:j.scheduled_at,job_only:true});}}
+const final=new Map(events.map(e=>[e.provider_message_id,e]));const statuses={};for(const[id]of sent){const status=final.get(id)?.status||'no_final_receipt';statuses[status]=(statuses[status]||0)+1;}
+const phones=new Set([...sent.values()].map(t=>String(t.phone||'').replace(/\D/g,'').slice(-10)).filter(Boolean));const cids=new Set([...sent.values()].map(t=>t.contact_id));
+const replies=[],seen=new Set(),excludedReplies=[];
+for(const t of inbound){if(t.channel!=='sms'||(!cids.has(t.contact_id)&&t.metadata?.to!==sender))continue;const n=t.notes||'';if(/^(?:Provider event|Call recorded|Partnership call)|out of office|automatic reply|automated reply|auto.reply/i.test(n)){excludedReplies.push(t.id);continue;}const id=sid(t.metadata)||t.id;if(seen.has(id))continue;seen.add(id);replies.push(t);}
+const responsePhones=new Set(replies.map(t=>String(t.metadata?.from||[...sent.values()].find(o=>o.contact_id===t.contact_id)?.phone||t.contact_id).replace(/^\+1/,'').replace(/[^a-zA-Z0-9]/g,'')));
+const introJobs=jobs.filter(j=>j.provider_sid&&/intro/i.test(j.sms_payload?.campaign_key||''));const introIds=new Set(introJobs.map(j=>j.provider_sid.replace(/^telnyx:/,'')));
+const summary={as_of:new Date().toISOString(),scope:'All stored Toronto/GTA partnership SMS/MMS sent through +14374650584, including Hamilton and surrounding campaign areas. Includes introductions, replies and follow-ups; excludes email and other regional senders.',sent_provider_accepted:sent.size,unique_phone_recipients:phones.size,delivery_statuses:statuses,response_messages:replies.length,unique_responding_phone_or_contact:responsePhones.size,unique_responding_contact_records:new Set(replies.map(t=>t.contact_id)).size,reply_rate_pct:Math.round(responsePhones.size/phones.size*1000)/10,first_send:[...sent.values()].map(t=>t.created_at).sort()[0],identified_intro_campaign_sends:introIds.size,identified_intro_delivered:[...introIds].filter(id=>final.get(id)?.status==='delivered').length,excluded_outbound_without_receipt:excluded.length,excluded_auto_reply:excludedReplies.length,job_only_receipts:[...sent.values()].filter(t=>t.job_only).length,response_note:'Includes positive replies, questions, acknowledgements, reactions, declines and opt-outs; not a positive-interest count. Provider final receipts determine delivery.'};
+await fs.writeFile(dir+'/data.json',JSON.stringify({touches,inbound,events,jobs,excluded,excludedReplies}));await fs.writeFile(dir+'/summary.json',JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));

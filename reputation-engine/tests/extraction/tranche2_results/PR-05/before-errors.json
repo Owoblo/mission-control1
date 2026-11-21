@@ -1,0 +1,178 @@
+[
+  {
+    "actual": {
+      "extracted": [
+        "lise@fictional.test"
+      ],
+      "normalized": null
+    },
+    "basis": "observed",
+    "case": "élise@fictional.test",
+    "category": "Normalization error",
+    "evidence": "Controlled input and literal expected contract differ from replay output; no acquisition cause inferred",
+    "expected": {
+      "extracted": [],
+      "normalized": null
+    },
+    "hypotheses": [],
+    "source_record": {
+      "contract_actual": {
+        "extracted": [
+          "lise@fictional.test"
+        ],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "lise@fictional.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "élise@fictional.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": null,
+      "raw": "élise@fictional.test"
+    }
+  },
+  {
+    "actual": {
+      "extracted": [
+        "lise@fictional.test"
+      ],
+      "normalized": null
+    },
+    "basis": "observed",
+    "case": "élise@fictional.test",
+    "category": "Normalization error",
+    "evidence": "Controlled input and literal expected contract differ from replay output; no acquisition cause inferred",
+    "expected": {
+      "extracted": [],
+      "normalized": null
+    },
+    "hypotheses": [],
+    "source_record": {
+      "contract_actual": {
+        "extracted": [
+          "lise@fictional.test"
+        ],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "lise@fictional.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "20c22694a55db7b09056210df465b9f9d8fd036fb9e1400a2bb06c973de0abc5",
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "élise@fictional.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": null,
+      "raw": "élise@fictional.test"
+    }
+  },
+  {
+    "actual": {
+      "extracted": [
+        "a@foo.-bar.test"
+      ],
+      "normalized": "a@foo.-bar.test"
+    },
+    "basis": "observed",
+    "case": "a@foo.-bar.test",
+    "category": "Normalization error",
+    "evidence": "Controlled input and literal expected contract differ from replay output; no acquisition cause inferred",
+    "expected": {
+      "extracted": [],
+      "normalized": null
+    },
+    "hypotheses": [],
+    "source_record": {
+      "contract_actual": {
+        "extracted": [
+          "a@foo.-bar.test"
+        ],
+        "normalized": "a@foo.-bar.test"
+      },
+      "contract_expected": {
+        "extracted": [],
+        "normalized": null
+      },
+      "extracted": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "email": "a@foo.-bar.test",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/2",
+          "mailbox_status": "not_checked",
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "f261881a44157465e6b1555ae5c86cf5ea859873f2009520e5670790988813d9",
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "a@foo.-bar.test",
+          "source_url": "https://fictional.test/"
+        }
+      ],
+      "normalized": "a@foo.-bar.test",
+      "raw": "a@foo.-bar.test"
+    }
+  },
+  {
+    "actual": {
+      "extracted": [],
+      "normalized": null
+    },
+    "basis": "observed",
+    "case": "Sales+Tag@BÜCHER.test",
+    "category": "Normalization error",
+    "evidence": "Controlled input and literal expected contract differ from replay output; no acquisition cause inferred",
+    "expected": {
+      "extracted": [
+        "Sales+Tag@xn--bcher-kva.test"
+      ],
+      "normalized": "Sales+Tag@xn--bcher-kva.test"
+    },
+    "hypotheses": [],
+    "source_record": {
+      "contract_actual": {
+        "extracted": [],
+        "normalized": null
+      },
+      "contract_expected": {
+        "extracted": [
+          "Sales+Tag@xn--bcher-kva.test"
+        ],
+        "normalized": "Sales+Tag@xn--bcher-kva.test"
+      },
+      "extracted": [],
+      "normalized": null,
+      "raw": "Sales+Tag@BÜCHER.test"
+    }
+  }
+]

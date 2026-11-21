@@ -1,0 +1,23 @@
+import {reserveAction} from '../lib/partnership-core/reserve.mjs';
+// Exact owner-authorized responses to the two reviewed campaign messages.
+import fs from 'node:fs/promises';import {createHash} from 'node:crypto';import {SESv2Client,SendEmailCommand} from '@aws-sdk/client-sesv2';
+const dir='partnership-system/markets/ca/on/windsor-essex/runs/2026-09-15/send-release';const mails=JSON.parse(await fs.readFile(`${dir}/inbound-mailbox-review.json`)).messages;
+async function db(t,q={},method='GET',body){const r=await fetch(`${process.env.SUPABASE_URL}/rest/v1/${t}?${new URLSearchParams(q)}`,{method,headers:{apikey:process.env.SUPABASE_KEY,Authorization:'Bearer '+process.env.SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=representation'},body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(t+' '+r.status);return r.status===204?[]:r.json()}
+const client=new SESv2Client({region:'us-east-2',maxAttempts:1});const actions=[];
+for(const m of mails){const verification=m.fromAddress==='info@innomationtech.com';if(!verification&&m.fromAddress!=='purchasing@citywindsor.ca')continue;
+ const [c]=await db('market_contacts',{email:'eq.'+m.fromAddress,select:'id,partner_company_id,do_not_contact,email_status,email_unsubscribed_at,cross_channel_suppressed_at',order:'created_at.desc',limit:1});if(!c||c.do_not_contact||c.email_unsubscribed_at||c.cross_channel_suppressed_at||['bounced','complained','unsubscribed'].includes(c.email_status))throw Error('Reply contact held');
+ const h=createHash('sha256').update('windsor-inbound-action:'+m.messageId).digest('hex');const id=`${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;
+ if((await db('market_touches',{id:'eq.'+id,select:'id'})).length){console.log('Existing reply reservation '+m.fromAddress);continue;}
+ const subject=verification?m.subject:'RE: Moving support for your team';
+ const body=verification?'Confirming that John at Saturn Star Movers intentionally sent the moving-services introduction for Leslie’s review. Thank you.\n\nJohn Owolabi\nSaturn Star Movers\nbusiness@starmovers.ca | (226) 773-2993':'Hello,\n\nThank you for pointing me toward Facilities. I’ll follow up with that department about the appropriate process. I appreciate your help.\n\nJohn Owolabi\nSaturn Star Movers\nbusiness@starmovers.ca | (226) 773-2993';
+ const parent=m.header?.headerContent?.match(/^Message-I[Dd]:\s*(<[^>\r\n]+>)/mi)?.[1];if(!parent)throw Error('Missing thread header');
+ await reserveAction({url:process.env.SUPABASE_URL,headers:{apikey:process.env.SUPABASE_KEY,Authorization:'Bearer '+process.env.SUPABASE_KEY},contactId:c.id,channel:'email',kind:'reply',key:'inbound-reply:'+id,content:body,sender:'john@saturnstarmovers.ca'});
+ const metadata={source:'owner_authorized_reply_action',zoho_message_id:m.messageId,from:'john@saturnstarmovers.ca',to:m.fromAddress,subject,in_reply_to:parent,delivery_state:'reserved',action:verification?'sender_verification_confirmation':'routing_acknowledgment'};
+ await db('market_touches',{},'POST',{id,contact_id:c.id,channel:'email',direction:'outbound',notes:`Subject: ${subject}\n\n${body}`,created_by:'John — authorized inbound handling',metadata});
+ const r=await client.send(new SendEmailCommand({FromEmailAddress:'John | Saturn Star Movers <john@saturnstarmovers.ca>',ReplyToAddresses:['business@starmovers.ca'],Destination:{ToAddresses:[m.fromAddress]},ConfigurationSetName:process.env.AWS_SES_CONFIGURATION_SET,EmailTags:[{Name:'contact_id',Value:c.id},{Name:'campaign',Value:'windsor-reply-handling'}],Content:{Simple:{Subject:{Data:subject,Charset:'UTF-8'},Headers:[{Name:'In-Reply-To',Value:parent},{Name:'References',Value:parent}],Body:{Text:{Data:body,Charset:'UTF-8'}}}}}));
+ if(!r.MessageId)throw Error('Ambiguous reply response');const receipt={id,to:m.fromAddress,contact_id:c.id,messageId:r.MessageId,at:new Date().toISOString(),action:metadata.action};await fs.appendFile(`${dir}/inbound-action-receipts.jsonl`,JSON.stringify(receipt)+'\n');
+ await db('market_touches',{id:'eq.'+id},'PATCH',{metadata:{...metadata,delivery_state:'accepted',provider:'ses',provider_message_id:r.MessageId},next_step:verification?'Await Leslie review; verification is not a human reply.':'Find current City Facilities contact and use Purchasing routing context.'});
+ // Do not advance email_last_sent_at past the original inbound until mailbox sync imports it.
+ await db('market_contacts',{id:'eq.'+c.id},'PATCH',{sequence_paused:true,sequence_paused_reason:verification?'verification_awaiting_manual_review':'facilities_handoff_in_progress'});actions.push(receipt);
+}
+console.log(JSON.stringify(actions,null,2));

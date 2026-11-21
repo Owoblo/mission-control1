@@ -1,0 +1,4 @@
+import fs from 'node:fs/promises';
+const sql=await fs.readFile('supabase/migrations/20260916000300_reviewed_partnership_handoffs.sql','utf8');const tests=await fs.readFile('tests/partnership-core/reviewed-handoffs.sql','utf8');const oldtests=await fs.readFile('tests/partnership-core/database-policy.sql','utf8');
+async function run(query){const r=await fetch('https://api.supabase.com/v1/projects/idbyrtwdeeruiutoukct/database/query',{method:'POST',headers:{Authorization:'Bearer '+process.env.SUPABASE_ACCESS_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({query})});if(!r.ok)throw Error('Migration '+r.status+' '+await r.text());return r.json();}
+await run('begin;'+sql+tests+oldtests+'rollback;');console.log('Handoff and existing policy regressions passed');await run('begin;'+sql+'commit;');console.log('Reviewed handoff migration installed');

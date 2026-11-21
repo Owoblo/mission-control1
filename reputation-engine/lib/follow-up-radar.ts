@@ -1,4 +1,5 @@
 import type { CRMLead } from './types'
+import { getSalesWorkQueue } from './sales-work-queue'
 
 export const FOLLOW_UP_REASONS = {
   needs_review: 'Needs conversation review',
@@ -60,28 +61,56 @@ export function closeFollowUpOnRecordedLoss(previous: RadarLead, next: RadarLead
 export function radarState(lead: RadarLead, now = new Date()) {
   const p = lead.followUpPlan
   const today = torontoDay(now)
-  const lastCall = (lead.callLogs || []).map(c => c.date || '').sort().at(-1)
-  const lastActivity = [lead.lastInboundAt, lastCall].filter(Boolean).sort().at(-1) || ''
-  const inboundCalls = (lead.callLogs || []).filter(c => c.direction === 'inbound' && c.callOutcome === 'completed' && !c.isVoicemail).map(c => c.date || '')
-  const lastInbound = [lead.lastInboundAt, ...inboundCalls].filter(Boolean).sort().at(-1) || ''
+  const calls = lead.callLogs || []
+  const connectedCalls = calls.filter(c => c.direction && !c.isVoicemail && c.audioConnected !== false
+    && ['completed', 'answered'].includes(c.callOutcome || ''))
+  const lastInbound = latestActivity([lead.lastInboundAt, ...connectedCalls.filter(c => c.direction === 'inbound').map(c => c.date)])
+  const lastCustomerRequest = latestActivity([lead.lastInboundAt, lead.lastMissedCallAt,
+    ...calls.filter(c => c.direction === 'inbound' && (c.isVoicemail || ['missed', 'no_answer'].includes(c.callOutcome || ''))).map(c => c.date)])
+  const lastHumanContact = latestActivity([lead.lastHumanOutboundAt, ...connectedCalls.map(c => c.date)])
+  const lastRepAttempt = latestActivity([lastHumanContact,
+    ...calls.filter(c => c.direction === 'outbound' && ['no_answer', 'busy', 'voicemail'].includes(c.callOutcome || '')).map(c => c.date)])
+  const lastActivity = latestActivity([lastInbound, lastCustomerRequest, lastRepAttempt, ...calls.map(c => c.date)])
   const newActivity = !!p && Date.parse(p.reason === 'closed' ? lastInbound : lastActivity) > Date.parse(p.reviewedAt)
   const confirmedClosed = ['booked', 'completed', 'customer_success'].includes(lead.stage)
   const newCustomerContactAfterLoss = lead.stage === 'lost' && !!lead.lostAt && Date.parse(lastInbound) > Date.parse(lead.lostAt)
   const lossSupersedesPlan = !!p && lead.stage === 'lost' && !!lead.lostAt && Date.parse(lead.lostAt) > Date.parse(p.reviewedAt)
   const visible = !lead.mergedIntoLeadId && (lossSupersedesPlan ? newCustomerContactAfterLoss : p ? p.reason !== 'closed' || newActivity : !confirmedClosed && (lead.stage !== 'lost' || newCustomerContactAfterLoss))
   const reviewOn = p?.reviewOn || today
+  const needsReconciliation = lead.stage === 'lost' || confirmedClosed || !!lead.followUpIdentityReview
+  const unansweredRequest = !!lastCustomerRequest
+    && Date.parse(lastCustomerRequest) > Date.parse(lastRepAttempt || '1970-01-01')
+    && Date.parse(lastCustomerRequest) > Date.parse(p?.reviewedAt || '1970-01-01')
+  const fresh = Boolean(visible && !needsReconciliation && p?.reason !== 'closed'
+    && getSalesWorkQueue(lead) === 'sales' && lead.leadKind !== 'partner_opportunity'
+    && (unansweredRequest || (lead.stage === 'new' && !p && !lastRepAttempt)))
+  const attendedSinceReview = Boolean(p && lastHumanContact
+    && Date.parse(lastHumanContact) > Date.parse(p.reviewedAt)
+    && torontoDay(new Date(lastHumanContact)) >= reviewOn
+    && (!lastCustomerRequest || Date.parse(lastHumanContact) >= Date.parse(lastCustomerRequest)))
+  const updatePlan = Boolean(p && p.reason !== 'closed' && p.policy !== 'scheduled'
+    && !needsReconciliation && reviewOn <= today && attendedSinceReview)
+  const overdue = Boolean(p && p.reason !== 'closed' && !needsReconciliation && reviewOn < today && !updatePlan)
   const flags: string[] = []
   if (!p) flags.push('Needs category and next action')
   if (!p?.ownerName && !lead.assignedRepName) flags.push('Needs owner')
-  if (newActivity) flags.push('New activity — review context')
-  if (p && p.reason !== 'closed' && reviewOn < today) flags.push('Overdue review')
+  if (fresh) flags.push(unansweredRequest ? 'New customer activity' : 'Awaiting first contact')
+  else if (newActivity && !updatePlan) flags.push('New activity — review context')
+  if (overdue && !fresh) flags.push('Overdue review')
+  if (updatePlan) flags.push('Customer attended to — update next action')
   if (p && lead.stage === 'lost' && p.reason !== 'closed') flags.push('Stage conflicts with follow-up plan')
   if (p && confirmedClosed && p.reason !== 'closed') flags.push('Booked or completed — reconcile the old follow-up plan')
   if (lead.followUpIdentityReview) flags.push('Hidden by normal lead list — verify linked records and lifecycle before contact')
   const waiting = lead.stage === 'lost' || lossSupersedesPlan || !!lead.followUpIdentityReview || confirmedClosed || p?.policy === 'customer_led' || p?.policy === 'internal_only'
   return { visible: Boolean(visible), reason: p?.reason || 'needs_review' as FollowUpReason,
-    ownerName: p?.ownerName || lead.assignedRepName || 'Unassigned', reviewOn, lastActivity,
+    ownerName: p?.ownerName || lead.assignedRepName || 'Unassigned', reviewOn, lastActivity, fresh, overdue,
+    priorityAt: fresh ? (unansweredRequest ? lastCustomerRequest : lead.createdAt) : lastActivity || p?.reviewedAt || lead.createdAt,
     due: Boolean(visible && (newActivity || reviewOn <= today)), flags,
-    contactAllowed: Boolean(p && !waiting && p.reason !== 'closed' && p.reason !== 'needs_review' && reviewOn <= today && !newActivity),
-    instruction: !p || newActivity ? 'Review latest conversation before contacting.' : waiting ? 'Internal review only. Respect customer timing.' : p.nextAction }
+    contactAllowed: Boolean(p && !waiting && p.reason !== 'closed' && p.reason !== 'needs_review' && reviewOn <= today && !newActivity && !updatePlan),
+    instruction: updatePlan ? 'Review the latest contact and record the next step.' : !p || newActivity ? 'Review latest conversation before contacting.' : waiting ? 'Internal review only. Respect customer timing.' : p.nextAction }
+}
+
+function latestActivity(values: Array<string | undefined>) {
+  return values.reduce<string>((latest, value) =>
+    value && Date.parse(value) > Date.parse(latest || '1970-01-01') ? value : latest, '')
 }

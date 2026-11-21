@@ -1,0 +1,13 @@
+// Read-only mailbox review; no marking read, sends or CRM changes.
+import fs from 'node:fs/promises';
+const auth=await fetch(process.env.ZOHO_PARTNERSHIP_ACCOUNTS_URL+'/oauth/v2/token',{method:'POST',body:new URLSearchParams({grant_type:'refresh_token',client_id:process.env.ZOHO_PARTNERSHIP_CLIENT_ID,client_secret:process.env.ZOHO_PARTNERSHIP_CLIENT_SECRET,refresh_token:process.env.ZOHO_PARTNERSHIP_REFRESH_TOKEN})});const token=await auth.json();if(!token.access_token)throw Error('Mailbox auth failed');
+const base=process.env.ZOHO_PARTNERSHIP_MAIL_URL+'/api/accounts/'+process.env.ZOHO_PARTNERSHIP_ACCOUNT_ID;
+async function get(path){const r=await fetch(base+path,{headers:{Authorization:'Zoho-oauthtoken '+token.access_token},signal:AbortSignal.timeout(30000)});const d=await r.json();if(!r.ok||d.status?.code!==200)throw Error('Mailbox read failed '+r.status);return d.data;}
+const receiptRoot='partnership-system/markets/ca/on/windsor-essex/runs/2026-09-15/send-release';
+const known=new Set();for(const file of ['published-send-receipts.jsonl','personalized-send-receipts.jsonl'])for(const line of (await fs.readFile(receiptRoot+'/'+file,'utf8')).trim().split('\n').filter(Boolean))known.add(JSON.parse(line).to.toLowerCase());
+const rows=[];let covered=false;const cutoff=Date.parse('2026-09-15T19:15:00Z');
+for(let start=1;start<=4000;start+=200){const page=await get(`/messages/view?start=${start}&limit=200&includeto=true`);rows.push(...page);if(page.length<200||page.every(m=>Number(m.receivedTime||0)<cutoff)){covered=true;break;}}
+if(!covered)throw Error('Mailbox review cap reached; coverage incomplete');
+const out=[];const seen=new Set();
+for(const m of rows){if(seen.has(m.messageId))continue;seen.add(m.messageId);if(Number(m.receivedTime||0)<cutoff||/@starmovers\.ca/i.test(m.fromAddress||''))continue;if(!known.has((m.fromAddress||'').toLowerCase())&&!/moving|verif|vendor|supplier|furniture/i.test(m.subject||''))continue;const c=await get(`/folders/${m.folderId}/messages/${m.messageId}/content`);const raw=String(c.content||'');const text=raw.replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();const header=await get(`/folders/${m.folderId}/messages/${m.messageId}/header`);out.push({...m,html:raw,body:text,header});}
+await fs.writeFile('partnership-system/markets/ca/on/windsor-essex/runs/2026-09-15/send-release/inbound-mailbox-review.json',JSON.stringify({at:new Date().toISOString(),messages:out},null,2));console.log(JSON.stringify(out.map(m=>({id:m.messageId,folder:m.folderId,from:m.fromAddress,to:m.toAddress,subject:m.subject,body:m.body})),null,2));

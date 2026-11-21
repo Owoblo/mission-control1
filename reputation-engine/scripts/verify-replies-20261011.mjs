@@ -1,0 +1,6 @@
+import {fs,db} from './gta-email-recovery-runtime.mjs';
+const dir='artifacts/partnership-replies-20261011';const results=JSON.parse(fs.readFileSync(dir+'/send-results.json'));const checks=[];
+for(const r of results.filter(r=>r.state==='accepted')){const sid=r.result.sid;const rows=await db('market_touches',{contact_id:'eq.'+r.plan.id,direction:'eq.outbound',order:'created_at.desc',limit:'10'});const logged=rows.filter(t=>t.metadata?.twilioSid===sid);const events=await db('crm_sms_provider_events',{provider_message_id:'eq.'+sid.replace('telnyx:',''),select:'status,occurred_at',order:'occurred_at.desc',limit:'10'});checks.push({name:r.name,sid,crmReceiptCount:logged.length,events});}
+const fresh=await db('market_touches',{direction:'eq.inbound',created_at:'gt.2026-10-11T21:35:13Z',order:'created_at.asc',limit:'100',select:'id,contact_id,notes,created_at'});
+const lead=await db('crm_leads',{id:'eq.lead_alexei_ownmove_20261011',select:'id,data'});
+const report={at:new Date().toISOString(),checks,fresh,alexei:lead.map(r=>({id:r.id,role:r.data.primaryContactRole,kind:r.data.leadKind,email:r.data.email,assigned:r.data.assignedRepName,relationship:r.data.relationshipContactId,moveDate:r.data.moveDate}))};fs.writeFileSync(dir+'/verification.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

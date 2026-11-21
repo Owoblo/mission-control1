@@ -1,0 +1,35 @@
+PR-04 exit=0
+patching file 'scripts/discovery_v2/engine.py'
+patching file 'scripts/discovery_v2/import_overture.py'
+patching file 'scripts/discovery_v2/migrate_identity.py'
+patching file 'scripts/discovery_v2/worker.py'
+patching file 'tests/discovery_v2/test_engine.py'
+patching file 'tests/discovery_v2/test_identity_migration.py'
+patching file 'tests/discovery_v2/test_source_identity.py'
+patching file 'tests/extraction/run_offline.py'
+patching file 'tests/extraction/test_tranche2_replay.py'
+patching file 'tests/extraction/tranche2_replay.py'
+
+PR-03 exit=0
+patching file 'scripts/market_map/adapters.py'
+patching file 'scripts/market_map/migrations/008_phone_channel_details.sql'
+patching file 'scripts/market_map/offline_guard.py'
+patching file 'scripts/market_map/reporting.py'
+patching file 'scripts/market_map/store.py'
+patching file 'scripts/market_map/verification_pilot.py'
+patching file 'tests/extraction/run_offline.py'
+patching file 'tests/extraction/test_offline_guard.py'
+patching file 'tests/extraction/tranche2_replay.py'
+patching file 'tests/market_map/test_phone_ingestion.py'
+patching file 'tests/market_map/test_verification_pilot.py'
+
+PR-05 exit=0
+patching file 'scripts/market_map/contact_normalization.py'
+patching file 'scripts/market_map/email_extraction.py'
+patching file 'scripts/market_map/extraction_benchmark.py'
+patching file 'tests/extraction/run_offline.py'
+patching file 'tests/extraction/test_benchmark.py'
+patching file 'tests/extraction/test_email_normalization.py'
+patching file 'tests/market_map/test_email_extraction.py'
+
+All changed paths restored to pre-tranche bytes in temporary copy.

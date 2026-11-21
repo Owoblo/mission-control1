@@ -1,0 +1,9 @@
+[Unit]
+Description=Continue bounded research after each completed run
+[Timer]
+OnBootSec=90s
+OnUnitInactiveSec=5min
+Persistent=true
+Unit=saturn-building-research.service
+[Install]
+WantedBy=timers.target

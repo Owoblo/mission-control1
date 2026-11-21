@@ -1,5 +1,6 @@
 import { SESv2Client, GetEmailIdentityCommand, GetConfigurationSetEventDestinationsCommand } from '@aws-sdk/client-sesv2'
 import dns from 'node:dns/promises'
+process.loadEnvFile('.env.ses.local')
 
 const domain = process.argv[2] || process.env.AWS_SES_OUTREACH_DOMAIN || 'saturnstarmovers.ca'
 const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-2'

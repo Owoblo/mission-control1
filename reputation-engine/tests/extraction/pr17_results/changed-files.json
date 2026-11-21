@@ -1,0 +1,47 @@
+[
+  {
+    "path": "scripts/market_map/release_corpus.py",
+    "status": "new",
+    "sha256": "b5a78f3eb5f86a43b0e43eda8e2fd3b02e5837c80de1bd76403d97f61060aa3e"
+  },
+  {
+    "path": "scripts/market_map/release_evaluation.py",
+    "status": "new",
+    "sha256": "1cb3a1c95ff418472b36b0767b64354d8787e4f054f302e989a41910ced08853"
+  },
+  {
+    "path": "scripts/market_map/release_replay.py",
+    "status": "new",
+    "sha256": "718faf4d29f041080595957cdfee67c8f60f8f17ca4aac850bb17b5e4d6dcd9b"
+  },
+  {
+    "path": "tests/extraction/test_release_gates.py",
+    "status": "new",
+    "sha256": "2bfe1a6dab4c55439c46321937e132541bd64e4939fa2d7ed9acbcf8cfd41bf3"
+  },
+  {
+    "path": "tests/extraction/test_release_operations.py",
+    "status": "new",
+    "sha256": "a86b4977d16a0174510120df41139f409e76a147647f12e528727b200c2a1bff"
+  },
+  {
+    "path": "tests/extraction/run_process_evaluation.py",
+    "status": "new",
+    "sha256": "fdc48cacf77265a2a742f5dfe10f8e6eaab43ec05a9ebd0e4f01f44deaa12212"
+  },
+  {
+    "path": "tests/extraction/pr17_measure.py",
+    "status": "new",
+    "sha256": "90a2b37a03d18e840e48b5d0f4a8b2f403d8e3e81a62fd3739f3659c7df1be55"
+  },
+  {
+    "path": "tests/extraction/RELEASE_CORPUS.md",
+    "status": "new",
+    "sha256": "71b3b1951b4e10f19d3a635d0d33d9a3e3844c3ebc9cbbbd4e8dee93d92ddc7c"
+  },
+  {
+    "path": "tests/extraction/run_offline.py",
+    "status": "modified",
+    "sha256": "7b061a3b287dff6c573e9037e985be5b4b994d55df757054e217f09c98435eb8"
+  }
+]

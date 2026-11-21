@@ -1,0 +1,184 @@
+[
+  {
+    "id": "two-people",
+    "component": "context",
+    "before": {
+      "department_contacts": [],
+      "organisation_assertions": [],
+      "people": [
+        {
+          "authority_scope": "not_established",
+          "email_association_status": "same_unambiguous_public_card_not_verified",
+          "emails": [
+            "jane@fictional.test"
+          ],
+          "employer_identity_status": "not_verified",
+          "employment_relationship_status": "not_established",
+          "excerpt": "Jane SmithFacilities ManagerEmail",
+          "extraction_method": "visible_role_card",
+          "name": "Jane Smith",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "published_employer": null,
+          "purchasing_authority_verified": false,
+          "review_status": "source_published_candidate_requires_review",
+          "role_function": "facilities",
+          "role_title": "Facilities Manager",
+          "source_listing_context": null,
+          "source_listing_kind": "public_role_listing",
+          "source_url": "https://two-people.test/contact",
+          "ssm_route_hypothesis": {
+            "role_function": "facilities",
+            "status": "service_fit_hypothesis_only"
+          },
+          "unassigned_published_emails": []
+        },
+        {
+          "authority_scope": "not_established",
+          "email_association_status": "same_unambiguous_public_card_not_verified",
+          "emails": [
+            "john@fictional.test"
+          ],
+          "employer_identity_status": "not_verified",
+          "employment_relationship_status": "not_established",
+          "excerpt": "John JonesOffice ManagerEmail",
+          "extraction_method": "visible_role_card",
+          "name": "John Jones",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "published_employer": null,
+          "purchasing_authority_verified": false,
+          "review_status": "source_published_candidate_requires_review",
+          "role_function": "office_admin",
+          "role_title": "Office Manager",
+          "source_listing_context": null,
+          "source_listing_kind": "public_role_listing",
+          "source_url": "https://two-people.test/contact",
+          "ssm_route_hypothesis": {
+            "role_function": "office_admin",
+            "status": "service_fit_hypothesis_only"
+          },
+          "unassigned_published_emails": []
+        }
+      ],
+      "relevant_links": []
+    },
+    "after": {
+      "department_contacts": [],
+      "organisation_assertions": [],
+      "people": [
+        {
+          "authority_scope": "not_established",
+          "email_association_status": "same_unambiguous_public_card_not_verified",
+          "email_occurrences": [
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "source_dom_locator": "/html/div/div[1]",
+                "status": "unresolved"
+              },
+              "email": "jane@fictional.test",
+              "extraction_method": "mailto_recipient",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": null,
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "7c7dbd6e33676f9eaef009dae152d9cd69559c21c9f4c9464247e78bf755e17d",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+              "raw_value": "jane@fictional.test",
+              "role_hint": "unspecified_published_inbox",
+              "short_supporting_context": "Jane Smith Facilities Manager Email",
+              "source_dom_locator": "/html/div/div[1]/a",
+              "source_url": "https://two-people.test/contact",
+              "text_position": {
+                "attribute": "href",
+                "recipient_index": 0
+              },
+              "visibility_basis": "visible_dom"
+            }
+          ],
+          "emails": [
+            "jane@fictional.test"
+          ],
+          "employer_identity_status": "not_verified",
+          "employment_relationship_status": "not_established",
+          "excerpt": "Jane SmithFacilities ManagerEmail",
+          "extraction_method": "visible_role_card",
+          "name": "Jane Smith",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "published_employer": null,
+          "purchasing_authority_verified": false,
+          "review_status": "source_published_candidate_requires_review",
+          "role_function": "facilities",
+          "role_title": "Facilities Manager",
+          "source_dom_locator": "/html/div/div[1]",
+          "source_listing_context": null,
+          "source_listing_kind": "public_role_listing",
+          "source_url": "https://two-people.test/contact",
+          "ssm_route_hypothesis": {
+            "role_function": "facilities",
+            "status": "service_fit_hypothesis_only"
+          },
+          "unassigned_published_emails": []
+        },
+        {
+          "authority_scope": "not_established",
+          "email_association_status": "same_unambiguous_public_card_not_verified",
+          "email_occurrences": [
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "source_dom_locator": "/html/div/div[2]",
+                "status": "unresolved"
+              },
+              "email": "john@fictional.test",
+              "extraction_method": "mailto_recipient",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": null,
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "1023a6e41928d797dec020df6266962920e68de1e73aca04e72827fd78e01f24",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+              "raw_value": "john@fictional.test",
+              "role_hint": "unspecified_published_inbox",
+              "short_supporting_context": "John Jones Office Manager Email",
+              "source_dom_locator": "/html/div/div[2]/a",
+              "source_url": "https://two-people.test/contact",
+              "text_position": {
+                "attribute": "href",
+                "recipient_index": 0
+              },
+              "visibility_basis": "visible_dom"
+            }
+          ],
+          "emails": [
+            "john@fictional.test"
+          ],
+          "employer_identity_status": "not_verified",
+          "employment_relationship_status": "not_established",
+          "excerpt": "John JonesOffice ManagerEmail",
+          "extraction_method": "visible_role_card",
+          "name": "John Jones",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "published_employer": null,
+          "purchasing_authority_verified": false,
+          "review_status": "source_published_candidate_requires_review",
+          "role_function": "office_admin",
+          "role_title": "Office Manager",
+          "source_dom_locator": "/html/div/div[2]",
+          "source_listing_context": null,
+          "source_listing_kind": "public_role_listing",
+          "source_url": "https://two-people.test/contact",
+          "ssm_route_hypothesis": {
+            "role_function": "office_admin",
+            "status": "service_fit_hypothesis_only"
+          },
+          "unassigned_published_emails": []
+        }
+      ],
+      "relevant_links": []
+    }
+  }
+]

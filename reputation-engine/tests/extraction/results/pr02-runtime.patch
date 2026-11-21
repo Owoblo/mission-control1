@@ -1,0 +1,49 @@
+--- a/scripts/market_map/phone_extraction.py
++++ b/scripts/market_map/phone_extraction.py
+@@ -2,11 +2,10 @@
+ import hashlib
+ import json
+ import re
+-from urllib.parse import unquote
+ from lxml import html
++from .contact_normalization import EXT, PHONE_NORMALIZATION_VERSION, parse_phone_candidate
+ 
+-VERSION = 'ssm-published-phone-extraction/1'
+-EXT = re.compile(r'(?:;ext=|\bext(?:ension)?\.?\s*[:=]?\s*|\bx\s*|#\s*)(\d{1,10})\s*$',re.I)
++VERSION = 'ssm-published-phone-extraction/2'
+ NANP = re.compile(r'(?<![\w\d])(?:\+?1[ .-]?)?(?:\([2-9]\d{2}\)[ .-]*|[2-9]\d{2}[ .-]+)[2-9]\d{2}[ .-]\d{4}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?(?!\d)',re.I)
+ LABELLED = re.compile(r'\b(?:phone|tel(?:ephone)?|call|fax)\s*[:.]?\s*(\+?\d[\d ()+.-]{6,24}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?)',re.I)
+ 
+@@ -94,19 +93,11 @@
+ 
+ 
+ def normalize_phone(value):
+-    raw=unquote(str(value)).strip()
+-    base=re.sub(r'^tel:', '',raw,flags=re.I).split('?')[0]
+-    match=EXT.search(base);extension=match.group(1) if match else ''
+-    if match:base=base[:match.start()]
+-    base=base.strip()
+-    # Unknown tel URI parameters and vanity strings require a separate resolver.
+-    if re.search(r'[^\d\s()+.\-]',base):return None
+-    digits=re.sub(r'\D','',base)
+-    if len(digits)==10 and re.fullmatch(r'[2-9]\d{2}[2-9]\d{6}',digits):phone='+1'+digits
+-    elif len(digits)==11 and digits.startswith('1') and re.fullmatch(r'1[2-9]\d{2}[2-9]\d{6}',digits):phone='+'+digits
+-    elif base.startswith('+') and 8<=len(digits)<=15 and not digits.startswith('0'):phone='+'+digits
+-    else:return None
+-    return phone,extension
++    """Legacy tuple-or-None projection; detailed/raw rejection available separately."""
++    candidate = parse_phone_candidate(value)
++    if candidate['status'] != 'normalized':
++        return None
++    return candidate['e164'], candidate['extension']
+ 
+ 
+ def extract_published_phones(body,url):
+@@ -123,6 +114,7 @@
+         seen.add(key)
+         records.append({'phone':number,'extension':extension,'raw_value':str(value),'source_url':url,'context':context,
+                         'kind':kind,'kind_review_required':review,'extraction_version':VERSION,
++                        'normalization_version':PHONE_NORMALIZATION_VERSION,
+                         'extraction_method':method,'source_dom_locator':locator,'page_content_sha256':digest,
+                         'verification_status':'source_published_unverified','organisation_ownership_status':'not_verified',
+                         'branch_ownership_status':'not_verified','outreach_eligibility':'research_only'})

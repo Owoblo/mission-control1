@@ -1,0 +1,158 @@
+{
+  "baseline": [
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "info@fictional.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-email",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "info@fictional.test"
+    },
+    {
+      "actual": null,
+      "basis": "observed",
+      "category": "Unsupported format",
+      "channel": "email",
+      "evidence": {
+        "candidate_value": "élise@fictional.test",
+        "email": null,
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/3",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+        "raw_value": "élise@fictional.test",
+        "reason": "unicode_local_part",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://unicode-email.test/contact",
+        "status": "unsupported"
+      },
+      "expected": "élise@fictional.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "unicode-email",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "élise@fictional.test",
+            "email": null,
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/3",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+            "raw_value": "élise@fictional.test",
+            "reason": "unicode_local_part",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://unicode-email.test/contact",
+            "status": "unsupported"
+          }
+        ],
+        "emails": [],
+        "phones": []
+      },
+      "value": "élise@fictional.test"
+    }
+  ],
+  "candidate": [
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "info@fictional.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-email",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "info@fictional.test"
+    },
+    {
+      "actual": null,
+      "basis": "observed",
+      "category": "Unsupported format",
+      "channel": "email",
+      "evidence": {
+        "candidate_value": "élise@fictional.test",
+        "email": null,
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/4",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+        "raw_value": "élise@fictional.test",
+        "reason": "unicode_local_part",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://unicode-email.test/contact",
+        "status": "unsupported"
+      },
+      "expected": "élise@fictional.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "unicode-email",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "élise@fictional.test",
+            "email": null,
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/4",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+            "raw_value": "élise@fictional.test",
+            "reason": "unicode_local_part",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://unicode-email.test/contact",
+            "status": "unsupported"
+          }
+        ],
+        "emails": [],
+        "phones": []
+      },
+      "value": "élise@fictional.test"
+    }
+  ]
+}

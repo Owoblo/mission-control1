@@ -1,0 +1,8 @@
+import './gta-email-recovery-runtime.mjs';import fs from 'node:fs/promises';const{db,send,reviewed}=await import('./reply-runtime-20261015.mjs');
+const id='cb2f948e-cf24-4c7d-9c4e-b8d738a0e8b7',latest='1fceb402-9b32-4c1c-bdcc-df880e1763cc';const[c]=await db('market_contacts',{id:'eq.'+id});const[q]=await db('crm_quotes',{id:'eq.qt_k58ze3rsx'});
+if(!q||q.deleted||q.data.status!=='accepted'||q.data.subtotal!==1575||q.data.total!==1779.75||q.data.crewSize!==3||!q.data.lineItems.some(i=>i.details.includes('1 truck')))throw Error('Example changed or unsupported');
+const body="As a real example, Gerry, one accepted quote for a furniture-and-box move with three movers and one truck was $1,575 plus HST ($1,779.75). It included furniture wrapping/padding and disassembly/reassembly. That's an example from a past quote, not a fixed rate for every three-bedroom home or your Lindsay scenario. We'd confirm the inventory, route and access before giving a binding total. - John";
+const receipt=await send({id,name:c.name,phone:c.phone,city:c.city,latest,from:'+14374650584',followup_key:'20261016-gerry-example',body});
+await fs.writeFile('artifacts/reply-review-20261016-afternoon/gerry-example.json',JSON.stringify({at:new Date().toISOString(),sourceQuote:q.id,sharedCustomerIdentifiers:false,state:receipt.state,sid:receipt.result?.sid,body},null,2));
+for(const mid of ['cb3ad8a7-fa55-4449-b271-54a0d39992bf','b61eba56-ada5-431d-85de-adb2d3eb3749','2766c7ee-741a-4e89-9542-2a8a6518d569'])await reviewed(mid,'Thanks/reaction after supplied card; no additional reply needed.',{});
+console.log(JSON.stringify({name:c.name,state:receipt.state,sid:receipt.result?.sid}));

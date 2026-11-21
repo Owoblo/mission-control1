@@ -1,0 +1,977 @@
+{
+  "baseline": [
+    {
+      "actual": "secret@business.test",
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": null,
+      "hypotheses": [],
+      "outcome": "false_positive",
+      "page_id": "hidden",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "secret@business.test",
+            "email": "secret@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/3",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "4ade4d8d0f2a14666eb7bf421e21c4164ef99035c397655fb67a2680377d4cd8",
+            "raw_value": "secret@business.test",
+            "reason": "supported_syntax_only",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/hidden",
+            "status": "normalized"
+          }
+        ],
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "email": "secret@business.test",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/3",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "4ade4d8d0f2a14666eb7bf421e21c4164ef99035c397655fb67a2680377d4cd8",
+            "raw_value": "secret@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "secret@business.test",
+            "source_url": "https://business.test/hidden"
+          }
+        ],
+        "phones": []
+      },
+      "value": "secret@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "actual": [],
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "phone",
+      "evidence": null,
+      "expected": [
+        "+15195550123",
+        "09",
+        "fax"
+      ],
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-fax",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": [
+        "+15195550123",
+        "09",
+        "fax"
+      ]
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-obfuscation",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "actual": "es@business.test",
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": null,
+      "hypotheses": [],
+      "outcome": "false_positive",
+      "page_id": "inline-suffix",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "es@business.test",
+            "email": "es@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/3",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "reason": "supported_syntax_only",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-suffix",
+            "status": "normalized"
+          }
+        ],
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "email": "es@business.test",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/3",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "sal es@business.test",
+            "source_url": "https://business.test/inline-suffix"
+          }
+        ],
+        "phones": []
+      },
+      "value": "es@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-suffix",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "es@business.test",
+            "email": "es@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/3",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "reason": "supported_syntax_only",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-suffix",
+            "status": "normalized"
+          }
+        ],
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "email": "es@business.test",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/3",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "sal es@business.test",
+            "source_url": "https://business.test/inline-suffix"
+          }
+        ],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "actual": "se@business.test",
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": null,
+      "hypotheses": [],
+      "outcome": "false_positive",
+      "page_id": "inline-unicode",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "se@business.test",
+            "email": "se@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/3",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+            "raw_value": "se@business.test",
+            "reason": "supported_syntax_only",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-unicode",
+            "status": "normalized"
+          }
+        ],
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "email": "se@business.test",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/3",
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+            "raw_value": "se@business.test",
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "éli se@business.test",
+            "source_url": "https://business.test/inline-unicode"
+          }
+        ],
+        "phones": []
+      },
+      "value": "se@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "desk@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "subtype",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "desk@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "desk@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "uri-array",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "desk@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "uri-array",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "person-employer",
+      "outcome": "false_negative",
+      "value": [
+        "jane@business.test",
+        "Jane Smith",
+        "/@graph/0"
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "reference",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Office",
+        "/@graph/0"
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "subtype",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Office",
+        ""
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "uri-array",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Clinic",
+        ""
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "uri-array",
+      "outcome": "false_negative",
+      "value": [
+        "sales@business.test",
+        "Clinic",
+        ""
+      ]
+    }
+  ],
+  "candidate": [
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "actual": [],
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "phone",
+      "evidence": null,
+      "expected": [
+        "+15195550123",
+        "09",
+        "fax"
+      ],
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-fax",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": [
+        "+15195550123",
+        "09",
+        "fax"
+      ]
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-obfuscation",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "actual": "es@business.test",
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": null,
+      "hypotheses": [],
+      "outcome": "false_positive",
+      "page_id": "inline-suffix",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "es@business.test",
+            "email": "es@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/4",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "reason": "supported_syntax_only",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-suffix",
+            "status": "normalized"
+          }
+        ],
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "es@business.test",
+            "extraction_method": "visible_text",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/4",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrences": [
+              {
+                "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                "candidate_owner": {
+                  "source_dom_locator": "/html/body/p",
+                  "status": "unresolved"
+                },
+                "email": "es@business.test",
+                "extraction_method": "visible_text",
+                "extraction_version": "ssm-published-email-extraction/4",
+                "json_pointer": null,
+                "mailbox_status": "not_checked",
+                "normalization_version": "ssm-email-normalization/1",
+                "occurrence_id": "1558af2a328ddbd3fa901c9c489d0aada6bb2a40f7fdc661c7ecbaa35608348c",
+                "outreach_eligibility": "research_only",
+                "ownership_status": "not_checked",
+                "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+                "raw_value": "es@business.test",
+                "role_hint": "unspecified_published_inbox",
+                "short_supporting_context": "sal es@business.test",
+                "source_dom_locator": "/html/body/p/span",
+                "source_url": "https://business.test/inline-suffix",
+                "text_position": {
+                  "end": 16,
+                  "field": "text",
+                  "node": "/html/body/p/span",
+                  "start": 0
+                },
+                "visibility_basis": "visible_dom"
+              }
+            ],
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "review_warnings": [],
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "sal es@business.test",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-suffix",
+            "text_position": {
+              "end": 16,
+              "field": "text",
+              "node": "/html/body/p/span",
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "phones": []
+      },
+      "value": "es@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "inline-suffix",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "es@business.test",
+            "email": "es@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/4",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "reason": "supported_syntax_only",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-suffix",
+            "status": "normalized"
+          }
+        ],
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "es@business.test",
+            "extraction_method": "visible_text",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/4",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrences": [
+              {
+                "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                "candidate_owner": {
+                  "source_dom_locator": "/html/body/p",
+                  "status": "unresolved"
+                },
+                "email": "es@business.test",
+                "extraction_method": "visible_text",
+                "extraction_version": "ssm-published-email-extraction/4",
+                "json_pointer": null,
+                "mailbox_status": "not_checked",
+                "normalization_version": "ssm-email-normalization/1",
+                "occurrence_id": "1558af2a328ddbd3fa901c9c489d0aada6bb2a40f7fdc661c7ecbaa35608348c",
+                "outreach_eligibility": "research_only",
+                "ownership_status": "not_checked",
+                "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+                "raw_value": "es@business.test",
+                "role_hint": "unspecified_published_inbox",
+                "short_supporting_context": "sal es@business.test",
+                "source_dom_locator": "/html/body/p/span",
+                "source_url": "https://business.test/inline-suffix",
+                "text_position": {
+                  "end": 16,
+                  "field": "text",
+                  "node": "/html/body/p/span",
+                  "start": 0
+                },
+                "visibility_basis": "visible_dom"
+              }
+            ],
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
+            "raw_value": "es@business.test",
+            "review_warnings": [],
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "sal es@business.test",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-suffix",
+            "text_position": {
+              "end": 16,
+              "field": "text",
+              "node": "/html/body/p/span",
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "actual": "se@business.test",
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": null,
+      "hypotheses": [],
+      "outcome": "false_positive",
+      "page_id": "inline-unicode",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "se@business.test",
+            "email": "se@business.test",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/4",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+            "raw_value": "se@business.test",
+            "reason": "supported_syntax_only",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-unicode",
+            "status": "normalized"
+          }
+        ],
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "email": "se@business.test",
+            "extraction_method": "visible_text",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/4",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "occurrences": [
+              {
+                "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                "candidate_owner": {
+                  "source_dom_locator": "/html/body/p",
+                  "status": "unresolved"
+                },
+                "email": "se@business.test",
+                "extraction_method": "visible_text",
+                "extraction_version": "ssm-published-email-extraction/4",
+                "json_pointer": null,
+                "mailbox_status": "not_checked",
+                "normalization_version": "ssm-email-normalization/1",
+                "occurrence_id": "a0851e7e3f584d933d11daf36417d9bf926a457c1eb707860588222dbc4b9fc4",
+                "outreach_eligibility": "research_only",
+                "ownership_status": "not_checked",
+                "page_content_sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+                "raw_value": "se@business.test",
+                "role_hint": "unspecified_published_inbox",
+                "short_supporting_context": "éli se@business.test",
+                "source_dom_locator": "/html/body/p/span",
+                "source_url": "https://business.test/inline-unicode",
+                "text_position": {
+                  "end": 16,
+                  "field": "text",
+                  "node": "/html/body/p/span",
+                  "start": 0
+                },
+                "visibility_basis": "visible_dom"
+              }
+            ],
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
+            "raw_value": "se@business.test",
+            "review_warnings": [],
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "éli se@business.test",
+            "source_dom_locator": "/html/body/p/span",
+            "source_url": "https://business.test/inline-unicode",
+            "text_position": {
+              "end": 16,
+              "field": "text",
+              "node": "/html/body/p/span",
+              "start": 0
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "phones": []
+      },
+      "value": "se@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "desk@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "subtype",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "desk@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "desk@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "uri-array",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "desk@business.test"
+    },
+    {
+      "actual": null,
+      "basis": "insufficient_evidence",
+      "category": "Unknown or insufficient evidence",
+      "channel": "email",
+      "evidence": null,
+      "expected": "sales@business.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "uri-array",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [],
+        "emails": [],
+        "phones": []
+      },
+      "value": "sales@business.test"
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "person-employer",
+      "outcome": "false_negative",
+      "value": [
+        "jane@business.test",
+        "Jane Smith",
+        "/@graph/0"
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "reference",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Office",
+        "/@graph/0"
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "subtype",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Office",
+        ""
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "uri-array",
+      "outcome": "false_negative",
+      "value": [
+        "desk@business.test",
+        "Clinic",
+        ""
+      ]
+    },
+    {
+      "basis": "observed",
+      "category": "Incorrect attribution",
+      "channel": "structured_attribution",
+      "evidence": "Literal labeled document edge mismatch; no acquisition cause inferred",
+      "id": "uri-array",
+      "outcome": "false_negative",
+      "value": [
+        "sales@business.test",
+        "Clinic",
+        ""
+      ]
+    }
+  ]
+}

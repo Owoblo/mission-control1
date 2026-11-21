@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {classifyReview,needsContextReview} from './conversation_triage.mjs';
+const classify=(notes,contact={},metadata={})=>classifyReview(contact,{notes,direction:'inbound',channel:'sms',metadata});
+test('quoted lead in a reaction cannot create a lead',()=>assert.equal(classify('Liked “My client needs a moving quote?”').kind,'reaction_only'));
+test('delivery/open event is not a human reply',()=>assert.equal(classify('SES event: email_opened — Moving support').kind,'provider_event'));
+test('Nope stays contextual; never affirmative delivery permission',()=>assert.equal(classify('Inbound SMS: Nope').kind,'human_context_review'));
+test('Nico booking question remains contextual, never an inferred client',()=>assert.equal(classify('How does the card/booking work and how am I linked?').kind,'human_context_review'));
+test('saved review clears only reply obligation, not task history',()=>assert.equal(classify('Keeping you in mind',{}, {partnership_review:{reply_required:false}}).kind,'reviewed_no_reply'));
+test('invalid phone cannot stay an active human enquiry',()=>assert.equal(classify('Wrong number',{decision:'bad_number'}).kind,'suppressed_or_invalid_route'));
+test('internal human-reply mislabel cannot create prospect',()=>assert.equal(classify('CRM report',{name:'John — internal email infrastructure test'},{human_reply:true}).kind,'internal_report'));
+test('unknown and substantive requests always remain for context',()=>{assert.ok(needsContextReview(classify('Can you move a fridge?')));assert.ok(needsContextReview(classify('Unrecognized message')))});
+test('explicit unmonitored SMS has no automatic reply obligation',()=>assert.equal(classify('This number does not accept incoming text messages. Please call.').kind,'automated_notification'));

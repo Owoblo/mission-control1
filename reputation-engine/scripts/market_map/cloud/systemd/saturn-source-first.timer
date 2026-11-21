@@ -1,0 +1,8 @@
+[Unit]
+Description=Resume bounded source-first research
+[Timer]
+OnBootSec=90s
+OnUnitInactiveSec=5min
+Unit=saturn-source-first.service
+[Install]
+WantedBy=timers.target

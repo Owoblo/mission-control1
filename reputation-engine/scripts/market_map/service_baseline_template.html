@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Municipal baseline</title><style>
+body{margin:0;background:#101d2b;color:#e7eef5;font:16px system-ui}header{padding:20px}h1{margin:0 0 10px}main{display:flex;height:72vh}canvas{width:72%;height:100%;background:#152637;touch-action:none}aside{padding:18px;overflow:auto;flex:1}a{color:#74dccc}input,button{background:#22394e;color:white;padding:10px;border:1px solid #56718a;border-radius:5px}#results button{display:block;margin:5px 0;width:100%;text-align:left}small{color:#afc0cf}#detail{white-space:pre-wrap}</style></head><body>
+<header><a href="../index.html">All configured communities</a><h1 id="title"></h1><div id="summary"></div><button id="fit">Fit municipality</button> <span>Drag to pan · Scroll to zoom</span></header>
+<main><canvas id="map"></canvas><aside><h2>Boundary + places baseline</h2><p>Yellow: reported place observations. Teal outline: official municipality. Buildings, parcels, addresses and zoning are not drawn in this baseline.</p><p id="scope"></p><p id="physical"></p><input id="search" placeholder="Business name or address"><div id="results"></div><p id="detail">Select a result to inspect its source observation. No verified occupancy is asserted.</p><small>Ontario LIO boundary, Open Government Licence – Ontario. Places: Overture Maps Foundation and contributors; record provenance retained in original snapshots. Display boundary simplified; originals preserved. No external tiles or API requests. Coordinates are publisher observations, not verified premises.</small></aside></main>
+<script>
+const D=__DATA__;
+document.title=D.name+' · baseline';document.querySelector('#title').textContent=D.name+' · geographic baseline';
+document.querySelector('#summary').textContent=D.place_observations.toLocaleString()+' place observations · '+D.configured_labels.length+' configured labels share this municipal map';
+document.querySelector('#scope').textContent=D.place_envelopes_cover_boundary?'Saved query envelopes cover this municipal boundary. This does not establish business completeness.':'The saved place query envelopes cover only part of this municipality. Unmapped areas require further source acquisition.';
+if((D.intersecting_source_collections||[]).some(s=>s.query_exhausted!==true))document.querySelector('#scope').textContent+=' At least one source collection is partial or exhaustion is unconfirmed; these maps do not show all available Overture records.';
+if(!D.place_observations)document.querySelector('#scope').textContent+=' No place observations were matched from these snapshots. This is a data gap, not evidence that this municipality has no businesses.';
+if(D.physical_map){const a=document.createElement('a');a.href=D.physical_map;a.textContent='Open richer physical pilot map';document.querySelector('#physical').append(a)}
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d');
+const polys=D.boundary.type==='Polygon'?[D.boundary.coordinates]:D.boundary.coordinates;
+const coords=polys.flat(2),xs=coords.map(p=>p[0]),ys=coords.map(p=>p[1]);
+const bounds=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+let w,h,s,ox,oy,selected=null,drag=null;
+function xy(p){return[(p[0]-bounds[0])*s+ox,(bounds[3]-p[1])*s+oy]}
+function fit(){s=Math.min((w-40)/(bounds[2]-bounds[0]),(h-40)/(bounds[3]-bounds[1]));ox=(w-(bounds[2]-bounds[0])*s)/2;oy=(h-(bounds[3]-bounds[1])*s)/2;draw()}
+function draw(){ctx.clearRect(0,0,w,h);ctx.beginPath();for(const poly of polys)for(const ring of poly){ring.forEach((p,i)=>{const q=xy(p);i?ctx.lineTo(...q):ctx.moveTo(...q)});ctx.closePath()}ctx.fillStyle='#1d454a';ctx.fill('evenodd');ctx.strokeStyle='#75d0c2';ctx.lineWidth=1;ctx.stroke();ctx.fillStyle='#ffd16b';for(const p of D.places){const q=xy(p);if(q[0]<0||q[0]>w||q[1]<0||q[1]>h)continue;ctx.beginPath();ctx.arc(...q,2.2,0,Math.PI*2);ctx.fill()}if(selected){ctx.beginPath();ctx.arc(...xy(selected),9,0,Math.PI*2);ctx.strokeStyle='#ff6b9b';ctx.lineWidth=3;ctx.stroke()}}
+function resize(){w=canvas.clientWidth;h=canvas.clientHeight;canvas.width=w*devicePixelRatio;canvas.height=h*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);fit()}
+document.querySelector('#fit').onclick=fit;window.onresize=resize;resize();
+canvas.onpointerdown=e=>{drag=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId)};
+canvas.onpointermove=e=>{if(!drag)return;ox+=e.clientX-drag[0];oy+=e.clientY-drag[1];drag=[e.clientX,e.clientY];draw()};canvas.onpointerup=()=>drag=null;canvas.onpointercancel=()=>drag=null;
+canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,f=e.deltaY<0?1.2:1/1.2;ox=x-(x-ox)*f;oy=y-(y-oy)*f;s*=f;draw()},{passive:false});
+document.querySelector('#search').oninput=e=>{const q=e.target.value.trim().toLowerCase(),out=document.querySelector('#results');out.replaceChildren();if(!q)return;for(const p of D.places.filter(p=>((p[2]||'')+' '+(p[3]||'')).toLowerCase().includes(q)).slice(0,40)){const b=document.createElement('button');b.textContent=(p[2]||'Unnamed')+' · '+(p[3]||'Address not supplied');b.onclick=()=>{selected=p;s=Math.max(s,60000);ox=w/2-(p[0]-bounds[0])*s;oy=h/2-(bounds[3]-p[1])*s;document.querySelector('#detail').textContent=b.textContent+'\nOverture source record: '+p[4]+'\nOccupancy and operating status unverified.';draw()};out.append(b)}};
+</script></body></html>

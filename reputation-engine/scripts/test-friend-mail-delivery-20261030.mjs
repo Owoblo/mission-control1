@@ -1,0 +1,12 @@
+import {api,fs} from './gta-email-recovery-runtime.mjs';
+import {createHash} from 'node:crypto';
+const {db}=await import('./reply-runtime-20261015.mjs');
+const email='jtolu95@gmail.com',dir='artifacts/mail-platform-foundation-20261030',file=dir+'/friend-test.json';
+const h=createHash('sha256').update('authorized-delivery-test:'+email).digest('hex');const id=`${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;
+if(fs.existsSync(file))throw Error('Friend test has an existing attempt; inspect its receipt before any retry');
+const existing=await db('market_contacts',{email:'eq.'+email,select:'id,tags'});if(existing.some(c=>c.id!==id))throw Error('Existing contact requires review');
+if(!existing.length)await db('market_contacts',{},'POST',{id,name:'Owner-authorized email delivery test',company:'Saturn Star Movers (delivery test)',city:'Toronto',email,stage:'target',tags:['internal-infrastructure-test'],sequence_paused:true,sequence_paused_reason:'internal_infrastructure_test',preferred_channel:'email',commission_rule_required:false,owner_name:'John',notes:'Owner explicitly supplied this address for one delivery test on October 30. Excluded from campaigns.'});
+const body={sender:'johnny',subject:'Quick email delivery test — John',body:'Hi,\n\nI’m checking that emails from Saturn Star Movers reach you correctly. This is the one-time delivery test I mentioned.\n\nBefore moving this message or replying, please note where it first appeared: Inbox, Promotions, or Spam. Please let me know that original folder.\n\nAfter noting the folder, please reply “Received” so we can also check that your reply reaches our central inbox.\n\nThank you,\nJohn\nSaturn Star Movers',internalTest:true};
+const report={at:new Date().toISOString(),recipient:email,contactId:id,sender:'johnny@saturnstarmovers.ca',replyTo:'business@starmovers.ca',body,state:'reserved_no_blind_retry',placement:'awaiting_recipient_report'};
+fs.writeFileSync(file,JSON.stringify(report,null,2),{flag:'wx'});
+try{report.result=await api('/api/marketing/contacts/'+id+'/send-email',body);report.state=report.result.messageId?'provider_accepted':'unconfirmed';fs.writeFileSync(file,JSON.stringify(report,null,2));console.log(JSON.stringify({state:report.state,recipient:email,result:report.result}));}catch(error){report.state='failed_or_uncertain';report.error=error.message;fs.writeFileSync(file,JSON.stringify(report,null,2));throw error}

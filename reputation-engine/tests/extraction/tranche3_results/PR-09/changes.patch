@@ -1,0 +1,946 @@
+--- a/scripts/market_map/contact_context.py
++++ b/scripts/market_map/contact_context.py
+@@ -1,4 +1,5 @@
+ """Evidence-backed contact context; published titles are not purchasing authority."""
++from .structured_contacts import walk_contact_graph
+ import hashlib
+ import json
+ import re
+@@ -85,20 +86,19 @@
+             'source_listing_context':source_listing_context,'source_listing_kind':'board_or_advisory_listing' if re.search(r'board|advisory|council',source_listing_context or '',re.I) else 'public_role_listing',
+             'authority_scope':'not_established',
+             'purchasing_authority_verified':False,'ssm_route_hypothesis':{'role_function':role_function(title),'status':'service_fit_hypothesis_only'}})
+-    def structured(value,excluded=False):
+-        if isinstance(value,list):
+-            for item in value:structured(item,excluded)
+-        elif isinstance(value,dict):
+-            types=value.get('@type',[]);types=[types] if isinstance(types,str) else types
+-            excluded=excluded or bool(set(types)&{'JobPosting','Review','Article','BlogPosting','NewsArticle'})
+-            if not excluded and 'Person' in types and value.get('jobTitle'):
+-                emails=value.get('email',[]);emails=[emails] if isinstance(emails,str) else emails
+-                employer=value.get('worksFor');employer=employer.get('name') if isinstance(employer,dict) else employer if isinstance(employer,str) else None
+-                add_person(value.get('name'),value['jobTitle'],emails if isinstance(emails,list) else [],json.dumps({k:value[k] for k in ('name','jobTitle','worksFor','email') if k in value}), 'json_ld_person_role',employer)
+-            for child in value.values():
+-                if isinstance(child,(dict,list)):structured(child,excluded)
+     for node in document.xpath('//script[contains(@type,"ld+json")]'):
+-        try:structured(json.loads(node.text or ''))
++        try:
++            contacts=walk_contact_graph(json.loads(node.text or ''))
++            for person in contacts:
++                if person['channel']!='person':continue
++                emails=[r['value'] for r in contacts if r['channel']=='email' and r['node_pointer']==person['node_pointer']]
++                employers=person['candidate_employers']
++                employer=employers[0]['name'] if len(employers)==1 else None
++                before=len(output['people'])
++                add_person(person['value'],person['job_title'],emails if not person['ambiguity_review_required'] else [],json.dumps(person['node']), 'json_ld_person_role',employer)
++                if len(output['people'])>before:
++                    output['people'][-1]['structured_evidence']=person
++                    output['people'][-1]['source_dom_locator']=document.getroottree().getpath(node)
+         except (ValueError,TypeError,RecursionError):pass
+     for node in document.xpath('//script|//style|//noscript|//template|//*[@hidden or @aria-hidden="true"]'):
+         if node.getparent() is not None:node.drop_tree()
+--- a/scripts/market_map/contact_text_runs.py
++++ b/scripts/market_map/contact_text_runs.py
+@@ -10,7 +10,8 @@
+                for n in [node,*node.iterancestors()] if isinstance(n.tag,str))
+ 
+ def boundary(node):
+-    return (node.tag not in INLINE or any(node.get(k) for k in ('class','id','itemscope','itemprop','role')) or
++    return (node.tag not in INLINE or any(k in node.attrib for k in ('class','id','itemscope','itemtype','itemprop','role')) or
++            any(k.startswith('data-') for k in node.attrib) or
+             re.search(r'display|position|float|order|direction|content',node.get('style',''),re.I))
+ 
+ def iter_contact_text_runs(document, *, max_chars=4096, max_segments=128):
+--- a/scripts/market_map/email_extraction.py
++++ b/scripts/market_map/email_extraction.py
+@@ -7,10 +7,11 @@
+ from urllib.parse import unquote, urlsplit
+ 
+ from lxml import html
++from .structured_contacts import walk_contact_graph
+ from .contact_text_runs import iter_contact_text_runs
+ from .contact_normalization import parse_email_candidate, EMAIL_NORMALIZATION_VERSION
+ 
+-VERSION = "ssm-published-email-extraction/5"
++VERSION = "ssm-published-email-extraction/6"
+ # Whole published candidate, including unsupported Unicode/quoted syntax.
+ # Validation belongs to clean_email(), never an ASCII substring search.
+ EMAIL = re.compile(r'((?:"[^"\r\n]+"|[^\s<>"(),;:]+)@[^\s<>"(),;:]+)')
+@@ -48,12 +49,12 @@
+         return None
+ 
+ 
+-def literal_click_emails(raw):
++def literal_click_email_occurrences(raw):
+     """Decode fully literal public email actions; never evaluate JS or infer names."""
+     literal = r'''(["'])([^"'\\]*)\1'''
+     concat = r'''(["'])(mailto:[^"'\\\r\n]*)\1\s*\.concat\(([^)]{1,250})\)'''
+     plus = r'''(["'])(mailto:[^"'\\\r\n]*)\1((?:\s*\+\s*["'][^"'\\\r\n]*["'])+)'''
+-    found = set()
++    found = []
+     for pattern, method in ((concat, 'concat'), (plus, 'plus')):
+         for hit in re.finditer(pattern, raw):
+             before = raw[max(0, hit.start()-350):hit.start()]
+@@ -66,8 +67,12 @@
+                 continue
+             address = hit.group(2)[7:] + ''.join(part[1] for part in re.findall(literal, args))
+             if EMAIL.fullmatch(address):
+-                found.add(address)
+-    return sorted(found)
++                found.append({"value":address,"start":hit.start(),"end":hit.end()})
++    return sorted(found,key=lambda row:(row["start"],row["end"],row["value"]))
++
++
++def literal_click_emails(raw):
++    return sorted({row["value"] for row in literal_click_email_occurrences(raw)})
+ 
+ 
+ def extract_email_occurrences(body, page_url, *, candidate_evidence=None):
+@@ -84,7 +89,7 @@
+                    re.search(r"display\s*:\s*none|visibility\s*:\s*hidden", item.get("style") or "", re.I)
+                    for item in [node, *node.iterancestors()])
+ 
+-    def add(value, method, node=None, text_context="", pointer=None, position=None):
++    def add(value, method, node=None, text_context="", pointer=None, position=None, owner=None):
+         parsed = parse_email_candidate(value)
+         if candidate_evidence is not None:
+             candidate_evidence.append({**parsed, 'source_url': page_url, 'page_content_sha256': content_hash,
+@@ -100,9 +105,13 @@
+         context_node = node
+         if context_node is not None:
+             context_node = next((n for n in [node,*node.iterancestors()] if n.tag in ("p","li","td","th","div","section","article","footer","address")),node)
+-        context = text_context or (" ".join(" ".join(context_node.itertext()).split()) if context_node is not None else "")
+-        if len(context) > 500 and node is not None:
+-            context = " ".join(" ".join(node.itertext()).split())
++        local_text=[]
++        if context_node is not None:
++            for textnode in context_node.xpath('.//text()'):
++                parent=textnode.getparent().getparent() if textnode.is_tail else textnode.getparent()
++                if parent is not None and not hidden(parent) and not any(n.tag in ('script','style','noscript','template') for n in [parent,*parent.iterancestors()]):local_text.append(str(textnode))
++        context = text_context or " ".join(" ".join(local_text).split())
++        if len(context)>500:context=context[:500]
+         relation = "published_on_page; organisation_and_person_ownership_unverified"
+         if re.search(r"website (?:by|design)|designed by|powered by|web design", context, re.I):
+             relation = "possible_website_vendor_contact_requires_review"
+@@ -119,27 +128,12 @@
+             "role_hint": role_hint(email), "association_status": relation,
+             "short_supporting_context": context[:350], "mailbox_status": "not_checked",
+             "ownership_status": "not_checked", "outreach_eligibility": "research_only", "extraction_version": VERSION}
++        if owner is not None:
++            occurrence['candidate_owner']=owner
+         occurrence['occurrence_id'] = hashlib.sha256(json.dumps(occurrence,sort_keys=True).encode()).hexdigest()
+         findings[occurrence['occurrence_id']] = occurrence
+ 
+-    # Public structured organisation contact facts, not arbitrary JS strings.
+-    def structured(value, permitted=False, depth=0, node=None, pointer=""):
+-        if depth > 30:
+-            return
+-        if isinstance(value, list):
+-            for index, child in enumerate(value):
+-                structured(child, permitted, depth+1, node, pointer+"/"+str(index))
+-        elif isinstance(value, dict):
+-            types = value.get("@type", [])
+-            types = [types] if isinstance(types, str) else types
+-            allowed = permitted or any(kind in {"Person", "Organization", "LocalBusiness", "Corporation", "ContactPoint", "Store", "ProfessionalService"} for kind in types)
+-            if allowed and isinstance(value.get("email"), str):
+-                method = 'public_person_jsonld' if 'Person' in types else 'public_organisation_jsonld'
+-                add(value["email"].removeprefix("mailto:"), method, node=node, pointer=pointer+"/email", text_context="Public structured contact field; ownership unverified")
+-            for key, child in value.items():
+-                if isinstance(child, (dict, list)):
+-                    structured(child, allowed if key == "contactPoint" else False, depth+1, node, pointer+"/"+key.replace("~","~0").replace("/","~1"))
+-
++    # Definitions and references are local to one JSON-LD script; no remote resolution.
+     def embedded(value, depth=0, node=None, pointer=""):
+         if depth > 30:return
+         if isinstance(value, list):
+@@ -156,25 +150,30 @@
+ 
+     for script in document.xpath('//script[@type="application/ld+json"]'):
+         try:
+-            structured(json.loads(script.text or ""), node=script)
++            for contact in walk_contact_graph(json.loads(script.text or "")):
++                if contact['channel']!='email':continue
++                method='public_person_jsonld' if 'Person' in contact['node']['types'] else 'public_organisation_jsonld'
++                add(contact['value'].removeprefix('mailto:'),method,node=script,pointer=contact['json_pointer'],
++                    owner={k:contact[k] for k in ('candidate_owners','ownership_status','candidate_employers','node_pointer','ambiguity_review_required')},
++                    text_context='Public structured contact field; ownership unverified')
+         except (ValueError, TypeError, RecursionError):
+             pass
+     for script in document.xpath('//script[@type="application/json"]'):
+         try:embedded(json.loads(script.text or ''), node=script)
+         except (ValueError, TypeError, RecursionError):pass
+     for script in document.xpath('//script[not(@src)]'):
+-        for address in literal_click_emails(script.text or ''):
+-            add(address, 'literal_javascript_email_action', node=script, text_context='Explicit literal mailto action published in page script; owner unverified')
++        for hit in literal_click_email_occurrences(script.text or ''):
++            add(hit['value'], 'literal_javascript_email_action', node=script, position={'field':'text','start':hit['start'],'end':hit['end']}, text_context='Explicit literal mailto action published in page script; owner unverified')
+     for node in document.xpath('//*[@onclick or @data-email or @data-email-address or @itemprop="email"]'):
+         if hidden(node):continue
+         if node.get('onclick'):
+-            for address in literal_click_emails('onclick='+node.get('onclick')):
+-                add(address, 'literal_javascript_email_action', node)
++            for hit in literal_click_email_occurrences('onclick='+node.get('onclick')):
++                add(hit['value'], 'literal_javascript_email_action', node, position={'attribute':'onclick','start':hit['start']-8,'end':hit['end']-8})
+         for attr in ('data-email', 'data-email-address'):
+-            if node.get(attr):add(unquote(node.get(attr)), 'explicit_email_html_attribute', node)
++            if node.get(attr):add(unquote(node.get(attr)), 'explicit_email_html_attribute', node, position={'attribute':attr})
+         if node.get('itemprop') == 'email':
+             value=node.get('content',node.get('href',''))
+-            if value:add(unquote(value.removeprefix('mailto:')), 'schema_email_html_attribute', node)
++            if value:add(unquote(value.removeprefix('mailto:')), 'schema_email_html_attribute', node, position={'attribute':'content' if node.get('content') is not None else 'href'})
+     for node in document.xpath('//*[@data-cfemail]'):
+         if hidden(node):
+             continue
+@@ -190,8 +189,8 @@
+         recipients = unquote(href[7:].split("?", 1)[0])
+         if any(character in recipients for character in "\r\n\x00"):
+             continue
+-        for recipient in re.split(r"[,;]", recipients):
+-            add(recipient, "mailto_recipient", anchor)
++        for index,recipient in enumerate(re.split(r"[,;]", recipients)):
++            add(recipient, "mailto_recipient", anchor, position={"attribute":"href","recipient_index":index})
+     inline_runs=list(iter_contact_text_runs(document))
+     split_fragments={}
+     for run in inline_runs:
+@@ -215,8 +214,8 @@
+             explicit = re.sub(r"\s*(?:\[at\]|\(at\))\s*", "@", text, flags=re.I)
+             explicit = re.sub(r"\s*(?:\[dot\]|\(dot\))\s*", ".", explicit, flags=re.I)
+             if explicit != text:
+-                for value in EMAIL.findall(explicit):
+-                    add(value, "explicit_visible_at_dot", context, position={"node":document.getroottree().getpath(node),"field":"text" if context is node else "tail", "raw_text":text})
++                for match in EMAIL.finditer(explicit):
++                    add(match.group(0), "explicit_visible_at_dot", context, position={"start":match.start(),"end":match.end(),"offset_basis":"decoded_text","node":document.getroottree().getpath(node),"field":"text" if context is node else "tail", "raw_text":text})
+     for run in inline_runs:
+         if len(run['segments'])<2:continue
+         text=run['text']
+@@ -245,6 +244,9 @@
+         if "possible_website_vendor_contact_requires_review" in relations:
+             summary["association_status"] = "possible_website_vendor_contact_requires_review"
+         summary["review_warnings"] = ["conflicting_occurrence_contexts"] if len(relations)>1 else []
++        owners={json.dumps(row['candidate_owner'],sort_keys=True) for row in rows}
++        if len(owners)>1 or any(row['candidate_owner'].get('ambiguity_review_required') for row in rows):
++            summary['review_warnings'].append('multiple_or_ambiguous_occurrence_owners_require_review')
+         result.append(summary)
+     return result
+ 
+--- a/scripts/market_map/phone_extraction.py
++++ b/scripts/market_map/phone_extraction.py
+@@ -3,10 +3,11 @@
+ import json
+ import re
+ from lxml import html
+-from .contact_text_runs import iter_contact_text_runs
++from .structured_contacts import walk_contact_graph
++from .contact_text_runs import iter_contact_text_runs, hidden
+ from .contact_normalization import EXT, PHONE_NORMALIZATION_VERSION, parse_phone_candidate
+ 
+-VERSION = 'ssm-published-phone-extraction/3'
++VERSION = 'ssm-published-phone-extraction/4'
+ NANP = re.compile(r'(?<![\w\d])(?:\+?1[ .-]?)?(?:\([2-9]\d{2}\)[ .-]*|[2-9]\d{2}[ .-]+)[2-9]\d{2}[ .-]\d{4}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?(?!\d)',re.I)
+ LABELLED = re.compile(r'\b(?:phone|tel(?:ephone)?|call|fax)\s*[:.]?\s*(\+?\d[\d ()+.-]{6,24}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?)',re.I)
+ 
+@@ -107,33 +108,29 @@
+     if not body:return []
+     rawbody=body.encode() if isinstance(body,str) else body
+     doc=html.fromstring(rawbody,base_url=url);digest=hashlib.sha256(rawbody).hexdigest();records=[];seen=set()
+-    def add(value,context,method,kind='phone',locator=None,review=False,segments=None):
++    def add(value,context,method,kind='phone',locator=None,review=False,segments=None,structured_evidence=None):
+         if not isinstance(value,(str,int)):return
+         normalized=normalize_phone(value)
+         if not normalized:return
+         number,extension=normalized;context=' '.join(str(context).split())[:500]
+-        key=(number,extension,kind,method,context)
++        key=(number,extension,kind,method,context,locator,json.dumps(structured_evidence,sort_keys=True))
+         if key in seen:return
+         seen.add(key)
+         records.append({'phone':number,'extension':extension,'raw_value':str(value),'source_url':url,'context':context,
+-                        'source_segments':segments,'kind':kind,'kind_review_required':review,'extraction_version':VERSION,
++                        'structured_evidence':structured_evidence,'source_segments':segments,'kind':kind,'kind_review_required':review,'extraction_version':VERSION,
+                         'normalization_version':PHONE_NORMALIZATION_VERSION,
+                         'extraction_method':method,'source_dom_locator':locator,'page_content_sha256':digest,
+                         'verification_status':'source_published_unverified','organisation_ownership_status':'not_verified',
+                         'branch_ownership_status':'not_verified','outreach_eligibility':'research_only'})
+-    def structured(value):
+-        if isinstance(value,dict):
+-            context=json.dumps({k:value[k] for k in ('name','@type','contactType','address') if k in value},ensure_ascii=False)
+-            for key,item in value.items():
+-                if key in ('telephone','faxNumber'):
+-                    for phone in item if isinstance(item,list) else [item]:add(phone,context,'json_ld','fax' if key=='faxNumber' else 'phone')
+-                elif isinstance(item,(list,dict)):structured(item)
+-        elif isinstance(value,list):
+-            for item in value:structured(item)
+     for script in doc.xpath('//script[contains(@type,"ld+json")]'):
+-        try:structured(json.loads(script.text or ''))
+-        except (ValueError,RecursionError):pass
++        try:
++            for contact in walk_contact_graph(json.loads(script.text or '')):
++                if contact['channel'] not in ('telephone','faxNumber'):continue
++                add(contact['value'],json.dumps(contact['node'],ensure_ascii=False),'json_ld',
++                    'fax' if contact['channel']=='faxNumber' else 'phone',doc.getroottree().getpath(script),structured_evidence=contact)
++        except (ValueError,TypeError,RecursionError):pass
+     for node in doc.xpath('//*[@itemprop="telephone" or @itemprop="faxNumber"]'):
++        if hidden(node):continue
+         value=node.get('content') or node.get('href') or node.text_content()
+         kind,review=classify_phone_occurrence(node)
+         add(value,node.getparent().text_content() if node.getparent() is not None else value,'microdata',kind,doc.getroottree().getpath(node),review)
+@@ -145,11 +142,8 @@
+                 if sum(s['start']<match.end() and s['end']>start for s in run['segments'])<2:continue
+                 kind,review=classify_phone_occurrence(run['node'],start=start,end=match.end(),bounded_text=run['text'])
+                 add(match.group(1) if pattern is LABELLED else match.group(0),run['text'],'bounded_inline_text',kind,run['source_dom_locator'],review,run['segments'])
+-    for node in doc.xpath('//script|//style|//noscript|//template|//*[@hidden or @aria-hidden="true"]'):
+-        if node.getparent() is not None:node.drop_tree()
+-    for node in doc.xpath('//*[@style]'):
+-        if re.search(r'(?:display\s*:\s*none|visibility\s*:\s*hidden)',node.get('style',''),re.I) and node.getparent() is not None:node.drop_tree()
+     for a in doc.xpath('//a[@href]'):
++        if hidden(a):continue
+         if not a.get('href','').lower().startswith('tel:'):continue
+         parent=a.getparent();context=parent.text_content() if parent is not None else a.text_content()
+         kind,review=classify_phone_occurrence(a)
+@@ -157,6 +151,8 @@
+     # Scan individual text nodes, not a flattened page where unrelated digits concatenate.
+     for textnode in doc.xpath('//text()[normalize-space()]'):
+         value=str(textnode);parent=textnode.getparent()
++        visible_parent=parent.getparent() if textnode.is_tail else parent
++        if visible_parent is None or hidden(visible_parent):continue
+         if parent is not None and not isinstance(parent.tag,str):parent=parent.getparent()
+         if parent is None:continue
+         context=' '.join(parent.text_content().split())[:500]
+--- /dev/null
++++ b/scripts/market_map/schema_types.py
+@@ -0,0 +1,14 @@
++"""Shared supported schema.org business types; no network context resolution."""
++ORGANIZATION_TYPES = set('''Organization LocalBusiness Corporation EducationalOrganization
++GovernmentOrganization MedicalOrganization NGO PerformingGroup SportsOrganization
++Airline Consortium LibrarySystem NewsMediaOrganization WorkersUnion Project
++AnimalShelter ArchiveOrganization AutomotiveBusiness ChildCare Dentist DryCleaningOrLaundry
++EmergencyService EmploymentAgency EntertainmentBusiness FinancialService FoodEstablishment
++GovernmentOffice HealthAndBeautyBusiness HomeAndConstructionBusiness InternetCafe LegalService
++Library LodgingBusiness MedicalBusiness ProfessionalService RadioStation RealEstateAgent
++RecyclingCenter SelfStorage ShoppingCenter SportsActivityLocation Store TelevisionStation
++TouristInformationCenter TravelAgency Restaurant CafeOrCoffeeShop BarOrPub FastFoodRestaurant
++Hotel Motel AutoRepair AutoDealer GasStation BankOrCreditUnion Pharmacy Hospital
++MedicalClinic ShoppingCenter GroceryStore DepartmentStore FurnitureStore HardwareStore
++School CollegeOrUniversity AccountingService Attorney InsuranceAgency VeterinaryCare'''.split())
++
+--- a/scripts/market_map/site_source_extract.py
++++ b/scripts/market_map/site_source_extract.py
+@@ -11,18 +11,7 @@
+ import unicodedata
+ 
+ MAX_BYTES = 8 * 1024 * 1024
+-ORGANIZATION_TYPES = set('''Organization LocalBusiness Corporation EducationalOrganization
+-GovernmentOrganization MedicalOrganization NGO PerformingGroup SportsOrganization
+-Airline Consortium LibrarySystem NewsMediaOrganization WorkersUnion Project
+-AnimalShelter ArchiveOrganization AutomotiveBusiness ChildCare Dentist DryCleaningOrLaundry
+-EmergencyService EmploymentAgency EntertainmentBusiness FinancialService FoodEstablishment
+-GovernmentOffice HealthAndBeautyBusiness HomeAndConstructionBusiness InternetCafe LegalService
+-Library LodgingBusiness MedicalBusiness ProfessionalService RadioStation RealEstateAgent
+-RecyclingCenter SelfStorage ShoppingCenter SportsActivityLocation Store TelevisionStation
+-TouristInformationCenter TravelAgency Restaurant CafeOrCoffeeShop BarOrPub FastFoodRestaurant
+-Hotel Motel AutoRepair AutoDealer GasStation BankOrCreditUnion Pharmacy Hospital
+-MedicalClinic ShoppingCenter GroceryStore DepartmentStore FurnitureStore HardwareStore
+-School CollegeOrUniversity AccountingService Attorney InsuranceAgency VeterinaryCare'''.split())
++from .schema_types import ORGANIZATION_TYPES
+ 
+ 
+ def normalize(value):
+--- /dev/null
++++ b/scripts/market_map/structured_contacts.py
+@@ -0,0 +1,89 @@
++"""Bounded, document-local schema contacts. Candidate edges are never verification."""
++from .schema_types import ORGANIZATION_TYPES
++
++EXCLUDED={'JobPosting','Review','Article','BlogPosting','NewsArticle'}
++
++
++def types_of(node):
++    value=node.get('@type',[])
++    return {v.removeprefix('https://schema.org/').removeprefix('http://schema.org/')
++            for v in (value if isinstance(value,list) else [value]) if isinstance(v,str)}
++
++
++def walk_contact_graph(value, *, max_nodes=5000, max_depth=30):
++    nodes=[];definitions={};over_budget=False;visited=0
++    def visit(item,pointer='',depth=0,excluded=False,contact_parent=None):
++        nonlocal over_budget,visited
++        visited+=1
++        if depth>max_depth or visited>max_nodes:over_budget=True;return
++        if isinstance(item,list):
++            for i,child in enumerate(item):visit(child,pointer+'/'+str(i),depth+1,excluded,contact_parent)
++        elif isinstance(item,dict):
++            excluded=excluded or bool(types_of(item)&EXCLUDED)
++            nodes.append((pointer,item,excluded,contact_parent))
++            if isinstance(item.get('@id'),str) and len(set(item)-{'@id','@context'})>0:
++                definitions.setdefault(item['@id'],[]).append(pointer)
++            for key,child in item.items():
++                if isinstance(child,(list,dict)) and key!='@context':
++                    visit(child,pointer+'/'+key.replace('~','~0').replace('/','~1'),depth+1,excluded,
++                          pointer if key=='contactPoint' else None)
++    visit(value)
++    if over_budget:return []
++    by_pointer={p:(n,e,parent) for p,n,e,parent in nodes}
++    def target(item,pointer):
++        if not isinstance(item,dict):return None
++        if '@id' in item:
++            refs=definitions.get(item['@id'],[]) if isinstance(item['@id'],str) else []
++            return refs[0] if len(refs)==1 else None
++        return pointer if pointer in by_pointer else None
++    edges={};incoming={}
++    for p,n,excluded,parent in nodes:
++        if excluded:continue
++        for field in ('contactPoint','worksFor'):
++            raw=n.get(field,[]);items=raw if isinstance(raw,list) else [raw]
++            for i,item in enumerate(items):
++                pointer=p+'/'+field+('/'+str(i) if isinstance(raw,list) else '')
++                t=target(item,pointer)
++                if t is not None:
++                    edges.setdefault(p,[]).append(t)
++                    if field=='contactPoint' and types_of(n)&(ORGANIZATION_TYPES|{'Person'}):incoming.setdefault(t,[]).append(p)
++    def cyclic(start):
++        # Bounded reachability; ambiguous large graphs abstain rather than recurse forever.
++        todo=list(edges.get(start,[]));seen=set()
++        while todo:
++            p=todo.pop()
++            if p==start:return True
++            if p in seen:continue
++            seen.add(p)
++            if len(seen)>max_nodes:return True
++            todo.extend(edges.get(p,[]))
++        return False
++    def candidate(pointer):
++        n,e,parent=by_pointer[pointer]
++        return {'json_pointer':pointer,'id':n.get('@id'),'name':n.get('name'),'types':sorted(types_of(n)),
++                'address':n.get('address'),'contactType':n.get('contactType'),'status':'explicit_document_node_not_verified'}
++    output=[]
++    for p,n,excluded,parent in nodes:
++        kinds=types_of(n)
++        allowed=bool(kinds&(ORGANIZATION_TYPES|{'Person','ContactPoint'})) or parent in incoming.get(p,[])
++        phone_only=not allowed
++        ambiguous=(isinstance(n.get('@id'),str) and len(definitions.get(n['@id'],[]))!=1) or cyclic(p)
++        owner_pointers=incoming.get(p,[]) if 'ContactPoint' in kinds or parent is not None else [p]
++        owners=[] if phone_only or excluded else [candidate(q) for q in sorted(set(owner_pointers)) if not by_pointer[q][1]]
++        if any(cyclic(q) or (isinstance(by_pointer[q][0].get('@id'),str) and len(definitions.get(by_pointer[q][0]['@id'],[]))!=1) for q in owner_pointers):ambiguous=True
++        status='explicit_document_edge_not_verified' if len(owners)==1 and not ambiguous else 'unresolved'
++        employers=[]
++        raw=n.get('worksFor',[])
++        for i,item in enumerate(raw if isinstance(raw,list) else [raw]):
++            t=target(item,p+'/worksFor'+('/'+str(i) if isinstance(raw,list) else ''))
++            if t is not None and types_of(by_pointer[t][0])&ORGANIZATION_TYPES and not by_pointer[t][1] and not cyclic(t):employers.append(candidate(t))
++        metadata={'node_pointer':p,'node':candidate(p),'candidate_owners':owners,'ownership_status':status,
++                  'candidate_employers':employers if not ambiguous else [],'ambiguity_review_required':ambiguous or len(owners)!=1,'excluded_context':excluded}
++        if not phone_only and not excluded and 'Person' in kinds and isinstance(n.get('jobTitle'),str):
++            output.append({**metadata,'channel':'person','value':n.get('name'),'job_title':n['jobTitle'],'json_pointer':p})
++        for field in ('telephone','faxNumber') if phone_only else ('email','telephone','faxNumber'):
++            raw=n.get(field,[])
++            for i,item in enumerate(raw if isinstance(raw,list) else [raw]):
++                if isinstance(item,str) or (field!='email' and isinstance(item,int)):
++                    output.append({**metadata,'channel':field,'value':item,'json_pointer':p+'/'+field+('/'+str(i) if isinstance(raw,list) else '')})
++    return output
+--- a/scripts/market_map/visible_contact_evidence.py
++++ b/scripts/market_map/visible_contact_evidence.py
+@@ -20,6 +20,8 @@
+  cities={words(record.get(k)) for k in ['municipality','source_city_label']}-{''}
+  if len(name)<5 or not address or not re.search(r'\d',address):return {}
+  doc=html.fromstring(body)
++ literal_runs=list(iter_contact_text_runs(doc))
++ original_paths={n:doc.getroottree().getpath(n) for n in doc.iter()}
+  for node in doc.xpath('//script|//style|//noscript|//template|//head|//*[@hidden or @aria-hidden="true"]'):
+   if node.getparent() is not None:node.drop_tree()
+  for node in doc.xpath('//*[@style]'):
+@@ -34,7 +36,7 @@
+   identity_text=words(re.sub(r'https?://\S+|\b[^\s@]+@[^\s@]+\b|\b[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:/\S*)?',' ',excerpt,flags=re.I))
+   if not contains(identity_text,name) or not contains(text,address) or not any(contains(text,c) for c in cities):continue
+   phones=set()
+-  for value in [str(v) for v in node.xpath('.//text()')]+[run['text'] for run in iter_contact_text_runs(node)]:
++  for value in [str(v) for v in node.xpath('.//text()')]+[run['text'] for run in literal_runs if run['node'] is node or node in run['node'].iterancestors()]:
+    for m in NANP.finditer(str(value)):
+     p=normalize_phone(m.group(0))
+     if p:phones.add(p)
+@@ -49,7 +51,7 @@
+   if len(phones)!=1 or extension_label or re.search(r'\bfax\b',excerpt,re.I):continue
+   number,extension=next(iter(phones))
+   if extension or number not in numbers:continue
+-  found.setdefault(number,[]).append({'excerpt':excerpt,'source_dom_locator':doc.getroottree().getpath(node),'page_content_sha256':expected_hash,
++  found.setdefault(number,[]).append({'excerpt':excerpt,'source_dom_locator':original_paths[node],'page_content_sha256':expected_hash,
+    'method':'compact_visible_contact_block','review_required':True,'send_ready':False})
+  # Prefer the smallest supported block, not an entire page or repeated ancestors.
+  return {number:sorted(rows,key=lambda r:len(r['excerpt']))[:1] for number,rows in found.items()}
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -32,6 +32,8 @@
+ 
+ TESTS['PR-08'] = TESTS['PR-07'] + ['tests/extraction/test_contact_text_runs.py']
+ 
++TESTS['PR-09'] = TESTS['PR-08'] + ['tests/extraction/test_structured_contacts.py','tests/market_map/test_site_source_extract.py','tests/extraction/test_tranche3_replay.py']
++
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- a/tests/extraction/test_contact_text_runs.py
++++ b/tests/extraction/test_contact_text_runs.py
+@@ -29,3 +29,10 @@
+     def test_partial_suffix_is_replaced_not_added_alongside_full_address(self):
+         self.assertEqual(self.emails('<p>sal<span>es@business.test</span></p>'),['sales@business.test'])
+         self.assertEqual(self.emails('<p>éli<span>se@business.test</span></p>'),[])
++    def test_hidden_phone_nodes_are_not_joined_or_promoted(self):
++        body='<p>Phone: (519)<span hidden>0</span>555-0123</p><span hidden itemprop="telephone" content="+15195550124"></span>'
++        self.assertEqual(extract_published_phones(body,'https://business.test'),[])
++
++    def test_boolean_schema_and_data_cards_are_boundaries(self):
++        for attr in ['itemscope','data-company="other"']:
++            self.assertEqual(self.emails('<p>sales<span '+attr+'>@</span>business.test</p>'),[])
+--- a/tests/extraction/test_email_occurrences.py
++++ b/tests/extraction/test_email_occurrences.py
+@@ -28,3 +28,13 @@
+         self.assertEqual(len(rows),3)
+         self.assertIn('/a~1b~0/email/0',{r['json_pointer'] for r in rows})
+         self.assertTrue(all(r['source_dom_locator'] for r in rows))
++    def test_distinct_attribute_literal_and_obfuscated_occurrences(self):
++        body='''<div data-email="desk@business.test" data-email-address="desk@business.test"></div>
++        <p>desk [at] business [dot] test; desk [at] business [dot] test</p>
++        <script>el.addEventListener('click', ()=>{location='mailto:desk'.concat('@business.test')}); el.addEventListener('click', ()=>{location='mailto:desk'.concat('@business.test')});</script>'''
++        rows=extract_email_occurrences(body,'https://business.test')
++        self.assertEqual(len(rows),6)
++        self.assertEqual(len({r['occurrence_id'] for r in rows}),6)
++    def test_hidden_vendor_text_does_not_contaminate_visible_context(self):
++        rows=extract_email_occurrences('<p>desk@business.test <span hidden>Website by</span></p>','https://business.test')
++        self.assertEqual(rows[0]['association_status'],'published_on_page; organisation_and_person_ownership_unverified')
+--- /dev/null
++++ b/tests/extraction/test_structured_contacts.py
+@@ -0,0 +1,54 @@
++import json
++import unittest
++from scripts.market_map.structured_contacts import walk_contact_graph
++from scripts.market_map.email_extraction import extract_published_emails
++from scripts.market_map.phone_extraction import extract_published_phones
++from scripts.market_map.contact_context import extract_contact_context
++
++class StructuredTests(unittest.TestCase):
++    def body(self,value):return '<script type="application/ld+json">'+json.dumps(value)+'</script>'
++    def test_types_arrays_and_pointers(self):
++        for kind in ['RealEstateAgent','Dentist','Hotel','https://schema.org/LocalBusiness']:
++            value={'@type':kind,'name':'Office','email':['desk@business.test','sales@business.test'], 'telephone':['+15195550123'],'faxNumber':'+15195550124'}
++            rows=extract_published_emails(self.body(value),'https://business.test')
++            self.assertEqual(len(rows),2)
++            self.assertEqual({r['occurrences'][0]['json_pointer'] for r in rows},{'/email/0','/email/1'})
++            self.assertEqual({r['kind'] for r in extract_published_phones(self.body(value),'https://business.test')},{'phone','fax'})
++    def test_references_shared_points_and_duplicate_ids(self):
++        graph={'@graph':[{'@type':'Organization','@id':'#a','name':'A','contactPoint':{'@id':'#desk'}},
++                         {'@type':'ContactPoint','@id':'#desk','email':'desk@business.test'}]}
++        row=[r for r in walk_contact_graph(graph) if r['channel']=='email'][0]
++        self.assertEqual(row['candidate_owners'][0]['name'],'A')
++        self.assertEqual(row['ownership_status'],'explicit_document_edge_not_verified')
++        graph['@graph'].append({'@type':'Organization','@id':'#b','name':'B','contactPoint':{'@id':'#desk'}})
++        row=[r for r in walk_contact_graph(graph) if r['channel']=='email'][0]
++        self.assertEqual(row['ownership_status'],'unresolved');self.assertEqual(len(row['candidate_owners']),2)
++        graph['@graph'].append({'@type':'ContactPoint','@id':'#desk','email':'other@business.test'})
++        self.assertTrue(all(r['ownership_status']=='unresolved' for r in walk_contact_graph(graph) if r['channel']=='email'))
++    def test_cycles_malformed_types_and_no_remote_or_cross_script_resolution(self):
++        value={'@graph':[{'@type':'Organization','@id':'#a','contactPoint':{'@id':'#b'},'email':'a@business.test'},
++                         {'@type':'ContactPoint','@id':'#b','contactPoint':{'@id':'#a'},'email':'b@business.test'}]}
++        self.assertTrue(all(r['ownership_status']=='unresolved' for r in walk_contact_graph(value)))
++        self.assertEqual(walk_contact_graph({'@type':{'bad':'Organization'},'email':'a@business.test'}),[])
++        standalone={'@context':'https://unfetched.test/context','@type':'ContactPoint','@id':'#desk','email':'desk@business.test'}
++        rows=extract_published_emails(self.body({'@type':'Organization','contactPoint':{'@id':'#desk'}})+self.body(standalone),'https://business.test')
++        self.assertEqual(rows[0]['occurrences'][0]['candidate_owner']['ownership_status'],'unresolved')
++        self.assertEqual(walk_contact_graph(value,max_nodes=1),[])
++    def test_person_employer_is_explicit_and_article_author_excluded(self):
++        person={'@type':'Person','name':'Jane Smith','jobTitle':'Facilities Manager','email':'jane@business.test','worksFor':{'@id':'#org'}}
++        graph={'@graph':[person,{'@type':'Organization','@id':'#org','name':'Office'}]}
++        data=extract_contact_context(self.body(graph),'https://business.test')
++        self.assertEqual(data['people'][0]['published_employer'],'Office')
++        self.assertEqual(data['people'][0]['employment_relationship_status'],'not_established')
++        self.assertEqual(extract_contact_context(self.body({'@type':'Article','author':person}),'https://business.test')['people'],[])
++    def test_nested_untyped_point_and_bad_block_isolation(self):
++        value={'@type':'Organization','name':'Office','contactPoint':{'email':['desk@business.test']}}
++        self.assertEqual([r['value'] for r in walk_contact_graph(value)],['desk@business.test'])
++        body='<script type="application/ld+json">not json</script>'+self.body(value)
++        self.assertEqual(len(extract_published_emails(body,'https://business.test')),1)
++    def test_legacy_untyped_phone_arrays_remain_unresolved(self):
++        rows=extract_published_phones(self.body({'telephone':['+15195550123','+442079460123']}),'https://business.test')
++        self.assertEqual(len(rows),2)
++        self.assertTrue(all(r['structured_evidence']['ownership_status']=='unresolved' for r in rows))
++    def test_scalar_array_budget_is_enforced(self):
++        self.assertEqual(walk_contact_graph({'@type':'Organization','email':['a@business.test']*50},max_nodes=10),[])
+--- /dev/null
++++ b/tests/extraction/test_tranche3_replay.py
+@@ -0,0 +1,20 @@
++import importlib.util
++from pathlib import Path
++import unittest
++from scripts.market_map.extraction_benchmark import benchmark, counts
++
++spec=importlib.util.spec_from_file_location('tranche3_replay',Path(__file__).with_name('tranche3_replay.py'))
++replay=importlib.util.module_from_spec(spec);spec.loader.exec_module(replay)
++
++class Tranche3BenchmarkTests(unittest.TestCase):
++    def test_final_synthetic_corpus_no_false_positives_or_wrong_edges(self):
++        import json
++        base=Path(__file__).with_name('tranche3_fixtures')
++        run=benchmark(base/'manifest.json',base/'labels.jsonl')
++        self.assertEqual((run['extraction']['email']['tp'],run['extraction']['email']['fp'],run['extraction']['email']['fn']),(15,0,0))
++        labels=[json.loads(line) for line in (base/'labels.jsonl').read_text().splitlines()]
++        expected={(r['id'],e['channel'],e['owner'],e['owner_pointer']) for r in labels for e in r['structured_attribution']}
++        self.assertEqual(replay.structured_edges(run['predictions']),expected)
++    def test_shared_or_unresolved_owner_does_not_score_as_assertion(self):
++        row={'email':'desk@business.test','occurrences':[{'candidate_owner':{'ownership_status':'unresolved','candidate_owners':[{'name':'A','json_pointer':'/a'},{'name':'B','json_pointer':'/b'}]}}]}
++        self.assertEqual(replay.structured_edges({'page':{'emails':[row]}}),set())
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/article-author.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@type": "Article", "author": {"@type": "Person", "name": "Jane Smith", "jobTitle": "Facilities Manager", "email": "jane@business.test", "worksFor": {"@id": "#org"}}}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/cards.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><div class="business-card">sales</div><div class="business-card">@business.test</div>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/cells.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><table><tr><td>sales</td><td>@business.test</td></tr></table>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/cycle.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@graph": [{"@type": "Organization", "@id": "#a", "contactPoint": {"@id": "#b"}, "email": "a@business.test"}, {"@type": "ContactPoint", "@id": "#b", "contactPoint": {"@id": "#a"}, "email": "b@business.test"}]}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/duplicate-reference.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@graph": [{"@type": "Organization", "@id": "#org", "name": "Office", "contactPoint": {"@id": "#desk"}}, {"@type": "ContactPoint", "@id": "#desk", "email": "desk@business.test"}, {"@type": "ContactPoint", "@id": "#desk", "email": "second@business.test"}]}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/hidden-barrier.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p>sales<span hidden>x</span>@business.test</p>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/hidden.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p style="visibility:hidden">secret@business.test</p>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/inline-fax.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p>Fax: <span>(519)</span> 555-0123 ext. <b>09</b></p>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/inline-obfuscation.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p>sales<span>[at]</span>business<span>[dot]</span>test</p>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/inline-suffix.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p>sal<span>es@business.test</span></p>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/inline-unicode.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p>éli<span>se@business.test</span></p>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/inline.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p>sales<span>@</span>business.test</p>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/labels.jsonl
+@@ -0,0 +1,18 @@
++{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "repeated-context", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "hidden", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": ["sales@business.test"], "exhaustive": true, "id": "inline", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": ["sales@business.test"], "exhaustive": true, "id": "inline-suffix", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "inline-unicode", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": ["sales@business.test"], "exhaustive": true, "id": "inline-obfuscation", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "cards", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "cells", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "hidden-barrier", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "subtype", "phones": [], "structured_attribution": [{"channel": "desk@business.test", "owner": "Office", "owner_pointer": ""}]}
++{"attribution": [], "attribution_known": true, "emails": ["desk@business.test", "sales@business.test"], "exhaustive": true, "id": "uri-array", "phones": [], "structured_attribution": [{"channel": "desk@business.test", "owner": "Clinic", "owner_pointer": ""}, {"channel": "sales@business.test", "owner": "Clinic", "owner_pointer": ""}]}
++{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "reference", "phones": [], "structured_attribution": [{"channel": "desk@business.test", "owner": "Office", "owner_pointer": "/@graph/0"}]}
++{"attribution": [], "attribution_known": true, "emails": ["desk@business.test"], "exhaustive": true, "id": "shared-reference", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": ["desk@business.test", "second@business.test"], "exhaustive": true, "id": "duplicate-reference", "phones": [], "structured_attribution": []}
++{"attribution": [{"channel": "jane@business.test", "owner": "Jane Smith", "relation": "person_card"}], "attribution_known": true, "emails": ["jane@business.test"], "exhaustive": true, "id": "person-employer", "phones": [], "structured_attribution": [{"channel": "jane@business.test", "owner": "Jane Smith", "owner_pointer": "/@graph/0"}]}
++{"attribution": [], "attribution_known": true, "emails": ["jane@business.test"], "exhaustive": true, "id": "article-author", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": ["a@business.test", "b@business.test"], "exhaustive": true, "id": "cycle", "phones": [], "structured_attribution": []}
++{"attribution": [], "attribution_known": true, "emails": [], "exhaustive": true, "id": "inline-fax", "phones": [{"extension": "09", "kind": "fax", "phone": "+15195550123"}], "structured_attribution": []}
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/manifest.json
+@@ -0,0 +1,186 @@
++{
++  "schema_version": 1,
++  "label_scope": "page_unique_channel",
++  "pages": [
++    {
++      "id": "repeated-context",
++      "file": "repeated-context.html",
++      "url": "https://business.test/repeated-context",
++      "sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "hidden",
++      "file": "hidden.html",
++      "url": "https://business.test/hidden",
++      "sha256": "4ade4d8d0f2a14666eb7bf421e21c4164ef99035c397655fb67a2680377d4cd8",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "inline",
++      "file": "inline.html",
++      "url": "https://business.test/inline",
++      "sha256": "63e04723cce06f9d6c4ebfe2b5785b711b03d0f9759304772d658275f79c18b4",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "inline-suffix",
++      "file": "inline-suffix.html",
++      "url": "https://business.test/inline-suffix",
++      "sha256": "a0df737f80f45c634af09fe10867427c0b816232d5e8294053601c8b68c96472",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "inline-unicode",
++      "file": "inline-unicode.html",
++      "url": "https://business.test/inline-unicode",
++      "sha256": "f85faa20e465d4563c817ecaf1d92f168ce19b86db08e00bbe040633650b5844",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "inline-obfuscation",
++      "file": "inline-obfuscation.html",
++      "url": "https://business.test/inline-obfuscation",
++      "sha256": "b84383bc504016c37c178671c14c7eedd928e5295ff707385239200946594990",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "cards",
++      "file": "cards.html",
++      "url": "https://business.test/cards",
++      "sha256": "a59b6ac83e260d090308ffd352d925336976f99ca5f3a91b16e33ebcb100e363",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "cells",
++      "file": "cells.html",
++      "url": "https://business.test/cells",
++      "sha256": "33f889484b0dcdf04947410f3710d704182224f71e346837eb4d21f488446f4c",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "hidden-barrier",
++      "file": "hidden-barrier.html",
++      "url": "https://business.test/hidden-barrier",
++      "sha256": "3a2564f93c94f1a9d60ef1a5143fe877c03e48ad609eab4a19da7c5926b6283b",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "subtype",
++      "file": "subtype.html",
++      "url": "https://business.test/subtype",
++      "sha256": "4f689943c25ec09caf30075ed6063c426714cfb6d0b13b5777e38cedb7b978af",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "uri-array",
++      "file": "uri-array.html",
++      "url": "https://business.test/uri-array",
++      "sha256": "4721898b987ef1d6d2eea3bcb23345801e864878d485cb1f1e74a9c0916df0dd",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "reference",
++      "file": "reference.html",
++      "url": "https://business.test/reference",
++      "sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "shared-reference",
++      "file": "shared-reference.html",
++      "url": "https://business.test/shared-reference",
++      "sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "duplicate-reference",
++      "file": "duplicate-reference.html",
++      "url": "https://business.test/duplicate-reference",
++      "sha256": "b6e6e7479358ca3e8ed39f217411939fcc8b66e5ebb481c24472e152dfbc8673",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "person-employer",
++      "file": "person-employer.html",
++      "url": "https://business.test/person-employer",
++      "sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "article-author",
++      "file": "article-author.html",
++      "url": "https://business.test/article-author",
++      "sha256": "adc35fccabac4ef8659dd3c129b160a893e2d38f01ada15ecac2767156aa24c4",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "cycle",
++      "file": "cycle.html",
++      "url": "https://business.test/cycle",
++      "sha256": "d67f39b532df2cfab4de40b2f0b0c0454f8ef4ec9dabfd2fd69c4af68317cffe",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    },
++    {
++      "id": "inline-fax",
++      "file": "inline-fax.html",
++      "url": "https://business.test/inline-fax",
++      "sha256": "b3abe8e4fc137b21642e876e20f9f323d1a70c6d73c82a3c9aed60379caed296",
++      "approval": "synthetic_authorized_by_implementation_request",
++      "retention": "synthetic_no_personal_data",
++      "capture_kind": "self_authored_synthetic",
++      "fetched_at": null
++    }
++  ]
++}
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/person-employer.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@graph": [{"@type": "Person", "name": "Jane Smith", "jobTitle": "Facilities Manager", "email": "jane@business.test", "worksFor": {"@id": "#org"}}, {"@type": "Organization", "@id": "#org", "name": "Office"}]}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/reference.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@graph": [{"@type": "Organization", "@id": "#org", "name": "Office", "contactPoint": {"@id": "#desk"}}, {"@type": "ContactPoint", "@id": "#desk", "email": "desk@business.test"}]}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/repeated-context.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><p>desk@business.test desk@business.test</p><footer>Website by desk@business.test</footer>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/shared-reference.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@graph": [{"@type": "Organization", "@id": "#org", "name": "Office", "contactPoint": {"@id": "#desk"}}, {"@type": "Organization", "@id": "#other", "name": "Other", "contactPoint": {"@id": "#desk"}}, {"@type": "ContactPoint", "@id": "#desk", "email": "desk@business.test"}]}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/subtype.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@type": "RealEstateAgent", "name": "Office", "email": "desk@business.test"}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_fixtures/uri-array.html
+@@ -0,0 +1 @@
++<meta charset="utf-8"><script type="application/ld+json">{"@type": "https://schema.org/Dentist", "name": "Clinic", "email": ["desk@business.test", "sales@business.test"]}</script>
+\ No newline at end of file
+--- /dev/null
++++ b/tests/extraction/tranche3_replay.py
+@@ -0,0 +1,45 @@
++"""Guarded identical-capture replay against selected saved implementation trees."""
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import sys
++import tempfile
++
++ROOT=Path(__file__).resolve().parents[2]
++
++def structured_edges(predictions):
++    rows=set()
++    for page,result in predictions.items():
++        for summary in result['emails']:
++            for occurrence in summary.get('occurrences',[]):
++                owner=occurrence.get('candidate_owner',{})
++                if owner.get('ownership_status')!='explicit_document_edge_not_verified':continue
++                for candidate in owner.get('candidate_owners',[]):
++                    rows.add((page,summary['email'],candidate.get('name'),candidate.get('json_pointer')))
++    return rows
++
++def main():
++    parser=argparse.ArgumentParser();parser.add_argument('--implementation-root',default=str(ROOT))
++    parser.add_argument('--output',required=True);args=parser.parse_args()
++    implementation=Path(args.implementation_root).resolve();output=Path(args.output).resolve()
++    if output.exists() or not output.is_relative_to(Path(tempfile.gettempdir()).resolve()):parser.error('new directory beneath system temp required')
++    sys.path.insert(0,str(implementation))
++    from scripts.market_map.offline_guard import OfflineGuard
++    guard=OfflineGuard(output);guard.install();output.mkdir()
++    from scripts.market_map.extraction_benchmark import benchmark,counts
++    fixtures=ROOT/'tests/extraction/tranche3_fixtures'
++    run=benchmark(fixtures/'manifest.json',fixtures/'labels.jsonl')
++    labels=[json.loads(line) for line in (fixtures/'labels.jsonl').read_text().splitlines()]
++    expected={(r['id'],e['channel'],e['owner'],e['owner_pointer']) for r in labels for e in r['structured_attribution']}
++    actual=structured_edges(run['predictions'])
++    run['structured_attribution']={**counts(actual,expected),'scope':'explicit document node/edge only; not verified business ownership or employment'}
++    run['structured_edges']=[list(row) for row in sorted(actual)]
++    for outcome,items in [('false_positive',actual-expected),('false_negative',expected-actual)]:
++        for row in sorted(items):run['errors'].append({'id':row[0],'channel':'structured_attribution','outcome':outcome,'value':list(row[1:]),'category':'Incorrect attribution','basis':'observed','evidence':'Literal labeled document edge mismatch; no acquisition cause inferred'})
++    run['implementation_sha256']={str(p.relative_to(implementation)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (implementation/'scripts/market_map').glob('*.py')}
++    (output/'run.json').write_text(json.dumps(run,indent=2,ensure_ascii=False,sort_keys=True)+'\n')
++    if guard.violations:raise RuntimeError(guard.violations)
++    print(json.dumps({k:run[k] for k in ('capture_count','extraction','attribution','structured_attribution')}))
++
++if __name__=='__main__':main()
+--- a/tests/market_map/test_email_extraction.py
++++ b/tests/market_map/test_email_extraction.py
+@@ -63,7 +63,7 @@
+                 self.assertEqual([r['email'] for r in rows],['jane@business.test'])
+                 self.assertEqual(rows[0]['outreach_eligibility'],'research_only')
+                 self.assertEqual(rows[0]['ownership_status'],'not_checked')
+-                self.assertEqual(rows[0]['extraction_version'],'ssm-published-email-extraction/5')
++                self.assertEqual(rows[0]['extraction_version'],'ssm-published-email-extraction/6')
+ 
+     def test_no_guesses_private_strings_or_binary_matches(self):
+         cases = [

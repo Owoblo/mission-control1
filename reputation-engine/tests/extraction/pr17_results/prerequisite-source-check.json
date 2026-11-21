@@ -1,0 +1,142 @@
+[
+  {
+    "path": "scripts/market_map/contact_enrichment.py",
+    "prior_sha256": "8d935abc732477b4a55420697fbc3b4da40299d3a12267e49eb26e1504c2c841",
+    "current_sha256": "8d935abc732477b4a55420697fbc3b4da40299d3a12267e49eb26e1504c2c841",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/contact_frontier.py",
+    "prior_sha256": "2a5aa79eab0dfdcfedb14418f2d12c1b600fdf2d169340b2b87edb4d9b08046b",
+    "current_sha256": "2a5aa79eab0dfdcfedb14418f2d12c1b600fdf2d169340b2b87edb4d9b08046b",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/email_acquisition.py",
+    "prior_sha256": "5493a1640fde72bf49c91cb2740e7a9e32c59d2fa24c841fd1506deab62fea48",
+    "current_sha256": "5493a1640fde72bf49c91cb2740e7a9e32c59d2fa24c841fd1506deab62fea48",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/phone_acquisition.py",
+    "prior_sha256": "cb0d19119a395873f912432443010ecf74568a75f004487c1e2f0f60c5404e19",
+    "current_sha256": "cb0d19119a395873f912432443010ecf74568a75f004487c1e2f0f60c5404e19",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "tests/extraction/run_offline.py",
+    "prior_sha256": "f220a9eb22f436b3653bcc5618b3b23783766a1fbe27def05c52e6f82c93b2f7",
+    "current_sha256": "7b061a3b287dff6c573e9037e985be5b4b994d55df757054e217f09c98435eb8",
+    "unchanged": false,
+    "expected_change": true
+  },
+  {
+    "path": "tests/market_map/test_contact_enrichment.py",
+    "prior_sha256": "24cce1549ac8666efca51b9c3d3957b6fb6959545e203d7c07aff2cfa43404e9",
+    "current_sha256": "24cce1549ac8666efca51b9c3d3957b6fb6959545e203d7c07aff2cfa43404e9",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "tests/market_map/test_contact_frontier.py",
+    "prior_sha256": "e6d4aa0ed16bcc7646e69d9ad9b35b1a439c8a9595b8aba88433a9f9e1c3bd1d",
+    "current_sha256": "e6d4aa0ed16bcc7646e69d9ad9b35b1a439c8a9595b8aba88433a9f9e1c3bd1d",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/cloud/regional_contact_enrichment.py",
+    "prior_sha256": "8b1cc9ecc3d1e0ce29c06feaca132fa8b2e67f51ab43eb0c7e7b56147b3534d9",
+    "current_sha256": "8b1cc9ecc3d1e0ce29c06feaca132fa8b2e67f51ab43eb0c7e7b56147b3534d9",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/contact_context.py",
+    "prior_sha256": "2a4492e5ec595ab8a899e165002b6b0414a7290806ffbaf2a2ddeeff07161f14",
+    "current_sha256": "2a4492e5ec595ab8a899e165002b6b0414a7290806ffbaf2a2ddeeff07161f14",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/contact_page.py",
+    "prior_sha256": "e9a795b731eccdea6f955fdbc69e3e86a0d1febf7df533e7b6a9c0f6b3ebaa62",
+    "current_sha256": "e9a795b731eccdea6f955fdbc69e3e86a0d1febf7df533e7b6a9c0f6b3ebaa62",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/structured_contacts.py",
+    "prior_sha256": "aef85bdd81cf0a41aa67254c9a7c553c939db84d9d01174e60669910692b98a2",
+    "current_sha256": "aef85bdd81cf0a41aa67254c9a7c553c939db84d9d01174e60669910692b98a2",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "tests/market_map/test_contact_page.py",
+    "prior_sha256": "267e22a6cb183e3510b5aafd05c89ecf8bd29f49ccf32a4e3b3e7423940e17bd",
+    "current_sha256": "267e22a6cb183e3510b5aafd05c89ecf8bd29f49ccf32a4e3b3e7423940e17bd",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/contact_capture.py",
+    "prior_sha256": "e617b5778cc76eb78311001d5eea9c241f0090672fc66bd56462f2d61a511793",
+    "current_sha256": "e617b5778cc76eb78311001d5eea9c241f0090672fc66bd56462f2d61a511793",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/contact_observation_store.py",
+    "prior_sha256": "f98f23481347ddcf7a259e726ebb740fd26a91e0f7d8b5c9fbca23cca5e59a93",
+    "current_sha256": "f98f23481347ddcf7a259e726ebb740fd26a91e0f7d8b5c9fbca23cca5e59a93",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/offline_guard.py",
+    "prior_sha256": "bedf2c0e6972de734f5c91d2224c3747b8d50b336b7f82fb86d2e9da75101137",
+    "current_sha256": "bedf2c0e6972de734f5c91d2224c3747b8d50b336b7f82fb86d2e9da75101137",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "scripts/market_map/transport.py",
+    "prior_sha256": "21d82659a9ac67cfa0c81d5b1204cfc689e39f9265bd2239393b4001e50f0a9d",
+    "current_sha256": "21d82659a9ac67cfa0c81d5b1204cfc689e39f9265bd2239393b4001e50f0a9d",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "tests/extraction/test_offline_guard.py",
+    "prior_sha256": "ff0c6a297b8350b1b567352f3a657c359f9558157d048d0fe641bab965a06f52",
+    "current_sha256": "ff0c6a297b8350b1b567352f3a657c359f9558157d048d0fe641bab965a06f52",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "tests/extraction/tranche5_replay.py",
+    "prior_sha256": "d240f71476913d87b53391eb2a9523fd0c5439af8bf993da9ec85467777d9c37",
+    "current_sha256": "d240f71476913d87b53391eb2a9523fd0c5439af8bf993da9ec85467777d9c37",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "tests/market_map/test_contact_capture.py",
+    "prior_sha256": "42cf0b6da3699dcde4dc0f370861b54df897ac493a66c0caaf17a5583eef4982",
+    "current_sha256": "42cf0b6da3699dcde4dc0f370861b54df897ac493a66c0caaf17a5583eef4982",
+    "unchanged": true,
+    "expected_change": false
+  },
+  {
+    "path": "tests/market_map/test_source_capture_cache.py",
+    "prior_sha256": "7eefdb138c9fb6555cf58338db1fb5cad6ec56995e193e87c6d89a27358b897c",
+    "current_sha256": "7eefdb138c9fb6555cf58338db1fb5cad6ec56995e193e87c6d89a27358b897c",
+    "unchanged": true,
+    "expected_change": false
+  }
+]

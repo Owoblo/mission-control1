@@ -20,9 +20,17 @@ export class StripeAccountMismatchError extends Error {
   status = 409
 }
 
+type StripeRoutingLead = Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity'>
+  & Partial<Pick<CRMLead, 'id'>>
+
+// Temporary routing for this move. Remove once its Dexa payments are settled.
+const DEXA_PAYMENT_EXCEPTION_LEAD_ID = 'lead_gf872dnv3'
+
 export function resolveStripeAccountKeyForLead(
-  lead: Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity'>
+  lead: StripeRoutingLead
 ): StripeAccountKey {
+  if (lead.id === DEXA_PAYMENT_EXCEPTION_LEAD_ID) return 'dexa'
+
   // Payment ownership follows the branch servicing the pickup. Destination is
   // only a fallback when the pickup market cannot be identified.
   const branch = lead.branch
@@ -51,7 +59,7 @@ export function readStripeAccountConfig(key: StripeAccountKey): StripeAccountCon
 }
 
 export function requireStripeAccountForLead(
-  lead: Pick<CRMLead, 'branch' | 'originAddress' | 'originCity' | 'destAddress' | 'destCity'>
+  lead: StripeRoutingLead
 ) {
   const account = readStripeAccountConfig(resolveStripeAccountKeyForLead(lead))
   if (!account.secretKey) {

@@ -1,0 +1,25 @@
+[Unit]
+Description=Saturn source-first address and occupant research
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/opt/saturn-research/.runtime/openai-api-codex/auth.json
+
+[Service]
+Type=oneshot
+User=saturnresearch
+Group=saturnresearch
+WorkingDirectory=/opt/saturn-research
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/saturn-research/.runtime/market-map-python/bin/python -B -m scripts.market_map.site_research_runner --db artifacts/windsor-source-first-20261030/sites.sqlite3 --root . --output artifacts/windsor-source-first-20261030/production --district "City Centre" --limit 50 --concurrency 6 --api-concurrency 3 --max-api-calls 150
+TimeoutStartSec=7200
+TimeoutStopSec=30
+KillMode=control-group
+UMask=0077
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/saturn-research/artifacts /opt/saturn-research/.runtime
+MemoryMax=3G
+CPUQuota=180%
+
+[Install]
+WantedBy=multi-user.target

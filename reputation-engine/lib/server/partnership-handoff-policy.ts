@@ -6,7 +6,7 @@ export function selectCurrentHandoffTouches<T extends Touch>(touches: T[], now: 
   const latest = new Map<string, T>()
   // Historical imports require review, not a fresh sales assignment months later.
   const earliest = now.getTime() - 7 * 24 * 60 * 60 * 1000
-  const ordered = [...touches].sort((a, b) => a.created_at.localeCompare(b.created_at))
+  const ordered = [...touches].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
   const byContact = new Map<string, T[]>()
   for (const touch of ordered) {
     const list = byContact.get(touch.contact_id) || []
@@ -20,7 +20,7 @@ export function selectCurrentHandoffTouches<T extends Touch>(touches: T[], now: 
     })
     const candidate = candidates[candidates.length - 1]
     if (!candidate) continue
-    const later = history.filter(touch => touch.created_at > candidate.created_at)
+    const later = history.filter(touch => touch.created_at > candidate.created_at || (touch.created_at === candidate.created_at && touch.id > candidate.id))
     // A later concrete correction or cancellation closes the request. A routine
     // update (for example, "he'll confirm tomorrow") keeps the handoff alive.
     const superseded = later.some(touch => /\b(?:wrong service|not moving|not a move|no longer need|don't need|do not need|already booked|booked someone else|cancel(?:led|ed)?|forget that|that was a mistake|never mind)\b/i.test(touch.notes || ''))

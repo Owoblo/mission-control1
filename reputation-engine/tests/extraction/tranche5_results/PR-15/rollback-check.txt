@@ -1,0 +1,1 @@
+Reverse patch applied to temporary snapshot; all source file bytes matched previous stage.

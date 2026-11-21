@@ -1,0 +1,30 @@
+do $$
+declare a uuid; origin uuid; target uuid; touch uuid; r jsonb; ev jsonb;
+begin
+ insert into partner_companies(company_name,normalized_key) values('Handoff regression fixture',gen_random_uuid()::text) returning id into a;
+ insert into market_contacts(name,partner_company_id,city,email) values('Origin',a,'Windsor','origin@example.test') returning id into origin;
+ insert into market_contacts(name,partner_company_id,city,email) values('Target',a,'Windsor','target@example.test') returning id into target;
+ insert into market_touches(contact_id,channel,direction,notes,outcome_code,metadata) values(origin,'email','inbound','Please contact Facilities','referred_contact','{"human_reply":true}') returning id into touch;
+ ev:=jsonb_build_object('marketActive',true,'serviceAvailable',true,'channelEligible',true,'senderHealthy',true,'observedAt',now());
+ r:=reserve_partnership_action(target,'email','referred_introduction','handoff-no-evidence-'||a,ev);
+ if (r->>'allowed')::boolean then raise exception 'Unreviewed handoff allowed'; end if;
+ insert into partnership_reviewed_handoffs(contact_id,account_id,source_touch_id,channel,target_route,route_source_url,review_note,reviewed_by,expires_at) values(target,a,touch,'email','wrong@example.test','https://example.test/contact','Test','Test',now()+interval '1 day');
+ r:=reserve_partnership_action(target,'email','referred_introduction','handoff-wrong-route-'||a,ev);
+ if (r->>'allowed')::boolean then raise exception 'Changed target allowed'; end if;
+ update partnership_reviewed_handoffs set target_route='target@example.test' where contact_id=target;
+ update market_touches set metadata='{"human_reply":false}' where id=touch;
+ r:=reserve_partnership_action(target,'email','referred_introduction','handoff-automatic-'||a,ev);
+ if (r->>'allowed')::boolean then raise exception 'Automatic acknowledgment allowed as referral'; end if;
+ update market_touches set metadata='{"human_reply":true}' where id=touch;
+ insert into partnership_account_policy(account_id,not_before,evidence_ref) values(a,now()+interval '1 day','test');
+ r:=reserve_partnership_action(target,'email','referred_introduction','handoff-wait-'||a,ev);
+ if (r->>'allowed')::boolean then raise exception 'Handoff bypassed requested wait'; end if;
+ update partnership_account_policy set not_before=null,suppressed=true where account_id=a;
+ r:=reserve_partnership_action(target,'email','referred_introduction','handoff-suppressed-'||a,ev);
+ if (r->>'allowed')::boolean then raise exception 'Handoff bypassed suppression'; end if;
+ update partnership_account_policy set suppressed=false where account_id=a;
+ r:=reserve_partnership_action(target,'email','referred_introduction','handoff-allowed-'||a,ev);
+ if not (r->>'allowed')::boolean then raise exception 'Reviewed handoff rejected: %',r; end if;
+ r:=reserve_partnership_action(target,'email','referred_introduction','handoff-duplicate-new-key-'||a,ev);
+ if (r->>'allowed')::boolean then raise exception 'Handoff retried with fresh key'; end if;
+end $$;

@@ -1,0 +1,4 @@
+{"event": "start", "pid": 83575, "at": 0.171992, "url": "https://business.test/robots.txt"}
+{"event": "end", "pid": 83575, "at": 0.275439166}
+{"event": "start", "pid": 83575, "at": 0.277432541, "url": "https://business.test/contact"}
+{"event": "end", "pid": 83575, "at": 0.382707375}

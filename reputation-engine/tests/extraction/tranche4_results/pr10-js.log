@@ -1,0 +1,17 @@
+✔ extra email is linked for review, not counted as a new person (1.169083ms)
+✔ a company domain match is not an automatic person merge (0.185375ms)
+✔ special-purpose mailbox stays held despite a passing mailbox check (0.513459ms)
+✔ branch ambiguity and suppressed relationships remain visible (0.114334ms)
+✔ new route still needs identity and owner approval (0.407083ms)
+✔ one local listing does not assign a national staff directory to that branch (0.157209ms)
+✔ indexed review equals full snapshot including linked suppressed contacts (1.643833ms)
+✔ indexed snapshot can serve different candidates without leaking matches (0.453958ms)
+✔ occurrence evidence and original holds survive both reviewers (0.09375ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53.357458

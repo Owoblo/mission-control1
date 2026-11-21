@@ -1,0 +1,50 @@
+PR-13 exit=0
+patching file 'scripts/market_map/contact_enrichment.py'
+patching file 'scripts/market_map/email_acquisition.py'
+patching file 'scripts/market_map/email_domain_process.py'
+patching file 'scripts/market_map/frontier_retry.py'
+patching file 'scripts/market_map/mobile_relationship_review.mjs'
+patching file 'scripts/market_map/mobile_review_inputs.mjs'
+patching file 'scripts/market_map/phone_acquisition.py'
+patching file 'scripts/market_map/transport.py'
+patching file 'tests/extraction/offline_node_guard.mjs'
+patching file 'tests/extraction/run_offline.py'
+patching file 'tests/extraction/tranche4_fixtures/duplicate-person.html'
+patching file 'tests/extraction/tranche4_fixtures/exact.html'
+patching file 'tests/extraction/tranche4_fixtures/legacy-text.html'
+patching file 'tests/extraction/tranche4_fixtures/manifest.json'
+patching file 'tests/extraction/tranche4_fixtures/multiple-named.html'
+patching file 'tests/extraction/tranche4_fixtures/shared-inbox.html'
+patching file 'tests/extraction/tranche4_fixtures/structured.html'
+patching file 'tests/extraction/tranche4_fixtures/swapped.html'
+patching file 'tests/extraction/tranche4_replay.py'
+patching file 'tests/market_map/mobile_relationship_review.test.mjs'
+patching file 'tests/market_map/test_email_acquisition.py'
+patching file 'tests/market_map/test_fetch_outcomes.py'
+patching file 'tests/market_map/test_frontier_retry.py'
+
+PR-12 exit=0
+patching file 'scripts/market_map/fetch_outcomes.py'
+patching file 'scripts/market_map/transport.py'
+patching file 'tests/extraction/run_offline.py'
+patching file 'tests/market_map/test_fetch_outcomes.py'
+
+PR-11 exit=0
+patching file 'scripts/discovery_v2/contacts.py'
+patching file 'scripts/market_map/contact_attribution.py'
+patching file 'scripts/market_map/contact_context.py'
+patching file 'tests/extraction/run_offline.py'
+patching file 'tests/market_map/test_contact_attribution.py'
+
+PR-10 exit=0
+patching file 'scripts/market_map/cloud/regional_contact_enrichment.py'
+patching file 'scripts/market_map/cloud/regional_email_inventory.py'
+patching file 'scripts/market_map/cloud/regional_mobile_crm_review.mjs'
+patching file 'scripts/market_map/email_relationship_review.mjs'
+patching file 'scripts/market_map/regional_occurrences.py'
+patching file 'tests/extraction/run_offline.py'
+patching file 'tests/market_map/email_relationship_review.test.mjs'
+patching file 'tests/market_map/test_regional_email_inventory.py'
+patching file 'tests/market_map/test_regional_occurrences.py'
+
+All changed paths restored byte-for-byte in temporary copy.

@@ -1,0 +1,11 @@
+import {fs} from './gta-email-recovery-runtime.mjs';
+const {send}=await import('./reply-runtime-20261007.mjs');
+const review=JSON.parse(fs.readFileSync('artifacts/derek-followup-20261014/review.json'));
+const c=review.contact;
+const outbound=review.touches.filter(t=>t.direction==='outbound');
+const from=outbound.at(-1)?.metadata?.from;
+if(!from)throw Error('Cannot verify existing sender');
+const plan={id:c.id,name:c.name,phone:c.phone,city:c.city,latest:review.touches.at(-1).id,from,followup_key:'derek-owner-20261014',body:"Hey Derek, John here. Still interested in exploring the bulky-item delivery partnership. I understand the rates need to fit a transport model. Would you prefer a quick call, or to send the service requirements and rate structure by email first? My email is business@starmovers.ca. Happy to work around your schedule.",note:'Owner requested contextual follow-up October 14; no rate or meeting commitment. Await reply.'};
+fs.writeFileSync('artifacts/derek-followup-20261014/plan.json',JSON.stringify(plan,null,2));
+const result=await send(plan);
+fs.writeFileSync('artifacts/derek-followup-20261014/result.json',JSON.stringify(result,null,2));

@@ -1,0 +1,7 @@
+{
+  "verified": true,
+  "actual_bounded_workers": 3,
+  "completed_pages_preserved": 3,
+  "timeout_observed": 3,
+  "os_network_denial_verified": true
+}

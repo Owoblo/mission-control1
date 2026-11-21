@@ -1,0 +1,23 @@
+{
+  "tests/extraction/corrections_results/external-changes-preserved.json": "310c8cd0a1cbfcd2b473800dab506cdfbb5104a60e510349187449a2377bf44e",
+  "tests/extraction/corrections_results/process-results.json": "9ac688424c148a6b3142c7c9b0aea23c6cf464c13c3cbd6c8c4518c81109f150",
+  "tests/extraction/corrections_results/changed-files.json": "9df0c4bf4140f76086178b68fccf19e6123011ef0196b02b4c3db6e56ffab9ca",
+  "tests/extraction/corrections_results/recovery-results.json": "fd421bc7777901c3341d66b9a9b61ee41ef3bb6e23b0f3aedecf435dd73156a0",
+  "tests/extraction/corrections_results/checkpoint-results.json": "7f1c5d9493516e161d45d359cb2b191fd6a69c2296fb224ba566956c33e6833c",
+  "tests/extraction/corrections_results/frozen-accuracy.json": "10cf8def5241c076449fdde0db1896a54cc64813312fe7a38d184955591d7943",
+  "tests/extraction/corrections_results/maintenance-measurements.json": "be400d7215eae60776a4ce0c3203d3f42965df6cb4ea81bf224b224b89b01b93",
+  "tests/extraction/corrections_results/rollback-check.txt": "7cd559c6b303d17b2994d420b0288aaa97118d306176551883df4471c7934b7a",
+  "tests/extraction/corrections_results/demonstrated-hold-overwrite.log": "a409e21a14486ca1cb67cd429e21f479bc32d8066b83db3c94d759f918d99a9f",
+  "tests/extraction/corrections_results/release-evaluation.json": "f4bc06e4991998c997795e6bc2757fd3531a1e08e71b31e45cfc75e08bb3ad34",
+  "tests/extraction/corrections_results/demonstrated-timeout-overwrite.log": "4ed2315e9751bc7cb2477aa30dd32957a03da348ad175e6dfff98f94a5febf92",
+  "tests/extraction/corrections_results/gate-integrity.json": "3c7af8ab5f66ca53bd42ebd7049e03b63400a7529d867a9ed4cafdb01233317e",
+  "tests/extraction/corrections_results/extended-accuracy.json": "51f517c3e6b41e79b8db6c0038efb2f648ac90bc2e189c749d009dc6915fb0f2",
+  "tests/extraction/corrections_results/prerequisites-environment-failure.log": "bbc24b90df510fcc0bd166888674bdda9ac8059ff23222ce8205c4b5e36e0483",
+  "tests/extraction/corrections_results/rollback.patch": "93f3be958390abee2587d8ab84451d193db87417413463db5576c82f2486e8e3",
+  "tests/extraction/corrections_results/host-http-trace.jsonl": "a3db464139013a36a88e71fde48a827093e58d92e5d3aaf236d58fe1e69d6044",
+  "tests/extraction/corrections_results/corpus-review.csv": "18146050464d432b7c218e7b0c90cd9e51e24748198eb6383bc6d3e40f329550",
+  "tests/extraction/corrections_results/tests.log": "7d4798449b1e2febf9797fc5652bc84376bf23c334ac4811fc2140982abc49a1",
+  "tests/extraction/corrections_results/corpus-inventory.json": "d03ec3823a15549fe5c190c4ff67748009f99140e9df3229e3ad38504778db76",
+  "tests/extraction/corrections_results/operations.json": "4044cf1d88b84eb1fd6dbef6fa1c098e5f2c8bc5aa405d8a9ce2136edc3a46f5",
+  "EXTRACTION_ENGINE_PRODUCTION_READINESS_CORRECTIONS.md": "7da6e813f6556eef50c1171f77e9c65f8145d40fa511f887e7c6784e389885a8"
+}

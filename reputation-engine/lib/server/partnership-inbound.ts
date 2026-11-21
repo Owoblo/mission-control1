@@ -4,7 +4,7 @@ import { digitsOnly, normalizePhone } from '@/lib/sales-phones'
 import { partnershipPhoneLookupSuffix, partnershipPhonesMatch, samePartnershipIdentity } from '@/lib/partnership-contact-match'
 import { getPartnershipAlertRecipients, partnershipInboundNotificationEmail, sendRepAlertEmail } from '@/lib/server/internal-notifications'
 import { partnershipDispositionFromSuggestion, suggestPartnershipReply, type PartnershipAssistantContact } from '@/lib/server/partnership-reply-assistant'
-import { isOptOutText } from '@/lib/server/partnership-sms'
+import { isInboundOptOut } from '@/lib/server/partnership-sms'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
 import { queueRequestedOttawaCard } from '@/lib/server/partnership-card-fulfillment'
 import { appendLocalityEvidence, extractPartnerLocality } from '@/lib/server/partnership-locality'
@@ -310,7 +310,7 @@ export async function pausePartnershipSequenceForInbound(input: PausePartnership
   }
 
   const currentStage = normalizePartnershipStage(contact.stage)
-  const optedOut = isOptOutText(input.notes)
+  const optedOut = isInboundOptOut(input.channel, input.notes)
   const touchNotes = input.notes?.trim() || (optedOut ? 'Inbound opt-out received' : `Inbound ${input.channel} reply received`)
   const assistantContact: PartnershipAssistantContact = {
     id: contact.id,

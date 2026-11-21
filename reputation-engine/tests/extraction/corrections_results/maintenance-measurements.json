@@ -1,0 +1,69 @@
+{
+  "tests_run": 3,
+  "success": true,
+  "measurements": [
+    {
+      "stage": "backup",
+      "files": 7,
+      "databases": 3,
+      "bytes": 421355,
+      "body_files": 1
+    },
+    {
+      "stage": "restore",
+      "restored_files": 7,
+      "restored_databases": 3,
+      "verified": true
+    },
+    {
+      "stage": "cleanup",
+      "status": "applied",
+      "applied": true,
+      "receipt_actions": 0,
+      "body_actions": 0
+    },
+    {
+      "stage": "cleanup",
+      "status": "held_current_policy_required",
+      "applied": false,
+      "receipt_actions": 0,
+      "body_actions": 0
+    },
+    {
+      "stage": "cleanup",
+      "status": "applied",
+      "applied": true,
+      "receipt_actions": 0,
+      "body_actions": 0
+    },
+    {
+      "stage": "cleanup",
+      "status": "dry_run",
+      "applied": false,
+      "receipt_actions": 1,
+      "body_actions": 1
+    },
+    {
+      "stage": "cleanup",
+      "status": "held_unknown_metadata",
+      "applied": false,
+      "receipt_actions": 0,
+      "body_actions": 0
+    },
+    {
+      "stage": "cleanup",
+      "status": "applied",
+      "applied": true,
+      "receipt_actions": 1,
+      "body_actions": 1
+    },
+    {
+      "stage": "cleanup",
+      "status": "applied",
+      "applied": true,
+      "receipt_actions": 1,
+      "body_actions": 0
+    }
+  ],
+  "guard_violations": []
+}

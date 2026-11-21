@@ -1,0 +1,1038 @@
+[
+  {
+    "regional_before": [
+      {
+        "id": "reference",
+        "capture_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/reference",
+                  "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/1/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/1",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [
+                  "local-office"
+                ],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": true,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "first_party_single_organization",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": [
+          "desk@business.test"
+        ]
+      },
+      {
+        "id": "shared-reference",
+        "capture_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/shared-reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/shared-reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/shared-reference",
+                  "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/2/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      },
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#other",
+                        "name": "Other",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "unresolved",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/2",
+                    "ambiguity_review_required": true
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "repeated-context",
+        "capture_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/repeated-context"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/footer",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/footer",
+                    "field": "text",
+                    "start": 11,
+                    "end": 29
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/footer",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "possible_website_vendor_contact_requires_review",
+                  "short_supporting_context": "Website by desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": true,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 0,
+                    "end": 18
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 19,
+                    "end": 37
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": true,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed",
+              "vendor_occurrence_review"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "person-employer",
+        "capture_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "rows": [
+          {
+            "email": "jane@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/person-employer"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d",
+                "channel": "email",
+                "value": "jane@business.test",
+                "source_url": "https://business.test/person-employer",
+                "source_evidence": {
+                  "email": "jane@business.test",
+                  "raw_value": "jane@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/person-employer",
+                  "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+                  "extraction_method": "public_person_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/0/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": null,
+                        "name": "Jane Smith",
+                        "types": [
+                          "Person"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "node_pointer": "/@graph/0",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      }
+    ],
+    "regional_after": [
+      {
+        "id": "reference",
+        "capture_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/reference",
+                  "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/1/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/1",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [
+                  "local-office"
+                ],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": true,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "first_party_single_organization",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": [
+          "desk@business.test"
+        ]
+      },
+      {
+        "id": "shared-reference",
+        "capture_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/shared-reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/shared-reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/shared-reference",
+                  "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/2/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      },
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#other",
+                        "name": "Other",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "unresolved",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/2",
+                    "ambiguity_review_required": true
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "repeated-context",
+        "capture_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/repeated-context"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/footer",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/footer",
+                    "field": "text",
+                    "start": 11,
+                    "end": 29
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/footer",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "possible_website_vendor_contact_requires_review",
+                  "short_supporting_context": "Website by desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": true,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 0,
+                    "end": 18
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 19,
+                    "end": 37
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": true,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed",
+              "vendor_occurrence_review"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "person-employer",
+        "capture_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "rows": [
+          {
+            "email": "jane@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/person-employer"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d",
+                "channel": "email",
+                "value": "jane@business.test",
+                "source_url": "https://business.test/person-employer",
+                "source_evidence": {
+                  "email": "jane@business.test",
+                  "raw_value": "jane@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/person-employer",
+                  "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+                  "extraction_method": "public_person_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/0/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": null,
+                        "name": "Jane Smith",
+                        "types": [
+                          "Person"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "node_pointer": "/@graph/0",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      }
+    ]
+  }
+]

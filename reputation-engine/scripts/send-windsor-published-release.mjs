@@ -1,0 +1,69 @@
+import {reserveAction} from '../lib/partnership-core/reserve.mjs';
+// Owner-authorized first introductions to reviewed company-published recipients.
+// No automatic follow-ups; durable reservations block ambiguous retries.
+import fs from 'node:fs/promises';
+import {evaluateHistory} from '../lib/partnership-core/policy.mjs';
+import {createHash} from 'node:crypto';
+import {SESv2Client,GetAccountCommand,ListSuppressedDestinationsCommand,SendEmailCommand} from '@aws-sdk/client-sesv2';
+if(!process.env.AWS_SES_CONFIGURATION_SET?.trim())throw Error('Missing SES event configuration set; sending without delivery tracking is blocked');
+const root='partnership-system/markets/ca/on/windsor-essex/runs/2026-09-15';const dir=`${root}/send-release`;
+const expanded=process.argv.includes('--expanded');const releaseIndex=process.argv.indexOf('--release');
+if(releaseIndex>=0&&!process.argv[releaseIndex+1])throw Error('Missing release path');
+const releasePath=releaseIndex>=0?process.argv[releaseIndex+1]:`${dir}/${expanded?'published-company-expanded-release':'published-company-release'}.json`;
+const release=JSON.parse(await fs.readFile(releasePath));const execute=process.argv.includes('--send');
+if(new Set(release.initial.map(r=>r.id)).size!==release.initial.length||new Set(release.initial.map(r=>r.to.toLowerCase())).size!==release.initial.length)throw Error('Duplicate release identity; reconcile before sending');
+const idFor=s=>{const h=createHash('sha256').update('windsor-published-v1:'+s).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`};
+async function db(t,q={},method='GET',body){const r=await fetch(`${process.env.SUPABASE_URL}/rest/v1/${t}?${new URLSearchParams(q)}`,{method,headers:{apikey:process.env.SUPABASE_KEY,Authorization:`Bearer ${process.env.SUPABASE_KEY}`,'Content-Type':'application/json',Prefer:'return=representation'},body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(t+' '+r.status+' '+await r.text());return r.status===204?[]:r.json()}
+let contacts=[];for(let offset=0;offset<30000;offset+=1000){const rows=await db('market_contacts',{select:'id,name,email,company,partner_company_id,stage,decision,do_not_contact,email_status,email_unsubscribed_at,cross_channel_suppressed_at,last_touch_at,last_inbound_at',order:'id',limit:1000,offset});contacts.push(...rows);if(rows.length<1000)break;if(offset===29000)throw Error('CRM pagination cap');}
+const client=new SESv2Client({region:'us-east-2',maxAttempts:1});const health=await client.send(new GetAccountCommand({}));if(!health.SendingEnabled||!health.ProductionAccessEnabled||health.EnforcementStatus!=='HEALTHY')throw Error('Sender not ready');
+await new Promise(r=>setTimeout(r,1200));const suppressed=new Set();let nextToken;do{const r=await client.send(new ListSuppressedDestinationsCommand({PageSize:1000,NextToken:nextToken}));for(const s of r.SuppressedDestinationSummaries||[])suppressed.add(s.EmailAddress.toLowerCase());nextToken=r.NextToken;if(nextToken)await new Promise(r=>setTimeout(r,1200));}while(nextToken);
+const auth=await fetch(process.env.ZOHO_PARTNERSHIP_ACCOUNTS_URL+'/oauth/v2/token',{method:'POST',body:new URLSearchParams({grant_type:'refresh_token',client_id:process.env.ZOHO_PARTNERSHIP_CLIENT_ID,client_secret:process.env.ZOHO_PARTNERSHIP_CLIENT_SECRET,refresh_token:process.env.ZOHO_PARTNERSHIP_REFRESH_TOKEN})});const token=await auth.json();if(!token.access_token)throw Error('Mailbox auth failed');
+const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');const records=[];
+async function log(r){records.push(r);await fs.appendFile(`${dir}/published-send-actions.jsonl`,JSON.stringify({...r,at:new Date().toISOString()})+'\n');}
+async function monitor(){
+ const receipts=[];for(const name of ['personalized-send-receipts','published-send-receipts']){const text=await fs.readFile(`${dir}/${name}.jsonl`,'utf8').catch(e=>{if(e.code==='ENOENT')return '';throw e});receipts.push(...text.trim().split('\n').filter(Boolean).map(JSON.parse));}
+ if(!receipts.length)return;
+ const events=[];for(let offset=0;offset<receipts.length;offset+=75)events.push(...await db('email_provider_events',{select:'event_type,provider_message_id,payload',provider_message_id:'in.('+receipts.slice(offset,offset+75).map(r=>r.messageId).join(',')+')'}));
+ if(events.some(e=>e.event_type==='email_complained'))throw Error('Campaign paused: complaint');
+ const review=JSON.parse(await fs.readFile(`${dir}/delivery-incident-review.json`));
+ const reviewed=new Set([...review.hard_bounces,...review.challenge_holds,...(review.transient_holds||[])].map(r=>r.message_id));
+ const bounces=events.filter(e=>e.event_type==='email_bounced');
+ // A documented recipient challenge remains held. Any new bounce stops further sends for review.
+ if(bounces.some(e=>!reviewed.has(e.provider_message_id)))throw Error('Campaign paused: new bounce requires diagnosis');
+ const permanent=new Set();
+ for(const e of bounces){let payload=e.payload;if(payload?.Message)payload=JSON.parse(payload.Message);if(payload?.bounce?.bounceType==='Permanent')permanent.add(e.provider_message_id);else if((review.transient_holds||[]).some(r=>r.message_id===e.provider_message_id&&JSON.stringify(r.bounce)===JSON.stringify(payload?.bounce)))continue;else if(!review.challenge_holds.some(r=>r.message_id===e.provider_message_id)||!payload?.bounce?.bouncedRecipients?.some(r=>r.diagnosticCode?.includes('surgemail.mnsi.net/cgi/user.cgi?cmd=r&f=775103852')))throw Error('Campaign paused: unrecognized delivery diagnostic');}
+ if(permanent.size>=2&&permanent.size/receipts.length>=.05)throw Error('Campaign paused: permanent bounce threshold');
+}
+
+const priorReceipts=await fs.readFile(`${dir}/published-send-receipts.jsonl`,'utf8').catch(e=>{if(e.code==='ENOENT')return '';throw e});
+const alreadyAccepted=new Set(priorReceipts.trim().split('\n').filter(Boolean).map(line=>JSON.parse(line).id));
+await monitor();
+for(const [index,d] of release.initial.entries()){
+ if(alreadyAccepted.has(d.id))continue;
+ await monitor();const touchId=idFor('touch:'+d.id);
+ const [oldTouch]=await db('market_touches',{select:'id,metadata',id:'eq.'+touchId});if(oldTouch){await log({id:d.id,to:d.to,status:'existing_reservation_or_send',touchId});continue;}
+ const v=d.validation;if(!v||Date.now()-Date.parse(v.checked_at)>86400000||v.overall==='LOW'||v.mailbox==='LOW'||v.status==='hold_risk')throw Error('Validation requires review '+d.to);
+ const domain=d.to.split('@')[1].toLowerCase();const sharedMailboxDomain=['gmail.com','outlook.com','hotmail.com','live.com','yahoo.com','yahoo.ca','bellnet.ca','cogeco.net','mnsi.net','netcore.ca','aol.com'].includes(domain);const related=contacts.filter(c=>c.email?.toLowerCase()===d.to.toLowerCase()||(!sharedMailboxDomain&&c.email?.toLowerCase().endsWith('@'+domain))||norm(c.company)===norm(d.account_name));
+ if(suppressed.has(d.to.toLowerCase())||related.some(c=>c.do_not_contact||c.email_unsubscribed_at||c.cross_channel_suppressed_at||['bounced','complained','unsubscribed'].includes(c.email_status)||['dnc','closed_lost'].includes(c.stage)||['opted_out','rejected'].includes(c.decision))){await log({id:d.id,to:d.to,status:'held_suppression'});continue;}
+ const historyPolicy=evaluateHistory({kind:'cold_introduction',channel:'email'},related);
+ if(!historyPolicy.allowed){await log({id:d.id,to:d.to,status:'held_existing_crm_activity',policy:historyPolicy});continue;}
+ let found=0;for(const field of ['sender','to','cc']){const q=new URLSearchParams({searchKey:field+':'+(sharedMailboxDomain?d.to:domain),start:'1',limit:'200',includeto:'true',receivedTime:String(Date.now())});let data;for(let attempt=0;attempt<3;attempt++){const r=await fetch(`${process.env.ZOHO_PARTNERSHIP_MAIL_URL}/api/accounts/${process.env.ZOHO_PARTNERSHIP_ACCOUNT_ID}/messages/search?${q}`,{headers:{Authorization:'Zoho-oauthtoken '+token.access_token},signal:AbortSignal.timeout(30000)});data=await r.json();if(r.ok&&data.status?.code===200&&Array.isArray(data.data))break;data=null;await new Promise(r=>setTimeout(r,1200));}if(!data)throw Error('Mailbox freshness failed '+d.to);found+=data.data.length;}
+ if(found){await log({id:d.id,to:d.to,status:'held_existing_mail_history',matchingSearchRows:found});continue;}
+ if(!d.body.includes('3608 Seminole Street')||!d.body.includes('prefer no further emails'))throw Error('Missing sender footer');
+ if(!execute){await log({id:d.id,to:d.to,status:'preflight_passed'});continue;}
+ let contact=related.find(c=>c.email?.toLowerCase()===d.to.toLowerCase());
+ if(!contact){const [created]=await db('market_contacts',{},'POST',{id:idFor('contact:'+d.to.toLowerCase()),name:d.recipient_name,company:d.account_name,title:d.recipient_role,email:d.to,city:d.city,province:'ON',website:d.website,industry:d.source_categories,stage:'target',owner_name:'John',priority:'normal',preferred_channel:'email',sequence_paused:true,sequence_paused_reason:'Owner-managed commercial email; no automatic follow-up',commission_rule_required:false,email_source:d.publication_source,email_verification_provider:'aws_ses',email_verification_status:'risky',email_verification_checked_at:v.checked_at,email_verification_reason:`overall_${v.overall};mailbox_${v.mailbox};reviewed_company_publication`,tags:['windsor-published-v1','account:primary'],notes:JSON.stringify({source:d.publication_source,checked_at:d.publication_checked_at,context_source:d.context_source,validation:v,sending_basis:d.sending_basis})});contact=created;contacts.push(created);}
+ const fresh=await db('market_contacts',{id:'eq.'+contact.id,select:'id,do_not_contact,email_unsubscribed_at,cross_channel_suppressed_at,last_touch_at,last_inbound_at'});if(fresh.some(c=>c.do_not_contact||c.email_unsubscribed_at||c.cross_channel_suppressed_at||c.last_touch_at||c.last_inbound_at))throw Error('Contact changed before send');
+ await reserveAction({url:process.env.SUPABASE_URL,headers:{apikey:process.env.SUPABASE_KEY,Authorization:'Bearer '+process.env.SUPABASE_KEY},contactId:contact.id,channel:'email',key:'batch:'+touchId,content:d.subject+'\n'+d.body,sender:'john@saturnstarmovers.ca'});
+ const metadata={source:'owner_authorized_windsor_published_v1',provider:'ses',delivery_state:'reserved_not_confirmed',to:d.to,company_id:contact.partner_company_id,subject:d.subject,variant:d.variant,experiment_id:d.experiment_id||null,experiment_sector:d.experiment_sector||null,experiment_angle:d.experiment_angle||null,sending_basis:d.sending_basis,reply_to:'business@starmovers.ca'};
+ await db('market_touches',{},'POST',{id:touchId,contact_id:contact.id,channel:'email',direction:'outbound',notes:d.body,created_by:'John — authorized Windsor partnership outreach',metadata});
+ const esc=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');const html='<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#17212b;max-width:620px">'+d.body.split('\n\n').map(p=>'<p>'+esc(p).replaceAll('\n','<br>')+'</p>').join('')+'<div style="border-top:2px solid #c99700;color:#071421;padding-top:8px">Saturn Star Movers</div></div>';
+ const r=await client.send(new SendEmailCommand({FromEmailAddress:'John | Saturn Star Movers <john@saturnstarmovers.ca>',ReplyToAddresses:['business@starmovers.ca'],Destination:{ToAddresses:[d.to]},ConfigurationSetName:process.env.AWS_SES_CONFIGURATION_SET,EmailTags:[{Name:'contact_id',Value:contact.id},{Name:'campaign',Value:'windsor-published-v1'},{Name:'variant',Value:d.variant}],Content:{Simple:{Subject:{Data:d.subject,Charset:'UTF-8'},Body:{Text:{Data:d.body,Charset:'UTF-8'},Html:{Data:html,Charset:'UTF-8'}}}}}));if(!r.MessageId)throw Error('Ambiguous send response; inspect reservation');
+ const at=new Date().toISOString();const receipt={id:d.id,touchId,contact_id:contact.id,company_id:contact.partner_company_id,to:d.to,variant:d.variant,messageId:r.MessageId,status:'accepted',accepted_at:at};await fs.appendFile(`${dir}/published-send-receipts.jsonl`,JSON.stringify(receipt)+'\n');
+ await db('market_touches',{id:'eq.'+touchId},'PATCH',{metadata:{...metadata,delivery_state:'accepted',provider_message_id:r.MessageId},next_step:'Review reply and source evidence before any next contact',next_follow_up_on:'2026-09-22'});
+ await db('market_contacts',{id:'eq.'+contact.id},'PATCH',{last_touch_at:at,email_last_sent_at:at,email_provider:'ses',email_provider_message_id:r.MessageId,next_follow_up:'2026-09-22'});contact.last_touch_at=at;
+ const taskKey='windsor-published-v1:'+d.id;if(!(await db('crm_tasks',{source_key:'eq.'+taskKey,select:'id'})).length)await db('crm_tasks',{},'POST',{id:idFor('task:'+d.id),title:`${d.account_name}: review partnership reply`,description:JSON.stringify({receipt,body:d.body,source:d.publication_source,next_step:'Review reply/delivery; respond to introductions and supplier requests. No automatic follow-up.'}),status:'open',priority:'normal',category:'partnerships',owner_name:'John',due_at:'2026-09-22T14:00:00Z',related_type:'partner',related_id:contact.id,related_label:d.account_name,source:'manual',source_key:taskKey});
+ if(d.account_id)await db('crm_tasks',{source_key:'eq.windsor-recovery:'+d.account_id,status:'in.(open,in_progress)'},'PATCH',{status:'completed',completed_at:at,completed_by_name:'John',outcome_note:'Published contact researched and introduction accepted by SES. See partnership conversation and reply-review task.'});
+ await log(receipt);console.log(JSON.stringify({to:d.to,status:'accepted',index:index+1,total:release.initial.length}));await new Promise(r=>setTimeout(r,1100));
+}
+await monitor();await fs.writeFile(`${dir}/published-send-run.json`,JSON.stringify({at:new Date().toISOString(),execute,records},null,2));console.log(JSON.stringify({execute,accepted:records.filter(r=>r.status==='accepted').length,held:records.filter(r=>r.status.startsWith('held')).map(r=>({to:r.to,status:r.status}))}));

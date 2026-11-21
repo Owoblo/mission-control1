@@ -1,0 +1,81 @@
+"""Published phone evidence; format normalization is not line or owner verification."""
+import hashlib
+import json
+import re
+from urllib.parse import unquote
+from lxml import html
+
+EXT = re.compile(r'(?:;ext=|\bext(?:ension)?\.?\s*[:=]?\s*|\bx\s*|#\s*)(\d{1,10})\s*$',re.I)
+NANP = re.compile(r'(?<![\w\d])(?:\+?1[ .-]?)?(?:\([2-9]\d{2}\)[ .-]*|[2-9]\d{2}[ .-]+)[2-9]\d{2}[ .-]\d{4}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?(?!\d)',re.I)
+LABELLED = re.compile(r'\b(?:phone|tel(?:ephone)?|call|fax)\s*[:.]?\s*(\+?\d[\d ()+.-]{6,24}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?)',re.I)
+
+
+def normalize_phone(value):
+    raw=unquote(str(value)).strip()
+    base=re.sub(r'^tel:', '',raw,flags=re.I).split('?')[0]
+    match=EXT.search(base);extension=match.group(1) if match else ''
+    if match:base=base[:match.start()]
+    base=base.strip()
+    # Unknown tel URI parameters and vanity strings require a separate resolver.
+    if re.search(r'[^\d\s()+.\-]',base):return None
+    digits=re.sub(r'\D','',base)
+    if len(digits)==10 and re.fullmatch(r'[2-9]\d{2}[2-9]\d{6}',digits):phone='+1'+digits
+    elif len(digits)==11 and digits.startswith('1') and re.fullmatch(r'1[2-9]\d{2}[2-9]\d{6}',digits):phone='+'+digits
+    elif base.startswith('+') and 8<=len(digits)<=15 and not digits.startswith('0'):phone='+'+digits
+    else:return None
+    return phone,extension
+
+
+def extract_published_phones(body,url):
+    if not body:return []
+    rawbody=body.encode() if isinstance(body,str) else body
+    doc=html.fromstring(rawbody,base_url=url);digest=hashlib.sha256(rawbody).hexdigest();records=[];seen=set()
+    def add(value,context,method,kind='phone',locator=None):
+        if not isinstance(value,(str,int)):return
+        normalized=normalize_phone(value)
+        if not normalized:return
+        number,extension=normalized;context=' '.join(str(context).split())[:500]
+        key=(number,extension,kind,method,context)
+        if key in seen:return
+        seen.add(key)
+        records.append({'phone':number,'extension':extension,'raw_value':str(value),'source_url':url,'context':context,
+                        'kind':kind,'extraction_method':method,'source_dom_locator':locator,'page_content_sha256':digest,
+                        'verification_status':'source_published_unverified','organisation_ownership_status':'not_verified',
+                        'branch_ownership_status':'not_verified','outreach_eligibility':'research_only'})
+    def structured(value):
+        if isinstance(value,dict):
+            context=json.dumps({k:value[k] for k in ('name','@type','contactType','address') if k in value},ensure_ascii=False)
+            for key,item in value.items():
+                if key in ('telephone','faxNumber'):
+                    for phone in item if isinstance(item,list) else [item]:add(phone,context,'json_ld','fax' if key=='faxNumber' else 'phone')
+                elif isinstance(item,(list,dict)):structured(item)
+        elif isinstance(value,list):
+            for item in value:structured(item)
+    for script in doc.xpath('//script[contains(@type,"ld+json")]'):
+        try:structured(json.loads(script.text or ''))
+        except (ValueError,RecursionError):pass
+    for node in doc.xpath('//*[@itemprop="telephone" or @itemprop="faxNumber"]'):
+        value=node.get('content') or node.get('href') or node.text_content()
+        add(value,node.getparent().text_content() if node.getparent() is not None else value,'microdata','fax' if node.get('itemprop')=='faxNumber' else 'phone',doc.getroottree().getpath(node))
+    for node in doc.xpath('//script|//style|//noscript|//template|//*[@hidden or @aria-hidden="true"]'):
+        if node.getparent() is not None:node.drop_tree()
+    for node in doc.xpath('//*[@style]'):
+        if re.search(r'(?:display\s*:\s*none|visibility\s*:\s*hidden)',node.get('style',''),re.I) and node.getparent() is not None:node.drop_tree()
+    for a in doc.xpath('//a[@href]'):
+        if not a.get('href','').lower().startswith('tel:'):continue
+        parent=a.getparent();context=parent.text_content() if parent is not None else a.text_content()
+        kind='fax' if re.search(r'\bfax\b',a.text_content(),re.I) else 'phone'
+        add(a.get('href'),context,'tel_link',kind,doc.getroottree().getpath(a))
+    # Scan individual text nodes, not a flattened page where unrelated digits concatenate.
+    for textnode in doc.xpath('//text()[normalize-space()]'):
+        value=str(textnode);parent=textnode.getparent()
+        if parent is not None and not isinstance(parent.tag,str):parent=parent.getparent()
+        if parent is None:continue
+        context=' '.join(parent.text_content().split())[:500]
+        for pattern in (NANP,LABELLED):
+            for match in pattern.finditer(value):
+                raw=match.group(1) if pattern is LABELLED else match.group(0)
+                prefix=value[max(0,match.start()-20):match.start()]
+                kind='fax' if re.search(r'fax\s*[:.]?\s*$',prefix,re.I) or pattern is LABELLED and match.group(0).lower().startswith('fax') else 'phone'
+                add(raw,context,'visible_text',kind,doc.getroottree().getpath(parent))
+    return records

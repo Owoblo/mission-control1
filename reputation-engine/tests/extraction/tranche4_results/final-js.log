@@ -1,0 +1,34 @@
+✔ new additional route never becomes a verified mobile or send-ready (2.056583ms)
+✔ existing suppressed account retains both holds (0.806458ms)
+✔ stale source review or old page evidence does not advance (0.083291ms)
+✔ unresolved source candidates are excluded and inputs remain unchanged (0.0945ms)
+✔ extra email is linked for review, not counted as a new person (1.651958ms)
+✔ a company domain match is not an automatic person merge (0.180917ms)
+✔ special-purpose mailbox stays held despite a passing mailbox check (0.072792ms)
+✔ branch ambiguity and suppressed relationships remain visible (0.075667ms)
+✔ new route still needs identity and owner approval (0.5935ms)
+✔ one local listing does not assign a national staff directory to that branch (0.091875ms)
+✔ indexed review equals full snapshot including linked suppressed contacts (0.794625ms)
+✔ indexed snapshot can serve different candidates without leaking matches (1.019375ms)
+✔ occurrence evidence and original holds survive both reviewers (0.28175ms)
+✔ new route stays held, never send-ready (0.659542ms)
+✔ normalized phone and suppression are retained (0.735917ms)
+✔ company domain links other channel contacts without merging them (0.939667ms)
+✔ sales account holds and stale evidence survive (0.271875ms)
+✔ empty fields do not match unrelated accounts (0.443541ms)
+✔ phone occurrence context and existing holds survive review (0.146208ms)
+✔ reviewed evidence joins once and remains held (0.881167ms)
+✔ new source conflict overrides old review (0.124541ms)
+✔ changed source bytes or missing current mobile evidence prevents promotion (0.096084ms)
+✔ unreviewed candidates never join (0.070792ms)
+✔ structured and manual evidence do not double count a phone (0.072458ms)
+✔ missing structured address requires explicit reviewed gap and valid visible proof (0.086208ms)
+✔ schema gap acknowledgment cannot bypass contradictory locations or identity (0.078041ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.046833

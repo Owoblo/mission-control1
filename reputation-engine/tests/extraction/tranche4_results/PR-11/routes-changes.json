@@ -1,0 +1,2104 @@
+[
+  {
+    "before": {
+      "id": "exact",
+      "capture_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+      "expected_supported": true,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "d92caed334cf466f90387b8e",
+          "source_record_id": "exact",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    "after": {
+      "id": "exact",
+      "capture_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+      "expected_supported": true,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "d92caed334cf466f90387b8e",
+          "source_record_id": "exact",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "person_candidates": [
+            {
+              "to": "jane@business.test",
+              "recipient_name": "Jane Smith",
+              "recipient_role": "Facilities Manager"
+            }
+          ],
+          "scoped_role_evidence": {
+            "role_supported": true,
+            "reason": "same_scoped_person_email_role",
+            "candidate_people": [
+              {
+                "to": "jane@business.test",
+                "recipient_name": "Jane Smith",
+                "recipient_role": "Facilities Manager"
+              }
+            ],
+            "scoped_matches": [
+              {
+                "candidate": {
+                  "to": "jane@business.test",
+                  "recipient_name": "Jane Smith",
+                  "recipient_role": "Facilities Manager"
+                },
+                "evidence": {
+                  "source_url": "https://business.test/team",
+                  "page_content_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+                  "excerpt": "Jane SmithFacilities Managerjane@business.test",
+                  "extraction_method": "visible_role_card",
+                  "review_status": "source_published_candidate_requires_review",
+                  "name": "Jane Smith",
+                  "role_title": "Facilities Manager",
+                  "role_function": "facilities",
+                  "source_dom_locator": "/html/body/div",
+                  "emails": [
+                    "jane@business.test"
+                  ],
+                  "unassigned_published_emails": [],
+                  "email_association_status": "same_unambiguous_public_card_not_verified",
+                  "published_employer": null,
+                  "employer_identity_status": "not_verified",
+                  "employment_relationship_status": "not_established",
+                  "source_listing_context": null,
+                  "source_listing_kind": "public_role_listing",
+                  "authority_scope": "not_established",
+                  "purchasing_authority_verified": false,
+                  "ssm_route_hypothesis": {
+                    "role_function": "facilities",
+                    "status": "service_fit_hypothesis_only"
+                  },
+                  "email_occurrences": [
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+                      "extraction_method": "visible_text",
+                      "source_dom_locator": "/html/body/div/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "node": "/html/body/div/a",
+                        "field": "text",
+                        "start": 0,
+                        "end": 18
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "74841e289102a29cc8a5dd5297d7bff88200c573be2b293e6733a1f570f4c6c5"
+                    },
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+                      "extraction_method": "mailto_recipient",
+                      "source_dom_locator": "/html/body/div/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "attribute": "href",
+                        "recipient_index": 0
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "ec0abee8a51bcbfb5a166a9d6a0d4f6a3ecc48f9f71f78277c05ce683cb4210b"
+                    }
+                  ]
+                }
+              }
+            ],
+            "page_content_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+            "auto_send": false
+          },
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  },
+  {
+    "before": {
+      "id": "swapped",
+      "capture_sha256": "20a898d9c1c2e858ec1fec14127e9a00c61620db484c3a2e42a2ad583c9900bb",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "38ba7441d2ab3577a35a1785",
+          "source_record_id": "swapped",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Sales Manager jane@business.test Bob Jones Facilities Manager bob@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    "after": {
+      "id": "swapped",
+      "capture_sha256": "20a898d9c1c2e858ec1fec14127e9a00c61620db484c3a2e42a2ad583c9900bb",
+      "expected_supported": false,
+      "actual_supported": false,
+      "routes": [
+        {
+          "route_id": "38ba7441d2ab3577a35a1785",
+          "source_record_id": "swapped",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "person_candidates": [
+            {
+              "to": "jane@business.test",
+              "recipient_name": "Jane Smith",
+              "recipient_role": "Facilities Manager"
+            }
+          ],
+          "scoped_role_evidence": {
+            "role_supported": false,
+            "reason": "ambiguous_or_missing_scoped_person_role",
+            "candidate_people": [
+              {
+                "to": "jane@business.test",
+                "recipient_name": "Jane Smith",
+                "recipient_role": "Facilities Manager"
+              }
+            ],
+            "scoped_matches": [],
+            "page_content_sha256": "20a898d9c1c2e858ec1fec14127e9a00c61620db484c3a2e42a2ad583c9900bb",
+            "auto_send": false
+          },
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Sales Manager jane@business.test Bob Jones Facilities Manager bob@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": false,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  },
+  {
+    "before": {
+      "id": "duplicate-person",
+      "capture_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "dd12c4dc120a81ebfb1c79e4",
+          "source_record_id": "duplicate-person",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    "after": {
+      "id": "duplicate-person",
+      "capture_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+      "expected_supported": false,
+      "actual_supported": false,
+      "routes": [
+        {
+          "route_id": "dd12c4dc120a81ebfb1c79e4",
+          "source_record_id": "duplicate-person",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "person_candidates": [
+            {
+              "to": "jane@business.test",
+              "recipient_name": "Jane Smith",
+              "recipient_role": "Facilities Manager"
+            }
+          ],
+          "scoped_role_evidence": {
+            "role_supported": false,
+            "reason": "ambiguous_or_missing_scoped_person_role",
+            "candidate_people": [
+              {
+                "to": "jane@business.test",
+                "recipient_name": "Jane Smith",
+                "recipient_role": "Facilities Manager"
+              }
+            ],
+            "scoped_matches": [
+              {
+                "candidate": {
+                  "to": "jane@business.test",
+                  "recipient_name": "Jane Smith",
+                  "recipient_role": "Facilities Manager"
+                },
+                "evidence": {
+                  "source_url": "https://business.test/team",
+                  "page_content_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+                  "excerpt": "Jane SmithFacilities Managerjane@business.test",
+                  "extraction_method": "visible_role_card",
+                  "review_status": "source_published_candidate_requires_review",
+                  "name": "Jane Smith",
+                  "role_title": "Facilities Manager",
+                  "role_function": "facilities",
+                  "source_dom_locator": "/html/body/div[1]",
+                  "emails": [
+                    "jane@business.test"
+                  ],
+                  "unassigned_published_emails": [],
+                  "email_association_status": "same_unambiguous_public_card_not_verified",
+                  "published_employer": null,
+                  "employer_identity_status": "not_verified",
+                  "employment_relationship_status": "not_established",
+                  "source_listing_context": null,
+                  "source_listing_kind": "public_role_listing",
+                  "authority_scope": "not_established",
+                  "purchasing_authority_verified": false,
+                  "ssm_route_hypothesis": {
+                    "role_function": "facilities",
+                    "status": "service_fit_hypothesis_only"
+                  },
+                  "email_occurrences": [
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+                      "extraction_method": "mailto_recipient",
+                      "source_dom_locator": "/html/body/div[1]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "attribute": "href",
+                        "recipient_index": 0
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[1]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "68fc05ae6c9f59197da3fb7f714345f6cec5082b445364e6191ee6e4bef3d569"
+                    },
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+                      "extraction_method": "visible_text",
+                      "source_dom_locator": "/html/body/div[1]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "node": "/html/body/div[1]/a",
+                        "field": "text",
+                        "start": 0,
+                        "end": 18
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[1]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "fc8dd399fbddc679e765d875ad483288708fdfc8a803adee492ec0cf64f69779"
+                    }
+                  ]
+                }
+              },
+              {
+                "candidate": {
+                  "to": "jane@business.test",
+                  "recipient_name": "Jane Smith",
+                  "recipient_role": "Facilities Manager"
+                },
+                "evidence": {
+                  "source_url": "https://business.test/team",
+                  "page_content_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+                  "excerpt": "Jane SmithFacilities Managerjane@business.test",
+                  "extraction_method": "visible_role_card",
+                  "review_status": "source_published_candidate_requires_review",
+                  "name": "Jane Smith",
+                  "role_title": "Facilities Manager",
+                  "role_function": "facilities",
+                  "source_dom_locator": "/html/body/div[2]",
+                  "emails": [
+                    "jane@business.test"
+                  ],
+                  "unassigned_published_emails": [],
+                  "email_association_status": "same_unambiguous_public_card_not_verified",
+                  "published_employer": null,
+                  "employer_identity_status": "not_verified",
+                  "employment_relationship_status": "not_established",
+                  "source_listing_context": null,
+                  "source_listing_kind": "public_role_listing",
+                  "authority_scope": "not_established",
+                  "purchasing_authority_verified": false,
+                  "ssm_route_hypothesis": {
+                    "role_function": "facilities",
+                    "status": "service_fit_hypothesis_only"
+                  },
+                  "email_occurrences": [
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+                      "extraction_method": "visible_text",
+                      "source_dom_locator": "/html/body/div[2]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "node": "/html/body/div[2]/a",
+                        "field": "text",
+                        "start": 0,
+                        "end": 18
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[2]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "8c8b6bdaa9fa8726fa20eda59f0274768376ab6dcd5a26520db0c33ba7f13ee8"
+                    },
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+                      "extraction_method": "mailto_recipient",
+                      "source_dom_locator": "/html/body/div[2]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "attribute": "href",
+                        "recipient_index": 0
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[2]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "e60e65a1c3911cfa1da3ba27b4cd2de5d091f8dca191347f92b2653b95a12748"
+                    }
+                  ]
+                }
+              }
+            ],
+            "page_content_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde",
+            "auto_send": false
+          },
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": false,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  },
+  {
+    "before": {
+      "id": "shared-inbox",
+      "capture_sha256": "dea59145de167b22b3de6671d0fa0219c3c96d97f917e37606cb6123c6c21a2d",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "f3f8dcf8ad25475951e19b31",
+          "source_record_id": "shared-inbox",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "info@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager info@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    "after": {
+      "id": "shared-inbox",
+      "capture_sha256": "dea59145de167b22b3de6671d0fa0219c3c96d97f917e37606cb6123c6c21a2d",
+      "expected_supported": false,
+      "actual_supported": false,
+      "routes": [
+        {
+          "route_id": "f3f8dcf8ad25475951e19b31",
+          "source_record_id": "shared-inbox",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "info@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "person_candidates": [
+            {
+              "to": "info@business.test",
+              "recipient_name": "Jane Smith",
+              "recipient_role": "Facilities Manager"
+            }
+          ],
+          "scoped_role_evidence": {
+            "role_supported": false,
+            "reason": "ambiguous_or_missing_scoped_person_role",
+            "candidate_people": [
+              {
+                "to": "info@business.test",
+                "recipient_name": "Jane Smith",
+                "recipient_role": "Facilities Manager"
+              }
+            ],
+            "scoped_matches": [],
+            "page_content_sha256": "dea59145de167b22b3de6671d0fa0219c3c96d97f917e37606cb6123c6c21a2d",
+            "auto_send": false
+          },
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager info@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": false,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  },
+  {
+    "before": {
+      "id": "legacy-text",
+      "capture_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "8480b0443f78c06c963011f4",
+          "source_record_id": "legacy-text",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    "after": {
+      "id": "legacy-text",
+      "capture_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461",
+      "expected_supported": false,
+      "actual_supported": false,
+      "routes": [
+        {
+          "route_id": "8480b0443f78c06c963011f4",
+          "source_record_id": "legacy-text",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "person_candidates": [
+            {
+              "to": "jane@business.test",
+              "recipient_name": "Jane Smith",
+              "recipient_role": "Facilities Manager"
+            }
+          ],
+          "scoped_role_evidence": {
+            "role_supported": false,
+            "reason": "scoped_capture_evidence_needed",
+            "candidate_people": [
+              {
+                "to": "jane@business.test",
+                "recipient_name": "Jane Smith",
+                "recipient_role": "Facilities Manager"
+              }
+            ],
+            "scoped_matches": []
+          },
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": false,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  },
+  {
+    "before": {
+      "id": "structured",
+      "capture_sha256": "368b0ad6fe737f615235a6dc9f9fb2783ba26d9e76c872b07f1d5f54ebea60bb",
+      "expected_supported": true,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "facf3ab13870bca2b0051603",
+          "source_record_id": "structured",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor {\"@type\": \"Person\", \"name\": \"Jane Smith\", \"jobTitle\": \"Facilities Manager\", \"email\": \"jane@business.test\"}",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    "after": {
+      "id": "structured",
+      "capture_sha256": "368b0ad6fe737f615235a6dc9f9fb2783ba26d9e76c872b07f1d5f54ebea60bb",
+      "expected_supported": true,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "facf3ab13870bca2b0051603",
+          "source_record_id": "structured",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Jane Smith",
+          "recipient_role": "Facilities Manager",
+          "route_type": "named_person",
+          "person_candidates": [
+            {
+              "to": "jane@business.test",
+              "recipient_name": "Jane Smith",
+              "recipient_role": "Facilities Manager"
+            }
+          ],
+          "scoped_role_evidence": {
+            "role_supported": true,
+            "reason": "same_scoped_person_email_role",
+            "candidate_people": [
+              {
+                "to": "jane@business.test",
+                "recipient_name": "Jane Smith",
+                "recipient_role": "Facilities Manager"
+              }
+            ],
+            "scoped_matches": [
+              {
+                "candidate": {
+                  "to": "jane@business.test",
+                  "recipient_name": "Jane Smith",
+                  "recipient_role": "Facilities Manager"
+                },
+                "evidence": {
+                  "source_url": "https://business.test/team",
+                  "page_content_sha256": "368b0ad6fe737f615235a6dc9f9fb2783ba26d9e76c872b07f1d5f54ebea60bb",
+                  "excerpt": "{\"json_pointer\": \"\", \"id\": null, \"name\": \"Jane Smith\", \"types\": [\"Person\"], \"address\": null, \"contactType\": null, \"status\": \"explicit_document_node_not_verified\"}",
+                  "extraction_method": "json_ld_person_role",
+                  "review_status": "source_published_candidate_requires_review",
+                  "name": "Jane Smith",
+                  "role_title": "Facilities Manager",
+                  "role_function": "facilities",
+                  "source_dom_locator": "/html/head/script",
+                  "emails": [
+                    "jane@business.test"
+                  ],
+                  "unassigned_published_emails": [],
+                  "email_association_status": "same_unambiguous_public_card_not_verified",
+                  "published_employer": null,
+                  "employer_identity_status": "not_verified",
+                  "employment_relationship_status": "not_established",
+                  "source_listing_context": null,
+                  "source_listing_kind": "public_role_listing",
+                  "authority_scope": "not_established",
+                  "purchasing_authority_verified": false,
+                  "ssm_route_hypothesis": {
+                    "role_function": "facilities",
+                    "status": "service_fit_hypothesis_only"
+                  },
+                  "structured_evidence": {
+                    "node_pointer": "",
+                    "node": {
+                      "json_pointer": "",
+                      "id": null,
+                      "name": "Jane Smith",
+                      "types": [
+                        "Person"
+                      ],
+                      "address": null,
+                      "contactType": null,
+                      "status": "explicit_document_node_not_verified"
+                    },
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "",
+                        "id": null,
+                        "name": "Jane Smith",
+                        "types": [
+                          "Person"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [],
+                    "ambiguity_review_required": false,
+                    "excluded_context": false,
+                    "channel": "person",
+                    "value": "Jane Smith",
+                    "job_title": "Facilities Manager",
+                    "json_pointer": ""
+                  }
+                }
+              }
+            ],
+            "page_content_sha256": "368b0ad6fe737f615235a6dc9f9fb2783ba26d9e76c872b07f1d5f54ebea60bb",
+            "auto_send": false
+          },
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor {\"@type\": \"Person\", \"name\": \"Jane Smith\", \"jobTitle\": \"Facilities Manager\", \"email\": \"jane@business.test\"}",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  },
+  {
+    "before": {
+      "id": "multiple-named",
+      "capture_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+      "expected_supported": false,
+      "actual_supported": true,
+      "routes": [
+        {
+          "route_id": "602bb4283b881c9d5430de4b",
+          "source_record_id": "multiple-named",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": "Bob Jones",
+          "recipient_role": "Sales Manager",
+          "route_type": "named_person",
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test Bob Jones Sales Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": true,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    },
+    "after": {
+      "id": "multiple-named",
+      "capture_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+      "expected_supported": false,
+      "actual_supported": false,
+      "routes": [
+        {
+          "route_id": "602bb4283b881c9d5430de4b",
+          "source_record_id": "multiple-named",
+          "company": "Office",
+          "city": "Windsor",
+          "website": null,
+          "email": "jane@business.test",
+          "recipient_name": null,
+          "recipient_role": "Published business team; responsibility unconfirmed",
+          "route_type": "named_person",
+          "person_candidates": [
+            {
+              "to": "jane@business.test",
+              "recipient_name": "Jane Smith",
+              "recipient_role": "Facilities Manager"
+            },
+            {
+              "to": "jane@business.test",
+              "recipient_name": "Bob Jones",
+              "recipient_role": "Sales Manager"
+            }
+          ],
+          "scoped_role_evidence": {
+            "role_supported": false,
+            "reason": "ambiguous_or_missing_scoped_person_role",
+            "candidate_people": [
+              {
+                "to": "jane@business.test",
+                "recipient_name": "Jane Smith",
+                "recipient_role": "Facilities Manager"
+              },
+              {
+                "to": "jane@business.test",
+                "recipient_name": "Bob Jones",
+                "recipient_role": "Sales Manager"
+              }
+            ],
+            "scoped_matches": [
+              {
+                "candidate": {
+                  "to": "jane@business.test",
+                  "recipient_name": "Jane Smith",
+                  "recipient_role": "Facilities Manager"
+                },
+                "evidence": {
+                  "source_url": "https://business.test/team",
+                  "page_content_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+                  "excerpt": "Jane SmithFacilities Managerjane@business.test",
+                  "extraction_method": "visible_role_card",
+                  "review_status": "source_published_candidate_requires_review",
+                  "name": "Jane Smith",
+                  "role_title": "Facilities Manager",
+                  "role_function": "facilities",
+                  "source_dom_locator": "/html/body/div[1]",
+                  "emails": [
+                    "jane@business.test"
+                  ],
+                  "unassigned_published_emails": [],
+                  "email_association_status": "same_unambiguous_public_card_not_verified",
+                  "published_employer": null,
+                  "employer_identity_status": "not_verified",
+                  "employment_relationship_status": "not_established",
+                  "source_listing_context": null,
+                  "source_listing_kind": "public_role_listing",
+                  "authority_scope": "not_established",
+                  "purchasing_authority_verified": false,
+                  "ssm_route_hypothesis": {
+                    "role_function": "facilities",
+                    "status": "service_fit_hypothesis_only"
+                  },
+                  "email_occurrences": [
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+                      "extraction_method": "mailto_recipient",
+                      "source_dom_locator": "/html/body/div[1]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "attribute": "href",
+                        "recipient_index": 0
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[1]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "1655cd66e4d0fe6170e1fa04a07c58adac704d75e293687f181fda55efe85d22"
+                    },
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+                      "extraction_method": "visible_text",
+                      "source_dom_locator": "/html/body/div[1]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "node": "/html/body/div[1]/a",
+                        "field": "text",
+                        "start": 0,
+                        "end": 18
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[1]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Jane Smith Facilities Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "7372f61d96f9ef9577e2cc19ae74ebe831d6abcdfd2581c2ea95989ce52c2168"
+                    }
+                  ]
+                }
+              },
+              {
+                "candidate": {
+                  "to": "jane@business.test",
+                  "recipient_name": "Bob Jones",
+                  "recipient_role": "Sales Manager"
+                },
+                "evidence": {
+                  "source_url": "https://business.test/team",
+                  "page_content_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+                  "excerpt": "Bob JonesSales Managerjane@business.test",
+                  "extraction_method": "visible_role_card",
+                  "review_status": "source_published_candidate_requires_review",
+                  "name": "Bob Jones",
+                  "role_title": "Sales Manager",
+                  "role_function": "sales_partnerships",
+                  "source_dom_locator": "/html/body/div[2]",
+                  "emails": [
+                    "jane@business.test"
+                  ],
+                  "unassigned_published_emails": [],
+                  "email_association_status": "same_unambiguous_public_card_not_verified",
+                  "published_employer": null,
+                  "employer_identity_status": "not_verified",
+                  "employment_relationship_status": "not_established",
+                  "source_listing_context": null,
+                  "source_listing_kind": "public_role_listing",
+                  "authority_scope": "not_established",
+                  "purchasing_authority_verified": false,
+                  "ssm_route_hypothesis": {
+                    "role_function": "sales_partnerships",
+                    "status": "service_fit_hypothesis_only"
+                  },
+                  "email_occurrences": [
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+                      "extraction_method": "mailto_recipient",
+                      "source_dom_locator": "/html/body/div[2]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "attribute": "href",
+                        "recipient_index": 0
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[2]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Bob Jones Sales Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "222e44b19ab17fd2858e15aeda28698e034a6c68dce655370824c689a90000db"
+                    },
+                    {
+                      "email": "jane@business.test",
+                      "raw_value": "jane@business.test",
+                      "normalization_version": "ssm-email-normalization/1",
+                      "source_url": "https://business.test/team",
+                      "page_content_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+                      "extraction_method": "visible_text",
+                      "source_dom_locator": "/html/body/div[2]/a",
+                      "json_pointer": null,
+                      "text_position": {
+                        "node": "/html/body/div[2]/a",
+                        "field": "text",
+                        "start": 0,
+                        "end": 18
+                      },
+                      "candidate_owner": {
+                        "source_dom_locator": "/html/body/div[2]",
+                        "status": "unresolved"
+                      },
+                      "visibility_basis": "visible_dom",
+                      "role_hint": "unspecified_published_inbox",
+                      "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                      "short_supporting_context": "Bob Jones Sales Manager jane@business.test",
+                      "mailbox_status": "not_checked",
+                      "ownership_status": "not_checked",
+                      "outreach_eligibility": "research_only",
+                      "extraction_version": "ssm-published-email-extraction/6",
+                      "occurrence_id": "ee991a0aae7ee3853ac90f3f35c67dbd9a06b065e19001e3cf5f3f2d5666526f"
+                    }
+                  ]
+                }
+              }
+            ],
+            "page_content_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db",
+            "auto_send": false
+          },
+          "publication_url": "https://business.test/team",
+          "publication_excerpt": "Office Windsor Jane Smith Facilities Manager jane@business.test Bob Jones Sales Manager jane@business.test",
+          "checked_at": null,
+          "organization_site_supported": true,
+          "role_supported": false,
+          "source_restriction": false
+        }
+      ],
+      "holds": []
+    }
+  },
+  {
+    "regional_before": [
+      {
+        "id": "reference",
+        "capture_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/reference",
+                  "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/1/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/1",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [
+                  "local-office"
+                ],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": true,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "first_party_single_organization",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": [
+          "desk@business.test"
+        ]
+      },
+      {
+        "id": "shared-reference",
+        "capture_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/shared-reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/shared-reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/shared-reference",
+                  "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/2/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      },
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#other",
+                        "name": "Other",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "unresolved",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/2",
+                    "ambiguity_review_required": true
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "repeated-context",
+        "capture_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/repeated-context"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/footer",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/footer",
+                    "field": "text",
+                    "start": 11,
+                    "end": 29
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/footer",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "possible_website_vendor_contact_requires_review",
+                  "short_supporting_context": "Website by desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": true,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 0,
+                    "end": 18
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 19,
+                    "end": 37
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": true,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed",
+              "vendor_occurrence_review"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "person-employer",
+        "capture_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "rows": [
+          {
+            "email": "jane@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/person-employer"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d",
+                "channel": "email",
+                "value": "jane@business.test",
+                "source_url": "https://business.test/person-employer",
+                "source_evidence": {
+                  "email": "jane@business.test",
+                  "raw_value": "jane@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/person-employer",
+                  "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+                  "extraction_method": "public_person_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/0/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": null,
+                        "name": "Jane Smith",
+                        "types": [
+                          "Person"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "node_pointer": "/@graph/0",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      }
+    ],
+    "regional_after": [
+      {
+        "id": "reference",
+        "capture_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/reference",
+                  "page_content_sha256": "c33e08545d5afb811f1c2f90c5961cff0129279cc3309b08e73449de7dbaf43f",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/1/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/1",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "b3ceac2797571e402d8466b8de2bf4aa791b0ec130785fc63c6d7d6e5f5be12a"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [
+                  "local-office"
+                ],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": true,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "first_party_single_organization",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": [
+          "desk@business.test"
+        ]
+      },
+      {
+        "id": "shared-reference",
+        "capture_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/shared-reference"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/shared-reference",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/shared-reference",
+                  "page_content_sha256": "e7bfbf2d0801f842e4362b80224895a00b5c01dc9c42f1442f09d38993b66924",
+                  "extraction_method": "public_organisation_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/2/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      },
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#other",
+                        "name": "Other",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "unresolved",
+                    "candidate_employers": [],
+                    "node_pointer": "/@graph/2",
+                    "ambiguity_review_required": true
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "c26c931387da7d84b18613f9a16b616ddb558318e3c45255cb67129418f17be3"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "repeated-context",
+        "capture_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+        "rows": [
+          {
+            "email": "desk@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/repeated-context"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/footer",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/footer",
+                    "field": "text",
+                    "start": 11,
+                    "end": 29
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/footer",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "possible_website_vendor_contact_requires_review",
+                  "short_supporting_context": "Website by desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "33d765945230f4ce30fbc52e63cdb8ae47583f436e8e2c3ee83bbb1ac2856a23"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": true,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 0,
+                    "end": 18
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "67010e8ab8d3e913db78793fc4588c31c31ddc45ba2be59683d9c2c54360e89e"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              },
+              {
+                "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45",
+                "channel": "email",
+                "value": "desk@business.test",
+                "source_url": "https://business.test/repeated-context",
+                "source_evidence": {
+                  "email": "desk@business.test",
+                  "raw_value": "desk@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/repeated-context",
+                  "page_content_sha256": "f16faba2e92e06cacb17e0a30c8c1738cb3451f9172344744e9463ef155e9726",
+                  "extraction_method": "visible_text",
+                  "source_dom_locator": "/html/body/p",
+                  "json_pointer": null,
+                  "text_position": {
+                    "node": "/html/body/p",
+                    "field": "text",
+                    "start": 19,
+                    "end": 37
+                  },
+                  "candidate_owner": {
+                    "source_dom_locator": "/html/body/p",
+                    "status": "unresolved"
+                  },
+                  "visibility_basis": "visible_dom",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "desk@business.test desk@business.test",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "d586d6254405a119b9dd7961602823906d7e5e30194f7416008d0ecfe08f6a45"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": true,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed",
+              "vendor_occurrence_review"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      },
+      {
+        "id": "person-employer",
+        "capture_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+        "rows": [
+          {
+            "email": "jane@business.test",
+            "organizations": [
+              "Office"
+            ],
+            "source_record_ids": [
+              "local-office"
+            ],
+            "municipalities": [
+              "Windsor"
+            ],
+            "source_pages": [
+              "https://business.test/person-employer"
+            ],
+            "source_phones": [],
+            "website_hosts": [
+              "business.test"
+            ],
+            "occurrence_evidence": [
+              {
+                "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d",
+                "channel": "email",
+                "value": "jane@business.test",
+                "source_url": "https://business.test/person-employer",
+                "source_evidence": {
+                  "email": "jane@business.test",
+                  "raw_value": "jane@business.test",
+                  "normalization_version": "ssm-email-normalization/1",
+                  "source_url": "https://business.test/person-employer",
+                  "page_content_sha256": "3f36b8a1dd7d3802867ec8743a5734e4d55153c7136e53c494a8d74b763f0646",
+                  "extraction_method": "public_person_jsonld",
+                  "source_dom_locator": "/html/head/script",
+                  "json_pointer": "/@graph/0/email",
+                  "text_position": null,
+                  "candidate_owner": {
+                    "candidate_owners": [
+                      {
+                        "json_pointer": "/@graph/0",
+                        "id": null,
+                        "name": "Jane Smith",
+                        "types": [
+                          "Person"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "ownership_status": "explicit_document_edge_not_verified",
+                    "candidate_employers": [
+                      {
+                        "json_pointer": "/@graph/1",
+                        "id": "#org",
+                        "name": "Office",
+                        "types": [
+                          "Organization"
+                        ],
+                        "address": null,
+                        "contactType": null,
+                        "status": "explicit_document_node_not_verified"
+                      }
+                    ],
+                    "node_pointer": "/@graph/0",
+                    "ambiguity_review_required": false
+                  },
+                  "visibility_basis": "structured_assertion",
+                  "role_hint": "unspecified_published_inbox",
+                  "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                  "short_supporting_context": "Public structured contact field; ownership unverified",
+                  "mailbox_status": "not_checked",
+                  "ownership_status": "not_checked",
+                  "outreach_eligibility": "research_only",
+                  "extraction_version": "ssm-published-email-extraction/6",
+                  "occurrence_id": "02a610a2afff5816bb30baeb2ec8c13e330fa673589d8daa5409ac936d498f1d"
+                },
+                "candidate_source_records": [
+                  {
+                    "source_record_id": "local-office",
+                    "organization": "Office",
+                    "municipality": "Windsor"
+                  }
+                ],
+                "document_supported_candidate_record_ids": [],
+                "relationship_status": "candidate_only_not_verified",
+                "evidence_status": "occurrence_evidence",
+                "vendor_review_required": false,
+                "send_ready": false
+              }
+            ],
+            "phone_occurrence_evidence": [],
+            "domain_matches_publishing_site": true,
+            "occurrence_supported_candidate": false,
+            "vendor_review_required": false,
+            "relationship_status": "candidate_only_not_verified",
+            "holds": [
+              "organization_and_role_review",
+              "mailbox_validation_needed",
+              "crm_history_review",
+              "category_message_approval_required",
+              "document_owner_support_needed"
+            ],
+            "site_email_count": 1,
+            "validation_priority": "association_review_first",
+            "phone_link_status": "possible_account_routes_not_resolved_person_aliases",
+            "send_ready": false
+          }
+        ],
+        "pilot_candidates": []
+      }
+    ]
+  }
+]

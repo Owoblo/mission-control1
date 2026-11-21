@@ -100,6 +100,7 @@ export const SALES_BRANCHES: Array<{ id: SalesBranch; label: string }> = [
 
 export const CRM_LEAD_SOURCES: Array<{ id: string; label: string }> = [
   { id: 'google_online_search', label: 'Google / Online Search' },
+  { id: 'ai_search', label: 'AI Search' },
   { id: 'facebook_instagram_ad', label: 'Facebook / Instagram Ad' },
   { id: 'review_marketplace', label: 'Yelp / HomeAdvisor / Thumbtack' },
   { id: 'customer_referral', label: 'Customer Referral' },
@@ -586,6 +587,7 @@ const AUTO_ESTIMATE_LINE_ITEM_DESCRIPTIONS = new Set([
   'Truck insurance allowance',
   'Long-distance misc allowance',
   'Long-distance route markup',
+  'Cross-Border Logistics Premium',
   'Travel & destination handling pending',
   'Moving Services — Agreed Rate',
   'Long-Distance Moving Service — All Inclusive',

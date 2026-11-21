@@ -1,0 +1,247 @@
+--- /dev/null
++++ b/scripts/market_map/contact_text_runs.py
+@@ -0,0 +1,45 @@
++"""Literal inline runs with original-tree segment provenance; no layout inference."""
++import re
++
++INLINE={'span','b','i','em','strong','small','code','u','s','sup','sub'}
++EXCLUDED={'script','style','template','noscript','head'}
++
++def hidden(node):
++    return any(n.tag in EXCLUDED or n.get('hidden') is not None or n.get('aria-hidden')=='true' or
++               re.search(r'display\s*:\s*none|visibility\s*:\s*hidden',n.get('style',''),re.I)
++               for n in [node,*node.iterancestors()] if isinstance(n.tag,str))
++
++def boundary(node):
++    return (node.tag not in INLINE or any(node.get(k) for k in ('class','id','itemscope','itemprop','role')) or
++            re.search(r'display|position|float|order|direction|content',node.get('style',''),re.I))
++
++def iter_contact_text_runs(document, *, max_chars=4096, max_segments=128):
++    tree=document.getroottree()
++    for root in document.iter():
++        if not isinstance(root.tag,str) or hidden(root):continue
++        if root is not document and not boundary(root):continue
++        # Unknown layout on a container is not evidence of visual adjacency.
++        if re.search(r'display\s*:\s*(?:flex|grid)|position|float|order|direction',root.get('style',''),re.I):continue
++        parts=[];segments=[];size=0;overflow=False
++        def flush():
++            nonlocal parts,segments,size,overflow
++            result={'text':''.join(parts),'segments':segments,'source_dom_locator':tree.getpath(root),'node':root} if parts and not overflow else None
++            parts=[];segments=[];size=0;overflow=False
++            return result
++        def append(text,node,field):
++            nonlocal size,overflow
++            if not text:return
++            if size+len(text)>max_chars or len(segments)>=max_segments:overflow=True;return
++            segments.append({'source_dom_locator':tree.getpath(node),'field':field,'start':size,'end':size+len(text)})
++            parts.append(text);size+=len(text)
++        def visit(node):
++            append(node.text,node,'text')
++            for child in node:
++                if not isinstance(child.tag,str) or hidden(child) or boundary(child):
++                    value=flush()
++                    if value:yield value
++                else:yield from visit(child)
++                append(child.tail,child,'tail')
++        yield from visit(root)
++        value=flush()
++        if value:yield value
+--- a/scripts/market_map/email_extraction.py
++++ b/scripts/market_map/email_extraction.py
+@@ -7,9 +7,10 @@
+ from urllib.parse import unquote, urlsplit
+ 
+ from lxml import html
++from .contact_text_runs import iter_contact_text_runs
+ from .contact_normalization import parse_email_candidate, EMAIL_NORMALIZATION_VERSION
+ 
+-VERSION = "ssm-published-email-extraction/4"
++VERSION = "ssm-published-email-extraction/5"
+ # Whole published candidate, including unsupported Unicode/quoted syntax.
+ # Validation belongs to clean_email(), never an ASCII substring search.
+ EMAIL = re.compile(r'((?:"[^"\r\n]+"|[^\s<>"(),;:]+)@[^\s<>"(),;:]+)')
+@@ -191,6 +192,15 @@
+             continue
+         for recipient in re.split(r"[,;]", recipients):
+             add(recipient, "mailto_recipient", anchor)
++    inline_runs=list(iter_contact_text_runs(document))
++    split_fragments={}
++    for run in inline_runs:
++        for match in EMAIL.finditer(run['text']):
++            touched=[s for s in run['segments'] if s['start']<match.end() and s['end']>match.start()]
++            if len(touched)>1:
++                for segment in touched:
++                    split_fragments.setdefault((segment['source_dom_locator'],segment['field']),[]).append(
++                        (max(0,match.start()-segment['start']),min(segment['end'],match.end())-segment['start']))
+     for node in document.iter():
+         # Read visible text nodes once; tail text belongs to the parent context.
+         for text, context in ((node.text if isinstance(node.tag, str) else None, node), (node.tail, node.getparent())):
+@@ -199,12 +209,24 @@
+             if context is None or hidden(context) or any(n.tag in ("script","style","noscript","template") for n in [context,*context.iterancestors()]):
+                 continue
+             for match in EMAIL.finditer(text):
++                slot=(document.getroottree().getpath(node),'text' if context is node else 'tail')
++                if any(start<match.end() and end>match.start() for start,end in split_fragments.get(slot,[])):continue
+                 add(match.group(0), "visible_text", context, position={"node":document.getroottree().getpath(node),"field":"text" if context is node else "tail","start":match.start(),"end":match.end()})
+             explicit = re.sub(r"\s*(?:\[at\]|\(at\))\s*", "@", text, flags=re.I)
+             explicit = re.sub(r"\s*(?:\[dot\]|\(dot\))\s*", ".", explicit, flags=re.I)
+             if explicit != text:
+                 for value in EMAIL.findall(explicit):
+                     add(value, "explicit_visible_at_dot", context, position={"node":document.getroottree().getpath(node),"field":"text" if context is node else "tail", "raw_text":text})
++    for run in inline_runs:
++        if len(run['segments'])<2:continue
++        text=run['text']
++        explicit=re.sub(r"\s*(?:\[at\]|\(at\))\s*", "@", text, flags=re.I)
++        explicit=re.sub(r"\s*(?:\[dot\]|\(dot\))\s*", ".", explicit, flags=re.I)
++        for candidate,method in ((text,'bounded_inline_text'),(explicit,'bounded_inline_at_dot')):
++            if method.endswith('at_dot') and explicit==text:continue
++            for match in EMAIL.finditer(candidate):
++                if candidate==text and sum(s['start']<match.end() and s['end']>match.start() for s in run['segments'])<2:continue
++                add(match.group(0),method,run['node'],position={'segments':run['segments'],'raw_text':text,'start':match.start(),'end':match.end(),'offset_basis':'decoded_run' if candidate!=text else 'literal_run'})
+     return [findings[key] for key in sorted(findings)]
+ 
+ 
+--- a/scripts/market_map/phone_extraction.py
++++ b/scripts/market_map/phone_extraction.py
+@@ -3,9 +3,10 @@
+ import json
+ import re
+ from lxml import html
++from .contact_text_runs import iter_contact_text_runs
+ from .contact_normalization import EXT, PHONE_NORMALIZATION_VERSION, parse_phone_candidate
+ 
+-VERSION = 'ssm-published-phone-extraction/2'
++VERSION = 'ssm-published-phone-extraction/3'
+ NANP = re.compile(r'(?<![\w\d])(?:\+?1[ .-]?)?(?:\([2-9]\d{2}\)[ .-]*|[2-9]\d{2}[ .-]+)[2-9]\d{2}[ .-]\d{4}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?(?!\d)',re.I)
+ LABELLED = re.compile(r'\b(?:phone|tel(?:ephone)?|call|fax)\s*[:.]?\s*(\+?\d[\d ()+.-]{6,24}(?:\s*(?:ext(?:ension)?\.?|x|#)\s*\d{1,10})?)',re.I)
+ 
+@@ -14,7 +15,7 @@
+ _LABEL_RUN = r'(?P<labels>(?:' + _LABEL + r'[\s:/&(),.\-]*)+)'
+ 
+ 
+-def classify_phone_occurrence(node, textnode=None, start=0, end=0):
++def classify_phone_occurrence(node, textnode=None, start=0, end=0, bounded_text=None):
+     """Adjacent explicit labels only; block/br boundaries prevent card leakage.
+ 
+     A shared/conflicting Phone/Fax field is conservatively fax for legacy
+@@ -61,8 +62,10 @@
+             append(' ')
+ 
+     visit(root)
+-    field = ''.join(parts)
+-    if link is not None or textnode is None:
++    field = ''.join(parts) if bounded_text is None else bounded_text
++    if bounded_text is not None:
++        begin,finish=start,end
++    elif link is not None or textnode is None:
+         begin, finish = spans.get(target, (0, 0))
+     else:
+         offset = offsets.get((node, is_tail))
+@@ -104,7 +107,7 @@
+     if not body:return []
+     rawbody=body.encode() if isinstance(body,str) else body
+     doc=html.fromstring(rawbody,base_url=url);digest=hashlib.sha256(rawbody).hexdigest();records=[];seen=set()
+-    def add(value,context,method,kind='phone',locator=None,review=False):
++    def add(value,context,method,kind='phone',locator=None,review=False,segments=None):
+         if not isinstance(value,(str,int)):return
+         normalized=normalize_phone(value)
+         if not normalized:return
+@@ -113,7 +116,7 @@
+         if key in seen:return
+         seen.add(key)
+         records.append({'phone':number,'extension':extension,'raw_value':str(value),'source_url':url,'context':context,
+-                        'kind':kind,'kind_review_required':review,'extraction_version':VERSION,
++                        'source_segments':segments,'kind':kind,'kind_review_required':review,'extraction_version':VERSION,
+                         'normalization_version':PHONE_NORMALIZATION_VERSION,
+                         'extraction_method':method,'source_dom_locator':locator,'page_content_sha256':digest,
+                         'verification_status':'source_published_unverified','organisation_ownership_status':'not_verified',
+@@ -134,6 +137,14 @@
+         value=node.get('content') or node.get('href') or node.text_content()
+         kind,review=classify_phone_occurrence(node)
+         add(value,node.getparent().text_content() if node.getparent() is not None else value,'microdata',kind,doc.getroottree().getpath(node),review)
++    for run in iter_contact_text_runs(doc):
++        if len(run['segments'])<2:continue
++        for pattern in (NANP,LABELLED):
++            for match in pattern.finditer(run['text']):
++                start=match.start(1) if pattern is LABELLED else match.start()
++                if sum(s['start']<match.end() and s['end']>start for s in run['segments'])<2:continue
++                kind,review=classify_phone_occurrence(run['node'],start=start,end=match.end(),bounded_text=run['text'])
++                add(match.group(1) if pattern is LABELLED else match.group(0),run['text'],'bounded_inline_text',kind,run['source_dom_locator'],review,run['segments'])
+     for node in doc.xpath('//script|//style|//noscript|//template|//*[@hidden or @aria-hidden="true"]'):
+         if node.getparent() is not None:node.drop_tree()
+     for node in doc.xpath('//*[@style]'):
+--- a/scripts/market_map/visible_contact_evidence.py
++++ b/scripts/market_map/visible_contact_evidence.py
+@@ -1,6 +1,7 @@
+ """Find compact visible contact blocks for review, never grant verification."""
+ import hashlib,re
+ from lxml import html
++from scripts.market_map.contact_text_runs import iter_contact_text_runs
+ from scripts.market_map.phone_extraction import NANP,normalize_phone
+ 
+ def words(value):
+@@ -33,7 +34,7 @@
+   identity_text=words(re.sub(r'https?://\S+|\b[^\s@]+@[^\s@]+\b|\b[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:/\S*)?',' ',excerpt,flags=re.I))
+   if not contains(identity_text,name) or not contains(text,address) or not any(contains(text,c) for c in cities):continue
+   phones=set()
+-  for value in node.xpath('.//text()'):
++  for value in [str(v) for v in node.xpath('.//text()')]+[run['text'] for run in iter_contact_text_runs(node)]:
+    for m in NANP.finditer(str(value)):
+     p=normalize_phone(m.group(0))
+     if p:phones.add(p)
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -30,6 +30,8 @@
+ 
+ TESTS['PR-07'] = TESTS['PR-06'] + ['tests/market_map/test_contact_observation_store.py', 'tests/market_map/test_email_persistence.py', 'tests/market_map/test_email_acquisition.py', 'tests/market_map/test_contact_enrichment.py']
+ 
++TESTS['PR-08'] = TESTS['PR-07'] + ['tests/extraction/test_contact_text_runs.py']
++
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- /dev/null
++++ b/tests/extraction/test_contact_text_runs.py
+@@ -0,0 +1,31 @@
++import unittest
++from lxml import html
++from scripts.market_map.contact_text_runs import iter_contact_text_runs
++from scripts.market_map.email_extraction import extract_published_emails
++from scripts.market_map.phone_extraction import extract_published_phones
++
++class InlineTests(unittest.TestCase):
++    def emails(self,body):return [r['email'] for r in extract_published_emails(body,'https://business.test')]
++    def test_inline_literal_and_explicit_obfuscation(self):
++        for body in ['<p>sales<span>@</span>business.test</p>','<p>sales<span>[at]</span>business<span>[dot]</span>test</p>']:
++            self.assertEqual(self.emails(body),['sales@business.test'])
++            rows=extract_published_emails(body,'https://business.test')[0]['occurrences']
++            self.assertTrue(any(r['text_position'].get('segments') for r in rows if r.get('text_position')))
++    def test_no_cross_boundary_join(self):
++        for middle in ['<br>','<span hidden>x</span>','<span style="display:none">x</span>', '</td><td>', '</div><div>', '<a href="/other">@</a>','<span class="business-card">@</span>']:
++            self.assertEqual(self.emails('<div>sales'+middle+'business.test</div>'),[])
++        self.assertEqual(self.emails('<div style="display:flex">sales<span>@</span>business.test</div>'),[])
++    def test_phone_extension_and_fax_share_classifier(self):
++        rows=extract_published_phones('<p>Fax: <span>(519)</span> 555-0123 ext. <b>09</b></p><p>Phone: (519) 555-0124</p>','https://business.test')
++        fax=[r for r in rows if r['phone']=='+15195550123' and r['extension']=='09']
++        self.assertTrue(fax);self.assertTrue(all(r['kind']=='fax' for r in fax))
++        self.assertTrue(all(r['kind']=='phone' for r in rows if r['phone']=='+15195550124'))
++    def test_resource_limits_and_original_segment_locations(self):
++        doc=html.fromstring('<div><script>bad</script><p>sales<span>@</span>business.test</p></div>')
++        for run in iter_contact_text_runs(doc):
++            for segment in run['segments']:self.assertTrue(doc.getroottree().xpath(segment['source_dom_locator']))
++        self.assertEqual(list(iter_contact_text_runs(html.fromstring('<p>sales<span>@</span>business.test</p>'),max_chars=5)),[])
++
++    def test_partial_suffix_is_replaced_not_added_alongside_full_address(self):
++        self.assertEqual(self.emails('<p>sal<span>es@business.test</span></p>'),['sales@business.test'])
++        self.assertEqual(self.emails('<p>éli<span>se@business.test</span></p>'),[])
+--- a/tests/market_map/test_email_extraction.py
++++ b/tests/market_map/test_email_extraction.py
+@@ -63,7 +63,7 @@
+                 self.assertEqual([r['email'] for r in rows],['jane@business.test'])
+                 self.assertEqual(rows[0]['outreach_eligibility'],'research_only')
+                 self.assertEqual(rows[0]['ownership_status'],'not_checked')
+-                self.assertEqual(rows[0]['extraction_version'],'ssm-published-email-extraction/4')
++                self.assertEqual(rows[0]['extraction_version'],'ssm-published-email-extraction/5')
+ 
+     def test_no_guesses_private_strings_or_binary_matches(self):
+         cases = [

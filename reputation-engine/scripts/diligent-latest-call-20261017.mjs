@@ -1,0 +1,3 @@
+import './gta-email-recovery-runtime.mjs';import {db} from './reply-runtime-20261015.mjs';import fs from 'node:fs/promises';
+const out={};out.contractor=await db('subcontractors',{id:'eq.772266aa-1c5b-4171-8b39-a68e7ce5f3be'});out.recordings=await db('call_recordings',{created_at:'gte.2026-10-17T18:00:00Z',order:'created_at.desc',limit:50});out.sms=await db('sms_messages',{or:'(from_number.eq.+16476166601,to_number.eq.+16476166601)',order:'created_at.desc',limit:15});
+await fs.writeFile('artifacts/call-investigation-20261017/latest.json',JSON.stringify(out,null,2));console.log(JSON.stringify(out,null,2));

@@ -1,0 +1,10 @@
+const {fs,db}=await import('./gta-email-recovery-runtime.mjs');
+const dir='artifacts/london-sarnia-subcontractor-recruiting-20261015/';const all=JSON.parse(fs.readFileSync(dir+'send-results.json'));const sent=all.filter(r=>r.state==='accepted_crm_verified');
+const account=process.env.TWILIO_ACCOUNT_SID.trim();const headers={Authorization:'Basic '+Buffer.from(account+':'+process.env.TWILIO_AUTH_TOKEN.trim()).toString('base64')};
+const results=await Promise.allSettled(sent.map(async r=>{const response=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account}/Messages/${r.result.sid}.json`,{headers});if(!response.ok)throw Error('Status '+response.status);const m=await response.json();return {row:r.row,name:r.name,phone:r.phone,contractor_id:r.contractor_id,sid:r.result.sid,status:m.status,error_code:m.error_code,error_message:m.error_message};}));
+for(const r of results)if(r.status==='rejected')throw r.reason;
+const rows=results.map(r=>r.value);
+const sms=await db('sms_messages',{twilio_sid:'in.('+rows.map(r=>r.sid).join(',')+')',select:'id,twilio_sid,from_number,to_number,body,lead_id'});
+if(sms.length!==rows.length||sms.some(m=>m.from_number!=='+15486391428'||m.lead_id||/reply stop|opt.out/i.test(m.body)))throw Error('CRM or copy verification failed');
+const incoming=await db('sms_messages',{direction:'eq.inbound',from_number:'in.('+rows.map(r=>r.phone).join(',')+')',created_at:'gte.2026-10-15T19:30:00Z',order:'created_at.asc',limit:'1000'});
+const result={checked_at:new Date().toISOString(),sent:rows.length,rejected:all.filter(r=>r.state==='provider_rejected').map(r=>({name:r.name,error:r.result.message,code:r.result.code})),statuses:rows.reduce((a,r)=>(a[r.status]=(a[r.status]||0)+1,a),{}),rows,replies:incoming.map(m=>({name:rows.find(r=>r.phone===m.from_number)?.name,body:m.body,at:m.created_at}))};fs.writeFileSync(dir+'verification.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));

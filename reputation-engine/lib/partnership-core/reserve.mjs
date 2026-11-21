@@ -7,7 +7,7 @@ import {validSignalReview} from './signal-review.mjs';
 const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const cities=new Set(serviceLocations.map(normalize));
 /** Server-only adapter. Never accept evidence flags from an HTTP request body. */
-export async function reserveAction({url,headers,contactId,channel,kind='cold_introduction',key,content,sender,emailProvider=''}){
+export async function reserveAction({url,headers,contactId,channel,kind='cold_introduction',key,content,sender,emailProvider='',allowRevival=false}){
  const response=await fetch(`${url}/rest/v1/market_contacts?${new URLSearchParams({id:'eq.'+contactId,select:'*'})}`,{headers,cache:'no-store'});
  if(!response.ok)throw Error('Policy contact lookup failed');
  const [contact]=await response.json();if(!contact)throw Error('Policy contact missing');
@@ -22,13 +22,20 @@ export async function reserveAction({url,headers,contactId,channel,kind='cold_in
  const ottawaAllowed=ottawaActionAllowed({city:contact.city,kind,channel,sender,reviewedSignal});
  // Explicit workflow provider takes precedence; legacy sender-specific routes remain unchanged.
  const provider=emailProvider||(isOttawa(contact.city)?'zoho':sender.includes('saturnstarmovers.ca')?'ses':'resend');
- if(channel==='email'&&!['ses','resend','zoho'].includes(provider))throw Error('Unknown email provider');
+ if(channel==='email'&&!['ses','resend','zoho','gmail'].includes(provider))throw Error('Unknown email provider');
  let senderHealthy=false;
  if(channel==='email'&&provider==='zoho'){
   if(ottawaAllowed){await openZohoMailbox('ottawa');senderHealthy=true;}
  }else if(channel==='email'&&provider==='ses'){
   const health=await new SESv2Client({region:process.env.AWS_REGION||process.env.AWS_DEFAULT_REGION||'ca-central-1',maxAttempts:1}).send(new GetAccountCommand({}));
   senderHealthy=health.SendingEnabled===true&&health.ProductionAccessEnabled===true&&health.EnforcementStatus==='HEALTHY';
+ }else if(channel==='email' && provider==='gmail'){
+  const mailbox=sender.match(/<([^<>]+)>$/)?.[1];
+  if(mailbox){
+   const query=new URLSearchParams({mailbox:'eq.'+mailbox,enabled:'eq.true',last_reply_sync:'gte.'+new Date(Date.now()-900000).toISOString(),select:'mailbox'});
+   const response=await fetch(url+'/rest/v1/partnership_google_routes?'+query,{headers,cache:'no-store'});
+   senderHealthy=response.ok && (await response.json()).length===1;
+  }
  }else if(channel==='email'){
   const health=await fetch('https://api.resend.com/domains',{headers:{Authorization:'Bearer '+process.env.RESEND_API_KEY},signal:AbortSignal.timeout(10000)});
   if(health.ok){const data=await health.json();const domain=isOttawa(contact.city)?'dexamovers.ca':'starmovers.ca';senderHealthy=(data.data||[]).some(d=>d.name===domain&&d.status==='verified');}
@@ -41,6 +48,7 @@ export async function reserveAction({url,headers,contactId,channel,kind='cold_in
  }else if(channel==='direct_mail')senderHealthy=true;
  const channelEligible=channel==='email'?!!contact.email&&!contact.email_unsubscribed_at&&!['bounced','complained','unsubscribed'].includes(contact.email_status):channel==='sms'||channel==='phone'?!!contact.phone&&!contact.do_not_contact:channel==='direct_mail'&&!!(contact.address||contact.mailing_address);
  const evidence={observedAt:new Date().toISOString(),marketActive:isOttawa(contact.city)?ottawaAllowed:activeLocations.some(city=>normalize(city)===normalize(contact.city)),serviceAvailable,channelEligible,senderHealthy,sender,contentHash:createHash('sha256').update(content||'').digest('hex')};
+ if(channel==='sms'&&allowRevival===true)evidence.allowRevival=true;
  const r=await fetch(`${url}/rest/v1/rpc/reserve_partnership_action`,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({p_contact_id:contactId,p_channel:channel,p_kind:kind,p_action_key:key,p_evidence:evidence}),cache:'no-store'});
  if(!r.ok)throw Error('Policy reservation unavailable ('+r.status+')');
  const result=await r.json();if(!result.allowed)throw Error('Partnership policy hold: '+result.reasons.join(', '));return result;

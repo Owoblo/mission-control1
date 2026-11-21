@@ -1,0 +1,412 @@
+--- a/scripts/market_map/adapters.py
++++ b/scripts/market_map/adapters.py
+@@ -10,6 +10,7 @@
+ import io
+ import json
+ import re
++from .contact_normalization import parse_phone_candidate
+ from datetime import datetime, timezone
+ from pathlib import Path
+ from urllib.parse import urlencode, urljoin, urlsplit
+@@ -57,11 +58,9 @@
+         compact = re.sub(r"\s+", "", row["postal_code"]).upper()
+         row["postal_code"] = compact[:3]+" "+compact[3:] if len(compact) == 6 else row["postal_code"]
+     if row["phone"]:
+-        digits = re.sub(r"\D", "", row["phone"])
+-        if len(digits) == 10:
+-            row["phone"] = "+1" + digits
+-        elif len(digits) == 11 and digits.startswith("1"):
+-            row["phone"] = "+" + digits
++        phone = parse_phone_candidate(row['phone'])
++        row.update(phone_raw=phone['raw_value'], phone=phone['e164'] or '', phone_extension=phone['extension'],
++                   phone_format_status=phone['status'], phone_normalization=phone)
+     if row["website"] and not row["website"].startswith(("https://", "http://")):
+         row["website"] = "https://" + row["website"]
+     row["province"] = row["province"] or source.get("province", "")
+--- /dev/null
++++ b/scripts/market_map/migrations/008_phone_channel_details.sql
+@@ -0,0 +1,12 @@
++-- Additive only: historical channels and identity recipes remain unchanged.
++CREATE TABLE IF NOT EXISTS phone_channel_details (
++ channel_id TEXT PRIMARY KEY REFERENCES contact_channels(id),
++ raw_value TEXT NOT NULL, e164 TEXT NOT NULL, extension TEXT NOT NULL,
++ format_status TEXT NOT NULL, normalizer_version TEXT NOT NULL
++);
++CREATE TABLE IF NOT EXISTS phone_observations (
++ id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
++ evidence_id TEXT NOT NULL REFERENCES evidence(id), channel_id TEXT REFERENCES contact_channels(id),
++ raw_value TEXT NOT NULL, extension TEXT NOT NULL, format_status TEXT NOT NULL,
++ reason TEXT NOT NULL, normalizer_version TEXT NOT NULL, channel_kind TEXT NOT NULL
++);
+--- a/scripts/market_map/offline_guard.py
++++ b/scripts/market_map/offline_guard.py
+@@ -53,7 +53,7 @@
+             paths = [(args[0], None)]  # Conservatively reject unsupported relative-fd forms.
+         if paths is not None and not all(self.allowed_path(p, fd) for p, fd in paths):
+             self.deny(event)
+-        if event == 'sqlite3.connect' and args[0] != ':memory:':
++        if event == 'sqlite3.connect' and os.fsdecode(args[0]) != ':memory:':
+             path = os.fsdecode(args[0])
+             if path.startswith('file:'):
+                 uri = urlsplit(path)
+--- a/scripts/market_map/reporting.py
++++ b/scripts/market_map/reporting.py
+@@ -565,7 +565,10 @@
+ def _accounts(store, *, business_only=False):
+     """Stream the flat view; SQL groups provenance once rather than per account."""
+     contacts = defaultdict(list)
+-    for c in store.db.execute("SELECT organisation_id,location_id,id,channel_type,value,outreach_eligibility,suppression_status FROM contact_channels"):
++    details = store.db.execute("SELECT 1 FROM sqlite_master WHERE name='phone_channel_details'").fetchone()
++    query = "SELECT c.organisation_id,c.location_id,c.id,c.channel_type,c.value,c.outreach_eligibility,c.suppression_status"
++    query += ",d.extension,d.raw_value,d.format_status,d.normalizer_version FROM contact_channels c LEFT JOIN phone_channel_details d ON d.channel_id=c.id" if details else " FROM contact_channels c"
++    for c in store.db.execute(query):
+         contacts[c["organisation_id"]].append(dict(c))
+     relations = {r[0]: r[1] for r in store.db.execute("SELECT subject_id,COUNT(*) FROM relationships GROUP BY subject_id")}
+     has_lineage = store.db.execute("SELECT 1 FROM sqlite_master WHERE name='field_assertion_lineage' AND type IN ('table','view')").fetchone()
+@@ -613,6 +616,7 @@
+         row["business_or_organisation_candidate_view_eligible"] = not row["explicit_non_organisation_place_candidate"]
+         row.update({"published_emails": sorted({c["value"] for c in channels if c["channel_type"] == "email"}),
+                     "published_phones": sorted({c["value"] for c in channels if c["channel_type"] in {"phone", "telephone"}}),
++                    "phone_channel_details": [c for c in channels if c['channel_type'] in {'phone','telephone','fax'}],
+                     "contact_channel_ids": [c["id"] for c in channels],
+                     "contact_eligibility": sorted({c["outreach_eligibility"] for c in channels}) or ["research_only"],
+                     "suppression_statuses": sorted({c["suppression_status"] for c in channels}) or ["unknown"],
+--- a/scripts/market_map/store.py
++++ b/scripts/market_map/store.py
+@@ -17,6 +17,7 @@
+ from datetime import datetime, timezone
+ from pathlib import Path
+ from urllib.parse import urlsplit
++from .contact_normalization import parse_phone_candidate
+ 
+ 
+ NAMESPACE = uuid.UUID("a81f34e2-681e-46a7-aaab-a774c59a6aa1")
+@@ -63,13 +64,7 @@
+ 
+ 
+ def phone_number(value):
+-    original = str(value or "").strip().removeprefix("tel:")
+-    digits = re.sub(r"\D", "", original)
+-    if len(digits) == 10:
+-        return "+1" + digits
+-    if len(digits) == 11 and digits.startswith("1"):
+-        return "+" + digits
+-    return original or None
++    return parse_phone_candidate(value)['e164']
+ 
+ 
+ def iso_time(value):
+@@ -534,23 +529,51 @@
+             taxonomy = row.get("naics_taxonomy") or ("NAICS-" + str(row["naics_version"]) if row.get("naics_version") else "NAICS-unspecified-version")
+             self.db.execute("INSERT OR IGNORE INTO classifications(id,entity_id,entity_type,taxonomy,category,classification_method,confidence,evidence_id,review_status) VALUES(?,?,?,?,?,?,?,?,?)", (stable_id("naics", org_id, naics, evidence_id), org_id, "organisation", taxonomy, str(naics), "source_assertion", None, evidence_id, "unverified"))
+         channels = []
++        phone_candidates = []
+         for field, kind in (("email", "email"), ("phone", "phone"), ("published_emails", "email"), ("published_phones", "phone")):
+-            values = row.get(field) or []
+-            values = [values] if isinstance(values, (str, int)) else values
++            values = (row.get('phone_raw', row.get(field)) if field == 'phone' else row.get(field)) or []
++            values = [values] if isinstance(values, (str, int, dict)) else values
+             for value in values:
++                if kind == 'phone':
++                    observation = value if isinstance(value, dict) else {'raw_value': value}
++                    raw = observation.get('raw_value', observation.get('phone', observation.get('value', '')))
++                    parsed = parse_phone_candidate(raw)
++                    extension = str(observation.get('extension') or (row.get('phone_extension') if field == 'phone' else '') or '')
++                    if extension:
++                        if not re.fullmatch(r'[0-9]{1,10}', extension) or (parsed['extension'] and parsed['extension'] != extension):
++                            parsed.update(e164=None, status='invalid', reason='invalid_or_conflicting_extension')
++                        elif not parsed['extension']:
++                            parsed['extension'] = extension
++                    phone_kind = observation.get('kind', 'phone')
++                    if phone_kind not in ('phone', 'fax'):
++                        parsed.update(e164=None, status='unsupported', reason='unsupported_channel_kind')
++                    phone_candidates.append((parsed, str(phone_kind)))
++                    continue
+                 value = str(value).strip()
+                 if kind == "email":
+                     value = value.removeprefix("mailto:").split("?", 1)[0].strip().casefold()
+                     if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+                         self.add_review("invalid_contact_channel", [org_id], [evidence_id], "Invalid published email value retained in raw evidence")
+                         continue
+-                else:
+-                    value = phone_number(value)
+                 if value:
+                     channels.append((kind, value))
+         source_url = self.db.execute("SELECT source_url FROM evidence WHERE id=?", (evidence_id,)).fetchone()[0]
+         for kind, value in set(channels):
+             self.db.execute("INSERT OR IGNORE INTO contact_channels(id,organisation_id,location_id,channel_type,value,published_context,source_url,observed_at,verification_status,outreach_eligibility,suppression_status,evidence_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", (stable_id("channel", org_id, location_id, kind, value, evidence_id), org_id, location_id, kind, value, row.get("published_context") or "Published source listing; relevance and permission unverified", source_url, observed_at, "source_reported", "research_only", row.get("suppression_status") or "unknown", evidence_id))
++        for parsed, kind in phone_candidates:
++            channel_id = None
++            if parsed['e164']:
++                parts = ('channel', org_id, location_id, kind, parsed['e164'], evidence_id)
++                channel_id = stable_id(*parts, 'extension', parsed['extension']) if parsed['extension'] else stable_id(*parts)
++                self.db.execute("INSERT OR IGNORE INTO contact_channels(id,organisation_id,location_id,channel_type,value,published_context,source_url,observed_at,verification_status,outreach_eligibility,suppression_status,evidence_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
++                    (channel_id, org_id, location_id, kind, parsed['e164'], row.get('published_context') or 'Published source listing; relevance and permission unverified', source_url, observed_at, 'source_reported', 'research_only', row.get('suppression_status') or 'unknown', evidence_id))
++                self.db.execute('INSERT OR IGNORE INTO phone_channel_details VALUES(?,?,?,?,?,?)',
++                    (channel_id, parsed['raw_value'], parsed['e164'], parsed['extension'], parsed['status'], parsed['normalization_version']))
++            else:
++                self.add_review('invalid_contact_channel', [org_id], [evidence_id], 'Published phone retained for review: ' + parsed['reason'])
++            self.db.execute('INSERT OR IGNORE INTO phone_observations VALUES(?,?,?,?,?,?,?,?,?,?)',
++                (stable_id('phone-observation', org_id, evidence_id, parsed, kind), org_id, evidence_id, channel_id,
++                 parsed['raw_value'], parsed['extension'], parsed['status'], parsed['reason'], parsed['normalization_version'], kind))
+ 
+     def ingest(self, source_id, rows, *, run_metadata=None):
+         """Atomically ingest one bounded batch; replaying it preserves entity IDs.
+--- a/scripts/market_map/verification_pilot.py
++++ b/scripts/market_map/verification_pilot.py
+@@ -85,17 +85,13 @@
+ 
+ def check_contact(kind, value):
+     raw = str(value or "").strip()
+-    if kind == "phone":
+-        # Preserve extensions and never mistake their digits for the main line.
+-        parts = re.split(r"\s*(?:extension|ext\.?|x|#)\s*", raw, maxsplit=1, flags=re.I)
+-        main = parts[0].removeprefix("tel:")
+-        digits = re.sub(r"\D", "", main)
+-        if len(digits) == 11 and digits.startswith("1"):
+-            digits = digits[1:]
+-        plausible = bool(re.fullmatch(r"[2-9]\d{2}[2-9]\d{6}", digits))
+-        return {"format_status": "nanp_syntax_only" if plausible else "format_review",
+-                "normalised_candidate": "+1" + digits if plausible else None,
+-                "extension": parts[1] if len(parts) == 2 else None,
++    if kind in ("phone", "fax"):
++        from .contact_normalization import parse_phone_candidate
++        parsed = parse_phone_candidate(value)
++        status = ('nanp_syntax_only' if parsed['reason']=='nanp_shape_only' else 'international_syntax_only') if parsed['e164'] else 'format_review'
++        return {"format_status": status,
++                "normalised_candidate": parsed['e164'],
++                "extension": parsed['extension'] or None,
+                 "ownership_status": "not_checked", "reachability_status": "not_checked"}
+     if kind == "email":
+         plausible = bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", raw))
+@@ -338,9 +334,13 @@
+         for row in pilot:
+             row["contact_records"] = []
+         with compressed_lines(output / "contact-baseline.jsonl.gz") as stream:
+-            for original in db.execute("SELECT * FROM main.contact_channels ORDER BY id"):
++            details = db.execute("SELECT 1 FROM main.sqlite_master WHERE name='phone_channel_details'").fetchone()
++            query = "SELECT c.*,d.extension,d.raw_value,d.format_status,d.normalizer_version FROM main.contact_channels c LEFT JOIN main.phone_channel_details d ON d.channel_id=c.id ORDER BY c.id" if details else "SELECT * FROM main.contact_channels ORDER BY id"
++            for original in db.execute(query):
+                 row = dict(original)
+                 row["offline_check"] = check_contact(row["channel_type"], row["value"])
++                if row.get('extension'):
++                    row['offline_check']['extension'] = row['extension']
+                 stream.write(row)
+                 contacts[row["channel_type"] + ":" + row["offline_check"]["format_status"]] += 1
+                 if row["organisation_id"] in selected:
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -20,6 +20,8 @@
+                             'tests/market_map/test_regional_additional_phones.py']}
+ TESTS['PR-05'] = TESTS['PR-02'] + ['tests/extraction/test_email_normalization.py',
+     'tests/market_map/test_structured_email_recovery.py', 'tests/market_map/test_structured_email_audit.py']
++TESTS['PR-03'] = TESTS['PR-05'] + ['tests/market_map/test_phone_ingestion.py', 'tests/market_map/test_store.py',
++    'tests/market_map/test_adapters.py', 'tests/market_map/test_reporting.py', 'tests/market_map/test_verification_pilot.py']
+ 
+ 
+ def main():
+--- a/tests/extraction/test_offline_guard.py
++++ b/tests/extraction/test_offline_guard.py
+@@ -30,6 +30,8 @@
+         self.assertEqual(guard.violations, ['socket.connect'])
+ 
+     def test_tmp_files_and_database_are_permitted(self):
++        with sqlite3.connect(Path(':memory:')) as db:
++            db.execute('create table memory_fixture (value text)')
+         with tempfile.TemporaryDirectory() as directory:
+             p = Path(directory) / 'sample.txt'
+             p.write_text('fixture')
+--- /dev/null
++++ b/tests/extraction/tranche2_replay.py
+@@ -0,0 +1,73 @@
++"""Pure/temporary-data tranche replay, including saved implementation snapshots."""
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import sys
++import tempfile
++
++ROOT = Path(__file__).resolve().parents[2]
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('--implementation-root', default=str(ROOT))
++    parser.add_argument('--stage', choices=['email', 'phone', 'identity'], required=True)
++    parser.add_argument('--output', required=True)
++    args = parser.parse_args()
++    implementation = Path(args.implementation_root).resolve()
++    output = Path(args.output).resolve()
++    if output.exists() or not output.is_relative_to(Path(tempfile.gettempdir()).resolve()):
++        parser.error('output must be a new temporary directory')
++    sys.path[:0] = [str(ROOT)]
++    from scripts.market_map.offline_guard import OfflineGuard
++    guard = OfflineGuard(output); guard.install(); output.mkdir()
++    tempfile.tempdir = str(output)
++    sys.path[:0] = [str(implementation / 'scripts'), str(implementation / 'scripts/discovery_v2')]
++    result = []
++    if args.stage == 'email':
++        from market_map.email_extraction import clean_email, extract_published_emails
++        values = ['élise@fictional.test', 'e\u0301lise@fictional.test', 'a@foo.-bar.test', 'a@foo..test',
++                  'Sales@BUSINESS.test', 'sales@business.test', 'Sales+Tag@BÜCHER.test', 'a@faß.test',
++                  '"a b"@fictional.test', 'a@[127.0.0.1]']
++        for raw in values:
++            result.append({'raw': raw, 'normalized': clean_email(raw),
++                           'extracted': extract_published_emails('<meta charset="utf-8"><p>'+raw+'</p>', 'https://fictional.test/')})
++    elif args.stage == 'phone':
++        from market_map.store import MarketMap
++        from market_map.adapters import normalize
++        values = ['5195550123', '+4422345678', '+44 20 7946 0123 ext. 09', '+11234567890',
++                  'Phone unavailable', 'tel:5195550123;ext=42', '++442079460123']
++        for raw in values:
++            store = MarketMap(':memory:')
++            source = {'id':'fixture','name':'Fixture','source_url':'https://directory.test/'}
++            sid = store.upsert_source(source)
++            mapped = normalize({'id':'one','name':'Fictional Office','phone':raw},source,observed_at='2026-01-01T00:00:00Z')
++            store.ingest(sid,[mapped])
++            row = {'raw':raw,'adapter':mapped,'channels':[dict(r) for r in store.db.execute('SELECT * FROM contact_channels')]}
++            if store.db.execute("SELECT 1 FROM sqlite_master WHERE name='phone_observations'").fetchone():
++                row['phone_observations']=[dict(r) for r in store.db.execute('SELECT * FROM phone_observations')]
++                row['details']=[dict(r) for r in store.db.execute('SELECT * FROM phone_channel_details')]
++            result.append(row);store.close()
++    else:
++        from engine import Engine
++        cases = [
++            ('shared_ids',[{'name':'Alpha Office','source_record_id':'a'},{'name':'Beta Office','source_record_id':'b'}]),
++            ('shared_composites',[{'name':'Alpha Office','city':'Windsor','address':'10 Main St'}, {'name':'Beta Office','city':'Windsor','address':'20 Main St'}]),
++            ('stable_conflict',[{'name':'Alpha Office','source_record_id':'a'},{'name':'Changed Office','source_record_id':'a'}]),
++            ('ambiguous_missing',[{'name':'Alpha Office'},{'name':'Beta Office'}])]
++        for name, rows in cases:
++            engine=Engine(':memory:')
++            rows=[dict(r,source_url='https://directory.test/list') for r in rows]
++            run=engine.ingest(source='publisher',family='directory',scope='fixture',category='*',rows=rows,captured_at='2026-01-01T00:00:00Z')
++            result.append({'case':name,'input':rows,'result':run,'entities':[dict(r) for r in engine.db.execute('SELECT * FROM entities')],
++                           'claims':[dict(r) for r in engine.db.execute('SELECT * FROM claims')]})
++            engine.db.close()
++    files = ['market_map/email_extraction.py','market_map/contact_normalization.py','market_map/store.py','market_map/adapters.py','discovery_v2/engine.py']
++    artifact={'stage':args.stage,'implementation_sha256':{f:hashlib.sha256((implementation/'scripts'/f).read_bytes()).hexdigest() for f in files},'results':result}
++    (output/'run.json').write_text(json.dumps(artifact,indent=2,sort_keys=True,ensure_ascii=False)+'\n')
++    if guard.violations: raise RuntimeError(guard.violations)
++    print(str(output/'run.json'))
++
++
++if __name__ == '__main__': main()
+--- /dev/null
++++ b/tests/market_map/test_phone_ingestion.py
+@@ -0,0 +1,85 @@
++import unittest
++import tempfile
++from pathlib import Path
++from scripts.market_map.store import MarketMap, stable_id, phone_number
++from scripts.market_map.adapters import normalize
++from scripts.market_map.phone_extraction import normalize_phone
++from scripts.market_map.reporting import _accounts
++
++
++class PhoneIngestionTests(unittest.TestCase):
++    def setUp(self):
++        self.store=MarketMap(':memory:')
++        self.source={'id':'fixture','name':'Fixture','source_url':'https://directory.test/'}
++        self.sid=self.store.upsert_source(self.source)
++    def tearDown(self): self.store.close()
++    def ingest(self, **values):
++        return self.store.ingest(self.sid,[{'name':'Fictional Office','source_record_id':'one','source_url':self.source['source_url'],**values}])
++    def rows(self, table): return [dict(r) for r in self.store.db.execute('SELECT * FROM '+table)]
++
++    def test_invalid_and_unsupported_are_evidence_not_channels(self):
++        self.ingest(published_phones=['Phone unavailable','+11234567890','++442079460123'])
++        self.assertEqual(self.rows('contact_channels'),[])
++        observations=self.rows('phone_observations')
++        self.assertEqual({r['format_status'] for r in observations},{'invalid','unsupported'})
++        self.assertTrue(all(r['channel_id'] is None for r in observations))
++        self.assertEqual({r['raw_value'] for r in observations},{'Phone unavailable','+11234567890','++442079460123'})
++
++    def test_adapter_store_and_extractor_share_contract(self):
++        for value in ['+4422345678','tel:5195550123;ext=09','Phone unavailable','+11234567890']:
++            mapped=normalize({'id':value,'name':value,'phone':value},self.source,observed_at='2026-01-01')
++            self.store.ingest(self.sid,[mapped])
++            expected=normalize_phone(value)
++            self.assertEqual(mapped['phone'],expected[0] if expected else '')
++            self.assertEqual(mapped['phone_raw'],value)
++            self.assertEqual(phone_number(value),expected[0] if expected else None)
++        self.assertEqual(len(self.rows('contact_channels')),2)
++
++    def test_extensions_fax_and_replay_remain_distinct(self):
++        values={'published_phones':[{'phone':'+15195550123','extension':'01'}, {'raw_value':'5195550123 x02'},
++                                  {'phone':'+15195550123','kind':'fax'}]}
++        self.ingest(**values);self.ingest(**values)
++        self.assertEqual(len(self.rows('contact_channels')),3)
++        self.assertEqual({r['extension'] for r in self.rows('phone_channel_details')},{'01','02',''})
++        self.assertEqual({r['channel_type'] for r in self.rows('contact_channels')},{'phone','fax'})
++        self.assertTrue(all(r['outreach_eligibility']=='research_only' for r in self.rows('contact_channels')))
++
++    def test_conflicting_extension_does_not_become_callable(self):
++        self.ingest(published_phones=[{'raw_value':'5195550123 x01','extension':'02'}])
++        self.assertEqual(self.rows('contact_channels'),[])
++        self.assertEqual(self.rows('phone_observations')[0]['reason'],'invalid_or_conflicting_extension')
++
++    def test_empty_extension_id_recipe_and_existing_rows_not_rekeyed(self):
++        self.ingest(phone='5195550123')
++        row=self.rows('contact_channels')[0]
++        self.assertEqual(row['id'],stable_id('channel',row['organisation_id'],row['location_id'],'phone',row['value'],row['evidence_id']))
++        before=dict(row)
++        self.ingest(phone='5195550123 x09')
++        self.assertEqual(dict(self.store.db.execute('SELECT * FROM contact_channels WHERE id=?',(row['id'],)).fetchone()),before)
++
++    def test_reporting_exposes_extension_and_legacy_schema_fallback(self):
++        self.ingest(phone='5195550123 x09')
++        rows=list(_accounts(self.store))
++        self.assertEqual(rows[0]['phone_channel_details'][0]['extension'],'09')
++        self.store.db.execute('DROP TABLE phone_channel_details')
++        self.assertTrue(list(_accounts(self.store)))
++
++    def test_additive_schema_upgrade_on_temporary_legacy_fixture(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path=Path(directory)/'legacy.sqlite'
++            old=MarketMap(path)
++            sid=old.upsert_source(self.source)
++            old.ingest(sid,[{'name':'Legacy','source_record_id':'one','phone':'5195550123'}])
++            before=[tuple(r) for r in old.db.execute('SELECT * FROM contact_channels')]
++            old.db.execute('DROP TABLE phone_observations');old.db.execute('DROP TABLE phone_channel_details')
++            old.db.execute("DELETE FROM schema_migrations WHERE version='008_phone_channel_details.sql'")
++            old.db.commit();old.close()
++            candidate=MarketMap(path)
++            self.assertEqual([tuple(r) for r in candidate.db.execute('SELECT * FROM contact_channels')],before)
++            self.assertEqual(candidate.db.execute('SELECT count(*) FROM phone_channel_details').fetchone()[0],0)
++            candidate.close()
++
++    def test_export_screener_uses_shared_international_contract(self):
++        from scripts.market_map.verification_pilot import check_contact
++        self.assertEqual(check_contact('phone','+4422345678')['normalised_candidate'],'+4422345678')
++        self.assertIsNone(check_contact('phone','+11234567890')['normalised_candidate'])
+--- a/tests/market_map/test_verification_pilot.py
++++ b/tests/market_map/test_verification_pilot.py
+@@ -21,7 +21,7 @@
+         self.assertEqual(number["extension"], "42")
+         self.assertEqual(number["ownership_status"], "not_checked")
+         self.assertEqual(number["reachability_status"], "not_checked")
+-        self.assertEqual(check_contact("phone", "+442071234567")["format_status"], "format_review")
++        self.assertEqual(check_contact("phone", "+442071234567")["format_status"], "international_syntax_only")
+         self.assertEqual(check_contact("email", "public@example.test")["mailbox_status"], "not_checked")
+         self.assertEqual(check_contact("email", "bad email")["format_status"], "format_review")
+ 
+@@ -38,7 +38,7 @@
+             seed_geographies(store)
+             source = store.upsert_source({"id": "test-current", "name": "Current", "source_type": "municipal_directory", "source_url": "https://directory.test"})
+             store.ingest(source, [
+-                {"source_record_id": "large", "name": "Large Company", "city": "Toronto", "address": "10 One Street", "website": "https://large.test", "phone": "5195550100"},
++                {"source_record_id": "large", "name": "Large Company", "city": "Toronto", "address": "10 One Street", "website": "https://large.test", "phone": "5195550100 x09"},
+                 {"source_record_id": "rural", "name": "Small Charity", "city": "Brights Grove", "address": "12 Two Road", "location_type": "mailing_address", "email": "hello@charity.test", "entity_type": "nonprofit"},
+                 {"source_record_id": "unknown", "name": "No Location", "country": "unknown"},
+                 {"source_record_id": "bad", "name": "Placeholder", "city": "Windsor"}
+@@ -64,6 +64,9 @@
+             with gzip.open(out / "contact-baseline.jsonl.gz", "rt") as stream:
+                 contacts = [json.loads(line) for line in stream]
+             self.assertEqual(len(contacts), 2)
++            phone=next(row for row in contacts if row['channel_type']=='phone')
++            self.assertEqual(phone['extension'],'09')
++            self.assertEqual(phone['offline_check']['extension'],'09')
+             self.assertTrue(all(row["outreach_eligibility"] == "research_only" for row in contacts))
+             with self.assertRaises(ValueError):
+                 baseline_screen(path, out)

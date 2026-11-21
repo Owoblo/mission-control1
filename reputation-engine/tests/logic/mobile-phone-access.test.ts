@@ -58,3 +58,14 @@ test('an unauthenticated device has no line access', () => {
   assert.equal(canUseMobilePhoneLine(courage, '+12268870667'), false)
   assert.equal(canUseMobilePhoneLine(session('manager'), '+15482908695'), false)
 })
+
+test('Toronto mobile lines preserve sales and partnership role boundaries', () => {
+  const owner = listMobilePhoneLines(session('owner'));
+  assert.ok(owner.some(line => line.number === '+14377823004' && line.workspace === 'sales'));
+  assert.ok(owner.some(line => line.number === '+14374650584' && line.workspace === 'partnership'));
+  assert.equal(canUseMobilePhoneLine(session('sales_rep', 'Toronto'), '+14377823004'), true);
+  assert.equal(canUseMobilePhoneLine(session('sales_rep', 'Toronto'), '+14374650584'), false);
+  assert.equal(canUseMobilePhoneLine(session('partnership_manager', 'Toronto'), '+14374650584'), true);
+  assert.equal(canUseMobilePhoneLine(session('partnership_manager', 'Toronto'), '+14377823004'), false);
+  assert.equal(canUseMobilePhoneLine(session('sales_rep', 'Windsor'), '+14377823004'), false);
+});

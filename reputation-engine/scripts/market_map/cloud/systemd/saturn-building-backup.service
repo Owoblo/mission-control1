@@ -1,0 +1,11 @@
+[Unit]
+Description=Saturn queue and evidence backup
+[Service]
+Type=oneshot
+User=saturnresearch
+Group=saturnresearch
+WorkingDirectory=/opt/saturn-research
+ExecStart=/opt/saturn-research/.runtime/market-map-python/bin/python -B scripts/market_map/cloud/backup-research.py --output /var/backups/saturn-research
+UMask=0077
+TimeoutStartSec=300
+Nice=10

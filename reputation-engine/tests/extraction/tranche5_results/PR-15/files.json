@@ -1,0 +1,38 @@
+[
+  {
+    "stage": "PR-15",
+    "path": "scripts/market_map/cloud/regional_contact_enrichment.py",
+    "before_sha256": "2608622e4d23c6d41c49823903a6cf34b792da57715fe84b84cec21a81d0a15e",
+    "after_sha256": "32df2d5b368dbc290ca64dc19c5be6684b90c35bf9f1cc1bfc88bdd32720776d"
+  },
+  {
+    "stage": "PR-15",
+    "path": "scripts/market_map/contact_context.py",
+    "before_sha256": "418a98e1662fff37a459b0492c86f640a8079189bf99fa617ca80ecaaa5d3161",
+    "after_sha256": "2a4492e5ec595ab8a899e165002b6b0414a7290806ffbaf2a2ddeeff07161f14"
+  },
+  {
+    "stage": "PR-15",
+    "path": "scripts/market_map/contact_page.py",
+    "before_sha256": null,
+    "after_sha256": "e9a795b731eccdea6f955fdbc69e3e86a0d1febf7df533e7b6a9c0f6b3ebaa62"
+  },
+  {
+    "stage": "PR-15",
+    "path": "scripts/market_map/structured_contacts.py",
+    "before_sha256": "bb866ec78e778174d1f2dd11217ff452c04476b04767469d2fd98e01d71bf05f",
+    "after_sha256": "aef85bdd81cf0a41aa67254c9a7c553c939db84d9d01174e60669910692b98a2"
+  },
+  {
+    "stage": "PR-15",
+    "path": "tests/extraction/run_offline.py",
+    "before_sha256": "6f01dd0b453aed6d20b061801bb1cad4c76daba8675dca2270174bf8906f46a9",
+    "after_sha256": "27b1db7ce618c7b246222dea88605dfb1ad4d9849745ac008ebd5f97889747d9"
+  },
+  {
+    "stage": "PR-15",
+    "path": "tests/market_map/test_contact_page.py",
+    "before_sha256": null,
+    "after_sha256": "2b55ef520ebd6cae2c073635d7689dd01b649119bca80f57648c9d42aa0ba078"
+  }
+]

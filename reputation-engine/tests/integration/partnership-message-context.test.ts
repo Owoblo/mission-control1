@@ -113,6 +113,7 @@ test('inbox snapshot spans database pages and is shared across concurrent UI pag
   globalThis.fetch = async input => {
     calls++
     const url = new URL(String(input))
+    if (url.pathname.includes('crm_leads')) return response([])
     if (url.pathname.includes('market_touches')) return response([{ twilioSid: 'SMsnapshot1049' }])
     const offset = Number(url.searchParams.get('offset'))
     return response(all.slice(offset, offset + 1000))
@@ -121,10 +122,10 @@ test('inbox snapshot spans database pages and is shared across concurrent UI pag
     const [a, b] = await Promise.all([listSmsThreadSummaryMessages(150), listSmsThreadSummaryMessages(150, 150)])
     assert.equal(buildSmsThreads(a, [], [], false).length, 150)
     assert.equal(buildSmsThreads(b, [], [], false).length, 150)
-    assert.equal(calls, 3)
+    assert.equal(calls, 4) // Two message pages, partnership SID lookup, and partner-lead lookup; cached thereafter.
     const final = buildSmsThreads(await listSmsThreadSummaryMessages(150, 1000), [], [], false)
     assert.equal(final.length, 49)
-    assert.equal(calls, 3)
+    assert.equal(calls, 4) // Two message pages, partnership SID lookup, and partner-lead lookup; cached thereafter.
   } finally { globalThis.fetch = originalFetch; process.env.SUPABASE_URL = oldUrl }
 })
 
@@ -168,5 +169,33 @@ test('a shared partner number on a later database page cannot select an arbitrar
   try {
     assert.equal(await notifyPartnershipCustomerContact({ channel: 'sms', phone: intro.to_number }), false)
     assert.equal(reads, 2)
+  } finally { globalThis.fetch = originalFetch }
+})
+
+test('Sales follow-up without a lead ID retains the earlier linked quote on the same number pair', async () => {
+  const { getSalesSmsReplyLeadId } = await import('../../lib/server/partnership-message-context')
+  let reads = 0
+  globalThis.fetch = async input => {
+    const url = new URL(String(input))
+    if (!url.pathname.includes('sms_messages')) return response([])
+    reads++
+    assert.equal(url.searchParams.get('from_number'), 'in.(+14377823004,4377823004)')
+    assert.equal(url.searchParams.get('to_number'), 'in.(+16477126210,6477126210)')
+    return response([{ ...sale, from_number: '+14377823004', to_number: '+16477126210',
+      lead_id: url.searchParams.get('lead_id') === 'not.is.null' ? 'fiona-existing' : null }])
+  }
+  try {
+    assert.equal(await getSalesSmsReplyLeadId('+16477126210', '+14377823004'), 'fiona-existing')
+    assert.equal(reads, 2)
+  } finally { globalThis.fetch = originalFetch }
+})
+
+test('unlinked partnership follow-up does not reach back to an older customer quote', async () => {
+  const { getSalesSmsReplyLeadId } = await import('../../lib/server/partnership-message-context')
+  let reads = 0
+  globalThis.fetch = async () => { reads++; return response([{ ...intro, lead_id: null }]) }
+  try {
+    assert.equal(await getSalesSmsReplyLeadId(intro.to_number, intro.from_number), null)
+    assert.equal(reads, 1)
   } finally { globalThis.fetch = originalFetch }
 })

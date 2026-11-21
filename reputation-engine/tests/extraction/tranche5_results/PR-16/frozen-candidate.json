@@ -1,0 +1,1491 @@
+{
+  "attribution": {
+    "f1": 1.0,
+    "fn": 0,
+    "fp": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "scope": "published person-card association; not verified employment/company ownership",
+    "tp": 2,
+    "unscored_unknown_owner_predictions": 0
+  },
+  "capture_count": 17,
+  "corpus": "synthetic development regression set; not production accuracy",
+  "error_categories": [
+    "Acquisition or crawl failure",
+    "HTML/DOM extraction failure",
+    "Structured-data extraction failure",
+    "Normalization error",
+    "Incorrect channel type",
+    "Duplicate/entity resolution error",
+    "Incorrect attribution",
+    "Unsupported format",
+    "Unknown or insufficient evidence"
+  ],
+  "errors": [
+    {
+      "actual": null,
+      "basis": "observed",
+      "category": "Unsupported format",
+      "channel": "email",
+      "evidence": {
+        "candidate_value": "élise@fictional.test",
+        "email": null,
+        "extraction_method": "visible_text",
+        "extraction_version": "ssm-published-email-extraction/6",
+        "normalization_version": "ssm-email-normalization/1",
+        "outreach_eligibility": "research_only",
+        "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+        "raw_value": "élise@fictional.test",
+        "reason": "unicode_local_part",
+        "source_dom_locator": "/html/body/p",
+        "source_url": "https://unicode-email.test/contact",
+        "status": "unsupported"
+      },
+      "expected": "élise@fictional.test",
+      "hypotheses": [],
+      "outcome": "false_negative",
+      "page_id": "unicode-email",
+      "source_predictions": {
+        "attribution": [],
+        "context": {
+          "department_contacts": [],
+          "organisation_assertions": [],
+          "people": [],
+          "relevant_links": []
+        },
+        "email_candidates": [
+          {
+            "candidate_value": "élise@fictional.test",
+            "email": null,
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-email-extraction/6",
+            "normalization_version": "ssm-email-normalization/1",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+            "raw_value": "élise@fictional.test",
+            "reason": "unicode_local_part",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://unicode-email.test/contact",
+            "status": "unsupported"
+          }
+        ],
+        "emails": [],
+        "phones": []
+      },
+      "value": "élise@fictional.test"
+    }
+  ],
+  "extraction": {
+    "email": {
+      "f1": 0.9090909090909091,
+      "fn": 1,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 0.8333333333333334,
+      "tp": 5
+    },
+    "fax_as_phone": 0,
+    "phone": {
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tp": 15
+    },
+    "phone_kind": {
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "tp": 15
+    }
+  },
+  "labels_sha256": "a621650ecb00ce9903cfcfe4813f9146aa0cb5deee6c476e7b15453d8df5af8e",
+  "lxml": [
+    6,
+    1,
+    1,
+    0
+  ],
+  "manifest_sha256": "ef6ccc706bce5168b3cbeaae0ca1dd156e6ae30fcd954c6eb6ce3f30609cd08e",
+  "predictions": {
+    "adjacent-fax": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Fax: 519-555-0123",
+          "extension": "",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "99844a86e3bac4b2b565a028a63876158f400f76a1ae32cc41be85f3a9148c3a",
+          "phone": "+15195550123",
+          "raw_value": "tel:5195550123",
+          "source_dom_locator": "/html/body/p/a",
+          "source_segments": null,
+          "source_url": "https://adjacent-fax.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0123",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "99844a86e3bac4b2b565a028a63876158f400f76a1ae32cc41be85f3a9148c3a",
+          "phone": "+15195550123",
+          "raw_value": "519-555-0123",
+          "source_dom_locator": "/html/body/p/a",
+          "source_segments": null,
+          "source_url": "https://adjacent-fax.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "empty": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": []
+    },
+    "extensions": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Telephone: (519) 555-0123 ext. 106Reception",
+          "extension": "42",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "70a7a50a126ad58171e71c0ede273b0f0c4950af49b4a141a7f9e52a0f36f239",
+          "phone": "+18005550123",
+          "raw_value": "tel:+1-800-555-0123;ext=42",
+          "source_dom_locator": "/html/div/a",
+          "source_segments": null,
+          "source_url": "https://extensions.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Telephone: (519) 555-0123 ext. 106",
+          "extension": "106",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "70a7a50a126ad58171e71c0ede273b0f0c4950af49b4a141a7f9e52a0f36f239",
+          "phone": "+15195550123",
+          "raw_value": "(519) 555-0123 ext. 106",
+          "source_dom_locator": "/html/div/p",
+          "source_segments": null,
+          "source_url": "https://extensions.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "inline-email": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [
+          {
+            "basis": "published_inbox_prefix",
+            "department_identity_status": "inferred_route_requires_review",
+            "email": "info@fictional.test",
+            "excerpt": "info @ fictional.test",
+            "extraction_method": "published_inbox_context",
+            "extraction_version": "ssm-contact-context/2",
+            "mailbox_verified": false,
+            "page_content_sha256": "8051c8edcc152cf2a59423dfde536ea9b67c3bd473948352c4ab550f6636192e",
+            "person_name": null,
+            "purchasing_authority_verified": false,
+            "review_status": "source_published_candidate_requires_review",
+            "role_function": "general_business",
+            "source_association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "source_url": "https://inline-email.test/contact"
+          }
+        ],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [
+        {
+          "candidate_value": "info@fictional.test",
+          "email": "info@fictional.test",
+          "extraction_method": "bounded_inline_text",
+          "extraction_version": "ssm-published-email-extraction/6",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "8051c8edcc152cf2a59423dfde536ea9b67c3bd473948352c4ab550f6636192e",
+          "raw_value": "info@fictional.test",
+          "reason": "supported_syntax_only",
+          "source_dom_locator": "/html/body/p",
+          "source_url": "https://inline-email.test/contact",
+          "status": "normalized"
+        }
+      ],
+      "emails": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "candidate_owner": {
+            "source_dom_locator": "/html/body/p",
+            "status": "unresolved"
+          },
+          "email": "info@fictional.test",
+          "extraction_method": "bounded_inline_text",
+          "extraction_methods": [
+            "bounded_inline_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/6",
+          "json_pointer": null,
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "occurrences": [
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "source_dom_locator": "/html/body/p",
+                "status": "unresolved"
+              },
+              "email": "info@fictional.test",
+              "extraction_method": "bounded_inline_text",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": null,
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "35a532612007d44c54c4b7e861e4afc18ad0121c56dcfe22ac877b81997105d3",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "8051c8edcc152cf2a59423dfde536ea9b67c3bd473948352c4ab550f6636192e",
+              "raw_value": "info@fictional.test",
+              "role_hint": "general_business",
+              "short_supporting_context": "info @ fictional.test",
+              "source_dom_locator": "/html/body/p",
+              "source_url": "https://inline-email.test/contact",
+              "text_position": {
+                "end": 19,
+                "offset_basis": "literal_run",
+                "raw_text": "info@fictional.test",
+                "segments": [
+                  {
+                    "end": 4,
+                    "field": "text",
+                    "source_dom_locator": "/html/body/p",
+                    "start": 0
+                  },
+                  {
+                    "end": 5,
+                    "field": "text",
+                    "source_dom_locator": "/html/body/p/span",
+                    "start": 4
+                  },
+                  {
+                    "end": 19,
+                    "field": "tail",
+                    "source_dom_locator": "/html/body/p/span",
+                    "start": 5
+                  }
+                ],
+                "start": 0
+              },
+              "visibility_basis": "visible_dom"
+            }
+          ],
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "8051c8edcc152cf2a59423dfde536ea9b67c3bd473948352c4ab550f6636192e",
+          "raw_value": "info@fictional.test",
+          "review_warnings": [],
+          "role_hint": "general_business",
+          "short_supporting_context": "info @ fictional.test",
+          "source_dom_locator": "/html/body/p",
+          "source_url": "https://inline-email.test/contact",
+          "text_position": {
+            "end": 19,
+            "offset_basis": "literal_run",
+            "raw_text": "info@fictional.test",
+            "segments": [
+              {
+                "end": 4,
+                "field": "text",
+                "source_dom_locator": "/html/body/p",
+                "start": 0
+              },
+              {
+                "end": 5,
+                "field": "text",
+                "source_dom_locator": "/html/body/p/span",
+                "start": 4
+              },
+              {
+                "end": 19,
+                "field": "tail",
+                "source_dom_locator": "/html/body/p/span",
+                "start": 5
+              }
+            ],
+            "start": 0
+          },
+          "visibility_basis": "visible_dom"
+        }
+      ],
+      "phones": []
+    },
+    "international": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "CallLondon",
+          "extension": "",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "f54c161c4b94d446b974dcb823a320a465f4ba15e4129f3594cb260fb54540b9",
+          "phone": "+4422345678",
+          "raw_value": "tel:+4422345678",
+          "source_dom_locator": "/html/span/a[1]",
+          "source_segments": null,
+          "source_url": "https://international.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "CallLondon",
+          "extension": "09",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "f54c161c4b94d446b974dcb823a320a465f4ba15e4129f3594cb260fb54540b9",
+          "phone": "+442079460123",
+          "raw_value": "tel:+44 20 7946 0123;ext=09",
+          "source_dom_locator": "/html/span/a[2]",
+          "source_segments": null,
+          "source_url": "https://international.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "malformed-plus": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": []
+    },
+    "mixed-field": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Phone: 519-555-0123 Fax: 519-555-0124",
+          "extension": "",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "f75fab2559168047b8827e5d1cb6b79099f703d1f0b99ab3e5d62ba37e1867bf",
+          "phone": "+15195550123",
+          "raw_value": "tel:5195550123",
+          "source_dom_locator": "/html/body/p/a[1]",
+          "source_segments": null,
+          "source_url": "https://mixed-field.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Phone: 519-555-0123 Fax: 519-555-0124",
+          "extension": "",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "f75fab2559168047b8827e5d1cb6b79099f703d1f0b99ab3e5d62ba37e1867bf",
+          "phone": "+15195550124",
+          "raw_value": "tel:5195550124",
+          "source_dom_locator": "/html/body/p/a[2]",
+          "source_segments": null,
+          "source_url": "https://mixed-field.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0123",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "f75fab2559168047b8827e5d1cb6b79099f703d1f0b99ab3e5d62ba37e1867bf",
+          "phone": "+15195550123",
+          "raw_value": "519-555-0123",
+          "source_dom_locator": "/html/body/p/a[1]",
+          "source_segments": null,
+          "source_url": "https://mixed-field.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0124",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "f75fab2559168047b8827e5d1cb6b79099f703d1f0b99ab3e5d62ba37e1867bf",
+          "phone": "+15195550124",
+          "raw_value": "519-555-0124",
+          "source_dom_locator": "/html/body/p/a[2]",
+          "source_segments": null,
+          "source_url": "https://mixed-field.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "nanp-invalid": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": []
+    },
+    "noise": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": []
+    },
+    "separate-cards": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Fax: 519-555-0124",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "db7918d2f99046e306ac65996be982a666dc394826a4f46ae244cd725e972cf6",
+          "phone": "+15195550124",
+          "raw_value": "519-555-0124",
+          "source_dom_locator": "/html/body/div/p[1]",
+          "source_segments": null,
+          "source_url": "https://separate-cards.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Phone: 519-555-0123",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "db7918d2f99046e306ac65996be982a666dc394826a4f46ae244cd725e972cf6",
+          "phone": "+15195550123",
+          "raw_value": "519-555-0123",
+          "source_dom_locator": "/html/body/div/p[2]",
+          "source_segments": null,
+          "source_url": "https://separate-cards.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "shared-business-email": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [
+        {
+          "candidate_value": "desk@shared.test",
+          "email": "desk@shared.test",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-email-extraction/6",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+          "raw_value": "desk@shared.test",
+          "reason": "supported_syntax_only",
+          "source_dom_locator": "/html/div/section[1]/p",
+          "source_url": "https://shared-business-email.test/contact",
+          "status": "normalized"
+        },
+        {
+          "candidate_value": "desk@shared.test",
+          "email": "desk@shared.test",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-email-extraction/6",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+          "raw_value": "desk@shared.test",
+          "reason": "supported_syntax_only",
+          "source_dom_locator": "/html/div/section[2]/p",
+          "source_url": "https://shared-business-email.test/contact",
+          "status": "normalized"
+        }
+      ],
+      "emails": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "candidate_owner": {
+            "source_dom_locator": "/html/div/section[2]/p",
+            "status": "unresolved"
+          },
+          "email": "desk@shared.test",
+          "extraction_method": "visible_text",
+          "extraction_methods": [
+            "visible_text"
+          ],
+          "extraction_version": "ssm-published-email-extraction/6",
+          "json_pointer": null,
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "occurrences": [
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "source_dom_locator": "/html/div/section[2]/p",
+                "status": "unresolved"
+              },
+              "email": "desk@shared.test",
+              "extraction_method": "visible_text",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": null,
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "51bb786106c4726fc1449dece09abcbf61b0d48252cd981e4a62ea3cb779c06a",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+              "raw_value": "desk@shared.test",
+              "role_hint": "unspecified_published_inbox",
+              "short_supporting_context": "desk@shared.test",
+              "source_dom_locator": "/html/div/section[2]/p",
+              "source_url": "https://shared-business-email.test/contact",
+              "text_position": {
+                "end": 16,
+                "field": "text",
+                "node": "/html/div/section[2]/p",
+                "start": 0
+              },
+              "visibility_basis": "visible_dom"
+            },
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "source_dom_locator": "/html/div/section[1]/p",
+                "status": "unresolved"
+              },
+              "email": "desk@shared.test",
+              "extraction_method": "visible_text",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": null,
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "b82b0120cb0d276f673e30a625a7ce314a50725c01b706c7009842b396942ba0",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+              "raw_value": "desk@shared.test",
+              "role_hint": "unspecified_published_inbox",
+              "short_supporting_context": "desk@shared.test",
+              "source_dom_locator": "/html/div/section[1]/p",
+              "source_url": "https://shared-business-email.test/contact",
+              "text_position": {
+                "end": 16,
+                "field": "text",
+                "node": "/html/div/section[1]/p",
+                "start": 0
+              },
+              "visibility_basis": "visible_dom"
+            }
+          ],
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "ab1e9640a2b6b698947fcf914deaeb27e3e54915fae16aafbe9a76c1b211a09c",
+          "raw_value": "desk@shared.test",
+          "review_warnings": [
+            "multiple_or_ambiguous_occurrence_owners_require_review"
+          ],
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "desk@shared.test",
+          "source_dom_locator": "/html/div/section[2]/p",
+          "source_url": "https://shared-business-email.test/contact",
+          "text_position": {
+            "end": 16,
+            "field": "text",
+            "node": "/html/div/section[2]/p",
+            "start": 0
+          },
+          "visibility_basis": "visible_dom"
+        }
+      ],
+      "phones": []
+    },
+    "shared-route": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "Phone/Fax: 519-555-0123",
+          "extension": "",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": true,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "746f7acf22a392bccc7f355887c7c85de0b0d5182a7cf569a95039002777fdd1",
+          "phone": "+15195550123",
+          "raw_value": "tel:5195550123",
+          "source_dom_locator": "/html/body/p/a",
+          "source_segments": null,
+          "source_url": "https://shared-route.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0123",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": true,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "746f7acf22a392bccc7f355887c7c85de0b0d5182a7cf569a95039002777fdd1",
+          "phone": "+15195550123",
+          "raw_value": "519-555-0123",
+          "source_dom_locator": "/html/body/p/a",
+          "source_segments": null,
+          "source_url": "https://shared-route.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "structured": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [
+          {
+            "basis": "published_inbox_prefix",
+            "department_identity_status": "inferred_route_requires_review",
+            "email": "info@fictional.test",
+            "excerpt": "Public structured contact field; ownership unverified",
+            "extraction_method": "published_inbox_context",
+            "extraction_version": "ssm-contact-context/2",
+            "mailbox_verified": false,
+            "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+            "person_name": null,
+            "purchasing_authority_verified": false,
+            "review_status": "source_published_candidate_requires_review",
+            "role_function": "general_business",
+            "source_association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "source_url": "https://structured.test/contact"
+          }
+        ],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [
+        {
+          "candidate_value": "info@fictional.test",
+          "email": "info@fictional.test",
+          "extraction_method": "public_organisation_jsonld",
+          "extraction_version": "ssm-published-email-extraction/6",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+          "raw_value": "info@fictional.test",
+          "reason": "supported_syntax_only",
+          "source_dom_locator": "/html/head/script",
+          "source_url": "https://structured.test/contact",
+          "status": "normalized"
+        }
+      ],
+      "emails": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "candidate_owner": {
+            "ambiguity_review_required": false,
+            "candidate_employers": [],
+            "candidate_owners": [
+              {
+                "address": null,
+                "contactType": null,
+                "id": null,
+                "json_pointer": "",
+                "name": "Fictional Office",
+                "status": "explicit_document_node_not_verified",
+                "types": [
+                  "LocalBusiness"
+                ]
+              }
+            ],
+            "node_pointer": "",
+            "ownership_status": "explicit_document_edge_not_verified"
+          },
+          "email": "info@fictional.test",
+          "extraction_method": "public_organisation_jsonld",
+          "extraction_methods": [
+            "public_organisation_jsonld"
+          ],
+          "extraction_version": "ssm-published-email-extraction/6",
+          "json_pointer": "/email",
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "occurrences": [
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "ambiguity_review_required": false,
+                "candidate_employers": [],
+                "candidate_owners": [
+                  {
+                    "address": null,
+                    "contactType": null,
+                    "id": null,
+                    "json_pointer": "",
+                    "name": "Fictional Office",
+                    "status": "explicit_document_node_not_verified",
+                    "types": [
+                      "LocalBusiness"
+                    ]
+                  }
+                ],
+                "node_pointer": "",
+                "ownership_status": "explicit_document_edge_not_verified"
+              },
+              "email": "info@fictional.test",
+              "extraction_method": "public_organisation_jsonld",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": "/email",
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "a4161370c813a37e42091596f69349d1207af38f449340738e891109a4239966",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+              "raw_value": "info@fictional.test",
+              "role_hint": "general_business",
+              "short_supporting_context": "Public structured contact field; ownership unverified",
+              "source_dom_locator": "/html/head/script",
+              "source_url": "https://structured.test/contact",
+              "text_position": null,
+              "visibility_basis": "structured_assertion"
+            }
+          ],
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+          "raw_value": "info@fictional.test",
+          "review_warnings": [],
+          "role_hint": "general_business",
+          "short_supporting_context": "Public structured contact field; ownership unverified",
+          "source_dom_locator": "/html/head/script",
+          "source_url": "https://structured.test/contact",
+          "text_position": null,
+          "visibility_basis": "structured_assertion"
+        }
+      ],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "{\"json_pointer\": \"\", \"id\": null, \"name\": \"Fictional Office\", \"types\": [\"LocalBusiness\"], \"address\": null, \"contactType\": null, \"status\": \"explicit_document_node_not_verified\"}",
+          "extension": "",
+          "extraction_method": "json_ld",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+          "phone": "+15195550123",
+          "raw_value": "+1 519 555 0123",
+          "source_dom_locator": "/html/head/script",
+          "source_segments": null,
+          "source_url": "https://structured.test/contact",
+          "structured_evidence": {
+            "ambiguity_review_required": false,
+            "candidate_employers": [],
+            "candidate_owners": [
+              {
+                "address": null,
+                "contactType": null,
+                "id": null,
+                "json_pointer": "",
+                "name": "Fictional Office",
+                "status": "explicit_document_node_not_verified",
+                "types": [
+                  "LocalBusiness"
+                ]
+              }
+            ],
+            "channel": "telephone",
+            "excluded_context": false,
+            "json_pointer": "/telephone",
+            "node": {
+              "address": null,
+              "contactType": null,
+              "id": null,
+              "json_pointer": "",
+              "name": "Fictional Office",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "LocalBusiness"
+              ]
+            },
+            "node_pointer": "",
+            "ownership_status": "explicit_document_edge_not_verified",
+            "value": "+1 519 555 0123"
+          },
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "{\"json_pointer\": \"\", \"id\": null, \"name\": \"Fictional Office\", \"types\": [\"LocalBusiness\"], \"address\": null, \"contactType\": null, \"status\": \"explicit_document_node_not_verified\"}",
+          "extension": "",
+          "extraction_method": "json_ld",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "9d0fda0b6f2537e35cd61bae4cab11d80e257d55847eed7d2646b766e990c9c6",
+          "phone": "+15195550124",
+          "raw_value": "+1 519 555 0124",
+          "source_dom_locator": "/html/head/script",
+          "source_segments": null,
+          "source_url": "https://structured.test/contact",
+          "structured_evidence": {
+            "ambiguity_review_required": false,
+            "candidate_employers": [],
+            "candidate_owners": [
+              {
+                "address": null,
+                "contactType": null,
+                "id": null,
+                "json_pointer": "",
+                "name": "Fictional Office",
+                "status": "explicit_document_node_not_verified",
+                "types": [
+                  "LocalBusiness"
+                ]
+              }
+            ],
+            "channel": "faxNumber",
+            "excluded_context": false,
+            "json_pointer": "/faxNumber",
+            "node": {
+              "address": null,
+              "contactType": null,
+              "id": null,
+              "json_pointer": "",
+              "name": "Fictional Office",
+              "status": "explicit_document_node_not_verified",
+              "types": [
+                "LocalBusiness"
+              ]
+            },
+            "node_pointer": "",
+            "ownership_status": "explicit_document_edge_not_verified",
+            "value": "+1 519 555 0124"
+          },
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "table-fax": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0124",
+          "extension": "",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "fd611e440d439c37971252ccb90d9f77c0a11a487bdfb944f4661270c42b2ad1",
+          "phone": "+15195550124",
+          "raw_value": "tel:5195550124",
+          "source_dom_locator": "/html/body/table/tr[1]/td/a",
+          "source_segments": null,
+          "source_url": "https://table-fax.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0124",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "fd611e440d439c37971252ccb90d9f77c0a11a487bdfb944f4661270c42b2ad1",
+          "phone": "+15195550124",
+          "raw_value": "519-555-0124",
+          "source_dom_locator": "/html/body/table/tr[1]/td/a",
+          "source_segments": null,
+          "source_url": "https://table-fax.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0123",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "phone",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "fd611e440d439c37971252ccb90d9f77c0a11a487bdfb944f4661270c42b2ad1",
+          "phone": "+15195550123",
+          "raw_value": "519-555-0123",
+          "source_dom_locator": "/html/body/table/tr[2]/td",
+          "source_segments": null,
+          "source_url": "https://table-fax.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "trailing-fax": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [],
+      "emails": [],
+      "phones": [
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0124 (Fax)",
+          "extension": "",
+          "extraction_method": "tel_link",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "a31ceac9b1c4238165f85d7223840f9d39b0e3bb03c13b496f724fe9aca233dd",
+          "phone": "+15195550124",
+          "raw_value": "tel:5195550124",
+          "source_dom_locator": "/html/body/p/a",
+          "source_segments": null,
+          "source_url": "https://trailing-fax.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        },
+        {
+          "branch_ownership_status": "not_verified",
+          "context": "519-555-0124",
+          "extension": "",
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-phone-extraction/4",
+          "kind": "fax",
+          "kind_review_required": false,
+          "normalization_version": "ssm-phone-normalization/1",
+          "organisation_ownership_status": "not_verified",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "a31ceac9b1c4238165f85d7223840f9d39b0e3bb03c13b496f724fe9aca233dd",
+          "phone": "+15195550124",
+          "raw_value": "519-555-0124",
+          "source_dom_locator": "/html/body/p/a",
+          "source_segments": null,
+          "source_url": "https://trailing-fax.test/contact",
+          "structured_evidence": null,
+          "verification_status": "source_published_unverified"
+        }
+      ]
+    },
+    "two-people": {
+      "attribution": [
+        {
+          "channel": "jane@fictional.test",
+          "owner": "Jane Smith",
+          "relation": "person_card"
+        },
+        {
+          "channel": "john@fictional.test",
+          "owner": "John Jones",
+          "relation": "person_card"
+        }
+      ],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [
+          {
+            "authority_scope": "not_established",
+            "email_association_status": "same_unambiguous_public_card_not_verified",
+            "email_occurrences": [
+              {
+                "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                "candidate_owner": {
+                  "source_dom_locator": "/html/div/div[1]",
+                  "status": "unresolved"
+                },
+                "email": "jane@fictional.test",
+                "extraction_method": "mailto_recipient",
+                "extraction_version": "ssm-published-email-extraction/6",
+                "json_pointer": null,
+                "mailbox_status": "not_checked",
+                "normalization_version": "ssm-email-normalization/1",
+                "occurrence_id": "7c7dbd6e33676f9eaef009dae152d9cd69559c21c9f4c9464247e78bf755e17d",
+                "outreach_eligibility": "research_only",
+                "ownership_status": "not_checked",
+                "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+                "raw_value": "jane@fictional.test",
+                "role_hint": "unspecified_published_inbox",
+                "short_supporting_context": "Jane Smith Facilities Manager Email",
+                "source_dom_locator": "/html/div/div[1]/a",
+                "source_url": "https://two-people.test/contact",
+                "text_position": {
+                  "attribute": "href",
+                  "recipient_index": 0
+                },
+                "visibility_basis": "visible_dom"
+              }
+            ],
+            "emails": [
+              "jane@fictional.test"
+            ],
+            "employer_identity_status": "not_verified",
+            "employment_relationship_status": "not_established",
+            "excerpt": "Jane SmithFacilities ManagerEmail",
+            "extraction_method": "visible_role_card",
+            "extraction_version": "ssm-contact-context/2",
+            "name": "Jane Smith",
+            "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+            "published_employer": null,
+            "purchasing_authority_verified": false,
+            "review_status": "source_published_candidate_requires_review",
+            "role_function": "facilities",
+            "role_title": "Facilities Manager",
+            "source_dom_locator": "/html/div/div[1]",
+            "source_listing_context": null,
+            "source_listing_kind": "public_role_listing",
+            "source_url": "https://two-people.test/contact",
+            "ssm_route_hypothesis": {
+              "role_function": "facilities",
+              "status": "service_fit_hypothesis_only"
+            },
+            "unassigned_published_emails": []
+          },
+          {
+            "authority_scope": "not_established",
+            "email_association_status": "same_unambiguous_public_card_not_verified",
+            "email_occurrences": [
+              {
+                "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                "candidate_owner": {
+                  "source_dom_locator": "/html/div/div[2]",
+                  "status": "unresolved"
+                },
+                "email": "john@fictional.test",
+                "extraction_method": "mailto_recipient",
+                "extraction_version": "ssm-published-email-extraction/6",
+                "json_pointer": null,
+                "mailbox_status": "not_checked",
+                "normalization_version": "ssm-email-normalization/1",
+                "occurrence_id": "1023a6e41928d797dec020df6266962920e68de1e73aca04e72827fd78e01f24",
+                "outreach_eligibility": "research_only",
+                "ownership_status": "not_checked",
+                "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+                "raw_value": "john@fictional.test",
+                "role_hint": "unspecified_published_inbox",
+                "short_supporting_context": "John Jones Office Manager Email",
+                "source_dom_locator": "/html/div/div[2]/a",
+                "source_url": "https://two-people.test/contact",
+                "text_position": {
+                  "attribute": "href",
+                  "recipient_index": 0
+                },
+                "visibility_basis": "visible_dom"
+              }
+            ],
+            "emails": [
+              "john@fictional.test"
+            ],
+            "employer_identity_status": "not_verified",
+            "employment_relationship_status": "not_established",
+            "excerpt": "John JonesOffice ManagerEmail",
+            "extraction_method": "visible_role_card",
+            "extraction_version": "ssm-contact-context/2",
+            "name": "John Jones",
+            "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+            "published_employer": null,
+            "purchasing_authority_verified": false,
+            "review_status": "source_published_candidate_requires_review",
+            "role_function": "office_admin",
+            "role_title": "Office Manager",
+            "source_dom_locator": "/html/div/div[2]",
+            "source_listing_context": null,
+            "source_listing_kind": "public_role_listing",
+            "source_url": "https://two-people.test/contact",
+            "ssm_route_hypothesis": {
+              "role_function": "office_admin",
+              "status": "service_fit_hypothesis_only"
+            },
+            "unassigned_published_emails": []
+          }
+        ],
+        "relevant_links": []
+      },
+      "email_candidates": [
+        {
+          "candidate_value": "jane@fictional.test",
+          "email": "jane@fictional.test",
+          "extraction_method": "mailto_recipient",
+          "extraction_version": "ssm-published-email-extraction/6",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "raw_value": "jane@fictional.test",
+          "reason": "supported_syntax_only",
+          "source_dom_locator": "/html/div/div[1]/a",
+          "source_url": "https://two-people.test/contact",
+          "status": "normalized"
+        },
+        {
+          "candidate_value": "john@fictional.test",
+          "email": "john@fictional.test",
+          "extraction_method": "mailto_recipient",
+          "extraction_version": "ssm-published-email-extraction/6",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "raw_value": "john@fictional.test",
+          "reason": "supported_syntax_only",
+          "source_dom_locator": "/html/div/div[2]/a",
+          "source_url": "https://two-people.test/contact",
+          "status": "normalized"
+        }
+      ],
+      "emails": [
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "candidate_owner": {
+            "source_dom_locator": "/html/div/div[1]",
+            "status": "unresolved"
+          },
+          "email": "jane@fictional.test",
+          "extraction_method": "mailto_recipient",
+          "extraction_methods": [
+            "mailto_recipient"
+          ],
+          "extraction_version": "ssm-published-email-extraction/6",
+          "json_pointer": null,
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "occurrences": [
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "source_dom_locator": "/html/div/div[1]",
+                "status": "unresolved"
+              },
+              "email": "jane@fictional.test",
+              "extraction_method": "mailto_recipient",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": null,
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "7c7dbd6e33676f9eaef009dae152d9cd69559c21c9f4c9464247e78bf755e17d",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+              "raw_value": "jane@fictional.test",
+              "role_hint": "unspecified_published_inbox",
+              "short_supporting_context": "Jane Smith Facilities Manager Email",
+              "source_dom_locator": "/html/div/div[1]/a",
+              "source_url": "https://two-people.test/contact",
+              "text_position": {
+                "attribute": "href",
+                "recipient_index": 0
+              },
+              "visibility_basis": "visible_dom"
+            }
+          ],
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "raw_value": "jane@fictional.test",
+          "review_warnings": [],
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "Jane Smith Facilities Manager Email",
+          "source_dom_locator": "/html/div/div[1]/a",
+          "source_url": "https://two-people.test/contact",
+          "text_position": {
+            "attribute": "href",
+            "recipient_index": 0
+          },
+          "visibility_basis": "visible_dom"
+        },
+        {
+          "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+          "candidate_owner": {
+            "source_dom_locator": "/html/div/div[2]",
+            "status": "unresolved"
+          },
+          "email": "john@fictional.test",
+          "extraction_method": "mailto_recipient",
+          "extraction_methods": [
+            "mailto_recipient"
+          ],
+          "extraction_version": "ssm-published-email-extraction/6",
+          "json_pointer": null,
+          "mailbox_status": "not_checked",
+          "normalization_version": "ssm-email-normalization/1",
+          "occurrences": [
+            {
+              "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+              "candidate_owner": {
+                "source_dom_locator": "/html/div/div[2]",
+                "status": "unresolved"
+              },
+              "email": "john@fictional.test",
+              "extraction_method": "mailto_recipient",
+              "extraction_version": "ssm-published-email-extraction/6",
+              "json_pointer": null,
+              "mailbox_status": "not_checked",
+              "normalization_version": "ssm-email-normalization/1",
+              "occurrence_id": "1023a6e41928d797dec020df6266962920e68de1e73aca04e72827fd78e01f24",
+              "outreach_eligibility": "research_only",
+              "ownership_status": "not_checked",
+              "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+              "raw_value": "john@fictional.test",
+              "role_hint": "unspecified_published_inbox",
+              "short_supporting_context": "John Jones Office Manager Email",
+              "source_dom_locator": "/html/div/div[2]/a",
+              "source_url": "https://two-people.test/contact",
+              "text_position": {
+                "attribute": "href",
+                "recipient_index": 0
+              },
+              "visibility_basis": "visible_dom"
+            }
+          ],
+          "outreach_eligibility": "research_only",
+          "ownership_status": "not_checked",
+          "page_content_sha256": "a1fce20114795728f76ad46bfd8c5eb52503295dbe6db325776f767e06342936",
+          "raw_value": "john@fictional.test",
+          "review_warnings": [],
+          "role_hint": "unspecified_published_inbox",
+          "short_supporting_context": "John Jones Office Manager Email",
+          "source_dom_locator": "/html/div/div[2]/a",
+          "source_url": "https://two-people.test/contact",
+          "text_position": {
+            "attribute": "href",
+            "recipient_index": 0
+          },
+          "visibility_basis": "visible_dom"
+        }
+      ],
+      "phones": []
+    },
+    "unicode-email": {
+      "attribution": [],
+      "context": {
+        "department_contacts": [],
+        "organisation_assertions": [],
+        "people": [],
+        "relevant_links": []
+      },
+      "email_candidates": [
+        {
+          "candidate_value": "élise@fictional.test",
+          "email": null,
+          "extraction_method": "visible_text",
+          "extraction_version": "ssm-published-email-extraction/6",
+          "normalization_version": "ssm-email-normalization/1",
+          "outreach_eligibility": "research_only",
+          "page_content_sha256": "905447bff2584299735b9c211698f560d803e5c975756419e194e5de397980aa",
+          "raw_value": "élise@fictional.test",
+          "reason": "unicode_local_part",
+          "source_dom_locator": "/html/body/p",
+          "source_url": "https://unicode-email.test/contact",
+          "status": "unsupported"
+        }
+      ],
+      "emails": [],
+      "phones": []
+    }
+  },
+  "python": "3.9.6",
+  "schema_version": 1,
+  "source_sha256": {
+    "contact_context.py": "2a4492e5ec595ab8a899e165002b6b0414a7290806ffbaf2a2ddeeff07161f14",
+    "contact_normalization.py": "9be1c557e7e2c146ae7204c143ea7aab8bfd488922a8ddc4f0a69658c906c983",
+    "email_extraction.py": "5f4150a4e5de89f48c24ca98e78a26d666c1b7f6f0d78aa3797f5ea127bcd929",
+    "extraction_benchmark.py": "ac963f78ee24b551bbf97686d654aa5a5928f345bf2051a73c8cdedc70f8e0e8",
+    "offline_guard.py": "bedf2c0e6972de734f5c91d2224c3747b8d50b336b7f82fb86d2e9da75101137",
+    "phone_extraction.py": "f0a093ce25c60b0260276d09726d6b5fa2452252e61d97243626a86e0a1bafdd",
+    "relationships.py": "ab4855b96ae926ad435875a1431fd3632d2de384770c21bd7f2cb4b5d6e80fb7"
+  }
+}

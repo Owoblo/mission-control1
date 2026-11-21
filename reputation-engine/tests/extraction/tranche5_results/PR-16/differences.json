@@ -1,0 +1,743 @@
+{
+  "baseline_errors": [],
+  "candidate_errors": [],
+  "changed_extraction_records": [],
+  "frontier_after": {
+    "scripts.market_map.contact_enrichment": {
+      "contact_page_reached": true,
+      "output": {
+        "active_url": null,
+        "authority_verified": 0,
+        "claims": [],
+        "discovered": [
+          [
+            "https://business.test/about",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/contact",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/equipe",
+            1,
+            "pending"
+          ]
+        ],
+        "domain": "business.test",
+        "frontier_failures": [],
+        "frontier_metadata": [
+          {
+            "label": "About",
+            "url": "https://business.test/about"
+          },
+          {
+            "label": "Contact",
+            "url": "https://business.test/contact"
+          },
+          {
+            "label": "Equipe",
+            "url": "https://business.test/equipe"
+          }
+        ],
+        "frontier_updates": [
+          [
+            "https://business.test/",
+            "observed",
+            null
+          ],
+          [
+            "https://business.test/contact",
+            "observed",
+            null
+          ]
+        ],
+        "full_site_exhausted": false,
+        "main_database_writes": 0,
+        "messages_sent": 0,
+        "pages": [
+          {
+            "capture_id": "2bbe4ce3b7034885ac582b82696151af",
+            "capture_reused": false,
+            "content_sha256": "27d54c387d3e076106a7d037d046b38149cb84b0b47693e8cccdce2c0b4939aa",
+            "observed_at": "2026-11-11T17:13:27.916080+00:00",
+            "processed_at": "2026-11-11T17:13:27.916383+00:00",
+            "requested_url": "https://business.test/",
+            "url": "https://business.test/"
+          },
+          {
+            "capture_id": "d6bdeb67a6344b8c8a37e0e1d0b1c192",
+            "capture_reused": false,
+            "content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "observed_at": "2026-11-11T17:13:27.916553+00:00",
+            "processed_at": "2026-11-11T17:13:27.916909+00:00",
+            "requested_url": "https://business.test/contact",
+            "url": "https://business.test/contact"
+          }
+        ],
+        "people_verified": 0,
+        "transport": {},
+        "visit_id": "ce0bcb7222aa44c185a79fa0e3940231"
+      },
+      "requests": [
+        {
+          "body_bytes": 118,
+          "labeled_contact_page": false,
+          "url": "https://business.test/"
+        },
+        {
+          "body_bytes": 52,
+          "labeled_contact_page": true,
+          "url": "https://business.test/contact"
+        }
+      ]
+    },
+    "scripts.market_map.email_acquisition": {
+      "contact_page_reached": true,
+      "output": {
+        "active_url": null,
+        "discovered": [
+          [
+            "https://business.test/about",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/contact",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/equipe",
+            1,
+            "pending"
+          ]
+        ],
+        "domain": "business.test",
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "branch_ownership_status": "not_checked",
+            "candidate_name_heading_matches": [],
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "capture_id": "f784f1ecba1348ebbb3cf0994a3ad93c",
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "observed_at": "2026-11-11T17:13:27.909667+00:00",
+            "occurrences": [
+              {
+                "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                "candidate_owner": {
+                  "source_dom_locator": "/html/body/p",
+                  "status": "unresolved"
+                },
+                "email": "desk@business.test",
+                "extraction_method": "visible_text",
+                "extraction_version": "ssm-published-email-extraction/6",
+                "json_pointer": null,
+                "mailbox_status": "not_checked",
+                "normalization_version": "ssm-email-normalization/1",
+                "occurrence_id": "b470f674dc6f6bf31325c2d6ef14c79487bedde1f578b2b1cbd9292cc6763913",
+                "outreach_eligibility": "research_only",
+                "ownership_status": "not_checked",
+                "page_content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+                "raw_value": "desk@business.test",
+                "role_hint": "unspecified_published_inbox",
+                "short_supporting_context": "Email desk@business.test Phone (519) 555-0123",
+                "source_dom_locator": "/html/body/p",
+                "source_url": "https://business.test/contact",
+                "text_position": {
+                  "end": 24,
+                  "field": "text",
+                  "node": "/html/body/p",
+                  "start": 6
+                },
+                "visibility_basis": "visible_dom"
+              }
+            ],
+            "organisation_identity_status": "not_established",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "processed_at": "2026-11-11T17:13:27.909667+00:00",
+            "processing_mode": "extraction",
+            "raw_value": "desk@business.test",
+            "review_warnings": [],
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Email desk@business.test Phone (519) 555-0123",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/contact",
+            "text_position": {
+              "end": 24,
+              "field": "text",
+              "node": "/html/body/p",
+              "start": 6
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "frontier_failures": [],
+        "frontier_metadata": [
+          {
+            "label": "About",
+            "url": "https://business.test/about"
+          },
+          {
+            "label": "Contact",
+            "url": "https://business.test/contact"
+          },
+          {
+            "label": "Equipe",
+            "url": "https://business.test/equipe"
+          }
+        ],
+        "frontier_updates": [
+          [
+            "https://business.test/",
+            "observed",
+            null
+          ],
+          [
+            "https://business.test/contact",
+            "observed",
+            null
+          ]
+        ],
+        "full_site_exhausted": false,
+        "main_database_writes": 0,
+        "messages_sent": 0,
+        "observed_at": "2026-11-11T17:13:27.907696+00:00",
+        "pages": [
+          {
+            "candidate_name_heading_matches": [],
+            "capture_id": "d1da40163fbf435e8005a3eb2d955150",
+            "checked_at": "2026-11-11T17:13:27.908490+00:00",
+            "content_sha256": "27d54c387d3e076106a7d037d046b38149cb84b0b47693e8cccdce2c0b4939aa",
+            "extractor_version": "ssm-published-email-extraction/6",
+            "identity_status": "not_established",
+            "raw_body_base64": "PGEgaHJlZj0iL2Fib3V0Ij5BYm91dDwvYT48YSBocmVmPSIvY29udGFjdC1sZW5zZXMiPlNob3A8L2E+PGEgaHJlZj0iL2NvbnRhY3QiPkNvbnRhY3Q8L2E+PGEgaHJlZj0iL2VxdWlwZSI+RXF1aXBlPC9hPg==",
+            "requested_url": "https://business.test/",
+            "title": "",
+            "url": "https://business.test/"
+          },
+          {
+            "candidate_name_heading_matches": [],
+            "capture_id": "f784f1ecba1348ebbb3cf0994a3ad93c",
+            "checked_at": "2026-11-11T17:13:27.909667+00:00",
+            "content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "extractor_version": "ssm-published-email-extraction/6",
+            "identity_status": "not_established",
+            "raw_body_base64": "PHA+RW1haWwgZGVza0BidXNpbmVzcy50ZXN0IFBob25lICg1MTkpIDU1NS0wMTIzPC9wPg==",
+            "requested_url": "https://business.test/contact",
+            "title": "",
+            "url": "https://business.test/contact"
+          }
+        ],
+        "transport": {},
+        "visit_id": "f39fa9dd5c5b4a7f8c540a48904b9d9b"
+      },
+      "requests": [
+        {
+          "body_bytes": 118,
+          "labeled_contact_page": false,
+          "url": "https://business.test/"
+        },
+        {
+          "body_bytes": 52,
+          "labeled_contact_page": true,
+          "url": "https://business.test/contact"
+        }
+      ]
+    },
+    "scripts.market_map.phone_acquisition": {
+      "contact_page_reached": true,
+      "output": {
+        "active_url": null,
+        "discovered": [
+          [
+            "https://business.test/about",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/contact",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/equipe",
+            1,
+            "pending"
+          ]
+        ],
+        "domain": "business.test",
+        "frontier_failures": [],
+        "frontier_metadata": [
+          {
+            "label": "About",
+            "url": "https://business.test/about"
+          },
+          {
+            "label": "Contact",
+            "url": "https://business.test/contact"
+          },
+          {
+            "label": "Equipe",
+            "url": "https://business.test/equipe"
+          }
+        ],
+        "frontier_updates": [
+          [
+            "https://business.test/",
+            "observed",
+            null
+          ],
+          [
+            "https://business.test/contact",
+            "observed",
+            null
+          ]
+        ],
+        "full_site_exhausted": false,
+        "main_database_writes": 0,
+        "messages_sent": 0,
+        "pages": [
+          {
+            "capture_id": "e86f51ee589e45139263925f1bfb291f",
+            "capture_reused": false,
+            "content_sha256": "27d54c387d3e076106a7d037d046b38149cb84b0b47693e8cccdce2c0b4939aa",
+            "observed_at": "2026-11-11T17:13:27.912635+00:00",
+            "page_title": "",
+            "processed_at": "2026-11-11T17:13:27.912661+00:00",
+            "requested_url": "https://business.test/",
+            "url": "https://business.test/"
+          },
+          {
+            "capture_id": "b454f8429ea546c2b8c23916f8d48493",
+            "capture_reused": false,
+            "content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "observed_at": "2026-11-11T17:13:27.913041+00:00",
+            "page_title": "",
+            "processed_at": "2026-11-11T17:13:27.913060+00:00",
+            "requested_url": "https://business.test/contact",
+            "url": "https://business.test/contact"
+          }
+        ],
+        "phone_calls_made": 0,
+        "phones": [
+          {
+            "branch_ownership_status": "not_verified",
+            "context": "Email desk@business.test Phone (519) 555-0123",
+            "extension": "",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-phone-extraction/4",
+            "kind": "phone",
+            "kind_review_required": false,
+            "normalization_version": "ssm-phone-normalization/1",
+            "observed_at": "2026-11-11T17:13:27.913041+00:00",
+            "organisation_ownership_status": "not_verified",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "page_title": "",
+            "phone": "+15195550123",
+            "raw_value": "(519) 555-0123",
+            "source_dom_locator": "/html/body/p",
+            "source_segments": null,
+            "source_url": "https://business.test/contact",
+            "structured_evidence": null,
+            "verification_status": "source_published_unverified"
+          }
+        ],
+        "transport": {},
+        "visit_id": "ea9a07799b6849a2bd1da6c987e55c0a"
+      },
+      "requests": [
+        {
+          "body_bytes": 118,
+          "labeled_contact_page": false,
+          "url": "https://business.test/"
+        },
+        {
+          "body_bytes": 52,
+          "labeled_contact_page": true,
+          "url": "https://business.test/contact"
+        }
+      ]
+    }
+  },
+  "frontier_before": {
+    "scripts.market_map.contact_enrichment": {
+      "contact_page_reached": true,
+      "output": {
+        "active_url": null,
+        "authority_verified": 0,
+        "claims": [],
+        "discovered": [
+          [
+            "https://business.test/about",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/contact",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/equipe",
+            1,
+            "pending"
+          ]
+        ],
+        "domain": "business.test",
+        "frontier_failures": [],
+        "frontier_metadata": [
+          {
+            "label": "About",
+            "url": "https://business.test/about"
+          },
+          {
+            "label": "Contact",
+            "url": "https://business.test/contact"
+          },
+          {
+            "label": "Equipe",
+            "url": "https://business.test/equipe"
+          }
+        ],
+        "frontier_updates": [
+          [
+            "https://business.test/",
+            "observed",
+            null
+          ],
+          [
+            "https://business.test/contact",
+            "observed",
+            null
+          ]
+        ],
+        "full_site_exhausted": false,
+        "main_database_writes": 0,
+        "messages_sent": 0,
+        "pages": [
+          {
+            "content_sha256": "27d54c387d3e076106a7d037d046b38149cb84b0b47693e8cccdce2c0b4939aa",
+            "observed_at": "2026-11-11T17:11:59.475479+00:00",
+            "requested_url": "https://business.test/",
+            "url": "https://business.test/"
+          },
+          {
+            "content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "observed_at": "2026-11-11T17:11:59.475957+00:00",
+            "requested_url": "https://business.test/contact",
+            "url": "https://business.test/contact"
+          }
+        ],
+        "people_verified": 0,
+        "transport": {},
+        "visit_id": "f33276f8c1614919a501c4be8704fb0b"
+      },
+      "requests": [
+        {
+          "body_bytes": 118,
+          "labeled_contact_page": false,
+          "url": "https://business.test/"
+        },
+        {
+          "body_bytes": 52,
+          "labeled_contact_page": true,
+          "url": "https://business.test/contact"
+        }
+      ]
+    },
+    "scripts.market_map.email_acquisition": {
+      "contact_page_reached": true,
+      "output": {
+        "active_url": null,
+        "discovered": [
+          [
+            "https://business.test/about",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/contact",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/equipe",
+            1,
+            "pending"
+          ]
+        ],
+        "domain": "business.test",
+        "emails": [
+          {
+            "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+            "branch_ownership_status": "not_checked",
+            "candidate_name_heading_matches": [],
+            "candidate_owner": {
+              "source_dom_locator": "/html/body/p",
+              "status": "unresolved"
+            },
+            "capture_id": "70a8272c66e847d486fc9f33c1058ba4",
+            "email": "desk@business.test",
+            "extraction_method": "visible_text",
+            "extraction_methods": [
+              "visible_text"
+            ],
+            "extraction_version": "ssm-published-email-extraction/6",
+            "json_pointer": null,
+            "mailbox_status": "not_checked",
+            "normalization_version": "ssm-email-normalization/1",
+            "observed_at": "2026-11-11T17:11:59.468356+00:00",
+            "occurrences": [
+              {
+                "association_status": "published_on_page; organisation_and_person_ownership_unverified",
+                "candidate_owner": {
+                  "source_dom_locator": "/html/body/p",
+                  "status": "unresolved"
+                },
+                "email": "desk@business.test",
+                "extraction_method": "visible_text",
+                "extraction_version": "ssm-published-email-extraction/6",
+                "json_pointer": null,
+                "mailbox_status": "not_checked",
+                "normalization_version": "ssm-email-normalization/1",
+                "occurrence_id": "b470f674dc6f6bf31325c2d6ef14c79487bedde1f578b2b1cbd9292cc6763913",
+                "outreach_eligibility": "research_only",
+                "ownership_status": "not_checked",
+                "page_content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+                "raw_value": "desk@business.test",
+                "role_hint": "unspecified_published_inbox",
+                "short_supporting_context": "Email desk@business.test Phone (519) 555-0123",
+                "source_dom_locator": "/html/body/p",
+                "source_url": "https://business.test/contact",
+                "text_position": {
+                  "end": 24,
+                  "field": "text",
+                  "node": "/html/body/p",
+                  "start": 6
+                },
+                "visibility_basis": "visible_dom"
+              }
+            ],
+            "organisation_identity_status": "not_established",
+            "outreach_eligibility": "research_only",
+            "ownership_status": "not_checked",
+            "page_content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "processed_at": "2026-11-11T17:11:59.468356+00:00",
+            "processing_mode": "extraction",
+            "raw_value": "desk@business.test",
+            "review_warnings": [],
+            "role_hint": "unspecified_published_inbox",
+            "short_supporting_context": "Email desk@business.test Phone (519) 555-0123",
+            "source_dom_locator": "/html/body/p",
+            "source_url": "https://business.test/contact",
+            "text_position": {
+              "end": 24,
+              "field": "text",
+              "node": "/html/body/p",
+              "start": 6
+            },
+            "visibility_basis": "visible_dom"
+          }
+        ],
+        "frontier_failures": [],
+        "frontier_metadata": [
+          {
+            "label": "About",
+            "url": "https://business.test/about"
+          },
+          {
+            "label": "Contact",
+            "url": "https://business.test/contact"
+          },
+          {
+            "label": "Equipe",
+            "url": "https://business.test/equipe"
+          }
+        ],
+        "frontier_updates": [
+          [
+            "https://business.test/",
+            "observed",
+            null
+          ],
+          [
+            "https://business.test/contact",
+            "observed",
+            null
+          ]
+        ],
+        "full_site_exhausted": false,
+        "main_database_writes": 0,
+        "messages_sent": 0,
+        "observed_at": "2026-11-11T17:11:59.466780+00:00",
+        "pages": [
+          {
+            "candidate_name_heading_matches": [],
+            "capture_id": "d3e5a2f398fc449e8dac06337fa0c4b4",
+            "checked_at": "2026-11-11T17:11:59.467573+00:00",
+            "content_sha256": "27d54c387d3e076106a7d037d046b38149cb84b0b47693e8cccdce2c0b4939aa",
+            "extractor_version": "ssm-published-email-extraction/6",
+            "identity_status": "not_established",
+            "raw_body_base64": "PGEgaHJlZj0iL2Fib3V0Ij5BYm91dDwvYT48YSBocmVmPSIvY29udGFjdC1sZW5zZXMiPlNob3A8L2E+PGEgaHJlZj0iL2NvbnRhY3QiPkNvbnRhY3Q8L2E+PGEgaHJlZj0iL2VxdWlwZSI+RXF1aXBlPC9hPg==",
+            "requested_url": "https://business.test/",
+            "title": "",
+            "url": "https://business.test/"
+          },
+          {
+            "candidate_name_heading_matches": [],
+            "capture_id": "70a8272c66e847d486fc9f33c1058ba4",
+            "checked_at": "2026-11-11T17:11:59.468356+00:00",
+            "content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "extractor_version": "ssm-published-email-extraction/6",
+            "identity_status": "not_established",
+            "raw_body_base64": "PHA+RW1haWwgZGVza0BidXNpbmVzcy50ZXN0IFBob25lICg1MTkpIDU1NS0wMTIzPC9wPg==",
+            "requested_url": "https://business.test/contact",
+            "title": "",
+            "url": "https://business.test/contact"
+          }
+        ],
+        "transport": {},
+        "visit_id": "7b89ddb411c84642b6fed867ad2a7a14"
+      },
+      "requests": [
+        {
+          "body_bytes": 118,
+          "labeled_contact_page": false,
+          "url": "https://business.test/"
+        },
+        {
+          "body_bytes": 52,
+          "labeled_contact_page": true,
+          "url": "https://business.test/contact"
+        }
+      ]
+    },
+    "scripts.market_map.phone_acquisition": {
+      "contact_page_reached": true,
+      "output": {
+        "active_url": null,
+        "discovered": [
+          [
+            "https://business.test/about",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/contact",
+            1,
+            "pending"
+          ],
+          [
+            "https://business.test/equipe",
+            1,
+            "pending"
+          ]
+        ],
+        "domain": "business.test",
+        "frontier_failures": [],
+        "frontier_metadata": [
+          {
+            "label": "About",
+            "url": "https://business.test/about"
+          },
+          {
+            "label": "Contact",
+            "url": "https://business.test/contact"
+          },
+          {
+            "label": "Equipe",
+            "url": "https://business.test/equipe"
+          }
+        ],
+        "frontier_updates": [
+          [
+            "https://business.test/",
+            "observed",
+            null
+          ],
+          [
+            "https://business.test/contact",
+            "observed",
+            null
+          ]
+        ],
+        "full_site_exhausted": false,
+        "main_database_writes": 0,
+        "messages_sent": 0,
+        "pages": [
+          {
+            "content_sha256": "27d54c387d3e076106a7d037d046b38149cb84b0b47693e8cccdce2c0b4939aa",
+            "observed_at": "2026-11-11T17:11:59.471539+00:00",
+            "page_title": "",
+            "requested_url": "https://business.test/",
+            "url": "https://business.test/"
+          },
+          {
+            "content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "observed_at": "2026-11-11T17:11:59.471934+00:00",
+            "page_title": "",
+            "requested_url": "https://business.test/contact",
+            "url": "https://business.test/contact"
+          }
+        ],
+        "phone_calls_made": 0,
+        "phones": [
+          {
+            "branch_ownership_status": "not_verified",
+            "context": "Email desk@business.test Phone (519) 555-0123",
+            "extension": "",
+            "extraction_method": "visible_text",
+            "extraction_version": "ssm-published-phone-extraction/4",
+            "kind": "phone",
+            "kind_review_required": false,
+            "normalization_version": "ssm-phone-normalization/1",
+            "observed_at": "2026-11-11T17:11:59.471934+00:00",
+            "organisation_ownership_status": "not_verified",
+            "outreach_eligibility": "research_only",
+            "page_content_sha256": "9befcb6e3f557a12c4329414d8d7c9695500c75c1002af48df7d4641d4449e32",
+            "page_title": "",
+            "phone": "+15195550123",
+            "raw_value": "(519) 555-0123",
+            "source_dom_locator": "/html/body/p",
+            "source_segments": null,
+            "source_url": "https://business.test/contact",
+            "structured_evidence": null,
+            "verification_status": "source_published_unverified"
+          }
+        ],
+        "transport": {},
+        "visit_id": "56bb5da2bf614e65b51785d5b6695f00"
+      },
+      "requests": [
+        {
+          "body_bytes": 118,
+          "labeled_contact_page": false,
+          "url": "https://business.test/"
+        },
+        {
+          "body_bytes": 52,
+          "labeled_contact_page": true,
+          "url": "https://business.test/contact"
+        }
+      ]
+    }
+  }
+}

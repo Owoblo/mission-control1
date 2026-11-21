@@ -1,0 +1,1 @@
+{"real_captures": 0, "broad_production": "NO_GO", "workload": {"input_receipts": 1000, "accepted": 1000, "duplicate_acceptances": 0, "backup_integrity": "ok", "backup_rows_equal": true, "disk_bytes": 237568, "elapsed_seconds": 0.021092665999999982}}

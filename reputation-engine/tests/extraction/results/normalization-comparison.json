@@ -1,0 +1,688 @@
+{
+  "candidate_source_sha256": "9a78a5a7cb019134a2cf5668e6fcbfabf9196449c31bb3f39fe84ed6ec724307",
+  "candidates_sha256": "2f44568ae3a77f48299549faa6d5baeb12f4ab208c71ac3d0f3688b1a5fed1e2",
+  "original_source_sha256": "eae9a9a705b07d561b9cf6a2ed845256bf58cc0f2cf967b4e76199b9ef2927ca",
+  "results": [
+    {
+      "after": [
+        "+15195550123",
+        "106"
+      ],
+      "before": [
+        "+15195550123",
+        "106"
+      ],
+      "candidate": {
+        "e164": "+15195550123",
+        "extension": "106",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "(519) 555-0123 ext. 106",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "(519) 555-0123 ext. 106"
+    },
+    {
+      "after": [
+        "+15195550123",
+        "0042"
+      ],
+      "before": [
+        "+15195550123",
+        "0042"
+      ],
+      "candidate": {
+        "e164": "+15195550123",
+        "extension": "0042",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "tel:+1-519-555-0123;ext=0042",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "tel:+1-519-555-0123;ext=0042"
+    },
+    {
+      "after": [
+        "+18005550123",
+        ""
+      ],
+      "before": [
+        "+18005550123",
+        ""
+      ],
+      "candidate": {
+        "e164": "+18005550123",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "TEL:8005550123",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "TEL:8005550123"
+    },
+    {
+      "after": [
+        "+12125550123",
+        "9"
+      ],
+      "before": [
+        "+12125550123",
+        "9"
+      ],
+      "candidate": {
+        "e164": "+12125550123",
+        "extension": "9",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+1 (212) 555-0123 x9",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+1 (212) 555-0123 x9"
+    },
+    {
+      "after": [
+        "+15195550123",
+        ""
+      ],
+      "before": [
+        "+15195550123",
+        ""
+      ],
+      "candidate": {
+        "e164": "+15195550123",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "15195550123",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "15195550123"
+    },
+    {
+      "after": [
+        "+15195550123",
+        "3"
+      ],
+      "before": [
+        "+15195550123",
+        "3"
+      ],
+      "candidate": {
+        "e164": "+15195550123",
+        "extension": "3",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "tel:%2B15195550123;ext=3?ignored=true",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "tel:%2B15195550123;ext=3?ignored=true"
+    },
+    {
+      "after": [
+        "+15195550123",
+        "8"
+      ],
+      "before": [
+        "+15195550123",
+        "8"
+      ],
+      "candidate": {
+        "e164": "+15195550123",
+        "extension": "8",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "519.555.0123 #8",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "519.555.0123 #8"
+    },
+    {
+      "after": null,
+      "before": [
+        "+11234567890",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+11234567890",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+11234567890"
+    },
+    {
+      "after": null,
+      "before": [
+        "+15191550123",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+15191550123",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+15191550123"
+    },
+    {
+      "after": null,
+      "before": [
+        "+1519555012",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+1519555012",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+1519555012"
+    },
+    {
+      "after": null,
+      "before": [
+        "+151955501234",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+151955501234",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+151955501234"
+    },
+    {
+      "after": null,
+      "before": [
+        "+12345678",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+12345678",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+12345678"
+    },
+    {
+      "after": null,
+      "before": [
+        "+151955501234567",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+151955501234567",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+151955501234567"
+    },
+    {
+      "after": [
+        "+4422345678",
+        ""
+      ],
+      "before": [
+        "+14422345678",
+        ""
+      ],
+      "candidate": {
+        "e164": "+4422345678",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+4422345678",
+        "reason": "international_shape_only",
+        "status": "normalized"
+      },
+      "changed": true,
+      "newly_rejected": false,
+      "raw": "+4422345678"
+    },
+    {
+      "after": [
+        "+442079460123",
+        ""
+      ],
+      "before": [
+        "+442079460123",
+        ""
+      ],
+      "candidate": {
+        "e164": "+442079460123",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+44 20 7946 0123",
+        "reason": "international_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+44 20 7946 0123"
+    },
+    {
+      "after": [
+        "+61255501234",
+        ""
+      ],
+      "before": [
+        "+61255501234",
+        ""
+      ],
+      "candidate": {
+        "e164": "+61255501234",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+61 2 5550 1234",
+        "reason": "international_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+61 2 5550 1234"
+    },
+    {
+      "after": [
+        "+33123456789",
+        ""
+      ],
+      "before": [
+        "+33123456789",
+        ""
+      ],
+      "candidate": {
+        "e164": "+33123456789",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+33 1 23 45 67 89",
+        "reason": "international_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+33 1 23 45 67 89"
+    },
+    {
+      "after": [
+        "+23456789",
+        ""
+      ],
+      "before": [
+        "+23456789",
+        ""
+      ],
+      "candidate": {
+        "e164": "+23456789",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+23456789",
+        "reason": "international_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+23456789"
+    },
+    {
+      "after": [
+        "+234567890123456",
+        ""
+      ],
+      "before": [
+        "+234567890123456",
+        ""
+      ],
+      "candidate": {
+        "e164": "+234567890123456",
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+234567890123456",
+        "reason": "international_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+234567890123456"
+    },
+    {
+      "after": null,
+      "before": [
+        "+442079460123",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "++442079460123",
+        "reason": "misplaced_or_multiple_plus",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "++442079460123"
+    },
+    {
+      "after": null,
+      "before": [
+        "+442079460123",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+44+2079460123",
+        "reason": "misplaced_or_multiple_plus",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+44+2079460123"
+    },
+    {
+      "after": null,
+      "before": [
+        "+15195550123",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "519+555+0123",
+        "reason": "misplaced_or_multiple_plus",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "519+555+0123"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+01234567890",
+        "reason": "invalid_international_shape",
+        "status": "invalid"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+01234567890"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+2345678",
+        "reason": "invalid_international_shape",
+        "status": "invalid"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+2345678"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+2345678901234567",
+        "reason": "invalid_international_shape",
+        "status": "invalid"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+2345678901234567"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "02079460123",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "02079460123"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "1-800-FLOWERS",
+        "reason": "unsupported_character_or_uri_parameter",
+        "status": "unsupported"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "1-800-FLOWERS"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "tel:5195550123;phone-context=example.test",
+        "reason": "unsupported_character_or_uri_parameter",
+        "status": "unsupported"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "tel:5195550123;phone-context=example.test"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "tel:5195550123;ext=12345678901",
+        "reason": "unsupported_character_or_uri_parameter",
+        "status": "unsupported"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "tel:5195550123;ext=12345678901"
+    },
+    {
+      "after": null,
+      "before": [
+        "+15195550123",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "tel:5195550123%0d%0a",
+        "reason": "control_character",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "tel:5195550123%0d%0a"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "5195550123\u0000",
+        "reason": "control_character",
+        "status": "invalid"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "5195550123\u0000"
+    },
+    {
+      "after": null,
+      "before": [
+        "+15195550123",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "(519 555-0123",
+        "reason": "malformed_parentheses",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "(519 555-0123"
+    },
+    {
+      "after": null,
+      "before": null,
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "٥١٩٥٥٥٠١٢٣",
+        "reason": "unsupported_character_or_uri_parameter",
+        "status": "unsupported"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "٥١٩٥٥٥٠١٢٣"
+    },
+    {
+      "after": null,
+      "before": [
+        "+44２０７９４６０１２３",
+        ""
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+44２０７９４６０１２３",
+        "reason": "unsupported_character_or_uri_parameter",
+        "status": "unsupported"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "+44２０７９４６０１２３"
+    },
+    {
+      "after": [
+        "+15195550123",
+        "04"
+      ],
+      "before": null,
+      "candidate": {
+        "e164": "+15195550123",
+        "extension": "04",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "tel:+1 519‑555–0123;ext=04",
+        "reason": "nanp_shape_only",
+        "status": "normalized"
+      },
+      "changed": true,
+      "newly_rejected": false,
+      "raw": "tel:+1 519‑555–0123;ext=04"
+    },
+    {
+      "after": null,
+      "before": [
+        "+11234567890",
+        "001"
+      ],
+      "candidate": {
+        "e164": null,
+        "extension": "001",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "tel:+11234567890;ext=001",
+        "reason": "invalid_nanp",
+        "status": "invalid"
+      },
+      "changed": true,
+      "newly_rejected": true,
+      "raw": "tel:+11234567890;ext=001"
+    },
+    {
+      "after": [
+        "+442079460123",
+        "09"
+      ],
+      "before": [
+        "+442079460123",
+        "09"
+      ],
+      "candidate": {
+        "e164": "+442079460123",
+        "extension": "09",
+        "normalization_version": "ssm-phone-normalization/1",
+        "raw_value": "+44 20 7946 0123;ext=09",
+        "reason": "international_shape_only",
+        "status": "normalized"
+      },
+      "changed": false,
+      "newly_rejected": false,
+      "raw": "+44 20 7946 0123;ext=09"
+    }
+  ]
+}

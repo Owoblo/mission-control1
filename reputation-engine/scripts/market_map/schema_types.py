@@ -1,0 +1,14 @@
+"""Shared supported schema.org business types; no network context resolution."""
+ORGANIZATION_TYPES = set('''Organization LocalBusiness Corporation EducationalOrganization
+GovernmentOrganization MedicalOrganization NGO PerformingGroup SportsOrganization
+Airline Consortium LibrarySystem NewsMediaOrganization WorkersUnion Project
+AnimalShelter ArchiveOrganization AutomotiveBusiness ChildCare Dentist DryCleaningOrLaundry
+EmergencyService EmploymentAgency EntertainmentBusiness FinancialService FoodEstablishment
+GovernmentOffice HealthAndBeautyBusiness HomeAndConstructionBusiness InternetCafe LegalService
+Library LodgingBusiness MedicalBusiness ProfessionalService RadioStation RealEstateAgent
+RecyclingCenter SelfStorage ShoppingCenter SportsActivityLocation Store TelevisionStation
+TouristInformationCenter TravelAgency Restaurant CafeOrCoffeeShop BarOrPub FastFoodRestaurant
+Hotel Motel AutoRepair AutoDealer GasStation BankOrCreditUnion Pharmacy Hospital
+MedicalClinic ShoppingCenter GroceryStore DepartmentStore FurnitureStore HardwareStore
+School CollegeOrUniversity AccountingService Attorney InsuranceAgency VeterinaryCare'''.split())
+

@@ -1,0 +1,1018 @@
+[
+  {
+    "case": "5195550123",
+    "before": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+15195550123",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "5195550123"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "571df126-5822-5250-b3c4-7f4e44572012",
+          "id": "fa241f81-350e-5dd5-9648-d6b9bdf7be5d",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+15195550123",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+15195550123"
+        ],
+        "extension": null,
+        "raw_preserved": false,
+        "status": null
+      },
+      "contract_expected": {
+        "channels": [
+          "+15195550123"
+        ],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "raw": "5195550123"
+    },
+    "after": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+15195550123",
+        "phone_extension": "",
+        "phone_format_status": "normalized",
+        "phone_normalization": {
+          "e164": "+15195550123",
+          "extension": "",
+          "normalization_version": "ssm-phone-normalization/1",
+          "raw_value": "5195550123",
+          "reason": "nanp_shape_only",
+          "status": "normalized"
+        },
+        "phone_raw": "5195550123",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "5195550123"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "ca476e1c-7ad3-56ae-ae0b-ff5652b08ae7",
+          "id": "d5126b5b-31e3-505d-b86c-f24b95acc84a",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+15195550123",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+15195550123"
+        ],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "contract_expected": {
+        "channels": [
+          "+15195550123"
+        ],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "details": [
+        {
+          "channel_id": "d5126b5b-31e3-505d-b86c-f24b95acc84a",
+          "e164": "+15195550123",
+          "extension": "",
+          "format_status": "normalized",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "raw_value": "5195550123"
+        }
+      ],
+      "phone_observations": [
+        {
+          "channel_id": "d5126b5b-31e3-505d-b86c-f24b95acc84a",
+          "channel_kind": "phone",
+          "evidence_id": "ca476e1c-7ad3-56ae-ae0b-ff5652b08ae7",
+          "extension": "",
+          "format_status": "normalized",
+          "id": "2e7efb40-0a7c-58d9-945f-24827ed85cad",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "raw_value": "5195550123",
+          "reason": "nanp_shape_only"
+        }
+      ],
+      "raw": "5195550123"
+    }
+  },
+  {
+    "case": "+4422345678",
+    "before": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+14422345678",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "+4422345678"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "27ea0064-817c-593f-83d2-fc43764f0302",
+          "id": "0352472f-f736-53dd-8e4d-d2ee3051372e",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+14422345678",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+14422345678"
+        ],
+        "extension": null,
+        "raw_preserved": false,
+        "status": null
+      },
+      "contract_expected": {
+        "channels": [
+          "+4422345678"
+        ],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "raw": "+4422345678"
+    },
+    "after": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+4422345678",
+        "phone_extension": "",
+        "phone_format_status": "normalized",
+        "phone_normalization": {
+          "e164": "+4422345678",
+          "extension": "",
+          "normalization_version": "ssm-phone-normalization/1",
+          "raw_value": "+4422345678",
+          "reason": "international_shape_only",
+          "status": "normalized"
+        },
+        "phone_raw": "+4422345678",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "+4422345678"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "cd0dd3d9-67ce-5ae6-85ee-e16aaa324be0",
+          "id": "69106ed5-979f-5aab-9e7a-ba88c308f59c",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+4422345678",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+4422345678"
+        ],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "contract_expected": {
+        "channels": [
+          "+4422345678"
+        ],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "details": [
+        {
+          "channel_id": "69106ed5-979f-5aab-9e7a-ba88c308f59c",
+          "e164": "+4422345678",
+          "extension": "",
+          "format_status": "normalized",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "raw_value": "+4422345678"
+        }
+      ],
+      "phone_observations": [
+        {
+          "channel_id": "69106ed5-979f-5aab-9e7a-ba88c308f59c",
+          "channel_kind": "phone",
+          "evidence_id": "cd0dd3d9-67ce-5ae6-85ee-e16aaa324be0",
+          "extension": "",
+          "format_status": "normalized",
+          "id": "1abf69f5-a0b0-5ede-9cc9-fd2fe9aeb3ca",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "raw_value": "+4422345678",
+          "reason": "international_shape_only"
+        }
+      ],
+      "raw": "+4422345678"
+    }
+  },
+  {
+    "case": "+44 20 7946 0123 ext. 09",
+    "before": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+44 20 7946 0123 ext. 09",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "+44 20 7946 0123 ext. 09"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "3bd78094-0e9a-564c-a4a4-a55d31eedb5c",
+          "id": "f882ad4b-09ad-5699-b841-5a312c80dfbd",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+44 20 7946 0123 ext. 09",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+44 20 7946 0123 ext. 09"
+        ],
+        "extension": null,
+        "raw_preserved": false,
+        "status": null
+      },
+      "contract_expected": {
+        "channels": [
+          "+442079460123"
+        ],
+        "extension": "09",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "raw": "+44 20 7946 0123 ext. 09"
+    },
+    "after": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+442079460123",
+        "phone_extension": "09",
+        "phone_format_status": "normalized",
+        "phone_normalization": {
+          "e164": "+442079460123",
+          "extension": "09",
+          "normalization_version": "ssm-phone-normalization/1",
+          "raw_value": "+44 20 7946 0123 ext. 09",
+          "reason": "international_shape_only",
+          "status": "normalized"
+        },
+        "phone_raw": "+44 20 7946 0123 ext. 09",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "+44 20 7946 0123 ext. 09"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "d1871271-153f-50e9-886b-79afa91f2542",
+          "id": "77229f66-9757-5bc1-922d-1d9f0fb41450",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+442079460123",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+442079460123"
+        ],
+        "extension": "09",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "contract_expected": {
+        "channels": [
+          "+442079460123"
+        ],
+        "extension": "09",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "details": [
+        {
+          "channel_id": "77229f66-9757-5bc1-922d-1d9f0fb41450",
+          "e164": "+442079460123",
+          "extension": "09",
+          "format_status": "normalized",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "raw_value": "+44 20 7946 0123 ext. 09"
+        }
+      ],
+      "phone_observations": [
+        {
+          "channel_id": "77229f66-9757-5bc1-922d-1d9f0fb41450",
+          "channel_kind": "phone",
+          "evidence_id": "d1871271-153f-50e9-886b-79afa91f2542",
+          "extension": "09",
+          "format_status": "normalized",
+          "id": "cd5f61af-ce3a-5269-b74f-0fac0901892f",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "raw_value": "+44 20 7946 0123 ext. 09",
+          "reason": "international_shape_only"
+        }
+      ],
+      "raw": "+44 20 7946 0123 ext. 09"
+    }
+  },
+  {
+    "case": "+11234567890",
+    "before": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+11234567890",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "+11234567890"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "ae66b96e-29c3-5866-ad3b-e66ffe499ec3",
+          "id": "56ef3325-3efb-5464-9e26-b27fb770d19f",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+11234567890",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+11234567890"
+        ],
+        "extension": null,
+        "raw_preserved": false,
+        "status": null
+      },
+      "contract_expected": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "invalid"
+      },
+      "raw": "+11234567890"
+    },
+    "after": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "",
+        "phone_extension": "",
+        "phone_format_status": "invalid",
+        "phone_normalization": {
+          "e164": null,
+          "extension": "",
+          "normalization_version": "ssm-phone-normalization/1",
+          "raw_value": "+11234567890",
+          "reason": "invalid_nanp",
+          "status": "invalid"
+        },
+        "phone_raw": "+11234567890",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "+11234567890"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [],
+      "contract_actual": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "invalid"
+      },
+      "contract_expected": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "invalid"
+      },
+      "details": [],
+      "phone_observations": [
+        {
+          "channel_id": null,
+          "channel_kind": "phone",
+          "evidence_id": "3ceadaf1-2e07-5827-a88d-fc39e4e15e5f",
+          "extension": "",
+          "format_status": "invalid",
+          "id": "b4484243-5927-51d3-8c28-e09405e60959",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "raw_value": "+11234567890",
+          "reason": "invalid_nanp"
+        }
+      ],
+      "raw": "+11234567890"
+    }
+  },
+  {
+    "case": "Phone unavailable",
+    "before": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "Phone unavailable",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "Phone unavailable"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "30cd784d-642f-5224-8748-efd7c8a4f8b4",
+          "id": "6a875765-3217-5a03-8502-18a279678f6d",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "Phone unavailable",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "Phone unavailable"
+        ],
+        "extension": null,
+        "raw_preserved": false,
+        "status": null
+      },
+      "contract_expected": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "unsupported"
+      },
+      "raw": "Phone unavailable"
+    },
+    "after": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "",
+        "phone_extension": "",
+        "phone_format_status": "unsupported",
+        "phone_normalization": {
+          "e164": null,
+          "extension": "",
+          "normalization_version": "ssm-phone-normalization/1",
+          "raw_value": "Phone unavailable",
+          "reason": "unsupported_character_or_uri_parameter",
+          "status": "unsupported"
+        },
+        "phone_raw": "Phone unavailable",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "Phone unavailable"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [],
+      "contract_actual": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "unsupported"
+      },
+      "contract_expected": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "unsupported"
+      },
+      "details": [],
+      "phone_observations": [
+        {
+          "channel_id": null,
+          "channel_kind": "phone",
+          "evidence_id": "4e2e7f3c-cdb6-5be0-a7e1-233d0c05d828",
+          "extension": "",
+          "format_status": "unsupported",
+          "id": "fac9c5cf-efc5-5cb1-84e8-9e066348c61c",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "raw_value": "Phone unavailable",
+          "reason": "unsupported_character_or_uri_parameter"
+        }
+      ],
+      "raw": "Phone unavailable"
+    }
+  },
+  {
+    "case": "tel:5195550123;ext=42",
+    "before": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "tel:5195550123;ext=42",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "tel:5195550123;ext=42"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "f4c78103-8fc2-5eaa-9c31-b6021bb96fc9",
+          "id": "62eff343-cb8d-5ccd-98ae-461e2299cf4f",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "5195550123;ext=42",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "5195550123;ext=42"
+        ],
+        "extension": null,
+        "raw_preserved": false,
+        "status": null
+      },
+      "contract_expected": {
+        "channels": [
+          "+15195550123"
+        ],
+        "extension": "42",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "raw": "tel:5195550123;ext=42"
+    },
+    "after": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "+15195550123",
+        "phone_extension": "42",
+        "phone_format_status": "normalized",
+        "phone_normalization": {
+          "e164": "+15195550123",
+          "extension": "42",
+          "normalization_version": "ssm-phone-normalization/1",
+          "raw_value": "tel:5195550123;ext=42",
+          "reason": "nanp_shape_only",
+          "status": "normalized"
+        },
+        "phone_raw": "tel:5195550123;ext=42",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "tel:5195550123;ext=42"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "4aed311a-d6a1-50ab-8801-7d59b928a645",
+          "id": "9eef6559-7324-53f4-8c45-868f997de9ab",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "+15195550123",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "+15195550123"
+        ],
+        "extension": "42",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "contract_expected": {
+        "channels": [
+          "+15195550123"
+        ],
+        "extension": "42",
+        "raw_preserved": true,
+        "status": "normalized"
+      },
+      "details": [
+        {
+          "channel_id": "9eef6559-7324-53f4-8c45-868f997de9ab",
+          "e164": "+15195550123",
+          "extension": "42",
+          "format_status": "normalized",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "raw_value": "tel:5195550123;ext=42"
+        }
+      ],
+      "phone_observations": [
+        {
+          "channel_id": "9eef6559-7324-53f4-8c45-868f997de9ab",
+          "channel_kind": "phone",
+          "evidence_id": "4aed311a-d6a1-50ab-8801-7d59b928a645",
+          "extension": "42",
+          "format_status": "normalized",
+          "id": "88b0040a-2592-51e0-93ff-ddd1ea37ecd6",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "raw_value": "tel:5195550123;ext=42",
+          "reason": "nanp_shape_only"
+        }
+      ],
+      "raw": "tel:5195550123;ext=42"
+    }
+  },
+  {
+    "case": "++442079460123",
+    "before": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "++442079460123",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "++442079460123"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [
+        {
+          "channel_type": "phone",
+          "evidence_id": "04efb646-b97a-594f-b701-d96c753f9396",
+          "id": "341bfcba-c27c-5531-9e26-1accceb66234",
+          "location_id": null,
+          "observed_at": "2026-01-01T00:00:00Z",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "outreach_eligibility": "research_only",
+          "published_context": "Published source listing; relevance and permission unverified",
+          "source_url": "https://directory.test/",
+          "suppression_status": "unknown",
+          "value": "++442079460123",
+          "verification_status": "source_reported"
+        }
+      ],
+      "contract_actual": {
+        "channels": [
+          "++442079460123"
+        ],
+        "extension": null,
+        "raw_preserved": false,
+        "status": null
+      },
+      "contract_expected": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "invalid"
+      },
+      "raw": "++442079460123"
+    },
+    "after": {
+      "adapter": {
+        "address": "",
+        "categories": "",
+        "city": "",
+        "city_raw": "",
+        "country": "",
+        "description": "",
+        "email": "",
+        "municipality_name": "",
+        "name": "Fictional Office",
+        "observed_at": "2026-01-01T00:00:00Z",
+        "phone": "",
+        "phone_extension": "",
+        "phone_format_status": "invalid",
+        "phone_normalization": {
+          "e164": null,
+          "extension": "",
+          "normalization_version": "ssm-phone-normalization/1",
+          "raw_value": "++442079460123",
+          "reason": "misplaced_or_multiple_plus",
+          "status": "invalid"
+        },
+        "phone_raw": "++442079460123",
+        "postal_code": "",
+        "province": "",
+        "raw_payload": {
+          "id": "one",
+          "name": "Fictional Office",
+          "phone": "++442079460123"
+        },
+        "source_record_id": "one",
+        "source_url": "https://directory.test/",
+        "street": "",
+        "unit": "",
+        "website": ""
+      },
+      "channels": [],
+      "contract_actual": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "invalid"
+      },
+      "contract_expected": {
+        "channels": [],
+        "extension": "",
+        "raw_preserved": true,
+        "status": "invalid"
+      },
+      "details": [],
+      "phone_observations": [
+        {
+          "channel_id": null,
+          "channel_kind": "phone",
+          "evidence_id": "7f638eab-6611-5d59-8f1d-11257751c0a9",
+          "extension": "",
+          "format_status": "invalid",
+          "id": "6ae25aa4-de6b-5978-a887-13bf81b0613c",
+          "normalizer_version": "ssm-phone-normalization/1",
+          "organisation_id": "40f4601d-d34e-5dd8-b821-1653d03550d3",
+          "raw_value": "++442079460123",
+          "reason": "misplaced_or_multiple_plus"
+        }
+      ],
+      "raw": "++442079460123"
+    }
+  }
+]

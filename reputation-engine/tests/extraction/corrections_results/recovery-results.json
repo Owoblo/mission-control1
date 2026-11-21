@@ -1,0 +1,114 @@
+{
+  "verified": true,
+  "boundaries": [
+    {
+      "kind": "email",
+      "boundary": "spool",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "email",
+      "boundary": "commit",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "email",
+      "boundary": "ack",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "email",
+      "boundary": "acknowledged",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "phone",
+      "boundary": "spool",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "phone",
+      "boundary": "commit",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "phone",
+      "boundary": "ack",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "phone",
+      "boundary": "acknowledged",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "context",
+      "boundary": "spool",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "context",
+      "boundary": "commit",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "context",
+      "boundary": "ack",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    },
+    {
+      "kind": "context",
+      "boundary": "acknowledged",
+      "receipts": 1,
+      "observations": 1,
+      "hold_preserved": true,
+      "pending_spools": 0,
+      "stale_lease_recovered_by_coordinator": true
+    }
+  ],
+  "os_network_denial_verified": true
+}

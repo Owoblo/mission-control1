@@ -6,6 +6,8 @@ import {
   webhookMetadataMatchesAccount,
 } from '../../lib/server/stripe-accounts'
 
+assert.equal(resolveStripeAccountKeyForLead({ id: 'lead_gf872dnv3', branch: 'toronto' }), 'dexa')
+assert.equal(resolveStripeAccountKeyForLead({ id: 'lead_other', branch: 'toronto' }), 'saturn')
 assert.equal(resolveStripeAccountKeyForLead({ branch: 'ottawa' }), 'dexa')
 assert.equal(resolveStripeAccountKeyForLead({ branch: 'waterloo' }), 'saturn')
 assert.equal(resolveStripeAccountKeyForLead({ originCity: 'Kanata' }), 'dexa')

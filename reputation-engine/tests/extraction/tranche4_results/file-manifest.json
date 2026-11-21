@@ -1,0 +1,227 @@
+[
+  {
+    "pr": "PR-10",
+    "files": [
+      {
+        "path": "scripts/market_map/cloud/regional_contact_enrichment.py",
+        "before_sha256": "96b04c42180e99ab1daf84c973bfff5b39cab6f227f8f5b6aefb820ec578d600",
+        "after_sha256": "2608622e4d23c6d41c49823903a6cf34b792da57715fe84b84cec21a81d0a15e"
+      },
+      {
+        "path": "scripts/market_map/cloud/regional_email_inventory.py",
+        "before_sha256": "a21d9e13bc956a58f40c4793d6e4b23adf1d11efb9729638509846fbb6226c48",
+        "after_sha256": "a77f7d6530a84c0da890d7ab2d33d45b658c4d31a6b4b1f713e33d9476e49aa5"
+      },
+      {
+        "path": "scripts/market_map/cloud/regional_mobile_crm_review.mjs",
+        "before_sha256": "abe3941c9221f50d724616c9b09df56e1e87cb66fc2252385bebd6d41ef11fcc",
+        "after_sha256": "fb8ee5ee4d19d29eecb606486fa31784a7dff83fd59e1899f43b8d10598acb75"
+      },
+      {
+        "path": "scripts/market_map/email_relationship_review.mjs",
+        "before_sha256": "7f1ff53b42ca60d4bfa4d0189155cac3e639bcf7f3e535d99ace711e95c46dc3",
+        "after_sha256": "4018f061abd54bcd5cac1dd68f8e62eacf2baa2ddf736dc4e30a44417f9e22de"
+      },
+      {
+        "path": "scripts/market_map/regional_occurrences.py",
+        "before_sha256": null,
+        "after_sha256": "2f23c90a17271864b1f04fbd40c0d0aedc1e20a044af82bcf1deaf171a6d3c7a"
+      },
+      {
+        "path": "tests/extraction/run_offline.py",
+        "before_sha256": "41de1ab8e9fe56ee3a3ea2e1fae265299e5c14293479548bb9374a5069b1b30b",
+        "after_sha256": "79103e941b7a6d8c4973306f37815e7a76ffb9204070b367ca173391533e2253"
+      },
+      {
+        "path": "tests/market_map/email_relationship_review.test.mjs",
+        "before_sha256": "d6c9607562916b8e65125147c9483538c34bcecc33d20968b1e45113555b32b4",
+        "after_sha256": "5fdb66efcd21ac8d962e0b401df8d032030f931962f710d72c1210ffbf54f7d7"
+      },
+      {
+        "path": "tests/market_map/test_regional_email_inventory.py",
+        "before_sha256": "9f24c3370b1ac6aed854caf825b43e67b66465931e81b8aac75cdb9b7095cce2",
+        "after_sha256": "e85fb10b485bdc4a7225f7c38ee7af708a33ea0359f15d34ef2aab67cb87457f"
+      },
+      {
+        "path": "tests/market_map/test_regional_occurrences.py",
+        "before_sha256": null,
+        "after_sha256": "926480006497db6739f032d01c7f5a1638101cc84e790b069010caab85f94a8f"
+      }
+    ]
+  },
+  {
+    "pr": "PR-11",
+    "files": [
+      {
+        "path": "scripts/discovery_v2/contacts.py",
+        "before_sha256": "b6f891191b1156242b74536b85c025e0143f7a236f8b12b5a762be4cefe1cd76",
+        "after_sha256": "5f204135ad4bec9e7125d3cf3d8e6faea3d235f75df5983c3c608ac3bcdeeb7b"
+      },
+      {
+        "path": "scripts/market_map/contact_attribution.py",
+        "before_sha256": null,
+        "after_sha256": "a528938f7bca98a66926ea5e5eb569c5ad4e33d5b236567d97d6a716d2ce431f"
+      },
+      {
+        "path": "scripts/market_map/contact_context.py",
+        "before_sha256": "7586d26000a60499cf4aecf44f110bae5762d10cdb7908931ee881cf4d373017",
+        "after_sha256": "418a98e1662fff37a459b0492c86f640a8079189bf99fa617ca80ecaaa5d3161"
+      },
+      {
+        "path": "tests/extraction/run_offline.py",
+        "before_sha256": "79103e941b7a6d8c4973306f37815e7a76ffb9204070b367ca173391533e2253",
+        "after_sha256": "7414225a3c1759e94f3551e5812d437c211f9775ae574688f5afa823978cc903"
+      },
+      {
+        "path": "tests/market_map/test_contact_attribution.py",
+        "before_sha256": null,
+        "after_sha256": "7c48600bbdcd8c9092c2cdcc01ad8cf643d1b1ac9d30066b488d32f9bc5d414f"
+      }
+    ]
+  },
+  {
+    "pr": "PR-12",
+    "files": [
+      {
+        "path": "scripts/market_map/fetch_outcomes.py",
+        "before_sha256": null,
+        "after_sha256": "af0bef0fdd00545fe2165a621bd19a51b80999c355fa9b9cc9771dc69a096d19"
+      },
+      {
+        "path": "scripts/market_map/transport.py",
+        "before_sha256": "4f86d054a52ebb69811eaf75464f17428a99fd0efe9a4c186ae7732d9a4da152",
+        "after_sha256": "e510d0fa62fbbe7faf0616ef316ba4d8aecc63fc8c66c2ff66c72aac998a228c"
+      },
+      {
+        "path": "tests/extraction/run_offline.py",
+        "before_sha256": "7414225a3c1759e94f3551e5812d437c211f9775ae574688f5afa823978cc903",
+        "after_sha256": "593f4f6f9207d42ede2d98a44dada2e969dbb19bc946b62b0516763e493f2077"
+      },
+      {
+        "path": "tests/market_map/test_fetch_outcomes.py",
+        "before_sha256": null,
+        "after_sha256": "370068a32e5e19dd18f73d2f6f68d86b231588b3e6169e475f5c4e9896e1066b"
+      }
+    ]
+  },
+  {
+    "pr": "PR-13",
+    "files": [
+      {
+        "path": "scripts/market_map/contact_enrichment.py",
+        "before_sha256": "ea24c6c7630166fa09a5c894808fe9be9d79e14462d7525341901e5af5d93f89",
+        "after_sha256": "061763a1547fb683e18c9b062a5494949260b581f7658de52db475472efec755"
+      },
+      {
+        "path": "scripts/market_map/email_acquisition.py",
+        "before_sha256": "fcd504cf6dd498affe90d6ee44459dfe1af420830145352886455403fc5d70fc",
+        "after_sha256": "30f43fc6d0008ffb12c0449cab81eeb204580327b76bdcbb68cf67816ea77a85"
+      },
+      {
+        "path": "scripts/market_map/email_domain_process.py",
+        "before_sha256": "c475c72b6a1f2348c3d252a5cbd36b657bf794918283a1e5b75b1bbed68efb87",
+        "after_sha256": "e40d8d82959df3075b39f5ade7491f6f9d4b152ccfa5af53c42b34eb2017c4c9"
+      },
+      {
+        "path": "scripts/market_map/frontier_retry.py",
+        "before_sha256": null,
+        "after_sha256": "f00a59ee78ccbb2e271b5881ecded1e3bc7d02710de9c4ed4ae9232b51d28c79"
+      },
+      {
+        "path": "scripts/market_map/mobile_relationship_review.mjs",
+        "before_sha256": "b9a1c14f226759e5e5e25145dc060b66a494a17ceed5043da1eea4fb750e7f59",
+        "after_sha256": "7f643dcba9b74b12fcbda57893dd11484bde4626a62aa096acd15b80fa265672"
+      },
+      {
+        "path": "scripts/market_map/mobile_review_inputs.mjs",
+        "before_sha256": "70b66be2ccd6eb07d9ddb6bee2638db2b040c0529cecc3c2cd7eda8b81929c32",
+        "after_sha256": "0ad0dd0a9eba225d65ba7444efd6e4163a59ea314d6292157a62ea4c6eaddad8"
+      },
+      {
+        "path": "scripts/market_map/phone_acquisition.py",
+        "before_sha256": "5a17f07f1cb9ce2ed4a1a54e7741582714a9303067836288fc2bdbf29b58b532",
+        "after_sha256": "6183d439ad9ddbd76c65d56fd42cfdc0510b973b29faa7f8ca74e75ede2e36b6"
+      },
+      {
+        "path": "scripts/market_map/transport.py",
+        "before_sha256": "e510d0fa62fbbe7faf0616ef316ba4d8aecc63fc8c66c2ff66c72aac998a228c",
+        "after_sha256": "f94541fb92579911aa5b30f4dfd20e37c60acaf6f4a6f69ef74dfab27ac45654"
+      },
+      {
+        "path": "tests/extraction/offline_node_guard.mjs",
+        "before_sha256": null,
+        "after_sha256": "82ebaa3196a22e1377fd52995279611c56ffef1ceefb820acb920a673b03acc3"
+      },
+      {
+        "path": "tests/extraction/run_offline.py",
+        "before_sha256": "593f4f6f9207d42ede2d98a44dada2e969dbb19bc946b62b0516763e493f2077",
+        "after_sha256": "78847916f5cc8a79cbc134a8decc1f750bf9376d5abaf4bd0a250e5a36a43ccb"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/duplicate-person.html",
+        "before_sha256": null,
+        "after_sha256": "43bdb299a9d1539d44b82a7f61cec7fcfa6e4d37d660dee643d4736180a59bde"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/exact.html",
+        "before_sha256": null,
+        "after_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/legacy-text.html",
+        "before_sha256": null,
+        "after_sha256": "58d6adaac4d79715f6fe6eb335b6524b4d2eaa81cda0ac19210711a3371b0461"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/manifest.json",
+        "before_sha256": null,
+        "after_sha256": "714d3dded036a3ce74fea62fe4e8b6b40b7a5b5d85a998936f40f66a7b7a0851"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/multiple-named.html",
+        "before_sha256": null,
+        "after_sha256": "f477b1e04326174c4cabd55fdcdad5593abde4e237fb8e896a8553e3749cd8db"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/shared-inbox.html",
+        "before_sha256": null,
+        "after_sha256": "dea59145de167b22b3de6671d0fa0219c3c96d97f917e37606cb6123c6c21a2d"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/structured.html",
+        "before_sha256": null,
+        "after_sha256": "368b0ad6fe737f615235a6dc9f9fb2783ba26d9e76c872b07f1d5f54ebea60bb"
+      },
+      {
+        "path": "tests/extraction/tranche4_fixtures/swapped.html",
+        "before_sha256": null,
+        "after_sha256": "20a898d9c1c2e858ec1fec14127e9a00c61620db484c3a2e42a2ad583c9900bb"
+      },
+      {
+        "path": "tests/extraction/tranche4_replay.py",
+        "before_sha256": null,
+        "after_sha256": "52ea0962eb1d68791b2240e48457b8194c7d9e8859077b494863340cdd4ea2df"
+      },
+      {
+        "path": "tests/market_map/mobile_relationship_review.test.mjs",
+        "before_sha256": "f0610a7ad6a65a06a85130dcd5e6edc8a90a503ce4217d17ae2cb6bc89428f5a",
+        "after_sha256": "61845fe6e300fbaf93a98a194bb18df549badead8c27c0e94632bee17e304366"
+      },
+      {
+        "path": "tests/market_map/test_email_acquisition.py",
+        "before_sha256": "60663a8ca27217180b5057fd795d100e4931355096d0eb688de1a017c6af0289",
+        "after_sha256": "1bc4dd65fa96bceabf78d43398904afed0d9b973d10a5c5ee253efd4de58625e"
+      },
+      {
+        "path": "tests/market_map/test_fetch_outcomes.py",
+        "before_sha256": "370068a32e5e19dd18f73d2f6f68d86b231588b3e6169e475f5c4e9896e1066b",
+        "after_sha256": "6a0c5d112e273def4ab39421a43476b0ea8fb60ee8622425b27309ee723ba2f5"
+      },
+      {
+        "path": "tests/market_map/test_frontier_retry.py",
+        "before_sha256": null,
+        "after_sha256": "bf104a383a337026962d7b0e76c83e72ee0f74fb71dd83b5d892411e2bb49a94"
+      }
+    ]
+  }
+]

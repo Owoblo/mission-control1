@@ -1,0 +1,223 @@
+--- /dev/null
++++ b/scripts/market_map/fetch_outcomes.py
+@@ -0,0 +1,28 @@
++"""Stable failure metadata. Unknown failures are review-only, never bypass signals."""
++from datetime import datetime,timezone,timedelta
++from email.utils import parsedate_to_datetime
++
++
++def retry_after(value,now=None):
++    now=now or datetime.now(timezone.utc)
++    try:
++        if str(value).isdigit():return (now+timedelta(seconds=int(value))).isoformat()
++        at=parsedate_to_datetime(value)
++        if at.tzinfo is None:at=at.replace(tzinfo=timezone.utc)
++        return max(now,at).isoformat()
++    except (ValueError,TypeError,OverflowError,IndexError):return None
++
++
++class FetchFailure(RuntimeError):
++    def __init__(self,message,*,code='unknown_review',http_status=None,url=None,retryable=False,retry_after_at=None,budget_reason=None,policy_scope='url'):
++        super().__init__(message)
++        self.code,self.http_status,self.url=code,http_status,url
++        self.retryable,self.retry_after_at,self.budget_reason,self.policy_scope=retryable,retry_after_at,budget_reason,policy_scope
++    def as_dict(self):
++        return {k:getattr(self,k) for k in ('code','http_status','url','retryable','retry_after_at','budget_reason','policy_scope')}|{'message':str(self)}
++
++
++def outcome(error,url=None,*,phase='fetch'):
++    if isinstance(error,FetchFailure):return {**error.as_dict(),'url':error.url or url}
++    return {'code':'parse_error' if phase=='parse' else 'unknown_review','url':url,'retryable':False,
++            'http_status':None,'retry_after_at':None,'budget_reason':None,'policy_scope':'url','message':str(error)[:500]}
+--- a/scripts/market_map/transport.py
++++ b/scripts/market_map/transport.py
+@@ -1,6 +1,8 @@
+ """Bounded, identified public HTTP retrieval. No paid clients or browser bypasses."""
+ from __future__ import annotations
+ 
++from .fetch_outcomes import FetchFailure, retry_after
++from http.client import HTTPException
+ import hashlib
+ import http.cookiejar
+ import ipaddress
+@@ -18,11 +20,11 @@
+ from urllib.parse import urlencode, urljoin, urlsplit
+ 
+ 
+-class SourceBlocked(RuntimeError):
++class SourceBlocked(FetchFailure):
+     """Access, policy, format or public-network guard requires review."""
+ 
+ 
+-class BudgetExceeded(RuntimeError):
++class BudgetExceeded(FetchFailure):
+     """The explicit request or byte ceiling has been reached."""
+ 
+ 
+@@ -38,7 +40,7 @@
+         try:
+             data = json.loads(self.body)
+         except (json.JSONDecodeError, UnicodeError) as exc:
+-            raise SourceBlocked("Source returned invalid JSON: " + self.url) from exc
++            raise SourceBlocked("Source returned invalid JSON: " + self.url,code="parse_error",url=self.url) from exc
+         if isinstance(data, dict) and data.get("error"):
+             raise SourceBlocked("Source API error: " + json.dumps(data["error"])[:500])
+         return data
+@@ -103,13 +105,13 @@
+         host = (parsed.hostname or "").lower()
+         if (parsed.scheme != "https" or not host or host not in allowed_hosts
+                 or parsed.username or parsed.password or parsed.port not in (None, 443)):
+-            raise SourceBlocked("URL outside explicit HTTPS host scope: " + url)
++            raise SourceBlocked("URL outside explicit HTTPS host scope: " + url,code="scope_denied",url=url)
+         try:
+             answers = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+         except OSError as exc:
+-            raise SourceBlocked("DNS lookup failed: " + host) from exc
++            raise SourceBlocked("DNS lookup failed: " + host,code="dns_transient" if getattr(exc,"errno",None)==socket.EAI_AGAIN else "dns_unknown",url=url,retryable=getattr(exc,"errno",None)==socket.EAI_AGAIN) from exc
+         if not answers or any(not ipaddress.ip_address(a[4][0]).is_global for a in answers):
+-            raise SourceBlocked("Non-public network target: " + host)
++            raise SourceBlocked("Non-public network target: " + host,code="private_target",url=url,policy_scope="host")
+         return parsed
+ 
+     def _request(self, url, allowed_hosts, headers=None, *, check_redirect_robots=False, data=None):
+@@ -118,10 +120,10 @@
+             host = parsed.hostname
+             for attempt in range(self.retries + 1):
+                 if self.requests >= self.max_requests or self.bytes_fetched >= self.max_bytes:
+-                    raise BudgetExceeded("HTTP request/byte budget exhausted")
++                    raise BudgetExceeded("HTTP request/byte budget exhausted",code="budget_deferred",url=url,retryable=True,budget_reason="request_or_total_bytes")
+                 wait = self.min_interval - (time.monotonic() - self._host_last.get(host, 0))
+                 if wait > 10:
+-                    raise SourceBlocked("Source deferred; crawl delay exceeds this run's 10-second wait bound")
++                    raise SourceBlocked("Source deferred; crawl delay exceeds this run's 10-second wait bound",code="crawl_delay_review",url=url,policy_scope="host")
+                 if wait > 0:
+                     time.sleep(wait)
+                 self.requests += 1
+@@ -134,12 +136,13 @@
+                         body = response.read(limit + 1)
+                         self.bytes_fetched += len(body)
+                         if len(body) > limit:
+-                            raise BudgetExceeded("Response exceeds configured byte budget")
++                            raise BudgetExceeded("Response exceeds configured byte budget",code="response_too_large" if limit==self.max_response_bytes else "budget_deferred",url=url,retryable=limit!=self.max_response_bytes,budget_reason="response_bytes" if limit==self.max_response_bytes else "total_bytes")
+                         content = body[:10000].lower()
+                         if any(v in content for v in (b"cf-chl-", b"verify you are human", b".well-known/sgcaptcha")):
+-                            raise SourceBlocked("Source access challenge; no bypass attempted")
++                            raise SourceBlocked("Source access challenge; no bypass attempted",code="access_challenge",url=url,policy_scope="host")
+                         return Response(body, dict(response.headers), url, response.status)
+                 except urllib.error.HTTPError as exc:
++                    retry_at=retry_after((exc.headers or {}).get('Retry-After',''))
+                     if exc.code == 304:
+                         return Response(b"", dict(exc.headers), url, 304)
+                     if exc.code in (301, 302, 303, 307, 308):
+@@ -160,15 +163,15 @@
+                         except (ValueError, TypeError):
+                             delay = 2 ** attempt
+                         if delay > 10:
+-                            raise SourceBlocked("Source deferred retry; Retry-After exceeds this run's 10-second wait bound") from exc
++                            raise SourceBlocked("Source deferred retry; Retry-After exceeds this run's 10-second wait bound",code="http_temporary",url=url,http_status=exc.code,retryable=True,retry_after_at=retry_at) from exc
+                         time.sleep(max(0, delay))
+                         continue
+                     if exc.code in (404, 410):
+                         return Response(b"", dict(exc.headers), url, exc.code)
+-                    raise SourceBlocked("HTTP %s: %s" % (exc.code, url[:300])) from exc
+-                except (urllib.error.URLError, TimeoutError, OSError) as exc:
++                    raise SourceBlocked("HTTP %s: %s" % (exc.code, url[:300]),code="http_temporary" if exc.code in (429,500,502,503,504) else "access_denied" if exc.code in (401,403) else "http_error",url=url,http_status=exc.code,retryable=exc.code in (429,500,502,503,504),retry_after_at=retry_at,policy_scope="host" if exc.code in (401,403) else "url") from exc
++                except (urllib.error.URLError, TimeoutError, OSError, HTTPException) as exc:
+                     if attempt >= self.retries:
+-                        raise SourceBlocked("Network retrieval failed: " + str(exc)) from exc
++                        raise SourceBlocked("Network retrieval failed: " + str(exc),code="timeout" if isinstance(getattr(exc,"reason",exc),TimeoutError) else "network_failure",url=url,retryable=True) from exc
+                     time.sleep(2 ** attempt)
+             else:
+                 raise SourceBlocked("Retry limit exhausted")
+@@ -179,21 +182,24 @@
+         origin = "%s://%s" % (p.scheme, p.netloc)
+         if origin not in self._robots:
+             robots_url = origin + "/robots.txt"
+-            response = self._request(robots_url, allowed_hosts)
++            try:
++                response = self._request(robots_url, allowed_hosts)
++            except SourceBlocked as exc:
++                raise SourceBlocked(str(exc),code='robots_unresolved',url=robots_url,http_status=exc.http_status,policy_scope='host') from exc
+             parser = urllib.robotparser.RobotFileParser(robots_url)
+             if response.status in (404, 410):
+                 parser.parse([])
+             elif response.status == 200:
+                 if b"<html" in response.body[:1000].lower():
+-                    raise SourceBlocked("robots.txt returned HTML; access policy unresolved")
++                    raise SourceBlocked("robots.txt returned HTML; access policy unresolved",code="robots_unresolved",url=robots_url,policy_scope="host")
+                 parser.parse(response.text().splitlines())
+             else:
+-                raise SourceBlocked("robots.txt unavailable; access policy unresolved")
++                raise SourceBlocked("robots.txt unavailable; access policy unresolved",code="robots_unresolved",url=robots_url,policy_scope="host")
+             self._robots[origin] = parser
+             self.robots_checked[p.hostname] = {"checked_at": self._stamp(), "status": response.status, "url": robots_url}
+         parser = self._robots[origin]
+         if not parser.can_fetch(self.USER_AGENT, url):
+-            raise SourceBlocked("robots.txt disallows this URL: " + url)
++            raise SourceBlocked("robots.txt disallows this URL: " + url,code="robots_denied",url=url,policy_scope="url")
+         delay = parser.crawl_delay(self.USER_AGENT) or parser.crawl_delay("*")
+         if delay and delay > self.min_interval:
+             self.min_interval = delay
+@@ -216,7 +222,7 @@
+             self.cache_hits += 1
+             return Response(bytes.fromhex(cached["body_hex"]), cached["headers"], cached["url"], 200, True)
+         if response.status != 200:
+-            raise SourceBlocked("HTTP %s: %s" % (response.status, url))
++            raise SourceBlocked("HTTP %s: %s" % (response.status, url),code="http_missing" if response.status in (404,410) else "http_error",http_status=response.status,url=url)
+         # Do not archive whole websites. Only cache structured public payloads.
+         content_type = response.headers.get("Content-Type", "").lower()
+         if cache_path and any(kind in content_type for kind in ("json", "csv", "spreadsheet", "excel")):
+@@ -249,7 +255,7 @@
+         response = self._request(url, allowed, {"Content-Type": "application/x-www-form-urlencoded"},
+                                  check_redirect_robots=True, data=data)
+         if response.status != 200:
+-            raise SourceBlocked("HTTP %s: %s" % (response.status, url))
++            raise SourceBlocked("HTTP %s: %s" % (response.status, url),code="http_missing" if response.status in (404,410) else "http_error",http_status=response.status,url=url)
+         return response
+ 
+     def fetch_directory_form(self, url, fields, *, operation_context):
+--- a/tests/extraction/run_offline.py
++++ b/tests/extraction/run_offline.py
+@@ -38,6 +38,8 @@
+ 
+ TESTS['PR-11'] = TESTS['PR-10'] + ['tests/discovery_v2/test_contacts.py','tests/market_map/test_contact_attribution.py']
+ 
++TESTS['PR-12'] = TESTS['PR-11'] + ['tests/market_map/test_transport.py','tests/market_map/test_transport_directory.py','tests/market_map/test_fetch_outcomes.py']
++
+ def main():
+     parser = argparse.ArgumentParser()
+     group = parser.add_mutually_exclusive_group(required=True)
+--- /dev/null
++++ b/tests/market_map/test_fetch_outcomes.py
+@@ -0,0 +1,31 @@
++import socket,unittest,urllib.error
++from unittest.mock import patch
++from datetime import datetime,timezone
++from scripts.market_map.transport import Transport,SourceBlocked,BudgetExceeded,Response
++from scripts.market_map.fetch_outcomes import retry_after
++PUBLIC=[(socket.AF_INET,socket.SOCK_STREAM,6,'',('8.8.8.8',443))]
++class FetchOutcomeTests(unittest.TestCase):
++ def test_retry_after_at_zero_retries_and_no_extra_requests(self):
++  for code in [429,503]:
++   t=Transport(retries=0,min_interval=0,allowed_hosts={'business.test'})
++   with patch('socket.getaddrinfo',return_value=PUBLIC),patch.object(t.opener,'open',side_effect=urllib.error.HTTPError('https://business.test',code,'busy',{'Retry-After':'86400'},None)) as op:
++    with self.assertRaises(SourceBlocked) as caught:t.fetch('https://business.test',robots=False)
++    self.assertEqual(caught.exception.code,'http_temporary');self.assertTrue(caught.exception.retryable);self.assertTrue(caught.exception.retry_after_at);self.assertEqual(op.call_count,1)
++ def test_dates_invalid_headers_and_legacy_exception_api(self):
++  at=datetime(2026,1,1,tzinfo=timezone.utc)
++  self.assertEqual(retry_after('60',at),'2026-01-01T00:01:00+00:00')
++  self.assertEqual(retry_after('Fri, 02 Jan 2026 00:00:00 GMT',at),'2026-01-02T00:00:00+00:00')
++  self.assertIsNone(retry_after('garbage',at));self.assertIsInstance(SourceBlocked('old'),RuntimeError);self.assertFalse(SourceBlocked('old').retryable)
++ def test_robots_failure_remains_policy_hold(self):
++  t=Transport(retries=0)
++  with patch.object(t,'_request',side_effect=SourceBlocked('busy',code='http_temporary',retryable=True,http_status=503)):
++   with self.assertRaises(SourceBlocked) as caught:t._check_robots('https://business.test/a',{'business.test'})
++  self.assertEqual(caught.exception.code,'robots_unresolved');self.assertFalse(caught.exception.retryable)
++ def test_dns_and_timeout_classification(self):
++  t=Transport(retries=0,min_interval=0,allowed_hosts={'business.test'})
++  with patch('socket.getaddrinfo',side_effect=socket.gaierror(socket.EAI_AGAIN,'temporary')):
++   with self.assertRaises(SourceBlocked) as caught:t.fetch('https://business.test')
++  self.assertEqual(caught.exception.code,'dns_transient')
++  with patch('socket.getaddrinfo',return_value=PUBLIC),patch.object(t.opener,'open',side_effect=TimeoutError()):
++   with self.assertRaises(SourceBlocked) as caught:t.fetch('https://business.test',robots=False)
++  self.assertEqual(caught.exception.code,'timeout');self.assertTrue(caught.exception.retryable)

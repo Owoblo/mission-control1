@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "cohorts": {
+    "dinesafe": {
+      "primary_manifest_sha256": "642f8bfd73e1e0ddfec3505b8aa47c76672164122894ef196a8fef1c53995468",
+      "files": {
+        "independent-verification.json": "6a4f055cc34eaf2e12f84d5a0e8bdb4abf9f15a16037ee63add5792157a3ed31",
+        "portal.html": "237333cd3cf2b3292750c6ac2f56875dc43ba8f5c76f92b1cce4c24009029fde",
+        "package.json": "c1d7fb3afe7d92a0ddabb25fdaf9b0e1af548e528485f94f27cac877a6296aca",
+        "manifest.json": "642f8bfd73e1e0ddfec3505b8aa47c76672164122894ef196a8fef1c53995468",
+        "licence.html": "47cb86f451f097d183c135024a38d1ea5c548a9362079577daa46aedb2342bfc",
+        "acquisition-status.json": "642f8bfd73e1e0ddfec3505b8aa47c76672164122894ef196a8fef1c53995468",
+        "publisher-full.csv.gz": "ce5bc21f30cf3d20ae3a89b52525cb4cd5d7400e9e43b964640680cb828c1b35"
+      }
+    },
+    "bodysafe": {
+      "primary_manifest_sha256": "ce12b4fba4fe745044b8f13e1f153bbe983ba04c2ec692acec1d4d46bf812c3d",
+      "files": {
+        "independent-verification.json": "8a08c73d19a365a468e6ce73ad8fafed479802ac14fa1cde353496abf468be26",
+        "portal.html": "52d171adaac5b64c7190aa02ebd9d7001f1bc15f1debd58bd57675e43feb77ee",
+        "package.json": "55dcc5eb059d02fdcdb7b783631432c6c454c1e949623162f88c5458c998b8bc",
+        "manifest.json": "ce12b4fba4fe745044b8f13e1f153bbe983ba04c2ec692acec1d4d46bf812c3d",
+        "licence.html": "47cb86f451f097d183c135024a38d1ea5c548a9362079577daa46aedb2342bfc",
+        "acquisition-status.json": "ce12b4fba4fe745044b8f13e1f153bbe983ba04c2ec692acec1d4d46bf812c3d",
+        "publisher-full.csv.gz": "ff2ee5ec7a7c1b4ba436d30189767df7d2c998e564cc04bbe1a229b242c924c8"
+      }
+    },
+    "business-improvement-areas": {
+      "primary_manifest_sha256": "d93f09f259e8ccd4e4bbd35a1121578071fdf27377af93f85d031ed62ea61509",
+      "files": {
+        "independent-verification.json": "6bf4d07f096c4403063cba3f5a70f17a93f23fb05a162d7f9e59f43397df6d2f",
+        "portal.html": "f8e20432253077bc12237efea213840c9643b8f60fd538523454f6a579244b51",
+        "package.json": "bc6c4444b6a4b21bd5c448779d0ce5df156392c2f95726596f484f46353d65e3",
+        "manifest.json": "d93f09f259e8ccd4e4bbd35a1121578071fdf27377af93f85d031ed62ea61509",
+        "licence.html": "47cb86f451f097d183c135024a38d1ea5c548a9362079577daa46aedb2342bfc",
+        "acquisition-status.json": "d93f09f259e8ccd4e4bbd35a1121578071fdf27377af93f85d031ed62ea61509",
+        "publisher-full.csv.gz": "407910074e246cd3b820b8100d0a58a3fc6ca094c3abdcf82275bc8f29c19ddb"
+      }
+    }
+  }
+}

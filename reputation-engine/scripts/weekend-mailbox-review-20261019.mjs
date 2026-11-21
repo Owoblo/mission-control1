@@ -1,0 +1,7 @@
+import fs from 'node:fs/promises';import{openZohoMailbox}from'../lib/partnership-core/zoho.mjs';
+const dir='artifacts/reply-review-20261019-weekend',lower=Date.parse('2026-10-16T04:00:00Z');
+for(const market of ['saturn','ottawa']){const box=await openZohoMailbox(market);let examined=0,complete=false,rows=[];
+for(let start=1;start<=4001;start+=200){const page=await box.request('/accounts/'+box.accountId+'/messages/view?'+new URLSearchParams({start:String(start),limit:'200',includeto:'true'}));examined+=page.length;rows.push(...page.filter(m=>Number(m.receivedTime||m.receivedtime)>=lower));if(page.length<200||page.some(m=>Number(m.receivedTime||m.receivedtime)<lower)){complete=true;break;}}
+await fs.writeFile(dir+'/mailbox-'+market+'.json',JSON.stringify({at:new Date().toISOString(),examined,complete,rows},null,2));console.log(JSON.stringify({market,examined,complete,in_window:rows.length}));
+if(market==='saturn')for(const email of ['john@paradisemovers.ca','hubersmoving@gmail.com']){const found=[];for(const query of ['sender:'+email,'in:Sent::to:'+email]){const data=await box.request('/accounts/'+box.accountId+'/messages/search?'+new URLSearchParams({searchKey:query,start:'1',limit:'200',includeto:'true'}));found.push({query,rows:data});}await fs.writeFile(dir+'/mail-history-'+email.split('@')[0]+'.json',JSON.stringify(found,null,2));console.log(JSON.stringify({email,results:found.map(r=>({query:r.query,count:r.rows.length,messages:r.rows.map(m=>({id:m.messageId,subject:m.subject,summary:m.summary,date:m.receivedTime}))}))}));}
+}

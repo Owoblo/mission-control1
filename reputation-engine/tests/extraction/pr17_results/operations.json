@@ -1,0 +1,87 @@
+{
+  "retry_recovery": {
+    "status": "pass",
+    "evidence": "tests.log: test_later_retry_after_restart_and_attempt_limit; test_all_queue_failure_success_replay_preserves_observation_and_no_early_fetch",
+    "scope": "Three generic temporary queues, typed recovery and due dates"
+  },
+  "retry_exhaustion": {
+    "status": "pass",
+    "evidence": "tests.log: test_later_retry_after_restart_and_attempt_limit",
+    "scope": "Three-attempt terminal state"
+  },
+  "interrupted_worker": {
+    "status": "partial",
+    "evidence": "process-results.json: interrupted_transaction; tests.log: test_worker_deadline_retains_checkpoint_and_marks_active_url_only",
+    "scope": "Real transaction death; full domain-worker kill/restart only mocked"
+  },
+  "duplicate_receipts": {
+    "status": "pass",
+    "evidence": "process-results.json: sqlite; workload.json; tests.log: test_changed_completion_receipt_rejected",
+    "scope": "Real processes, idempotence and conflict rejection"
+  },
+  "stale_leases": {
+    "status": "partial",
+    "evidence": "tests.log: test_stale_email_lease_recovers_without_releasing_hold",
+    "scope": "Email coordinator stale lease only; all-queue OS lifecycle not established"
+  },
+  "sqlite_contention": {
+    "status": "pass",
+    "evidence": "process-results.json: sqlite; tests.log: test_sqlite_contention_rollback_and_retry",
+    "scope": "Concurrent process lock waits and two-connection timeout/rollback"
+  },
+  "cache_corruption": {
+    "status": "pass",
+    "evidence": "tests.log: test_ttl_scope_integrity_and_no_store; test_body_tamper_refetch_not_trusted",
+    "scope": "Hash-tampered local source body never trusted"
+  },
+  "permission_revocation": {
+    "status": "pass",
+    "evidence": "tests.log: test_policy_change_during_response_blocks_release_and_recovers",
+    "scope": "Current permission and mid-response revocation"
+  },
+  "robots_changes": {
+    "status": "pass",
+    "evidence": "tests.log: test_current_http_and_robots_denials_never_use_body",
+    "scope": "Fresh robots deny blocks cached body"
+  },
+  "conditional_revalidation": {
+    "status": "pass",
+    "evidence": "tests.log: test_three_concurrent_consumers_one_body_and_unchanged_capture_time; process-results.json: cache",
+    "scope": "ETag/304 replay under injected HTTP; no real origin timing claim"
+  },
+  "process_concurrency": {
+    "status": "pass",
+    "evidence": "process-results.json and cache-0.json, cache-1.json, cache-2.json",
+    "scope": "Three distinct OS processes; denied loopback bind before audit guard; local filesystem only"
+  },
+  "cross_coordinator_host_budget": {
+    "status": "fail",
+    "evidence": "tests.log: test_characterizes_missing_cross_coordinator_budget",
+    "scope": "Two clients with request cap 2 each perform 4 total requests; no aggregate host cap or atomic coordination"
+  },
+  "source_freshness": {
+    "status": "pass",
+    "evidence": "tests.log: test_duplicate_content_after_expiry_is_new_fetch_receipt; test_three_concurrent_consumers_one_body_and_unchanged_capture_time",
+    "scope": "Original capture time retained on revalidation; expiry creates new receipt"
+  },
+  "parser_replay": {
+    "status": "pass",
+    "evidence": "tests.log: test_receipts_versions_context_and_freshness; test_regional_one_fetch_and_reparse_preserves_capture_time_and_prior_results",
+    "scope": "Append-only source history and regional version reparse"
+  },
+  "disk_retention": {
+    "status": "fail",
+    "evidence": "workload.json; scripts/market_map/contact_capture.py",
+    "scope": "Disk usage measured; approved automatic retention cleanup/quotas not implemented or validated"
+  },
+  "backup_restore": {
+    "status": "partial",
+    "evidence": "workload.json",
+    "scope": "Temporary receipt DB integrity_check and logical dump equality only; whole capture/observation recovery not proven"
+  },
+  "suppression": {
+    "status": "pass",
+    "evidence": "tests.log: test_upstream_policy_hold_is_rechecked_before_retry_release; test_policy_held_queue_cannot_mine_saved_browser_as_alternative",
+    "scope": "Research hold non-bypass regression only; no production outreach exercised"
+  }
+}

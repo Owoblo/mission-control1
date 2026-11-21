@@ -3,8 +3,23 @@ import test from 'node:test'
 import {
   buildTelephonyHealthAlertsFromEvents,
   buildTelephonyOperationalMetricsFromEvents,
+  estimateInboundAnswerLatencySeconds,
+  providerAnswerLatencySeconds,
   type DialerAnalyticsEventRecord,
 } from '../../lib/server/telephony-monitoring'
+
+test('inbound wait estimate subtracts connected talk time from the completed Dial callback', () => {
+  assert.equal(estimateInboundAnswerLatencySeconds('2026-10-21T15:00:00.000Z', Date.parse('2026-10-21T15:02:05.000Z'), 120), 5)
+  assert.equal(estimateInboundAnswerLatencySeconds('2026-10-21T15:00:00.000Z', Date.parse('2026-10-21T15:01:00.000Z'), 70), 0)
+  assert.equal(estimateInboundAnswerLatencySeconds(undefined, Date.now(), 0), undefined)
+})
+
+test('provider answer latency uses the actual per-device answer callback timestamp', () => {
+  assert.equal(providerAnswerLatencySeconds('2026-10-21T15:00:00.000Z', '2026-10-21T15:01:59.000Z'), 119)
+  assert.equal(providerAnswerLatencySeconds('2026-10-21T15:00:00.000Z', '2026-10-21T15:02:01.000Z'), 121)
+  assert.equal(providerAnswerLatencySeconds('2026-10-21T15:00:00.000Z', '2026-10-21T14:59:59.000Z'), undefined)
+  assert.equal(providerAnswerLatencySeconds(undefined, '2026-10-21T15:01:00.000Z'), undefined)
+})
 
 function eventRecord(input: {
   ts: string
