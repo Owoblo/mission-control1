@@ -7,7 +7,7 @@ import {validSignalReview} from './signal-review.mjs';
 const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const cities=new Set(serviceLocations.map(normalize));
 /** Server-only adapter. Never accept evidence flags from an HTTP request body. */
-export async function reserveAction({url,headers,contactId,channel,kind='cold_introduction',key,content,sender,emailProvider=''}){
+export async function reserveAction({url,headers,contactId,channel,kind='cold_introduction',key,content,sender,emailProvider='',allowRevival=false}){
  const response=await fetch(`${url}/rest/v1/market_contacts?${new URLSearchParams({id:'eq.'+contactId,select:'*'})}`,{headers,cache:'no-store'});
  if(!response.ok)throw Error('Policy contact lookup failed');
  const [contact]=await response.json();if(!contact)throw Error('Policy contact missing');
@@ -38,6 +38,7 @@ export async function reserveAction({url,headers,contactId,channel,kind='cold_in
  }else if(channel==='direct_mail')senderHealthy=true;
  const channelEligible=channel==='email'?!!contact.email&&!contact.email_unsubscribed_at&&!['bounced','complained','unsubscribed'].includes(contact.email_status):channel==='sms'||channel==='phone'?!!contact.phone&&!contact.do_not_contact:channel==='direct_mail'&&!!(contact.address||contact.mailing_address);
  const evidence={observedAt:new Date().toISOString(),marketActive:isOttawa(contact.city)?ottawaAllowed:activeLocations.some(city=>normalize(city)===normalize(contact.city)),serviceAvailable,channelEligible,senderHealthy,sender,recipient:channel==='email'?contact.email:contact.phone,contentHash:createHash('sha256').update(content||'').digest('hex')};
+ if(channel==='sms'&&allowRevival===true)evidence.allowRevival=true;
  const r=await fetch(`${url}/rest/v1/rpc/reserve_partnership_action`,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({p_contact_id:contactId,p_channel:channel,p_kind:kind,p_action_key:key,p_evidence:evidence}),cache:'no-store'});
  if(!r.ok)throw Error('Policy reservation unavailable ('+r.status+')');
  const result=await r.json();if(!result.allowed)throw Error('Partnership policy hold: '+result.reasons.join(', '));return result;
