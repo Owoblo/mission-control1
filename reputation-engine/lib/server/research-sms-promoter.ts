@@ -252,7 +252,7 @@ export function researchSmsRows(
     const reasons = draft.holds.filter((h) => !cleared.includes(h))
     if (!verified) reasons.push('verify_unique_current_mobile')
     if (options.b2b && !savedEvidence && !reasons.includes(basisHold)) reasons.push(basisHold)
-    if (options.b2b && (!identifiedSender.test(draft.body) || !unsubscribeInstruction.test(draft.body))) {
+    if (options.b2b && (!identifiedSender.test(draft.body))) {
       if (!reasons.includes(disclosureHold)) reasons.push(disclosureHold)
     }
     if (options.b2b && route) {
