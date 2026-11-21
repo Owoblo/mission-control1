@@ -8,8 +8,15 @@ const empty={contacts:[],touches:[],jobs:[]}
 const db={url:'https://db.invalid',headers:{'Content-Type':'application/json'}}
 const res=(value: unknown,status=200)=>new Response(JSON.stringify(value),{status})
 
-test('Ottawa service aliases match reservation coverage without activating cold SMS',()=>{
-  for (const city of ['Orléans','Orleans','Vanier','Ottawa','Nepean']) {
+test('Ottawa cold SMS activates only the approved cities and keeps release holds',()=>{
+  for (const city of ['Ottawa','Arnprior','Carleton Place','Russell']) {
+    const candidate={...row,city,sender:getPartnershipSenderNumbersForMarket(city)[0]}
+    assert.equal(planPreparedSms([candidate],empty,'campaign-1')[0].send_ready,true)
+    const held=planPreparedSms([{...candidate,reviewReasons:['published_contact_restriction']}],empty,'campaign-1')[0]
+    assert.equal(held.send_ready,false)
+    assert.ok(held.reasons.includes('published_contact_restriction'))
+  }
+  for (const city of ['Orléans','Orleans','Vanier','Nepean']) {
     const result=planPreparedSms([{...row,city,sender:getPartnershipSenderNumbersForMarket(city)[0]}],empty,'campaign-1')[0]
     assert.ok(!result.reasons.includes('service_not_confirmed'))
     assert.ok(result.reasons.includes('market_not_active'))

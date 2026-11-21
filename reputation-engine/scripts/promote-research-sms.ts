@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
+  authenticateResearchSmsApprover,
   promoteResearchSms,
   researchSmsRows,
   verifiedMobile,
@@ -21,6 +22,7 @@ async function main() {
       campaign: { type: 'string' },
       'clear-holds': { type: 'string' },
       'approved-by': { type: 'string' },
+      'approval-session-file': { type: 'string' },
       'release-evidence': { type: 'string' },
       b2b: { type: 'boolean' },
       'review-revivals': { type: 'boolean' },
@@ -43,10 +45,14 @@ async function main() {
       'Supply --drafts, --inventory, --campaign, and either --b2b or --agents; --artifact may identify either primary input',
     )
   const items = (file: string) => JSON.parse(readFileSync(file, 'utf8')).items
+  const authenticatedApprover = v['approval-session-file']
+    ? await authenticateResearchSmsApprover(readFileSync(v['approval-session-file'], 'utf8'), v['approved-by'] || '')
+    : undefined
   const options = {
     artifactPath: resolve(drafts),
     campaignKey: v.campaign,
-    approvedBy: v['approved-by'] || '',
+    approvedBy: authenticatedApprover?.name || v['approved-by'] || '',
+    authenticatedApprover,
     clearHolds: (v['clear-holds'] || '').split(',').filter(Boolean),
     releaseEvidence: v['release-evidence'],
     execute: v.execute,

@@ -1,12 +1,17 @@
 import { createHash } from 'node:crypto'
-import { getPartnershipSenderNumbersForMarket } from '../partnership-lines'
+import { getSessionPayload } from '../auth'
+import { isTelnyxNumber } from '../telephony-providers'
 import {
+  assignPreparedSmsSenders,
   enqueuePreparedSms,
+  planPreparedSms,
+  preparedSmsMarketSenders,
   type CrmRow,
   type PreparedSms,
 } from './prepared-sms'
 import { readCompleteRest } from './read-complete-rest'
-import { normalizeMarketingPhone } from './partnership-sms'
+import { contactPhoneKey, normalizeMarketingPhone } from './partnership-sms'
+import { readEnv } from './runtime'
 
 type Route = {
   route_id?: string
@@ -18,6 +23,8 @@ type Route = {
   shared_in_research_batch?: boolean
   evidence?: { url: string; context: string }[]
   role_evidence?: string
+  scope?: string
+  has_crm_or_prior_match?: boolean
   person_name?: string
   carrier_checked_at?: string
   technical_state?: string
@@ -59,6 +66,19 @@ type Options = {
   execute?: boolean
   b2b?: boolean
   allowRevival?: boolean
+  authenticatedApprover?: { userId: string; name: string }
+  automatedTemplateVersion?: string
+}
+
+export async function authenticateResearchSmsApprover(token: string, claimedName: string) {
+  const session = await getSessionPayload(token.trim())
+  const name = session?.name?.trim()
+  const userId = session?.userId?.trim()
+  if (session?.role !== 'owner' || !userId || !name ||
+      (claimedName.trim() && claimedName.trim().toLowerCase() !== name.toLowerCase())) {
+    throw new Error('Disclosure clearance requires a matching authenticated owner session')
+  }
+  return { userId, name }
 }
 function index<T extends { id: string }>(items: T[]) {
   if (!Array.isArray(items)) throw Error('Expected an artifact items array')
@@ -94,6 +114,8 @@ export function verifiedMobile(route: Route, now = Date.now()) {
 }
 const basisHold = 'recipient_specific_release_basis_unconfirmed'
 const disclosureHold = 'approved_sms_disclosure_unverified'
+const identifiedSender = /\b(?:Saturn Star Movers|Dexa Movers)\b/i
+const unsubscribeInstruction = /\b(?:you can |you may |just )?(?:reply(?: with)?|text)\s+["'“”‘’]?(?:unsubscribe|stop|remove me|opt out)\b/i
 const revivalHolds = new Set(['copy_review', 'existing_contact_outreach_review', 'existing_sms_job', basisHold])
 const publicationRestriction = /\b(?:no (?:unsolicited|solicitation|solicitations)|do not (?:send|accept) unsolicited|not accept(?:ing)? unsolicited|no sales (?:calls|messages|solicitations)|no marketing (?:calls|emails|texts|messages))\b/i
 
@@ -147,14 +169,17 @@ export function researchSmsRows(
       )
     )
       throw Error('Identity mismatch for ' + draft.id)
-    const publicationFor = (route: Route) => {
+    const publishedNumberFor = (route: Route) => {
       const phone = normalizeMarketingPhone(route.value).slice(-10)
-      const publishedPhone = /^\d{10}$/.test(phone)
-        ? new RegExp(`(?:^|\\D)(?:\\+?1[ .-]*)?\\(?${phone.slice(0, 3)}\\)?[ .-]*${phone.slice(3, 6)}[ .-]*${phone.slice(6)}(?!\\d)`)
+      return /^\d{10}$/.test(phone)
+        ? new RegExp(`(?:^|\\D)(?:\\+?1[\\s.·–-]*)?\\(?${phone.slice(0, 3)}\\)?[\\s.·–-]*${phone.slice(3, 6)}[\\s.·–-]*${phone.slice(6)}(?!\\d)`)
         : null
+    }
+    const publicationFor = (route: Route) => {
+      const publishedPhone = publishedNumberFor(route)
       return route.evidence?.find((item) =>
         /^https?:\/\//.test(item.url) && item.context?.trim() &&
-        (options.b2b || publishedPhone?.test(item.context)) &&
+        publishedPhone?.test(item.context) &&
         record.sources?.some((source) => source.url === item.url),
       )
     }
@@ -201,16 +226,25 @@ export function researchSmsRows(
       approved_by: options.approvedBy,
       prior_sms_touch_id: priorSmsTouchId,
     } : undefined
+    const disclosureReview = !allowRevival && verified && options.authenticatedApprover &&
+      options.authenticatedApprover.name === options.approvedBy && options.clearHolds.includes(disclosureHold) &&
+      draft.holds.includes(disclosureHold) && identifiedSender.test(draft.body) &&
+      unsubscribeInstruction.test(draft.body)
+      ? {
+          approved_by_user_id: options.authenticatedApprover.userId,
+          copy_sha256: createHash('sha256').update(draft.body).digest('hex'),
+          mechanism: 'in_message_keyword_reply',
+        }
+      : undefined
     const cleared = draft.holds.filter((hold) =>
+      hold === disclosureHold ? !!disclosureReview :
       (revivalApproval && revivalHolds.has(hold)) ||
       (hold === basisHold && savedEvidence) ||
-      (hold !== disclosureHold && !(allowRevival && revivalHolds.has(hold)) && options.clearHolds.includes(hold)),
+      (!(allowRevival && revivalHolds.has(hold)) && options.clearHolds.includes(hold)),
     )
     if (cleared.includes('coordinate_single_triland_team_introduction'))
       throw Error('Select one team recipient before promotion')
-    const releaseEvidence = revivalApproval ?? (cleared.includes(basisHold) && !options.releaseEvidence?.trim()
-      ? savedEvidence
-      : options.releaseEvidence)
+    const releaseEvidence = revivalApproval ?? (options.releaseEvidence?.trim() || savedEvidence)
     if (cleared.includes(basisHold) && !releaseEvidence)
       throw Error(
         'Record supporting release evidence before clearing the basis hold',
@@ -218,6 +252,26 @@ export function researchSmsRows(
     const reasons = draft.holds.filter((h) => !cleared.includes(h))
     if (!verified) reasons.push('verify_unique_current_mobile')
     if (options.b2b && !savedEvidence && !reasons.includes(basisHold)) reasons.push(basisHold)
+    if (options.b2b && (!identifiedSender.test(draft.body) || !unsubscribeInstruction.test(draft.body))) {
+      if (!reasons.includes(disclosureHold)) reasons.push(disclosureHold)
+    }
+    if (options.b2b && route) {
+      const publishedNumber = publishedNumberFor(route)
+      const scopeLabels = route.evidence?.flatMap(item => {
+        const number = publishedNumber?.exec(item.context)
+        const suffix = number && item.context.slice(number.index + number[0].length)
+        const branch = suffix && /^\s*[-–—]\s*(\p{Lu}[\p{L}.'-]*(?: +\p{Lu}[\p{L}.'-]*){0,4})\s*$/u.exec(suffix)
+        return branch ? [normalize(branch[1])] : []
+      }) || []
+      if (scopeLabels.some(label => label !== normalize(record.city!))) reasons.push('route_branch_conflict')
+      if (route.has_crm_or_prior_match) reasons.push('saved_crm_or_prior_route_review')
+      if (route.scope && !['company', 'department', 'named_professional'].includes(route.scope)) reasons.push('channel_or_role_review')
+      if (options.automatedTemplateVersion &&
+          (record.verified_routes.filter(candidate => candidate.kind === 'phone' && candidate.technical_state === 'canadian_mobile').length !== 1 ||
+           !['company', 'department', 'named_professional'].includes(route.scope || ''))) {
+        reasons.push('primary_mobile_route_selection_required')
+      }
+    }
     if (record.sources?.some((source) => publicationRestriction.test(source.text || '')) && !reasons.includes('published_contact_restriction')) {
       reasons.push('published_contact_restriction')
     }
@@ -243,7 +297,7 @@ export function researchSmsRows(
       city,
       category: options.b2b ? record.sector! : 'Realtor',
       phone,
-      sender: getPartnershipSenderNumbersForMarket(city)[0] || '',
+      sender: '',
       body: draft.body,
       reviewReasons: reasons,
       ...(allowRevival ? { allowRevival, priorSmsTouchId, revivalReleaseVerified: !!revivalApproval } : {}),
@@ -256,12 +310,54 @@ export function researchSmsRows(
         source_url: sourceUrl,
         carrier_checked_at: route?.carrier_checked_at,
         release_evidence: releaseEvidence,
+        ...(disclosureReview ? { disclosure_review: disclosureReview } : {}),
+        ...(options.automatedTemplateVersion ? {
+          template_review: {
+            version: options.automatedTemplateVersion,
+            copy_sha256: createHash('sha256').update(draft.body).digest('hex'),
+          },
+        } : {}),
         ...(allowRevival ? { prior_sms_touch_id: priorSmsTouchId } : {}),
       },
     })
   }
-  return rows
+  return assignPreparedSmsSenders(rows)
 }
+export async function healthyPreparedSmsSenders(rows: PreparedSms[], request: typeof fetch = fetch) {
+  const senders = [...new Set(rows.flatMap(row => preparedSmsMarketSenders(row.city)))]
+  const checks = await Promise.all(senders.map(async sender => {
+    try {
+      if (isTelnyxNumber(sender)) {
+        const key = readEnv('TELNYX_API_KEY')
+        if (!key) return false
+        const query = new URLSearchParams({ 'filter[phone_number]': sender })
+        const response = await request('https://api.telnyx.com/v2/phone_numbers?' + query, {
+          headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(10000), cache: 'no-store',
+        })
+        return response.ok && (await response.json()).data?.some((line: { phone_number: string; status: string; messaging_profile_id?: string }) =>
+          line.phone_number === sender && line.status === 'active' && !!line.messaging_profile_id)
+      }
+      const sid = readEnv('TWILIO_ACCOUNT_SID')
+      const token = readEnv('TWILIO_AUTH_TOKEN')
+      if (!sid || !token) return false
+      const query = new URLSearchParams({ PhoneNumber: sender })
+      const options = { headers: { Authorization: 'Basic ' + Buffer.from(sid + ':' + token).toString('base64') },
+        signal: AbortSignal.timeout(10000), cache: 'no-store' as const }
+      const base = `https://api.twilio.com/2010-04-01/Accounts/${sid}`
+      const [account, numbers] = await Promise.all([
+        request(base + '.json', options),
+        request(base + '/IncomingPhoneNumbers.json?' + query, options),
+      ])
+      return account.ok && numbers.ok && (await account.json()).status === 'active' &&
+        (await numbers.json()).incoming_phone_numbers?.some((line: { phone_number: string; capabilities?: { sms?: boolean } }) =>
+          line.phone_number === sender && line.capabilities?.sms === true)
+    } catch {
+      return false
+    }
+  }))
+  return new Set(senders.filter((_, index) => checks[index]))
+}
+
 export async function promoteResearchSms(
   rows: PreparedSms[],
   options: Options,
@@ -276,18 +372,44 @@ export async function promoteResearchSms(
     throw Error('Invalid campaign')
   const read = (q: string) =>
     readCompleteRest<CrmRow>(db.url + '/rest/v1/' + q, db.headers)
-  const [contacts, touches, jobs] = await Promise.all([
-    read('market_contacts?select=*'),
-    read(options.allowRevival
-      ? 'market_touches?select=id,contact_id,direction,channel,created_at'
-      : 'market_touches?direction=eq.outbound&select=id,contact_id,direction'),
-    read('sequence_jobs?select=*'),
+  const [contacts, healthy] = await Promise.all([
+    read('market_contacts?select=id,phone,name,company,city,stage,decision,notes,partner_company_id,last_inbound_at,sequence_paused,do_not_contact,cross_channel_suppressed_at'),
+    healthyPreparedSmsSenders(rows),
   ])
+  const phones = new Set(rows.map(row => contactPhoneKey(row.phone)).filter(Boolean))
+  const matched = contacts.filter(contact => phones.has(contactPhoneKey(String(contact.phone || ''))))
+  const histories: Promise<[CrmRow[], CrmRow[]]>[] = []
+  for (let i = 0; i < matched.length; i += 100) {
+    const filter = '&contact_id=' + encodeURIComponent('in.(' + matched.slice(i, i + 100).map(c => c.id).join(',') + ')')
+    histories.push(Promise.all([
+      read('market_touches?select=id,contact_id,direction,channel,created_at' + filter),
+      read('sequence_jobs?channel=eq.sms&select=id,channel,status,contact_id,execution_key,sms_payload' + filter),
+    ]))
+  }
+  const history = await Promise.all(histories)
+  const touches = history.flatMap(([touches]) => touches)
+  const jobs = history.flatMap(([, jobs]) => jobs)
+  const existing = new Map(jobs.map(job => [job.execution_key, job.sms_payload as { from?: string } | null]))
+  const assigned = assignPreparedSmsSenders(rows, healthy).map(row => {
+    const identity = row.allowRevival && row.revivalReleaseVerified && row.priorSmsTouchId
+      ? 'prepared-sms-revival:' + row.priorSmsTouchId
+      : options.campaignKey + ':' + normalizeMarketingPhone(row.phone)
+    const executionKey = createHash('sha256').update(identity).digest('hex')
+    const previousSender = existing.get(executionKey)?.from
+    if (previousSender && preparedSmsMarketSenders(row.city).includes(previousSender)) return { ...row, sender: previousSender }
+    return row.sender ? row : { ...row, reviewReasons: [...(row.reviewReasons || []), 'healthy_market_sender_unavailable'] }
+  })
+  const snapshot = { contacts, touches, jobs }
+  const ready = planPreparedSms(assigned, snapshot, options.campaignKey)
+    .filter(row => row.send_ready && !row.existing_job_id)
+  const rotation = new Map(assignPreparedSmsSenders(ready, healthy).map(row => [row.phone, row.sender]))
   const input = {
-    rows,
+    rows: assigned.map(row => ({
+      ...row, sender: rotation.get(normalizeMarketingPhone(row.phone)) || row.sender,
+    })),
     campaignKey: options.campaignKey,
     name: options.campaignKey,
-    snapshot: { contacts, touches, jobs },
+    snapshot,
     promotion: true,
   }
   return enqueuePreparedSms(

@@ -1651,3 +1651,19 @@ Primary references: AWS SES sending quotas https://docs.aws.amazon.com/ses/lates
 - Quarantine is reviewable evidence, not deletion. Do not resend rejected content, rotate domains, remove a legitimate staff address, or claim Gmail reputation recovered from this event. Unknown spam still cannot be relayed in the website notification because the template contains no submitted content.
 
 <!-- email-foundation-20261027:end -->
+
+## November 21 prepared SMS release review
+
+For release review, retain a current mobile verification for the selected number, evidence of its publication, and the business role that makes the introduction relevant. A first introduction can rely on an applicable documented basis independent of a prior relationship. Check the saved source for restrictions on unsolicited messages and apply the market policy for cold introductions. Treat saved inbound opt-out replies as suppressions, including older notes prefixed with `Inbound SMS:`.
+
+For commercial SMS covered by CASL, make sender identification and the unsubscribe mechanism clear to the recipient in the delivered message. The CRTC also describes when a clearly presented link can provide this information. [CRTC guidance](https://crtc.gc.ca/eng/com500/faq500.htm)
+
+For prepared introductions, an authenticated CRM owner can use `--clear-holds approved_sms_disclosure_unverified` with `--approval-session-file` after reviewing the exact copy. The promoter can clear that hold when the copy already identifies the business and tells recipients how to use a supported reply keyword. The receipt records the owner user ID and the hash of the reviewed copy. The promoter preserves the draft verbatim. A typed approver name or carrier verification alone does not clear the disclosure hold.
+
+## November 21 geography SMS preparation
+
+Railway uses the versioned [geography SMS templates](../scripts/market_map/geo_sms_templates.json) after carrier checks. Each mapped sector has a moving use case and a stable selection from four openers and four closers. Sensitive sectors and roles go to channel or role review. Unmapped sectors go to copy review. Generated introductions identify the market’s business and say “You can reply unsubscribe anytime.” Existing drafts under disclosure review still use the authenticated owner clearance described above.
+
+Ottawa, Arnprior, Carleton Place and Russell are eligible for cold SMS using the Dexa line, subject to the same recipient and source checks as other markets. North Dundas, North Grenville and Mississippi Mills remain outside the cold-SMS policy. The worker preserves branch ambiguity, prior CRM routes and multiple mobile candidates for review. Promotion checks the provider’s active SMS numbers and rotates healthy lines within the market. Existing jobs retain their original sender.
+
+The daily handoff uses the authenticated internal geography endpoint. The server reconstructs the exact versioned copy, checks the current CRM and evidence through the prepared-SMS planner, and records the template and copy hash in the promotion receipt. Automatic queueing requires both SMS execution and geography promotion to be enabled, plus the Railway first eligible date. Use preview mode to check a batch against live CRM and sender health without creating jobs.

@@ -3,8 +3,9 @@ import { isTelnyxNumber, isSmsProviderReceipt } from '../telephony-providers'
 import { createHash } from 'node:crypto'
 import { reserveAction } from '../partnership-core/reserve.mjs'
 import { validateOutboundMessage } from './saturn-send-gate'
-import { smsContactSuppressed, type CrmRow } from './prepared-sms'
+import { preparedSmsMarketSenders, smsContactSuppressed, type CrmRow } from './prepared-sms'
 import { getPartnershipSenderNumbersForMarket, getPartnershipMessagingServiceSidForNumber } from '../partnership-lines'
+import { isOttawa } from '../partnership-core/ottawa.mjs'
 export class PreparedSmsProviderError extends Error {
   constructor(public status: number, public providerBody: string) { super(`Twilio: ${providerBody}`) }
 }
@@ -53,7 +54,9 @@ export async function executePreparedSmsJob(input: {
     if (payload.dispatch_started_at) throw new PreparedSmsReconciliationRequired('outcome_unknown')
     if (smsContactSuppressed(contact) || contact.sequence_paused) throw new Error('Recipient suppressed or paused')
     if (contact.phone !== payload.to || contact.city !== payload.city) throw new Error('Prepared recipient context changed')
-    if (!getPartnershipSenderNumbersForMarket(payload.city).includes(payload.from)) throw new Error('Prepared sender market mismatch')
+    const legacyMarketSender = !payload.campaign_key?.startsWith('geo-b2b-daily-') && !isOttawa(payload.city) &&
+      getPartnershipSenderNumbersForMarket(payload.city, { includeSecondary: true }).includes(payload.from)
+    if (!preparedSmsMarketSenders(payload.city).includes(payload.from) && !legacyMarketSender) throw new Error('Prepared sender market mismatch')
     if (!telnyx && (!input.accountSid || !input.authToken)) throw new Error('Missing Twilio credentials')
     input.beforeSend?.()
     const allowRevival = payload.allowRevival ?? payload.allow_revival ??

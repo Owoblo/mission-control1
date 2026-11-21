@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import { normalizeMarketingPhone, contactPhoneKey, buildPartnershipSmsSchedule, isOptOutText } from './partnership-sms'
 import { validateOutboundMessage } from './saturn-send-gate'
-import { getPartnershipSenderNumbersForMarket } from '../partnership-lines'
+import { getPartnershipSenderNumbersForMarket, normalizePartnershipCityKey, PARTNERSHIP_LINES } from '../partnership-lines'
+import { findPartnerBusinessCard } from '../partner-business-cards'
 import { activeLocations, serviceLocations } from '../partnership-core/markets.mjs'
-import { isOttawa } from '../partnership-core/ottawa.mjs'
+import { isOttawa, ottawaActionAllowed } from '../partnership-core/ottawa.mjs'
 
 export type PreparedSms = {
   phone: string; company: string; contactName?: string; city: string; category: string
@@ -13,6 +14,31 @@ export type PreparedSms = {
 export type CrmRow = Record<string, unknown> & { id: string }
 export type SmsSnapshot = { contacts: CrmRow[]; touches: CrmRow[]; jobs: CrmRow[] }
 const key = (s: unknown) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+const marketKey = (city: string) => key(city.normalize('NFKD'))
+export function preparedSmsMarketSenders(city: string) {
+  const cityKey = normalizePartnershipCityKey(city)
+  if (isOttawa(city)) return getPartnershipSenderNumbersForMarket('ottawa', { includeSecondary: true })
+    .filter(sender => ottawaActionAllowed({ city, kind: 'cold_introduction', channel: 'sms', sender }))
+  const lines = PARTNERSHIP_LINES.filter(line => line.market === cityKey ||
+    line.cityKeys.some(locality => normalizePartnershipCityKey(locality) === cityKey))
+  if (lines.length) return lines.map(line => line.number)
+  const hub = findPartnerBusinessCard(city)?.hub
+  if (!hub) return []
+  const hubKey = normalizePartnershipCityKey(hub)
+  return PARTNERSHIP_LINES.filter(line => line.market === hubKey ||
+    line.cityKeys.some(locality => normalizePartnershipCityKey(locality) === hubKey)).map(line => line.number)
+}
+
+export function assignPreparedSmsSenders<T extends PreparedSms>(rows: T[], healthy?: ReadonlySet<string>) {
+  const assignments = new Map<string, number>()
+  return rows.map(row => {
+    const pool = preparedSmsMarketSenders(row.city).filter(sender => !healthy || healthy.has(sender))
+    const poolKey = pool.join(',')
+    const next = assignments.get(poolKey) ?? 0
+    if (pool.length && !row.reviewReasons?.length) assignments.set(poolKey, next + 1)
+    return { ...row, sender: pool[next % pool.length] || '' }
+  })
+}
 // Same Canadian area-code policy as the existing Canadian import path. Not a line-type assertion.
 const canadian = new Set('204 226 236 249 250 257 263 289 306 343 354 365 367 368 382 387 403 416 418 428 431 437 438 450 468 474 506 514 519 548 579 581 584 587 604 613 639 647 672 683 705 709 742 753 778 780 782 807 819 825 867 873 879 902 905 942'.split(' '))
 export function smsContactSuppressed(c: Record<string, unknown>) {
@@ -25,10 +51,29 @@ export function hasQuietSmsHistory(touches: CrmRow[], priorSmsTouchId: string | 
   return now - priorTime >= 45 * 86400000 &&
     touches.every(t => t.id === prior.id || (t.direction !== 'inbound' && Date.parse(String(t.created_at)) < priorTime))
 }
+const person = (name: unknown) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ')
+const agentIdentity = (name: unknown, company: unknown) => JSON.stringify([person(name), person(company)])
+function indexCrmRows(rows: CrmRow[], keys: (row: CrmRow) => string[]) {
+  const index = new Map<string, CrmRow[]>()
+  for (const row of rows) {
+    for (const key of new Set(keys(row))) {
+      const group = index.get(key)
+      if (group) group.push(row)
+      else index.set(key, [row])
+    }
+  }
+  return index
+}
 export function planPreparedSms(rows: PreparedSms[], snapshot: SmsSnapshot, campaignKey: string, now = Date.now()) {
   const seen = new Set<string>()
   const seenNames = new Set<string>()
   const seenAgents = new Set<string>()
+  const contactsByPhone = indexCrmRows(snapshot.contacts, row => [contactPhoneKey(String(row.phone || ''))])
+  const contactsByName = indexCrmRows(snapshot.contacts, row => [key(row.name), key(row.company)])
+  const contactsByAgent = indexCrmRows(snapshot.contacts, row => [agentIdentity(row.name, row.company)])
+  const touchesByContact = indexCrmRows(snapshot.touches, row => [String(row.contact_id)])
+  const jobsByContact = indexCrmRows(snapshot.jobs.filter(job => job.channel === 'sms'), row => [String(row.contact_id)])
+  const jobsByExecution = new Map(snapshot.jobs.map(job => [job.execution_key, job]))
   return rows.map(input => {
     const row = { ...input, phone: normalizeMarketingPhone(input.phone) }
     const reasons = [...(input.reviewReasons || [])]
@@ -37,28 +82,31 @@ export function planPreparedSms(rows: PreparedSms[], snapshot: SmsSnapshot, camp
     if (!canadian.has(row.phone.slice(2,5))) reasons.push('non_canadian_or_unknown')
     if (!row.company.trim()) reasons.push('missing_identity')
     if (!row.category.trim()) reasons.push('missing_category')
-    if (!activeLocations.some((c: string) => key(c) === key(row.city))) reasons.push('market_not_active')
-    if (!isOttawa(row.city) && !serviceLocations.some((c: string) => key(c) === key(row.city))) reasons.push('service_not_confirmed')
-    if (!getPartnershipSenderNumbersForMarket(row.city).includes(row.sender)) reasons.push('sender_market_mismatch')
+    const ottawaMarket = isOttawa(row.city)
+    const marketActive = ottawaMarket
+      ? ottawaActionAllowed({ city: row.city, kind: 'cold_introduction', channel: 'sms', sender: row.sender })
+      : activeLocations.some((c: string) => marketKey(c) === marketKey(row.city))
+    if (!marketActive) reasons.push('market_not_active')
+    if (!ottawaMarket && !serviceLocations.some((c: string) => marketKey(c) === marketKey(row.city))) reasons.push('service_not_confirmed')
+    if (!preparedSmsMarketSenders(row.city).includes(row.sender)) reasons.push('sender_market_mismatch')
     if (seen.has(row.phone)) reasons.push('duplicate_in_manifest')
     seen.add(row.phone)
     const agent = !!row.contactName?.trim() && ['realtor', 'realestateagent', 'realestate'].includes(key(row.category))
-    const person = (name: unknown) => String(name || '').trim().toLowerCase().replace(/\s+/g, ' ')
-    const agentKey = JSON.stringify([person(row.contactName), person(row.company)])
+    const agentKey = agentIdentity(row.contactName, row.company)
     if (agent && seenAgents.has(agentKey)) reasons.push('duplicate_agent_in_manifest')
     if (agent) seenAgents.add(agentKey)
     if (!agent && seenNames.has(key(row.company))) reasons.push('duplicate_business_in_manifest')
     if (!agent && row.company) seenNames.add(key(row.company))
-    const matched = snapshot.contacts.filter(c => contactPhoneKey(String(c.phone || '')) === contactPhoneKey(row.phone))
-    const names = row.company.trim() ? snapshot.contacts.filter(c => key(c.name) === key(row.company) || key(c.company) === key(row.company)) : []
+    const phoneKey = contactPhoneKey(row.phone)
+    const matched = contactsByPhone.get(phoneKey) || []
+    const names = row.company.trim() ? contactsByName.get(key(row.company)) : undefined
     if (matched.length > 1) reasons.push('crm_identity_ambiguous')
-    if (agent && matched.some(c => person(c.name) !== person(row.contactName) || person(c.company) !== person(row.company))) reasons.push('agent_identity_conflict')
-    if (agent && snapshot.contacts.some(c => person(c.name) === person(row.contactName) && person(c.company) === person(row.company) && contactPhoneKey(String(c.phone || '')) !== contactPhoneKey(row.phone))) reasons.push('agent_phone_requires_identity_review')
-    if (!agent && !matched.length && names.length) reasons.push('existing_name_requires_identity_review')
+    if (agent && matched.some(c => agentIdentity(c.name, c.company) !== agentKey)) reasons.push('agent_identity_conflict')
+    if (agent && contactsByAgent.get(agentKey)?.some(c => contactPhoneKey(String(c.phone || '')) !== phoneKey)) reasons.push('agent_phone_requires_identity_review')
+    if (!agent && !matched.length && names?.length) reasons.push('existing_name_requires_identity_review')
     if (matched.some(smsContactSuppressed)) reasons.push('recipient_suppressed')
     if (matched.some(c => c.sequence_paused)) reasons.push('sequence_paused')
-    const ids = new Set(matched.map(c => c.id))
-    const touches = snapshot.touches.filter(t => ids.has(String(t.contact_id)))
+    const touches = matched.flatMap(c => touchesByContact.get(c.id) || [])
     const priorOutreach = touches.some(t => t.direction === 'outbound')
     const revival = row.allowRevival === true && row.revivalReleaseVerified === true &&
       agent && matched.length === 1 && hasQuietSmsHistory(touches, row.priorSmsTouchId, now)
@@ -69,8 +117,8 @@ export function planPreparedSms(rows: PreparedSms[], snapshot: SmsSnapshot, camp
     if (matched.some(c => key(c.city) !== key(row.city))) reasons.push('crm_location_conflict')
     const identity = revival ? `prepared-sms-revival:${row.priorSmsTouchId}` : `${campaignKey}:${row.phone}`
     const executionKey = createHash('sha256').update(identity).digest('hex')
-    const existingJob = snapshot.jobs.find(j => j.execution_key === executionKey)
-    const otherSmsJobs = snapshot.jobs.filter(j => ids.has(String(j.contact_id)) && j.channel === 'sms' && j.execution_key !== executionKey)
+    const existingJob = jobsByExecution.get(executionKey)
+    const otherSmsJobs = matched.flatMap(c => jobsByContact.get(c.id) || []).filter(j => j.execution_key !== executionKey)
     const activeSmsJob = otherSmsJobs.some(j => ['pending', 'running', 'processing', 'queued_manual'].includes(String(j.status)))
     const priorSentSmsJob = otherSmsJobs.some(j => j.status === 'sent')
     if (activeSmsJob || (priorSentSmsJob && !revival)) {
