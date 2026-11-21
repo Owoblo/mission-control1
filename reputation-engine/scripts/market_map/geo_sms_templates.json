@@ -1,0 +1,76 @@
+{
+  "version": "geo_b2b_intro_v1",
+  "openers": [
+    "Hi {name} team, John here with {brand}. We help businesses in {city} with local moves.",
+    "Hi {name} team, I’m John with {brand}, serving {city} and nearby.",
+    "Hey {name} team, this is John from {brand}. Our moving crew works in and around {city}.",
+    "Hi {name} team, John from {brand} here. I wanted to introduce our moving crew in {city}."
+  ],
+  "closers": [
+    "Would a digital card be handy?",
+    "Could I send you our digital card to keep on hand?",
+    "Would you like our card in case a move comes up?",
+    "Happy to send our digital card if that would help."
+  ],
+  "unsubscribe": "",
+  "review": [
+    "adult_entertainment_venue child_care_and_day_care child_protection_service community_and_government government_agencies homeless_shelter hospital housing_authority town_hall funeral_service court_reporter",
+    "animal_rescue_service animal_shelter counseling family_counseling marriage_or_relationship_counseling psychotherapy disability_services_and_support_organization social_or_community_service senior_citizen_service youth_organization nonprofit_community environmental_conservation_organization retirement_home nursing rehabilitation_center",
+    "anglican_or_episcopal_place_of_worship christian_place_of_worship hindu_place_of_worship muslim_place_of_worship pentecostal_place_of_worship religious_organization historic_mission historic_site",
+    "cannabis_clinic cannabis_dispensary smoke_and_vape_store chemical_plant shooting_range utilities_infrastructure playground school elementary_school preschool private_school education education_research educational_research_institute real_estate_agent"
+  ],
+  "families": {
+    "commercial": {
+      "sectors": [
+        "accountant architect commercial_industrial corporate_or_business_office professional_offices professional_service b2b_advertising_and_marketing_service marketing_agency social_media_agency software_development computer_hardware_company computer_coaching technology_telecom telecommunications_company television_service_provider",
+        "biotechnology_company jewelry_manufacturer manufacturing industrial_company electronic_equipment_supplier freight_and_cargo_service wholesale_distribution wholesaler product_design bearing_supplier pipe_supplier",
+        "criminal_defense_law employment_law estate_planning_law immigration_law legal_service real_estate_law private_investigation mediator trusts currency_exchange debt_relief_service finance_insurance financial_advising insurance_agency employment_agency environmental_testing_service land_surveying travel_agent taxi_service",
+        "digitizing_service print_media music_production record_label movie_television_studio theatrical_production arts_culture_events_media"
+      ],
+      "use_case": "If you ever need a hand moving office furniture, fixtures or boxed equipment, we’d be happy to help."
+    },
+    "trades": {
+      "sectors": [
+        "air_duct_cleaning_service b2b_equipment_maintenance_and_repair builder building_or_construction_service carpenter construction_fitout countertop_installation deck_and_railing_sales_service drywall_service electrician excavation_service fence_and_gate_sales_service flooring_contractor garage_door_service glass_and_mirror_sales_service granite_supplier",
+        "home_automation home_developer home_service hvac_service irrigation_service key_and_locksmith kitchen_remodeling landscaping laser_cutting_service lawn_service machine_shop painting plumbing pool_cleaning roofing sandblasting_service security_systems septic_service stone_and_masonry stone_supplier stucco_service tree_service",
+        "industrial_cleaning_service carpet_cleaning cleaning_service home_cleaning chimney_sweep garbage_collection_service boat_service auto_security auto_body_shop auto_detailing automotive_repair car_wash motorcycle_repair tire_dealer_and_repair towing_service firewood farm"
+      ],
+      "use_case": "If a shop move, renovation or delivery of bulky supplies ever comes up, we can help with the move."
+    },
+    "retail": {
+      "sectors": [
+        "retail_franchises building_supply_store business_office_supplies_and_stationery camera_and_photography_store bike_store computer_store electronics_store mobile_phone_repair childrens_clothing_store fashion_boutique second_hand_clothing_store sewing_and_alterations shoe_repair tailor womens_clothing_store cosmetics_and_fragrance_store",
+        "carpet_store car_stereo_store used_auto_dealer motorcycle_dealer motorsports_store trailer_dealer office_supply_store outdoor_store nursery_and_gardening_store sportswear_store auction_house gift_shop florist flowers_and_gifts_store gold_buyer jewelry_store pet_store home_improvement_store",
+        "barber beauty_salon dry_cleaning hair_replacement hair_salon laser_hair_removal laundromat laundry_service nail_salon personal_or_beauty_service piercing skin_care_and_makeup spa day_spa sugaring tanning_salon tattoo_and_piercing waxing"
+      ],
+      "use_case": "If you ever need help moving stock, displays or shop fixtures, we’d be glad to lend a hand."
+    },
+    "clinic": {
+      "sectors": [
+        "audiology b2b_surgical_appliances_and_supplies chiropractic cosmetic_dentistry dental_clinic dermatology diagnostic_imaging family_practice general_dentistry healthcare massage_therapy medical_spa nutrition_service optometry orthodontics osteopathic_medicine pain_management pathology periodontics physical_therapy plastic_and_reconstructive_surgery podiatry prenatal_and_perinatal_care prosthodontics sleep_medicine teeth_whitening veterinarian"
+      ],
+      "use_case": "If you’re ever moving a clinic or rearranging an office, we can help with furniture and boxed supplies."
+    },
+    "food": {
+      "sectors": [
+        "agriculture_food bakery bar_and_grill_restaurant breakfast_and_brunch_restaurant brewery buffet_restaurant burger_restaurant butcher_shop candy_store caterer chicken_restaurant chinese_restaurant delicatessen diner filipino_restaurant farmers_market fast_food_restaurant fish_and_chips_restaurant food_and_beverage_store food_delivery_service",
+        "hungarian_restaurant ice_cream_shop indian_restaurant italian_restaurant japanese_restaurant kosher_restaurant mediterranean_restaurant pakistani_restaurant pan_asian_restaurant peruvian_restaurant pizza_restaurant ramen_restaurant sandwich_shop seafood_market specialty_foods_store smoothie_juice_bar sushi_restaurant taiwanese_restaurant tea_room thai_restaurant winery"
+      ],
+      "use_case": "If you’re ever moving to a new space or shifting counters, shelving or boxed supplies, we can help."
+    },
+    "fixtures": {
+      "sectors": [
+        "cabinet_sales_service furniture_assembly furniture_reupholstery lighting_store shades_and_blinds sign_making printing_service t_shirt_printing_service"
+      ],
+      "use_case": "If you ever need a hand with bulky orders or moving showroom displays, we’d be happy to help."
+    },
+    "facility": {
+      "sectors": [
+        "property_management storage_facility community_center hospitality lodging campground marina rv_park aviation_museum history_museum art_gallery art_school audiovisual_equipment_rental boat_charter bowling_alley hockey_arena ice_skating_rink indoor_playcenter laser_tag pool_billiards race_track",
+        "boot_camp boxing_class dance_club dance_studio driving_range fitness_trainer golf_course gym gymnastics_center kiteboarding martial_arts_club meditation_center pilates_studio rock_climbing_spot sport_equipment_rental sport_league sports sports_and_recreation yoga_studio",
+        "animal_or_pet_service dog_trainer dog_walker pet_boarding pet_breeder pet_groomer driving_school cosmetology_school first_aid_class language_school vocational_and_technical_school"
+      ],
+      "use_case": "If you ever need help moving furniture or supplies between sites or setting up a space, we’d be glad to help."
+    }
+  }
+}
