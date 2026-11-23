@@ -279,7 +279,7 @@ def geographic_coverage_notices(out, day):
     yield from split_review_notice(day, 'Scheduler', 'geography-coverage', metrics, rows)
 
 
-def relationship_backlog_notices(out, state, now, db):
+def relationship_backlog_notices(out, state, now, db, *, advocacy=False):
     local = now.astimezone(TORONTO)
     if local.hour < 8:
         return
@@ -307,7 +307,26 @@ def relationship_backlog_notices(out, state, now, db):
                'Cases for owner review': len(stats['review']), **stats['counts'],
                'How to clear a case': 'Open the CRM thread and record the real outcome in a linked task. '
                                       'Completed tasks need an outcome note. Book visits only after confirming who can attend.'}
-    return complete, list(split_review_notice(day, 'Scheduler', 'relationship-backlog', metrics, stats['review']))
+    review = stats['review']
+    if advocacy:
+        scorecard = out/f'partnership-advocacy-{day}.json'
+        if not scorecard.exists():
+            if __package__:
+                from .partnership_advocacy import scan as scan_advocacy
+            else:
+                from partnership_advocacy import scan as scan_advocacy
+            foundation = read(out/'physical-foundation.json', {})
+            save(scorecard,scan_advocacy(db,[r['municipality'] for r in foundation.get('municipalities', [])]))
+        advocates = read(scorecard)
+        metrics.update({f'Advocacy · {name}':count for name,count in advocates['states'].items()})
+        metrics['Realtor advocate target'] = '100 per city. B2B advocates are tracked separately.'
+        advocate_rows = [review_row(row['name'],row['city'],row['state'],
+                         [f"{row['workflow']}; {row['completed_jobs']} completed referral job(s)",
+                          f"Permission recorded: {', '.join(row['permissions']) or 'none'}",
+                          'Verify the specific job and both parties’ feedback'],row['contact_id'])
+                         for row in advocates['partners'] if row['completed_jobs']]
+        review = [*review, *advocate_rows]
+    return complete, list(split_review_notice(day, 'Scheduler', 'relationship-backlog', metrics, review))
 
 
 def ensure_daily_site_reconciliation(out, root, now):
@@ -584,7 +603,7 @@ def tick(out, state, now, db, sender=post, root=ROOT):
     push_notices(state, warnings, now, sender)
     if settings.get('relationship_backlog') is True and day in days:
         try:
-            backlog = relationship_backlog_notices(out, state, now, db)
+            backlog = relationship_backlog_notices(out, state, now, db, advocacy=settings.get('advocacy_tracking') is True)
             if backlog:
                 complete, parts = backlog
                 push_notices(state, parts, now, sender)
