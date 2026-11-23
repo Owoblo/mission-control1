@@ -43,7 +43,15 @@ class PhysicalCoverageTests(unittest.TestCase):
                 {'municipality_id': 'city-a', 'stock_state': 'empty', 'selected_candidates': 0}],
                 'municipalities_with_candidates': 0, 'empty_municipalities': ['Fixture']})
             reports.save(folder/'report.json', {'city_category': []})
+            nar = out/'gis-address-foundation-202606'
+            nar.mkdir()
+            reports.save(nar/'status.json', {
+                'members_verified': 1, 'expected_ontario_members': 7, 'state': 'collecting_ontario_address_members',
+                'coverage_basis': 'publisher-name candidate',
+                'by_municipality_id': {'city-a': {'addresses': 20, 'addresses_with_recorded_unit': 12}},
+            })
             [report] = reports.geographic_coverage_notices(out, day)
             self.assertEqual(report['review'][0]['state'], 'empty')
             self.assertIn('Occupants and suite coverage unverified', report['review'][0]['reasons'])
             self.assertIn('no domain 4', report['review'][0]['reasons'])
+            self.assertIn('StatCan candidate addresses 20, with unit 12', report['review'][0]['reasons'])

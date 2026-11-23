@@ -197,6 +197,8 @@ def geographic_coverage_notices(out, day):
     if not report:
         return
     stock = {row['municipality_id']: row for row in coverage['municipalities']}
+    address_source = read(out/'gis-address-foundation-202606'/'status.json', {})
+    observed_addresses = address_source.get('by_municipality_id', {})
     screened = Counter()
     for row in report.get('city_category', []):
         screened[row['city']] += sum(row['states'].values())
@@ -216,7 +218,10 @@ def geographic_coverage_notices(out, day):
         }
         scope = ', '.join(layer + ' ' + short.get(state, state) for layer, state in layer_states.items())
         mapped = city.get('saved_map', {})
-        reasons = f"{scope}. Occupants and suite coverage unverified. Mapped locations {mapped.get('saved_locations', 'unknown')}, recorded units {mapped.get('with_recorded_unit', 'unknown')}, no domain {mapped.get('without_primary_domain', 'unknown')}. Selected {intake.get('selected_candidates', 'unknown')}, screened {screened[city['municipality']]}."
+        imported = observed_addresses.get(city['municipality_id'])
+        address_count = (f"StatCan candidate addresses {imported['addresses']}, with unit {imported['addresses_with_recorded_unit']}. "
+                         if imported else '')
+        reasons = f"{address_count}{scope}. Occupants and suite coverage unverified. Mapped locations {mapped.get('saved_locations', 'unknown')}, recorded units {mapped.get('with_recorded_unit', 'unknown')}, no domain {mapped.get('without_primary_domain', 'unknown')}. Selected {intake.get('selected_candidates', 'unknown')}, screened {screened[city['municipality']]}."
         rows.append({
             'name': city['municipality'], 'city': city['municipality'], 'state': intake.get('stock_state', 'stock receipt missing'),
             'reasons': reasons[:500], 'crmUrl': '',
@@ -232,6 +237,15 @@ def geographic_coverage_notices(out, day):
         'Physical evidence ledger generated at': foundation['generated_at'],
         'Remaining work': 'Verify zoning, buildings, parcels, civic addresses and published occupants at the property and suite level.',
     }
+    if address_source:
+        metrics['Ontario address source progress'] = (
+            f"{address_source['members_verified']}/{address_source['expected_ontario_members']} ZIP members verified "
+            f"· {address_source['state']}"
+        )
+        metrics['Municipalities with StatCan address candidates'] = len(observed_addresses)
+        metrics['StatCan address matching basis'] = address_source['coverage_basis']
+        if address_source.get('issue'):
+            metrics['Ontario address collection issue'] = address_source['issue']
     yield from split_review_notice(day, 'Scheduler', 'geography-coverage', metrics, rows)
 
 
