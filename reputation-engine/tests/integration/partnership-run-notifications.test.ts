@@ -1,21 +1,34 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { SESv2Client, type SendEmailCommand } from '@aws-sdk/client-sesv2'
 import { deliverPartnershipRunNotice } from '../../lib/server/partnership-run-notifications'
 
-test('run reports authenticate, preview without mail and send one stable owner-only payload', async t => {
-  const original = { secret: process.env.WORKER_SHARED_SECRET, key: process.env.RESEND_API_KEY }
-  process.env.WORKER_SHARED_SECRET = 'test-worker-secret'
-  process.env.RESEND_API_KEY = 'not-a-real-key'
+test('run reports authenticate, preview and send once to the owner with the review list', async t => {
+  const env = { WORKER_SHARED_SECRET: 'test-worker-secret', SES_PRODUCTION_ACCESS_CONFIRMED: 'true',
+    AWS_ACCESS_KEY_ID: 'fixture-key', AWS_SECRET_ACCESS_KEY: 'fixture-secret',
+    SUPABASE_URL: 'https://database.example.test', SUPABASE_KEY: 'fixture-db' }
+  const saved = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]))
+  Object.assign(process.env, env)
   t.after(() => {
-    if (original.secret === undefined) delete process.env.WORKER_SHARED_SECRET
-    else process.env.WORKER_SHARED_SECRET = original.secret
-    if (original.key === undefined) delete process.env.RESEND_API_KEY
-    else process.env.RESEND_API_KEY = original.key
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
   })
-  const calls: Array<{ key: string | null; body: Record<string, unknown> }> = []
+  let record: Record<string, unknown> | undefined
+  let dbCalls = 0
   t.mock.method(globalThis, 'fetch', async (_url: URL | Request | string, init?: RequestInit) => {
-    calls.push({ key: new Headers(init?.headers).get('Idempotency-Key'), body: JSON.parse(String(init?.body)) })
-    return Response.json({ id: 'fixture' })
+    dbCalls++
+    if (init?.method === 'POST' || init?.method === 'PATCH') {
+      record = { ...record, ...JSON.parse(String(init.body)) }
+    }
+    return Response.json(record ? [record] : [])
+  })
+  const sends: Array<SendEmailCommand['input']> = []
+  t.mock.method(SESv2Client.prototype, 'send', async (command: SendEmailCommand) => {
+    assert.equal(record?.state, 'reserved')
+    sends.push(command.input)
+    return { MessageId: 'fixture-acceptance' }
   })
   const payload = { day: '2026-11-23', id: '2026-11-23:geo:run', lane: 'B2B', kind: 'run',
     metrics: [['scheduled', '3']], to: ['someone@example.test'],
@@ -28,13 +41,17 @@ test('run reports authenticate, preview without mail and send one stable owner-o
   assert.equal((await deliverPartnershipRunNotice(make({ ...payload, review: [null] }))).status, 400)
   const preview = await deliverPartnershipRunNotice(make({ ...payload, dryRun: true }))
   assert.equal((await preview.json()).reviewCount, 1)
-  assert.equal(calls.length, 0)
+  assert.equal(dbCalls, 0)
+  assert.equal(sends.length, 0)
   for (let i = 0; i < 2; i++) {
-    const sent = await deliverPartnershipRunNotice(make(payload))
-    assert.equal((await sent.json()).providerId, 'fixture')
+    const result = await deliverPartnershipRunNotice(make(payload))
+    assert.equal((await result.json()).providerId, 'fixture-acceptance')
   }
-  assert.deepEqual(calls[0], calls[1])
-  assert.deepEqual(calls[0].body.to, ['johnowolabi80@gmail.com'])
-  const [attachment] = calls[0].body.attachments as Array<{ content: string }>
-  assert.match(Buffer.from(attachment.content, 'base64').toString(), /'=bad formula/)
+  assert.equal(sends.length, 1)
+  assert.deepEqual(sends[0].Destination?.ToAddresses, ['johnowolabi80@gmail.com'])
+  const fixture = sends[0].Content?.Simple?.Attachments?.[0]
+  assert.match(Buffer.from(fixture?.RawContent || []).toString(), /'=bad formula/)
+  if (record) record.state = 'reserved'
+  assert.equal((await deliverPartnershipRunNotice(make(payload))).status, 409)
+  assert.equal(sends.length, 1)
 })

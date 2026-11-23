@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { getWorkerSharedSecret, readEnv } from './runtime'
+import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2'
+import { getWorkerSharedSecret, readEnv, requireSupabaseEnv } from './runtime'
 import { secretsEqual } from './security'
 
 const recipient = 'johnowolabi80@gmail.com'
@@ -54,27 +55,64 @@ export async function deliverPartnershipRunNotice(request: Request) {
     '', 'CRM: https://go.quote2move.com/marketing/partners',
   ].join('\n')
   if (payload.dryRun === true) return Response.json({ state: 'preview', subject, reviewCount: review.length })
-  const key = readEnv('RESEND_API_KEY')
-  if (!key) return Response.json({ error: 'Notification transport unavailable' }, { status: 503 })
+  if (readEnv('SES_PRODUCTION_ACCESS_CONFIRMED').toLowerCase() !== 'true' ||
+      !readEnv('AWS_ACCESS_KEY_ID') || !readEnv('AWS_SECRET_ACCESS_KEY')) {
+    return Response.json({ error: 'Notification transport unavailable' }, { status: 503 })
+  }
   const csv = [reviewColumns.join(','), ...review.map(row => reviewColumns.map(k => csvCell(row[k])).join(','))].join('\r\n')
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(20000),
-      headers: {
-        Authorization: `Bearer ${key}`, 'Content-Type': 'application/json',
-        'Idempotency-Key': `partnership-run-${createHash('sha256').update(id).digest('hex')}`,
-      },
+    const { url, headers } = requireSupabaseEnv()
+    const hash = createHash('sha256').update(id).digest('hex')
+    const recordId = 'run-notice:' + hash
+    const endpoint = url + '/rest/v1/partnership_daily_briefs'
+    const byId = endpoint + '?' + new URLSearchParams({ id: 'eq.' + recordId })
+    const get = await fetch(byId + '&select=state,provider_message_id', { headers, cache: 'no-store' })
+    if (!get.ok) throw new Error('Could not read report reservation')
+    const [existing] = await get.json()
+    if (existing) {
+      return existing.state === 'accepted' && existing.provider_message_id
+        ? Response.json({ state: 'accepted', providerId: existing.provider_message_id })
+        : Response.json({ state: 'reconcile_before_retry' }, { status: 409 })
+    }
+    const claim = await fetch(endpoint + '?on_conflict=id', {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'resolution=ignore-duplicates,return=representation' },
       body: JSON.stringify({
-        from: 'Saturn Star OS <notifications@starmovers.ca>', to: [recipient], subject, text,
-        ...(review.length ? { attachments: [{ filename: 'batch-review.csv', content: Buffer.from(csv).toString('base64') }] } : {}),
+        id: recordId, market: recordId, report_date: day, recipient, state: 'reserved',
+        subject, body: text, counts: { review: review.length },
       }),
     })
-    const result = await response.json()
-    if (response.ok && typeof result.id === 'string' && result.id) {
-      return Response.json({ state: 'accepted', providerId: result.id })
-    }
-    return Response.json({ state: 'unconfirmed', providerStatus: response.status }, { status: 503 })
-  } catch {
+    if (!claim.ok) throw new Error('Could not reserve report')
+    if (!(await claim.json()).length) return Response.json({ state: 'reconcile_before_retry' }, { status: 409 })
+    const client = new SESv2Client({
+      region: readEnv('AWS_REGION') || 'us-east-2',
+      maxAttempts: 1,
+      credentials: { accessKeyId: readEnv('AWS_ACCESS_KEY_ID'), secretAccessKey: readEnv('AWS_SECRET_ACCESS_KEY') },
+    })
+    const result = await client.send(new SendEmailCommand({
+      FromEmailAddress: 'Saturn Star OS <john@saturnstarmovers.ca>',
+      Destination: { ToAddresses: [recipient] },
+      ReplyToAddresses: ['business@starmovers.ca'],
+      EmailTags: [{ Name: 'purpose', Value: 'partnership_run_notice' }, { Name: 'run_key', Value: hash }],
+      ConfigurationSetName: readEnv('AWS_SES_DELIVERABILITY_CONFIGURATION_SET') || undefined,
+      Content: { Simple: {
+        Subject: { Data: subject, Charset: 'UTF-8' },
+        Body: { Text: { Data: text, Charset: 'UTF-8' } },
+        Attachments: review.length ? [{
+          FileName: 'batch-review.csv', ContentType: 'text/csv',
+          ContentDisposition: 'ATTACHMENT', RawContent: Buffer.from(csv),
+        }] : undefined,
+      } },
+    }), { abortSignal: AbortSignal.timeout(15000) })
+    if (!result.MessageId) throw new Error('Provider did not confirm acceptance')
+    const saved = await fetch(byId, {
+      method: 'PATCH', headers: { ...headers, Prefer: 'return=representation' },
+      body: JSON.stringify({ state: 'accepted', provider_message_id: result.MessageId, accepted_at: new Date().toISOString() }),
+    })
+    if (!saved.ok || !(await saved.json()).length) throw new Error('Could not save provider acceptance')
+    return Response.json({ state: 'accepted', providerId: result.MessageId })
+  } catch (error) {
+    console.error('Partnership run notice unconfirmed', error instanceof Error ? error.name : 'UnknownError')
     return Response.json({ state: 'unconfirmed' }, { status: 503 })
   }
 }

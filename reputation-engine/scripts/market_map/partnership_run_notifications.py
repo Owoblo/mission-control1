@@ -81,6 +81,11 @@ def run_notices(folder, day, lane, key, results, preparation, receipt):
             metrics['Researched · ' + city] = count
         for identifier, holds in read(preparation, {}).get('holds', {}).items():
             issues.setdefault(identifier, []).extend(holds)
+        for path in sorted((results/'records').glob('*.json')):
+            record = read(path, {})
+            if record.get('hold') and record.get('id') not in issues and record.get('id') not in inventory:
+                state = record.get('state', 'research_review')
+                review.append(review_row(record.get('name'), record.get('city'), state, [state]))
     else:
         decision = read(folder/'relationship-decisions.json', {})
         metrics['CRM relationships reviewed'] = len(decision.get('contacts', []))
@@ -270,6 +275,14 @@ def tick(out, state, now, db, sender=post):
     for batch_day, lane, key, folder, results, prep, path, errors in iter_batches(out, days):
         receipt = read(path, {})
         notifications = list(issues_for(batch_day, lane, key, errors))
+        if lane == 'B2B':
+            report = read(folder/'report.json', {})
+            uncertain = report.get('record_states', {}).get('verification_request_review', 0)
+            if uncertain:
+                notifications.append(notice(batch_day, lane, key + ':verification_review', 'issue', {
+                    'Issue': 'Verification requests need reconciliation',
+                    'Records affected': uncertain,
+                }))
         notifications += list(run_notices(folder, batch_day, lane, key, results, prep, receipt))
         ready_path = folder/'report.json' if lane == 'B2B' else results.parent/'status.json'
         if not receipt and ready_path.is_file():
