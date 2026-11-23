@@ -3,12 +3,30 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from . import geo_physical_coverage as physical
 from . import partnership_run_notifications as reports
 
 
 class PhysicalCoverageTests(unittest.TestCase):
+    def test_daily_site_worker_requires_config_and_launches_once(self):
+        with TemporaryDirectory() as temporary:
+            out = Path(temporary)
+            active = datetime(2026, 11, 23, 12, tzinfo=timezone.utc)
+            base = out/'physical-site-reconciliation'
+            with patch.object(reports.subprocess, 'Popen') as launch:
+                reports.ensure_daily_site_reconciliation(out, out, active)
+                launch.assert_not_called()
+                base.mkdir()
+                (base/'config.json').write_text('{}')
+                launch.return_value.pid = 99999999
+                reports.ensure_daily_site_reconciliation(out, out, active)
+                reports.ensure_daily_site_reconciliation(out, out, active)
+                launch.assert_called_once()
+                self.assertIn('2026-11-23', launch.call_args.args[0])
+                self.assertEqual(reports.read(base/'launch.json')['attempts'], 1)
+
     def test_foundation_keeps_scope_and_occupancy_separate_from_stock(self):
         city = {'name': 'Fixture', 'geography_id': 'city-a', 'municipality_code': '1',
                 'boundary_status': 'downloaded_checksum_verified',

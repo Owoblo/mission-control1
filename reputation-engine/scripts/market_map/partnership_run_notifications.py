@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import time
 from urllib.error import HTTPError
@@ -199,6 +200,8 @@ def geographic_coverage_notices(out, day):
     stock = {row['municipality_id']: row for row in coverage['municipalities']}
     address_source = read(out/'gis-address-foundation-202606'/'status.json', {})
     observed_addresses = address_source.get('by_municipality_id', {})
+    physical = read(out/'physical-site-reconciliation'/'latest-status.json', {})
+    joined = {row['municipality']: row for row in physical.get('municipalities', [])}
     screened = Counter()
     for row in report.get('city_category', []):
         screened[row['city']] += sum(row['states'].values())
@@ -221,7 +224,11 @@ def geographic_coverage_notices(out, day):
         imported = observed_addresses.get(city['municipality_id'])
         address_count = (f"StatCan candidate addresses {imported['addresses']}, with unit {imported['addresses_with_recorded_unit']}. "
                          if imported else '')
-        reasons = f"{address_count}{scope}. Occupants and suite coverage unverified. Mapped locations {mapped.get('saved_locations', 'unknown')}, recorded units {mapped.get('with_recorded_unit', 'unknown')}, no domain {mapped.get('without_primary_domain', 'unknown')}. Selected {intake.get('selected_candidates', 'unknown')}, screened {screened[city['municipality']]}."
+        site = joined.get(city['municipality'], {})
+        joined_counts = site.get('counts', {})
+        links = (f"Site pass {site['state']}, address rows with building candidates "
+                 f"{joined_counts.get('address_rows_with_building_candidates', 0)}. " if site else '')
+        reasons = f"{address_count}{links}{scope}. Occupants and suite coverage unverified. Mapped locations {mapped.get('saved_locations', 'unknown')}, recorded units {mapped.get('with_recorded_unit', 'unknown')}, no domain {mapped.get('without_primary_domain', 'unknown')}. Selected {intake.get('selected_candidates', 'unknown')}, screened {screened[city['municipality']]}."
         rows.append({
             'name': city['municipality'], 'city': city['municipality'], 'state': intake.get('stock_state', 'stock receipt missing'),
             'reasons': reasons[:500], 'crmUrl': '',
@@ -246,7 +253,43 @@ def geographic_coverage_notices(out, day):
         metrics['StatCan address matching basis'] = address_source['coverage_basis']
         if address_source.get('issue'):
             metrics['Ontario address collection issue'] = address_source['issue']
+    if physical:
+        metrics['Municipal GIS joins available'] = sum(bool(row.get('counts')) for row in joined.values())
+        metrics['Physical site report date'] = physical['day']
+        for city, row in joined.items():
+            metrics['Physical research · ' + city] = row.get('state', 'unknown')
+            if 'source_sites_reviewed' in row.get('occupancy_source_review', {}):
+                metrics['First-party site reviews · ' + city] = row['occupancy_source_review']['source_sites_reviewed']
     yield from split_review_notice(day, 'Scheduler', 'geography-coverage', metrics, rows)
+
+
+def ensure_daily_site_reconciliation(out, root, now):
+    local = now.astimezone(TORONTO)
+    base = out/'physical-site-reconciliation'
+    if local.hour < 6 or not (base/'config.json').is_file() or (base/'STOP').exists():
+        return
+    day = local.date().isoformat()
+    if (base/'runs'/day/'status.json').is_file():
+        return
+    script = base/'geo_site_reconciliation.py'
+    attempt_path = base/'launch.json'
+    prior = read(attempt_path, {})
+    if prior.get('day') == day:
+        path = Path('/proc')/str(prior['pid'])/'cmdline'
+        try:
+            active = str(script).encode() in path.read_bytes().split(b'\0')
+        except OSError:
+            active = False
+        if active or now - parse_date(prior['at']) < timedelta(hours=1) or prior.get('attempts', 0) >= 2:
+            return
+    places = root/'artifacts/windsor-region-map-20261104/places.json'
+    with (base/'run.log').open('ab') as log:
+        proc = subprocess.Popen([sys.executable, '-u', str(script), '--base', str(base),
+                                 '--places', str(places), '--day', day],
+                                cwd=root, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                env={**os.environ, 'PYTHONPATH': '/app'}, start_new_session=True)
+    save(attempt_path, {'pid': proc.pid, 'day': day, 'at': now.isoformat(),
+                        'attempts': prior['attempts'] + 1 if prior.get('day') == day else 1})
 
 
 def issues_for(day, lane, key, files):
@@ -482,6 +525,7 @@ def tick(out, state, now, db, sender=post, root=ROOT):
         return
     today = now.astimezone(TORONTO).date()
     day = today.isoformat()
+    ensure_daily_site_reconciliation(out, root, now)
     days = {d for d in (day, (today-timedelta(days=1)).isoformat(), (today-timedelta(days=2)).isoformat()) if d >= first}
     floors = settings.get('billing_alerts')
     billing = refresh_billing(out, root, now) if floors else {}
@@ -547,6 +591,20 @@ def tick(out, state, now, db, sender=post, root=ROOT):
             push_notices(state, geographic_coverage_notices(out, report_day), now, sender)
     if day in days:
         warnings = list(issues_for(day, 'Scheduler', 'scheduler', [out/'muse-review-error.json']))
+        site_root = out/'physical-site-reconciliation'
+        physical = read(site_root/'runs'/day/'status.json', {})
+        launch = read(site_root/'launch.json', {})
+        if not physical and launch.get('day') == day and now - parse_date(launch['at']) > timedelta(hours=1):
+            warnings.append(notice(day, 'Scheduler', 'gis:missing-receipt', 'issue', {
+                'Issue': 'Physical-site research has not recorded a receipt after one hour',
+                'Next step': 'Check the GIS reconciliation log and source-layer holds.',
+            }))
+        for row in physical.get('municipalities', []):
+            if row.get('state') == 'physical_reconciliation_held':
+                warnings.append(notice(day, 'Scheduler', 'gis:' + re.sub(r'[^\w-]', '', row['municipality']), 'issue', {
+                    'Issue': 'Physical-site research needs attention', 'Municipality': row['municipality'],
+                    'Stored reason': row.get('issue', 'unknown'),
+                }))
         heartbeat = read(out/'scheduler-status.json', {}).get('at')
         if (out/'HOLD').exists() or (out/'STOP').exists() or (heartbeat and
                 now - parse_date(heartbeat) > timedelta(minutes=30)):
