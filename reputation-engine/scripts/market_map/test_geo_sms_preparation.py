@@ -49,11 +49,13 @@ class GeoSmsPreparationTests(unittest.TestCase):
             ('toll_free', True, 'CA', {}, False),
             ('mobile', True, 'CA', {'sms_capable':False}, False),
             ('mobile', True, 'CA', {'error_code':'unresolved'}, False),
+            ('mobile', True, 'CA', {'mobile_country_code':'310'}, False),
+            ('mobile', True, 'CA', {'mobile_country_code':'302'}, True),
             ('mobile', 'true', 'CA', {}, False),
             ('mobile', True, 'US', {}, False),
         ]:
             with self.subTest(kind=kind, extra=extra):
-                entry={'checked_at':now.isoformat(), 'data':{'valid_number':valid,'country_code':country,
+                entry={'checked_at':now.isoformat(), 'data':{'valid_number':valid,'country_code':country,'phone_number':number,
                                                            'carrier':{'type':kind, **extra}}}
                 result=carrier.classify({number:entry}, '(416) 555-0123', now)
                 self.assertEqual(result['technical_state']=='canadian_mobile', allowed)
@@ -63,7 +65,7 @@ class GeoSmsPreparationTests(unittest.TestCase):
     def test_provider_receipt_overrides_stale_inventory_and_replay_preserves_lookup(self):
         now = datetime.now(timezone.utc)
         number='+14165550123'
-        entry={'checked_at':now.isoformat(), 'data':{'valid_number':True,'country_code':'CA','carrier':{'type':'mobile'}}}
+        entry={'checked_at':now.isoformat(), 'data':{'valid_number':True,'country_code':'CA','phone_number':number,'carrier':{'type':'mobile'}}}
         cache={number:entry.copy()}
         receipt={'code':'30006','provider':'twilio','provider_event_id':'test-event',
                  'provider_message_key':'SMfixture','observed_at':now.isoformat(),'campaign_key':'fixture'}
@@ -82,11 +84,56 @@ class GeoSmsPreparationTests(unittest.TestCase):
                    **carrier.classify({number:entry}, number, now)}
             items=[{'id':'fixture','name':'Fixture Bakery','city':'Toronto','sector':'bakery',
                     'verified_routes':[route]}]
-            with patch.object(scheduler,'ROOT',root):
+            with patch.object(scheduler,'ROOT',root), patch.object(carrier,'refresh_delivery_holds'):
                 self.assertEqual(len(prepare_geo_sms(items, policy, at=now)['drafts']), 1)
                 result=prepare_geo_sms(scheduler.refresh_sms_carrier_inventory(items), policy, at=now)
                 self.assertEqual(result['drafts'], [])
                 self.assertEqual(route['technical_state'], 'carrier_sms_unroutable')
+
+    def test_rejects_us_and_mismatched_lookup_even_when_marked_mobile(self):
+        now=datetime.now(timezone.utc)
+        number='+14165550123'
+        us='+12125550123'
+        row={'checked_at':now.isoformat(),'data':{'valid_number':True,'country_code':'CA',
+            'phone_number':number,'carrier':{'type':'mobile','mobile_country_code':'302'}}}
+        self.assertEqual(carrier.classify({us:row},us,now)['technical_state'],'carrier_non_canadian_numbering')
+        self.assertNotEqual(carrier.classify({number:{**row,'data':{**row['data'],'phone_number':us}}},number,now)['technical_state'],'canadian_mobile')
+        self.assertNotEqual(carrier.classify({number:{**row,'data':{**row['data'],'phone_number':None}}},number,now)['technical_state'],'canadian_mobile')
+
+    def test_final_provider_failures_are_reconciled_by_exact_route(self):
+        now=datetime.now(timezone.utc)
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            config=root/'.private'
+            config.mkdir()
+            carrier.save(config/'regional-outcomes.json', {'SUPABASE_URL':'https://example.test','SUPABASE_KEY':'fixture',
+                         'TWILIO_ACCOUNT_SID':'AC'+'a'*32,'TWILIO_AUTH_TOKEN':'fixture'})
+            folder=root/carrier.CARRIER_DIRECTORY
+            folder.mkdir(parents=True)
+            sid='SM'+'1'*32
+            calls=[]
+            def provider(request, **_kwargs):
+                calls.append(request.full_url)
+                path=request.full_url.split('?')[0]
+                if path.endswith('crm_sms_provider_events'):
+                    body=[{'event_id':'telnyx-1','provider':'telnyx','message_key':'telnyx:fixture',
+                           'occurred_at':now.isoformat(),'payload':{'errors':[{'code':'40001'}],'to':[{'phone_number':'+14165550123'}]}}]
+                else:
+                    body={'messages':[{'sid':sid,'error_code':30006,'status':'undelivered','direction':'outbound-api',
+                                       'date_updated':'Mon, 23 Nov 2026 04:00:00 +0000','to':'+15195550123'},
+                                      {'sid':'SMtemporary','error_code':30003,'status':'undelivered','direction':'outbound-api',
+                                       'date_updated':'Mon, 23 Nov 2026 04:00:00 +0000','to':'+15195550124'}]}
+                response=MagicMock()
+                response.__enter__.return_value.read.return_value=json.dumps(body)
+                return response
+            with patch.object(carrier,'urlopen',side_effect=provider):
+                carrier.refresh_delivery_holds(root, now)
+                carrier.refresh_delivery_holds(root, now)
+            self.assertEqual(len(calls),2)
+            cache=carrier.read(folder/'carrier-lookups.json',{})
+            self.assertEqual(set(cache),{'+14165550123','+15195550123'})
+            self.assertEqual(cache['+14165550123']['sms_delivery_hold']['code'],'40001')
+            self.assertEqual(cache['+15195550123']['sms_delivery_hold']['code'],'30006')
 
     def test_provider_lookups_have_no_balance_request_and_keep_the_daily_cap(self):
         with TemporaryDirectory() as tmp:
@@ -125,6 +172,7 @@ class GeoSmsPreparationTests(unittest.TestCase):
             config = {'geo_sms_promotion_endpoint':'https://go.quote2move.com/api/marketing/sms/promote-research',
                       'geo_sms_first_day':day}
             with patch.object(scheduler,'ROOT',root), patch.object(scheduler,'OUT',root), \
+                 patch.object(carrier,'refresh_delivery_holds'), \
                  patch.object(scheduler,'muse_research_running',return_value=False), \
                  patch.object(scheduler,'enrichment_module',return_value=MagicMock(prepare_geo_sms=MagicMock(return_value=prepared))), \
                  patch.dict(scheduler.os.environ, WORKER_SHARED_SECRET='test-secret'), \

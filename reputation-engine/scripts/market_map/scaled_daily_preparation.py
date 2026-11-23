@@ -731,6 +731,7 @@ def refresh_sms_carrier_inventory(items):
             import geo_contact_carrier_checks as carrier
         finally:
             sys.path.pop(0)
+    carrier.refresh_delivery_holds(ROOT)
     cache = read(ROOT/carrier.CARRIER_DIRECTORY/'carrier-lookups.json', {})
     clock = datetime.now(timezone.utc)
     for item in items:
