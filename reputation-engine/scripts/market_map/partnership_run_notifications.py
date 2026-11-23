@@ -279,6 +279,37 @@ def geographic_coverage_notices(out, day):
     yield from split_review_notice(day, 'Scheduler', 'geography-coverage', metrics, rows)
 
 
+def relationship_backlog_notices(out, state, now, db):
+    local = now.astimezone(TORONTO)
+    if local.hour < 8:
+        return
+    day = local.date().isoformat()
+    key = notice(day, 'Scheduler', 'relationship-backlog', 'run', {})
+    complete = already_saved(state, key, 'complete')
+    if complete.exists():
+        return
+    snapshot = out/f'relationship-backlog-{day}.json'
+    if not snapshot.exists():
+        attempt = already_saved(state, key, 'scan-attempt')
+        previous = read(attempt, {}).get('at')
+        if previous and now - parse_date(previous) < timedelta(minutes=30):
+            return
+        save(attempt, {'at': now.isoformat()})
+        if __package__:
+            from .partnership_relationship_backlog import scan
+        else:
+            from partnership_relationship_backlog import scan
+        save(snapshot, scan(db, now))
+    stats = read(snapshot)
+    metrics = {'Report': 'Partnership relationship backlog', 'Lookback starts': stats['cutoff'],
+               'CRM threads reviewed': stats['threads_reviewed'],
+               'Conversation records reviewed': stats['touches_reviewed'],
+               'Cases for owner review': len(stats['review']), **stats['counts'],
+               'How to clear a case': 'Open the CRM thread and record the real outcome in a linked task. '
+                                      'Completed tasks need an outcome note. Book visits only after confirming who can attend.'}
+    return complete, list(split_review_notice(day, 'Scheduler', 'relationship-backlog', metrics, stats['review']))
+
+
 def ensure_daily_site_reconciliation(out, root, now):
     local = now.astimezone(TORONTO)
     base = out/'physical-site-reconciliation'
@@ -551,6 +582,17 @@ def tick(out, state, now, db, sender=post, root=ROOT):
         warnings.extend(openai_cost_notices(day, read(daily/'report.json', {}), daily/'results',
                         billing_amount(floors.get('openai_per_run_usd', 10))))
     push_notices(state, warnings, now, sender)
+    if settings.get('relationship_backlog') is True and day in days:
+        try:
+            backlog = relationship_backlog_notices(out, state, now, db)
+            if backlog:
+                complete, parts = backlog
+                push_notices(state, parts, now, sender)
+                if all(already_saved(state, part).exists() for part in parts):
+                    save(complete, {'at': now.isoformat(), 'parts': len(parts)})
+        except Exception as exc:
+            push_notices(state, [notice(day, 'Scheduler', 'relationship-backlog-scan', 'issue',
+                         {'Issue': 'Could not reconcile partnership backlog', 'Reason': type(exc).__name__})], now, sender)
     for batch_day, lane, key, folder, results, prep, path, errors in iter_batches(out, days):
         receipt = read(path, {})
         notifications = list(issues_for(batch_day, lane, key, errors))
