@@ -187,6 +187,54 @@ def split_review_notice(day, lane, key, metrics, review):
         yield notice(day, lane, part_key, 'run', part_metrics, rows)
 
 
+def geographic_coverage_notices(out, day):
+    foundation = read(out/'physical-foundation.json', {})
+    daily = out/'days'/day
+    coverage = read(daily/'municipality-candidate-coverage.json', {})
+    if not foundation or not coverage:
+        return
+    report = read(daily/'report.json', {})
+    if not report:
+        return
+    stock = {row['municipality_id']: row for row in coverage['municipalities']}
+    screened = Counter()
+    for row in report.get('city_category', []):
+        screened[row['city']] += sum(row['states'].values())
+    rows = []
+    for city in foundation['municipalities']:
+        intake = stock.get(city['municipality_id'], {})
+        layer_states = {layer['layer']: layer['state'] for layer in city['layers']}
+        short = {
+            'collected_publisher_inventory_reconciled': 'source inventory checked',
+            'downloaded_checksum_verified': 'boundary file verified',
+            'display_tiles_ready': 'display ready',
+            'source_discovery_pending': 'source needed',
+            'county_download_excluded_municipal_access_unconfirmed': 'access unconfirmed',
+            'empty_source_requires_review': 'empty result needs review',
+            'available_in_linked_physical_pilot': 'pilot evidence',
+            'downloaded_not_yet_spatially_validated': 'validation needed',
+        }
+        scope = ', '.join(layer + ' ' + short.get(state, state) for layer, state in layer_states.items())
+        mapped = city.get('saved_map', {})
+        reasons = f"{scope}. Occupants and suite coverage unverified. Mapped locations {mapped.get('saved_locations', 'unknown')}, recorded units {mapped.get('with_recorded_unit', 'unknown')}, no domain {mapped.get('without_primary_domain', 'unknown')}. Selected {intake.get('selected_candidates', 'unknown')}, screened {screened[city['municipality']]}."
+        rows.append({
+            'name': city['municipality'], 'city': city['municipality'], 'state': intake.get('stock_state', 'stock receipt missing'),
+            'reasons': reasons[:500], 'crmUrl': '',
+        })
+    metrics = {
+        'Report': 'Physical geography and research coverage',
+        'Municipalities tracked': len(rows),
+        'Daily municipalities with eligible candidate stock': coverage.get('municipalities_with_candidates', 'unknown'),
+        'Daily municipalities with no eligible stock': len(coverage.get('empty_municipalities', [])),
+        'Physical layer status cells': foundation['summary']['physical_layer_cells'],
+        'Municipalities with reconciled civic address source inventory': foundation['summary']['addresses_with_reconciled_source_inventory'],
+        'Saved locations with no domain': foundation['summary']['saved_locations_without_primary_domain'],
+        'Physical evidence ledger generated at': foundation['generated_at'],
+        'Remaining work': 'Verify zoning, buildings, parcels, civic addresses and published occupants at the property and suite level.',
+    }
+    yield from split_review_notice(day, 'Scheduler', 'geography-coverage', metrics, rows)
+
+
 def issues_for(day, lane, key, files):
     for path in files:
         data = read(path, {})
@@ -479,6 +527,10 @@ def tick(out, state, now, db, sender=post, root=ROOT):
         if report_plan and all(already_saved(state, part).exists() for part in report_plan):
             save(complete, {'at': now.isoformat(), 'parts': len(report_plan)})
             plan_path.unlink(missing_ok=True)
+    for report_day in sorted(days):
+        key = notice(report_day, 'Scheduler', 'geography-coverage', 'run', {})
+        if not already_saved(state, key).exists():
+            push_notices(state, geographic_coverage_notices(out, report_day), now, sender)
     if day in days:
         warnings = list(issues_for(day, 'Scheduler', 'scheduler', [out/'muse-review-error.json']))
         heartbeat = read(out/'scheduler-status.json', {}).get('at')
