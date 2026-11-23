@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -97,3 +98,22 @@ class PartnershipRunNoticeTests(unittest.TestCase):
         alerts = list(runs.openai_cost_notices(self.day, report, self.root, runs.billing_amount(10)))
         self.assertEqual([x['id'].split(':')[-2] for x in alerts], ['quota', 'spend'])
         self.assertEqual(dict(alerts[1]['metrics'])['Estimated cost USD'], '12.50')
+
+    def test_confidence_labels_distinguish_source_gaps_from_eligibility_holds(self):
+        row = runs.review_row('Fixture Business', 'London', 'held_before_send',
+                              ['verify_unique_current_mobile', 'recent_conversation_hold'])
+        self.assertTrue(row['state'].startswith('Weak evidence'))
+        self.assertIn('confirm the carrier result', row['reasons'])
+        self.assertIn('recent_conversation_hold', row['reasons'])
+        paused = runs.review_row('Fixture Agent', 'London', 'held', ['suppression_hold'])
+        self.assertEqual(paused['state'], 'held')
+
+    def test_large_review_preserves_every_row_beneath_the_endpoint_limit(self):
+        row = runs.review_row('Fixture Business', 'London', 'held', ['x' * 490])
+        rows = [row] * 4000
+        parts = list(runs.split_review_notice(self.day, 'B2B', 'geo', {}, rows))
+        self.assertGreater(len(parts), 1)
+        self.assertEqual(sum(len(part['review']) for part in parts), len(rows))
+        for part in parts:
+            self.assertLess(len(json.dumps(part).encode()), 2 * 1024 * 1024)
+        self.assertEqual(len(set(part['id'] for part in parts)), len(parts))

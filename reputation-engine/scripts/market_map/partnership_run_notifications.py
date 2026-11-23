@@ -27,6 +27,32 @@ QUEUE_ACTIVE = {'pending', 'processing', 'running', 'queued_manual'}
 DELIVERED = {'delivered', 'read'}
 FAILED = {'failed', 'undelivered', 'delivery_failed', 'sending_failed', 'canceled'}
 
+EVIDENCE_GAPS = {
+    'source_review': 'confirm the business and its current first-party contact or location page',
+    'business_identity_review': 'corroborate the business identity and exact local branch',
+    'route_attribution_review': 'find first-party evidence linking the route to this identity',
+    'route_or_existing_identity_review': 'resolve route ownership and check its prior CRM match',
+    'verify_unique_current_mobile': 'confirm the carrier result and that the number belongs to this business',
+    'carrier_sms_unroutable': 'verify a different professional contact route',
+    'primary_mobile_route_selection_required': 'identify which verified number belongs to the intended person or branch',
+    'confirm_single_direct_realtor_mobile': 'resolve a current direct mobile for the named agent',
+    'independently_attributed_mobile_route_missing': 'find a professional source that directly attributes the mobile',
+    'first_party_realtor_route_required': 'find the route on a current first-party professional page',
+    'current_open_house_attribution_required': 'confirm the current event and agent role against the source',
+    'additional_listing_evidence_needed': 'confirm the exact property and listing representative',
+    'open_house_market_conflict': 'resolve the listing market and the agent’s service market',
+    'resolve_brokerage': 'resolve the agent and current brokerage using first-party evidence',
+    'verify_historical_mobile_receipt': 'reconcile the earlier delivery receipt with the current mobile route',
+}
+RELEASE_CHECKS = {
+    'recipient_specific_release_basis_unconfirmed': 'review the saved source and recipient-specific release basis',
+    'channel_or_role_review': 'confirm the recipient’s role and appropriate channel',
+    'sector_specific_copy_review': 'verify the business use case and review the proposed copy',
+    'full_thread_decision_required': 'read the full conversation before choosing an action',
+    'office_visit_promise_or_sensitive_thread_review': 'review the prior commitment and agree on the next action',
+    'verification_request_review': 'reconcile the previous verification attempt before retrying',
+}
+
 
 class NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
@@ -45,8 +71,15 @@ def save(path, value):
 
 def review_row(name, city, state, holds, contact_id=None):
     url = CONTACT_URL + contact_id if isinstance(contact_id, str) and re.fullmatch(r'[\da-f-]{36}', contact_id) else ''
+    codes = sorted(set(map(str, holds)))
+    gaps = list(dict.fromkeys(EVIDENCE_GAPS[key] for key in codes if key in EVIDENCE_GAPS))
+    checks = list(dict.fromkeys(RELEASE_CHECKS[key] for key in codes if key in RELEASE_CHECKS))
+    state = ('Weak evidence · ' if gaps else '') + str(state)
+    reasons = ', '.join(codes)
+    if gaps or checks:
+        reasons += ' | Next check — ' + '. '.join([*gaps, *checks]) + '.'
     return {'name': str(name or '')[:200], 'city': str(city or '')[:120], 'state': str(state)[:120],
-            'reasons': ', '.join(sorted(set(map(str, holds))))[:500], 'crmUrl': url}
+            'reasons': reasons[:500], 'crmUrl': url}
 
 
 def notice(day, lane, key, kind, metrics, review=()):
@@ -130,9 +163,28 @@ def run_notices(folder, day, lane, key, results, preparation, receipt):
         if holds:
             review.append(review_row(item.get('name') or identifier, item.get('city'), 'held_before_send', holds,
                                      item.get('contact_id')))
-    counts = Counter(reason for row in review for reason in row['reasons'].split(', ') if reason)
-    metrics.update({'Review records': len(review), **{'Hold · ' + reason: count for reason, count in sorted(counts.items())}})
-    yield notice(day, lane, key, 'run', metrics, review)
+    counts = Counter(reason for row in review for reason in row['reasons'].partition(' | ')[0].split(', ') if reason)
+    metrics.update({'Review records': len(review),
+                    'Records with a known evidence gap': sum(row['state'].startswith('Weak evidence · ') for row in review),
+                    **{'Hold · ' + reason: count for reason, count in sorted(counts.items())}})
+    yield from split_review_notice(day, lane, key, metrics, review)
+
+
+def split_review_notice(day, lane, key, metrics, review):
+    # Leave space for the full summary and the JSON envelope under Vercel's request limit.
+    parts = [[]]
+    size = 0
+    for row in review:
+        length = len(json.dumps(row, ensure_ascii=False).encode()) + 1
+        if size + length > 1500000 or len(parts[-1]) >= 10000:
+            parts.append([])
+            size = 0
+        parts[-1].append(row)
+        size += length
+    for index, rows in enumerate(parts, start=1):
+        part_metrics = {**metrics, 'Review attachment part': f'{index} of {len(parts)}'} if len(parts) > 1 else metrics
+        part_key = key if index == 1 else f'{key}:part{index}'
+        yield notice(day, lane, part_key, 'run', part_metrics, rows)
 
 
 def issues_for(day, lane, key, files):
@@ -391,14 +443,23 @@ def tick(out, state, now, db, sender=post, root=ROOT):
                     'Issue': 'Verification requests need reconciliation',
                     'Records affected': uncertain,
                 }))
-        if not already_saved(state, notice(batch_day, lane, key, 'run', {})).exists():
-            for report_notice in run_notices(folder, batch_day, lane, key, results, prep, receipt):
-                for provider, row in billing.get('providers', {}).items():
-                    value = row.get('error') or f"{row['available']} {row['currency']}"
-                    report_notice['metrics'].append([provider + ' available funds', value])
-                if billing.get('at'):
-                    report_notice['metrics'].append(['Billing checks observed at', billing['at']])
-                notifications.append(report_notice)
+        report_key = notice(batch_day, lane, key, 'run', {})
+        plan_path = already_saved(state, report_key, 'plan')
+        complete = already_saved(state, report_key, 'complete')
+        report_plan = []
+        if not complete.exists():
+            report_plan = read(plan_path, [])
+            if not report_plan:
+                for report_notice in run_notices(folder, batch_day, lane, key, results, prep, receipt):
+                    for provider, row in billing.get('providers', {}).items():
+                        value = row.get('error') or f"{row['available']} {row['currency']}"
+                        report_notice['metrics'].append([provider + ' available funds', value])
+                    if billing.get('at'):
+                        report_notice['metrics'].append(['Billing checks observed at', billing['at']])
+                    report_plan.append(report_notice)
+                if report_plan:
+                    save(plan_path, report_plan)
+            notifications.extend(report_plan)
         ready_path = folder/'report.json' if lane == 'B2B' else results.parent/'status.json'
         if not receipt and ready_path.is_file():
             ready = read(ready_path, {}).get('at')
@@ -415,6 +476,9 @@ def tick(out, state, now, db, sender=post, root=ROOT):
                 notifications.append(notice(batch_day, lane, key + ':delivery_receipts', 'issue',
                     {'Issue': 'Could not reconcile queue delivery receipts', 'Campaign': receipt.get('campaign_key')}))
         push_notices(state, notifications, now, sender)
+        if report_plan and all(already_saved(state, part).exists() for part in report_plan):
+            save(complete, {'at': now.isoformat(), 'parts': len(report_plan)})
+            plan_path.unlink(missing_ok=True)
     if day in days:
         warnings = list(issues_for(day, 'Scheduler', 'scheduler', [out/'muse-review-error.json']))
         heartbeat = read(out/'scheduler-status.json', {}).get('at')
