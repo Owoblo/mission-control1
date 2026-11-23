@@ -49,6 +49,7 @@ function isPublicMarketingDialerPath(pathname: string) {
 
 const INTERNAL_SECRET_API_PATHS = new Set([
   '/api/marketing/sms/promote-research',
+  '/api/marketing/partnership-digest',
   '/api/sales/automation/ingest',
   '/api/sales/automation/process',
   '/api/sales/automation/reactivate',

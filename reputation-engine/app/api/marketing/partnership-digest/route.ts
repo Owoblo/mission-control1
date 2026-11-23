@@ -1,3 +1,4 @@
+import { deliverPartnershipRunNotice } from '@/lib/server/partnership-run-notifications'
 import { NextResponse } from 'next/server'
 import { isAuthorizedCronRequest } from '@/lib/server/cron-auth'
 import { requireSupabaseEnv } from '@/lib/server/runtime'
@@ -7,6 +8,7 @@ import { isOttawa } from '@/lib/partnership-core/ottawa.mjs'
 import { openZohoMailbox } from '@/lib/partnership-core/zoho.mjs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+export const POST = deliverPartnershipRunNotice
 export async function GET(request: Request) {
   const preview = new URL(request.url).searchParams.get('preview') === '1'
   const cron = isAuthorizedCronRequest(request)
