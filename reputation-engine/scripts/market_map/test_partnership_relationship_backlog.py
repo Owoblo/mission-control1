@@ -62,3 +62,14 @@ class RelationshipBacklogTests(unittest.TestCase):
                 scan.assert_called_once()
                 reports.save(complete, {'parts': 1})
                 self.assertIsNone(reports.relationship_backlog_notices(out, state, now, None))
+
+    def test_contact_scope_is_preserved_beside_the_reader_cursor(self):
+        def database(table, _select, **filters):
+            if table == 'market_touches':
+                return [touch('a', 'My customer had a bad experience.')]
+            if table == 'market_contacts':
+                self.assertEqual(filters, {'and': f'(id.in.({CID}))'})
+                return [CONTACT]
+            return []
+        result = backlog.scan(database, datetime.fromisoformat(NOW))
+        self.assertEqual(result['counts'], {'Service recovery': 1})

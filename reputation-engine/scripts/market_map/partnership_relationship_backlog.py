@@ -9,7 +9,7 @@ SUPPRESSED = {'dnc', 'do_not_contact', 'closed_lost', 'suppressed', 'opted_out',
               'unsubscribed', 'not_interested', 'wrong_number', 'bad_number', 'rejected'}
 OPEN_TASKS = {'open', 'in_progress'}
 CASE_TYPES = {
-    'Service recovery': (r"\b(?:bad experience|unhappy|dissatisfied|damaged|damage claim|complaint|overcharg\w*|refund|additional charges|payment dispute|payment terms|poor service|make (?:it right|amends))\b",
+    'Service recovery': (r"\b(?:service recovery|bad experience|unhappy|dissatisfied|damaged|damage claim|complaint|overcharg\w*|refund|additional charges|payment dispute|payment terms|poor service|make (?:it right|amends))\b",
                          'Read the job and call history, confirm what remains unresolved, and agree an owner-led repair.'),
     'Meeting or visit': (r"\b(?:meeting|appointment|meet in person|meet up|come by|stop by|stopped by|swing by|office visit|drop (?:off )?(?:a few |some |the )?cards)\b",
                          'Confirm whether the visit happened, was cancelled, or needs a new date and confirmed host.'),
@@ -187,7 +187,10 @@ def scan(db, now):
         if any(case_evidence(kind, history) for kind in CASE_TYPES):
             ids.add(cid)
     contacts = [row for group in chunks(cid for cid in ids if cid and re.fullmatch(r'[\da-f-]{36}', cid))
-                for row in db('market_contacts', 'id,name,company,city,stage,decision,do_not_contact,cross_channel_suppressed_at', id=group)]
+                for row in db('market_contacts', 'id,name,company,city,stage,decision,do_not_contact,cross_channel_suppressed_at',
+                              **{'and': f'(id.{group})'})]
+    if any(contact['id'] not in ids for contact in contacts):
+        raise ValueError('CRM contact read returned identities outside the backlog')
     contacts = [c for c in contacts if 'internal test' not in (c.get('company') or '').lower()]
     cases = project(contacts, touches, tasks, leads, jobs.values(), appointments, cutoff, now.isoformat())
     for task in db('crm_tasks', 'id,title,description,status',
