@@ -108,7 +108,7 @@ export function responseSummary(events: ContextEvent[]) {
     optOut: sets.filter((s) => s.has("opt_out")).length,
   };
 }
-/** Scheduled-reply conversations are exempt; cold jobs must remain on their approved local day/window. */
+/** Prepared partnership SMS may dispatch at any hour on its approved local day. */
 export function campaignWindow(
   notes: unknown,
   scheduledAt: string,
@@ -145,8 +145,9 @@ export function campaignWindow(
       s = parts(new Date(scheduledAt));
     const day = (p: Record<string, string>) => `${p.year}-${p.month}-${p.day}`;
     const hour = Number(n.hour) + Number(n.minute) / 60;
-    const start = Number(c.startHour ?? 10),
-      end = Number(c.endHour ?? 17);
+    const prepared = c.type === "partnership_sms_campaign" && c.template === "Prepared per-recipient SMS";
+    const start = prepared ? 0 : Number(c.startHour ?? 10),
+      end = prepared ? 24 : Number(c.endHour ?? 17);
     if (
       !Number.isFinite(start) ||
       !Number.isFinite(end) ||

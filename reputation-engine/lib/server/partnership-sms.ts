@@ -375,6 +375,14 @@ export function buildPartnershipSmsSchedule(options: {
     const dayIndex = Math.floor(index / dailyCap)
     const positionInDay = index % dailyCap
     const scheduledDay = options.includeWeekends ? addDays(day, dayIndex) : advanceBusinessDays(day, dayIndex)
+    if (startHour === 0 && endHour === 24 && options.startDate) {
+      // Space slots over the actual local day, which can have 23 or 25 hours.
+      const start = zonedDateToUtc(scheduledDay, 0, 0, timezone).getTime()
+      const end = zonedDateToUtc(addDays(scheduledDay, 1), 0, 0, timezone).getTime()
+      const slot = start + Math.floor(positionInDay * (end - start) / dailyCap / 1000) * 1000
+      schedule.push({ scheduledAt: new Date(slot).toISOString(), fromNumber: senders[index % senders.length] })
+      continue
+    }
     const spacing = minutesInWindow / Math.max(1, dailyCap)
     const initialOffset = dayIndex === 0 ? Math.max(0, (firstHour - startHour) * 60 + firstMinute) : 0
     const minuteOffset = initialOffset + positionInDay * spacing

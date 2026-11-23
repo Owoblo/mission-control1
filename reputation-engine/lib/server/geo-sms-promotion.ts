@@ -41,7 +41,7 @@ export function prepareGeoSmsPromotion(input: {
       /\{(name|city|brand)\}/g,
       (_, field: 'name' | 'city' | 'brand') => ({ name, city, brand: isOttawa(city) ? 'Dexa Movers' : 'Saturn Star Movers' })[field],
     )
-    const expected = [opener, useCase, policy.closers[variant[1] % policy.closers.length], policy.unsubscribe].join(' ')
+    const expected = [opener, useCase, policy.closers[variant[1] % policy.closers.length]].join('\n\n')
     if (draft.body !== expected) throw new Error('Draft does not match the approved geography template')
   }
   const options = {

@@ -133,8 +133,8 @@ export function schedulePreparedSms(plan: ReturnType<typeof planPreparedSms>, da
   const ready = plan.filter(r => r.send_ready)
   const today = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/Toronto' })
   const cap = Math.max(1, Math.floor(dailyCap))
-  // Use future business-hour slots at the daily rate. Skip elapsed slots, never compress a day's sends at closing.
-  const schedule = buildPartnershipSmsSchedule({ startDate: today, includeWeekends: true, count: ready.length + cap, dailyCap: cap, senderNumbers: [...new Set(ready.map(r => r.sender))] })
+  // Spread the daily cap across the Toronto calendar day and skip elapsed slots.
+  const schedule = buildPartnershipSmsSchedule({ startDate: today, includeWeekends: true, startHour: 0, endHour: 24, count: ready.length + cap, dailyCap: cap, senderNumbers: [...new Set(ready.map(r => r.sender))] })
     .filter(slot => Date.parse(slot.scheduledAt) >= now + 10 * 60 * 1000)
     .sort((a,b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt))
     .slice(0, ready.length)

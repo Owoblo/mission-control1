@@ -395,7 +395,7 @@ def prepare_geo_sms(inventory, policy_dir, *, excluded_ids=(), at=None):
             name=name, brand=brand, city=city)
         closer = policy['closers'][variant[1] % len(policy['closers'])]
         drafts.append({'id': identifier, 'name': record['name'], 'cities': [city], 'holds': [],
-                       'body': ' '.join((opener, use_cases[sector], closer, policy['unsubscribe']))})
+                       'body': '\n\n'.join((opener, use_cases[sector], closer))})
     return {'drafts': drafts, 'inventory': selected, 'holds': holds, 'template_version': policy['version']}
 
 

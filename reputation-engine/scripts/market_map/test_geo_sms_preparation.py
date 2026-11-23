@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from .geo_scaledmail_enrichment import prepare_geo_sms
+from . import geo_contact_carrier_checks as carrier
 from . import scaled_daily_preparation as scheduler
 
 
@@ -30,12 +31,83 @@ class GeoSmsPreparationTests(unittest.TestCase):
         policy = Path(__file__).resolve().parents[2] / 'lib/partnership-core'
         prepared = prepare_geo_sms(rows, policy, at=now)
         self.assertEqual([row['id'] for row in prepared['drafts']], ['0','2','3'])
-        self.assertTrue(all('Dexa Movers' in row['body'] and 'reply unsubscribe' in row['body'] and not row['holds']
+        self.assertTrue(all('Dexa Movers' in row['body'] and 'unsubscribe' not in row['body'].lower() and row['body'] == row['body'].strip() and row['body'].count('\n\n') == 2 and not row['holds']
                             for row in prepared['drafts']))
         self.assertEqual(prepared['holds'], {
             '1':['channel_or_role_review'], '4':['market_not_active'], '5':['market_not_active'],
             '6':['market_not_active'], '7':['primary_mobile_route_selection_required'],
         })
+
+    def test_carrier_requires_current_valid_canadian_wireless_and_no_route_failure(self):
+        now = datetime.now(timezone.utc)
+        number = '+14165550123'
+        for kind, valid, country, extra, allowed in [
+            ('mobile', True, 'CA', {}, True),
+            ('wireless', True, 'CA', {}, True),
+            ('landline', True, 'CA', {}, False),
+            ('voip', True, 'CA', {}, False),
+            ('toll_free', True, 'CA', {}, False),
+            ('mobile', True, 'CA', {'sms_capable':False}, False),
+            ('mobile', True, 'CA', {'error_code':'unresolved'}, False),
+            ('mobile', 'true', 'CA', {}, False),
+            ('mobile', True, 'US', {}, False),
+        ]:
+            with self.subTest(kind=kind, extra=extra):
+                entry={'checked_at':now.isoformat(), 'data':{'valid_number':valid,'country_code':country,
+                                                           'carrier':{'type':kind, **extra}}}
+                result=carrier.classify({number:entry}, '(416) 555-0123', now)
+                self.assertEqual(result['technical_state']=='canadian_mobile', allowed)
+                if allowed:
+                    self.assertEqual(result['carrier_line_type'], 'mobile')
+
+    def test_provider_receipt_overrides_stale_inventory_and_replay_preserves_lookup(self):
+        now = datetime.now(timezone.utc)
+        number='+14165550123'
+        entry={'checked_at':now.isoformat(), 'data':{'valid_number':True,'country_code':'CA','carrier':{'type':'mobile'}}}
+        cache={number:entry.copy()}
+        receipt={'code':'30006','provider':'twilio','provider_event_id':'test-event',
+                 'provider_message_key':'SMfixture','observed_at':now.isoformat(),'campaign_key':'fixture'}
+        self.assertEqual(carrier.record_delivery_route_holds(cache, {number:receipt}), 1)
+        self.assertEqual(carrier.record_delivery_route_holds(cache, {number:receipt}), 0)
+        self.assertEqual(cache[number]['data'], entry['data'])
+        with self.assertRaises(ValueError):
+            carrier.record_delivery_route_holds(cache, {number:{**receipt,'code':'30003'}})
+        with TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            target=root/carrier.CARRIER_DIRECTORY/'carrier-lookups.json'
+            target.parent.mkdir(parents=True)
+            carrier.save(target, cache)
+            policy=Path(__file__).resolve().parents[2]/'lib/partnership-core'
+            route={'route_id':'mobile','kind':'phone','value':number,'scope':'company',
+                   **carrier.classify({number:entry}, number, now)}
+            items=[{'id':'fixture','name':'Fixture Bakery','city':'Toronto','sector':'bakery',
+                    'verified_routes':[route]}]
+            with patch.object(scheduler,'ROOT',root):
+                self.assertEqual(len(prepare_geo_sms(items, policy, at=now)['drafts']), 1)
+                result=prepare_geo_sms(scheduler.refresh_sms_carrier_inventory(items), policy, at=now)
+                self.assertEqual(result['drafts'], [])
+                self.assertEqual(route['technical_state'], 'carrier_sms_unroutable')
+
+    def test_provider_lookups_have_no_balance_request_and_keep_the_daily_cap(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            private = root/'.private'
+            private.mkdir()
+            carrier.save(private/'contact-verification.json', {'TELNYX_API_KEY':'test-key'})
+            cache = root/'cache.json'
+            ledger = root/'ledger.json'
+            receipt = root/'status.json'
+            summary = {'provider_attempts':0,'provider_errors':0}
+            response = MagicMock()
+            response.__enter__.return_value.read.return_value = json.dumps({'data':{
+                'valid_number':True,'country_code':'CA','carrier':{'type':'mobile'},
+            }})
+            with patch.object(carrier,'urlopen',return_value=response) as provider:
+                carrier._lookup(root, ['+14165550123','+14165550124'], cache, ledger, receipt, 1, summary)
+            self.assertEqual(provider.call_count, 1)
+            self.assertIn('/v2/number_lookup/', provider.call_args.args[0].full_url)
+            self.assertEqual(summary['provider_attempts'], 1)
+            self.assertEqual(summary['state'], 'shared_daily_carrier_capacity_reached')
 
     def test_railway_requires_finished_carrier_and_calls_once_per_inventory_and_mode(self):
         day = '2026-11-22'
@@ -45,7 +117,7 @@ class GeoSmsPreparationTests(unittest.TestCase):
             results = folder / 'results'
             results.mkdir(parents=True)
             scheduler.save(results/'carrier-activation.json', {'pid':4321})
-            scheduler.save(results/'verified-contact-inventory.json', {'items':['fixture']})
+            scheduler.save(results/'verified-contact-inventory.json', {'items':[{'id':'fixture', 'verified_routes':[]}]})
             prepared = {'drafts':[{'id':'fixture'}], 'inventory':[], 'template_version':'geo_b2b_intro_v1'}
             response = {'campaign_key':'geo-b2b-daily-20261122','prepared':1,'send_ready':1,'scheduled':0}
             opener = MagicMock()

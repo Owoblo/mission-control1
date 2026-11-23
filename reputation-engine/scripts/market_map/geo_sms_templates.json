@@ -1,16 +1,10 @@
 {
   "version": "geo_b2b_intro_v1",
   "openers": [
-    "Hi {name} team, John here with {brand}. We help businesses in {city} with local moves.",
-    "Hi {name} team, I’m John with {brand}, serving {city} and nearby.",
-    "Hey {name} team, this is John from {brand}. Our moving crew works in and around {city}.",
-    "Hi {name} team, John from {brand} here. I wanted to introduce our moving crew in {city}."
+    "Hi {name} team, my name is John. I run {brand}, serving {city} and the surrounding areas."
   ],
   "closers": [
-    "Would a digital card be handy?",
-    "Could I send you our digital card to keep on hand?",
-    "Would you like our card in case a move comes up?",
-    "Happy to send our digital card if that would help."
+    "Would it be okay if I sent you our digital card to keep handy?"
   ],
   "unsubscribe": "",
   "review": [

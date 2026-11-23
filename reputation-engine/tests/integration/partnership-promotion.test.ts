@@ -4,9 +4,11 @@ import { gzipSync } from 'node:zlib'
 import { authenticateResearchSmsApprover, researchSmsRows } from '../../lib/server/research-sms-promoter'
 import { createSessionToken } from '../../lib/auth'
 import { partnershipFunnel } from '../../lib/server/partnership-funnel'
+import { managedGoogleSender } from '../../lib/server/partnership-google-mail'
 import { executePreparedSmsJob } from '../../lib/server/prepared-sms-worker'
 import { assignPreparedSmsSenders, planPreparedSms } from '../../lib/server/prepared-sms'
 import { getPartnershipSenderNumbersForMarket } from '../../lib/partnership-lines'
+import { isInboundOptOut } from '../../lib/server/partnership-sms'
 
 const now = Date.now()
 const option = {
@@ -334,8 +336,25 @@ test('funnel counts unique recipients, live acceptance and reply remain independ
     delivered_or_replied: 0,
   })
 })
-
-
+test('managed sender requires exact same-inbox reply route', () => {
+  const addr = 'john@moveswithsaturn.com'
+  assert.equal(
+    managedGoogleSender('John | Saturn Star Movers <' + addr + '>', addr),
+    addr,
+  )
+  assert.equal(
+    managedGoogleSender(
+      'John | Saturn Star Movers <' + addr + '>',
+      'business@starmovers.ca',
+    ),
+    null,
+  )
+})
+test('prefixed inbound STOP is recognized only for SMS', () => {
+  assert.equal(isInboundOptOut('sms', 'Inbound SMS: STOP'), true)
+  assert.equal(isInboundOptOut('sms', 'Inbound SMS: thanks'), false)
+  assert.equal(isInboundOptOut('email', 'Inbound SMS: STOP'), false)
+})
 test('Telnyx prepared job succeeds without Twilio credentials', async () => {
   const from = getPartnershipSenderNumbersForMarket('Toronto')[0]
   const number = '+14165551234'
@@ -387,13 +406,59 @@ test('Telnyx prepared job succeeds without Twilio credentials', async () => {
   }
 })
 
+test('actual processor queries each lane with an independent bound before claiming', async () => {
+  const { POST } =
+    await import('../../app/api/marketing/sequence/process/route')
+  const vars = {
+    PARTNERSHIP_SMS_MAX_PER_RUN: '17',
+    PARTNERSHIP_EMAIL_MAX_PER_RUN: '3',
+    CRON_SECRET: 'fixture',
+    SUPABASE_URL: 'https://db.invalid',
+    SUPABASE_KEY: 'fixture',
+  }
+  const prior = Object.fromEntries(
+    Object.keys(vars).map((key) => [key, process.env[key]]),
+  )
+  const saved = globalThis.fetch
+  const limits: Record<string, string | null> = {}
+  try {
+    Object.assign(process.env, vars)
+    globalThis.fetch = async (input) => {
+      const url = new URL(String(input))
+      if (url.hostname !== 'db.invalid') throw Error('Unexpected host')
+      if (url.searchParams.get('status') === 'eq.pending')
+        limits[String(url.searchParams.get('channel'))] =
+          url.searchParams.get('limit')
+      return Response.json([])
+    }
+    const res = await POST(
+      new Request('https://app.invalid/api/marketing/sequence/process', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer fixture' },
+      }),
+    )
+    assert.equal(res.status, 200)
+    assert.deepEqual(limits, {
+      'eq.sms': '17',
+      'eq.email': '3',
+      'not.in.(sms,email)': '10',
+    })
+  } finally {
+    globalThis.fetch = saved
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
+})
 
 test('geo worker endpoint authenticates, checks exact copy, and queues through the promotion RPC only when enabled', async (t) => {
-  const { POST } = await import('../../app/api/marketing/sms/promote-research/route')
+  const { GET, POST } = await import('../../app/api/marketing/sms/promote-research/route')
   const env = {
     WORKER_SHARED_SECRET: 'test-worker-secret',
     PREPARED_SMS_EXECUTION_ENABLED: 'true',
     PARTNERSHIP_GEO_SMS_AUTO_PROMOTION_ENABLED: 'false',
+    PARTNERSHIP_OPEN_HOUSE_SMS_AUTO_PROMOTION_ENABLED: 'true',
     SUPABASE_URL: 'https://database.example.test',
     SUPABASE_KEY: 'test-database-key',
     TELNYX_API_KEY: 'test-telnyx-key',
@@ -410,7 +475,7 @@ test('geo worker endpoint authenticates, checks exact copy, and queues through t
   const source = 'https://example.test/contact'
   const name = 'Fixture Bakery'
   const id = 'automation-fixture'
-  const body = 'Hi Fixture Bakery team, John here with Saturn Star Movers. We help businesses in Toronto with local moves. If you’re ever moving to a new space or shifting counters, shelving or boxed supplies, we can help. Would you like our card in case a move comes up? You can reply unsubscribe anytime.'
+  const body = 'Hi Fixture Bakery team, my name is John. I run Saturn Star Movers, serving Toronto and the surrounding areas.\n\nIf you’re ever moving to a new space or shifting counters, shelving or boxed supplies, we can help.\n\nWould it be okay if I sent you our digital card to keep handy?'
   const batch = {
     day, draft_version: 'geo_b2b_intro_v1',
     drafts: [{ id, name, cities: ['Toronto'], body, holds: [] }],
@@ -454,8 +519,20 @@ test('geo worker endpoint authenticates, checks exact copy, and queues through t
     method: 'POST', headers: { 'x-internal-secret': secret, 'Content-Type': 'application/json' }, body: JSON.stringify(data),
   })
   assert.equal((await POST(make(batch, 'bad-secret'))).status, 401)
-  assert.equal((await POST(make(batch))).status, 409)
-  assert.equal((await POST(make({ ...batch, drafts: [{ ...batch.drafts[0], body: body.replace('You can reply unsubscribe anytime.', '') }] }))).status, 400)
+  const blocked = await POST(make(batch))
+  assert.equal(blocked.status, 409)
+  assert.deepEqual((await blocked.json()).required_flags, ['PARTNERSHIP_GEO_SMS_AUTO_PROMOTION_ENABLED'])
+  assert.equal(GET(make(batch, 'bad-secret')).status, 401)
+  const readiness = GET(make(batch))
+  assert.equal(readiness.headers.get('Cache-Control'), 'no-store')
+  assert.deepEqual((await readiness.json()).lanes, {
+    geo_b2b_intro_v1: { execution_enabled: false },
+    open_house_realtor_v1: { execution_enabled: true },
+  })
+  const routed = await POST(make({ day, draft_version: 'open_house_realtor_v1', export_key: 'test-realtor', candidates: [] }))
+  assert.equal(routed.status, 400)
+  assert.equal((await routed.json()).code, 'invalid_realtor_batch_or_evidence')
+  assert.equal((await POST(make({ ...batch, drafts: [{ ...batch.drafts[0], body: body + ' Unapproved extra sentence.' }] }))).status, 400)
   const preview = await POST(make({ ...batch, dry_run: true }))
   assert.equal(preview.status, 200)
   assert.equal((await preview.json()).would_queue, 1)
