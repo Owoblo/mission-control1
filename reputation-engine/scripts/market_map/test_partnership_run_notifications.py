@@ -74,3 +74,26 @@ class PartnershipRunNoticeTests(unittest.TestCase):
         [issue] = runs.issues_for(self.day, 'Realtor', 'export', [path])
         self.assertIn('promotion-attempt:503', issue['id'])
         self.assertEqual(list(runs.issues_for('2026-11-24', 'Realtor', 'export', [path])), [])
+
+    def test_billing_checks_are_hourly_and_low_funds_are_notification_only(self):
+        calls = []
+        def reader(_root, provider):
+            calls.append(provider)
+            if provider == 'Telnyx':
+                return {'balance': '-5', 'available': '20', 'currency': 'USD'}
+            return {'balance': '100', 'available': '100', 'currency': 'CAD'}
+        snapshot = runs.refresh_billing(self.root, self.root, self.at, reader)
+        [warning] = runs.balance_notices(self.day, snapshot, {'telnyx': 25, 'twilio': 25})
+        self.assertIn('telnyx:low', warning['id'])
+        self.assertEqual(dict(warning['metrics'])['Available'], '20.00 USD')
+        runs.refresh_billing(self.root, self.root, self.at + timedelta(minutes=59), reader)
+        self.assertCountEqual(calls, ['Twilio', 'Telnyx'])
+        runs.refresh_billing(self.root, self.root, self.at + timedelta(hours=1), reader)
+        self.assertEqual(len(calls), 4)
+
+    def test_openai_cost_and_quota_yield_distinct_alerts(self):
+        runs.save(self.root/'api-usage.json', {'quota_exhausted': True})
+        report = {'worker': {'estimated_model_token_usd': 12.5}}
+        alerts = list(runs.openai_cost_notices(self.day, report, self.root, runs.billing_amount(10)))
+        self.assertEqual([x['id'].split(':')[-2] for x in alerts], ['quota', 'spend'])
+        self.assertEqual(dict(alerts[1]['metrics'])['Estimated cost USD'], '12.50')

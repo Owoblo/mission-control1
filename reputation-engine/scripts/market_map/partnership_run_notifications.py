@@ -1,6 +1,9 @@
 """Owner-only notices from the existing Railway preparation receipts."""
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+import base64
 import fcntl
 import hashlib
 import json
@@ -199,6 +202,100 @@ def parse_date(value):
     return datetime.fromisoformat(value.replace('Z', '+00:00'))
 
 
+def billing_request(url, authorization):
+    request = Request(url, headers={'Authorization': authorization})
+    with build_opener(NoRedirects()).open(request, timeout=8) as response:
+        return json.load(response)
+
+
+def billing_amount(value):
+    cents = Decimal(str(value))
+    if not cents.is_finite():
+        raise ValueError('Invalid billing amount')
+    return cents
+
+
+def phone_billing(root, provider):
+    if provider == 'Twilio':
+        config = read(root/'.private/regional-outcomes.json', {})
+        sid = config['TWILIO_ACCOUNT_SID'].strip()
+        if not re.fullmatch(r'AC[\da-fA-F]{32}', sid):
+            raise ValueError('Invalid account')
+        token = config['TWILIO_AUTH_TOKEN'].strip()
+        auth = 'Basic ' + base64.b64encode(f'{sid}:{token}'.encode()).decode()
+        base = 'https://api.twilio.com/2010-04-01/Accounts/' + sid
+        result = billing_request(base+'/Balance.json', auth)
+    else:
+        config = read(root/'.private/contact-verification.json', {})
+        auth = 'Bearer ' + config['TELNYX_API_KEY'].strip()
+        result = billing_request('https://api.telnyx.com/v2/balance', auth)['data']
+    currency = result['currency']
+    if not re.fullmatch(r'[A-Z]{3}', currency):
+        raise ValueError('Missing billing currency')
+    return {'currency': currency, 'balance': str(billing_amount(result['balance'])),
+            'available': str(billing_amount(result.get('available_credit', result['balance'])))}
+
+
+def refresh_billing(out, root, now, reader=phone_billing):
+    path = out/'provider-billing-status.json'
+    prior = read(path, {})
+    if prior.get('at') and now - parse_date(prior['at']) < timedelta(hours=1):
+        return prior
+
+    def check(provider):
+        try:
+            return provider, reader(root, provider)
+        except HTTPError as exc:
+            return provider, {'error': f'HTTP {exc.code}'}
+        except Exception as exc:
+            return provider, {'error': type(exc).__name__}
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        providers = dict(executor.map(check, ('Twilio', 'Telnyx')))
+    current = {'at': now.isoformat(), 'providers': providers}
+    save(path, current)
+    return current
+
+
+def balance_notices(day, snapshot, floors):
+    for provider, row in snapshot.get('providers', {}).items():
+        key = provider.lower()
+        if row.get('error'):
+            yield notice(day, 'Scheduler', 'billing:' + key + ':unavailable', 'issue', {
+                'Issue': provider + ' balance check unavailable',
+                'Provider response': row['error'], 'Checked at': snapshot['at'],
+            })
+            continue
+        floor = billing_amount(floors.get(key, 25))
+        available = billing_amount(row['available'])
+        if available <= floor:
+            level = 'critical' if available <= 0 else 'low'
+            yield notice(day, 'Scheduler', f'billing:{key}:{level}', 'issue', {
+                'Issue': provider + ' ' + level + ' available funds',
+                'Available': f"{available:.2f} {row['currency']}",
+                'Alert threshold': f"{floor:.2f} {row['currency']}",
+                'Checked at': snapshot['at'],
+                'Next step': 'Check payment and auto-recharge in the provider console.',
+            })
+
+
+def openai_cost_notices(day, report, results, floor):
+    usage = read(results/'api-usage.json', {})
+    worker = report.get('worker', {})
+    if usage.get('quota_exhausted') or worker.get('state') == 'model_quota_hold':
+        yield notice(day, 'B2B', 'openai:quota', 'issue', {
+            'Issue': 'OpenAI run hit a quota or billing limit',
+            'Next step': 'Check prepaid credit and spend limits in the OpenAI billing dashboard.',
+        })
+    if worker.get('estimated_model_token_usd') is not None:
+        estimate = billing_amount(worker['estimated_model_token_usd'])
+        if estimate >= floor:
+            yield notice(day, 'B2B', 'openai:spend', 'issue', {
+                'Issue': 'OpenAI run crossed the estimated token-cost threshold',
+                'Estimated cost USD': f'{estimate:.2f}', 'Alert threshold USD': f'{floor:.2f}',
+            })
+
+
 def post(payload, root=ROOT):
     secret = os.environ.get('WORKER_SHARED_SECRET') or read(root/'.private/geo-sms-promotion.json', {}).get('WORKER_SHARED_SECRET')
     if not secret:
@@ -264,7 +361,7 @@ def iter_batches(out, days):
                 results/'carrier-review-status.json')
 
 
-def tick(out, state, now, db, sender=post):
+def tick(out, state, now, db, sender=post, root=ROOT):
     settings = read(out/'run-notifications-config.json', {})
     first = settings.get('first_day')
     if not first:
@@ -272,18 +369,36 @@ def tick(out, state, now, db, sender=post):
     today = now.astimezone(TORONTO).date()
     day = today.isoformat()
     days = {d for d in (day, (today-timedelta(days=1)).isoformat(), (today-timedelta(days=2)).isoformat()) if d >= first}
+    floors = settings.get('billing_alerts')
+    billing = refresh_billing(out, root, now) if floors else {}
+    warnings = list(balance_notices(day, billing, floors)) if floors else []
+    if floors:
+        daily = out/'days'/day
+        warnings.extend(openai_cost_notices(day, read(daily/'report.json', {}), daily/'results',
+                        billing_amount(floors.get('openai_per_run_usd', 10))))
+    push_notices(state, warnings, now, sender)
     for batch_day, lane, key, folder, results, prep, path, errors in iter_batches(out, days):
         receipt = read(path, {})
         notifications = list(issues_for(batch_day, lane, key, errors))
         if lane == 'B2B':
             report = read(folder/'report.json', {})
+            if floors and batch_day != day:
+                notifications.extend(openai_cost_notices(batch_day, report, results,
+                    billing_amount(floors.get('openai_per_run_usd', 10))))
             uncertain = report.get('record_states', {}).get('verification_request_review', 0)
             if uncertain:
                 notifications.append(notice(batch_day, lane, key + ':verification_review', 'issue', {
                     'Issue': 'Verification requests need reconciliation',
                     'Records affected': uncertain,
                 }))
-        notifications += list(run_notices(folder, batch_day, lane, key, results, prep, receipt))
+        if not already_saved(state, notice(batch_day, lane, key, 'run', {})).exists():
+            for report_notice in run_notices(folder, batch_day, lane, key, results, prep, receipt):
+                for provider, row in billing.get('providers', {}).items():
+                    value = row.get('error') or f"{row['available']} {row['currency']}"
+                    report_notice['metrics'].append([provider + ' available funds', value])
+                if billing.get('at'):
+                    report_notice['metrics'].append(['Billing checks observed at', billing['at']])
+                notifications.append(report_notice)
         ready_path = folder/'report.json' if lane == 'B2B' else results.parent/'status.json'
         if not receipt and ready_path.is_file():
             ready = read(ready_path, {}).get('at')
@@ -299,11 +414,7 @@ def tick(out, state, now, db, sender=post):
             except Exception:
                 notifications.append(notice(batch_day, lane, key + ':delivery_receipts', 'issue',
                     {'Issue': 'Could not reconcile queue delivery receipts', 'Campaign': receipt.get('campaign_key')}))
-        for payload in notifications:
-            try:
-                send_once(state, payload, now, sender)
-            except Exception as exc:
-                print(f"Notification {payload['id']} unconfirmed ({getattr(exc, 'code', type(exc).__name__)})", flush=True)
+        push_notices(state, notifications, now, sender)
     if day in days:
         warnings = list(issues_for(day, 'Scheduler', 'scheduler', [out/'muse-review-error.json']))
         heartbeat = read(out/'scheduler-status.json', {}).get('at')
@@ -312,11 +423,15 @@ def tick(out, state, now, db, sender=post):
             warnings.append(notice(day, 'Scheduler', 'scheduler:paused', 'issue',
                 {'Issue': 'Preparation scheduler is held, stopped, or has a stale heartbeat',
                  'Last heartbeat': heartbeat or 'Unavailable'}))
-        for payload in warnings:
-            try:
-                send_once(state, payload, now, sender)
-            except Exception as exc:
-                print(f"Notification {payload['id']} unconfirmed ({getattr(exc, 'code', type(exc).__name__)})", flush=True)
+        push_notices(state, warnings, now, sender)
+
+
+def push_notices(state, warnings, now, sender):
+    for payload in warnings:
+        try:
+            send_once(state, payload, now, sender)
+        except Exception as exc:
+            print(f"Notification {payload['id']} unconfirmed ({getattr(exc, 'code', type(exc).__name__)})", flush=True)
 
 
 def main():
