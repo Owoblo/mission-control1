@@ -25,6 +25,11 @@ from shapely.strtree import STRtree
 from scripts.market_map.site_source_worker import collect_site
 from scripts.market_map.windsor_physical_report import esri_shape, read_layer
 
+if __package__:
+    from .geo_site_sources import run as run_source_coverage
+else:
+    from geo_site_sources import run as run_source_coverage
+
 
 ASHORT = {
     'STREET': 'ST', 'ROAD': 'RD', 'AVENUE': 'AVE', 'DRIVE': 'DR', 'LANE': 'LN',
@@ -284,6 +289,7 @@ def reconcile(city, spec, base, output, database, places_path, nar_receipt):
 
 def run(base, day, places_path):
     config = read(base/'config.json')
+    source_coverage = run_source_coverage(base, config, day)
     address_root = base.parent/'gis-address-foundation-202606'
     nar = read(address_root/'status.json', {})
     if nar.get('state') != 'ontario_address_members_verified':
@@ -329,7 +335,8 @@ def run(base, day, places_path):
                 status['occupancy_source_review'] = {'state': 'needs_review', 'issue': type(exc).__name__}
         save(receipt, status)
         statuses.append(status)
-    report = {'day': day, 'at': datetime.now(timezone.utc).isoformat(), 'municipalities': statuses}
+    report = {'day': day, 'at': datetime.now(timezone.utc).isoformat(), 'municipalities': statuses,
+              'source_coverage': {k: v for k, v in source_coverage.items() if k != 'municipalities'}}
     save(out/'status.json', report)
     save(base/'latest-status.json', report)
     return report

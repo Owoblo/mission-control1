@@ -6,10 +6,59 @@ import unittest
 from unittest.mock import patch
 
 from . import geo_physical_coverage as physical
+from . import geo_site_sources as sources
 from . import partnership_run_notifications as reports
+from .transport import Response, SourceBlocked
 
 
 class PhysicalCoverageTests(unittest.TestCase):
+    def test_source_discovery_retains_holds_and_rotates_without_live_fetches(self):
+        with TemporaryDirectory() as temporary:
+            out = Path(temporary)
+            base = out/'physical-site-reconciliation'
+            base.mkdir()
+            cities = [{'municipality': f'Test City {code}', 'municipality_code': str(code),
+                       'layers': [{'layer': 'zoning', 'state': 'source_discovery_pending'}]}
+                      for code in range(100, 119)]
+            reports.save(out/'physical-foundation.json', {'municipalities': cities})
+            results = {'results': [{'id': 'a'*32, 'title': 'Test City 100 Zoning',
+                                    'type': 'Feature Service', 'owner': 'unreviewed'},
+                                   {'id': 'b'*32, 'title': 'Test City 101 Zoning',
+                                    'type': 'Feature Service', 'extent': [[-106, 39], [-105, 40]]}],
+                       'nextStart': -1}
+            with patch.object(sources.Transport, 'fetch', return_value=Response(json.dumps(results).encode(), {}, '')):
+                first = sources.run(base, {'municipalities': []}, '2026-11-22')
+                self.assertEqual(first['municipalities_checked_today'], 16)
+                self.assertEqual(first['layer_states']['candidate_scope_and_licence_review'], 1)
+            with patch.object(sources.Transport, 'fetch', side_effect=SourceBlocked('fixture')):
+                self.assertEqual(sources.run(base, {'municipalities': []}, '2026-11-22'), first)
+                second = sources.run(base, {'municipalities': []}, '2026-11-23')
+                self.assertEqual(second['municipalities_ever_checked'], 19)
+                self.assertEqual(second['layer_states']['catalogue_access_or_format_held'], 3)
+
+    def test_reviewed_acquisition_resumes_then_publishes_once(self):
+        with TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            row = {'municipality_code': '1', 'layer': 'buildings', 'review_evidence': 'official licence receipt',
+                   'url': 'https://example.test/arcgis/FeatureServer/1',
+                   'licence_url': 'https://example.test/open', 'fields': ['OBJECTID'], 'attribution': 'Test City'}
+            config = {'municipalities': [{'municipality_code': '1', 'bundle': 'sources/1'}],
+                      'reviewed_arcgis_layers': [row]}
+            def collect(stage, **kwargs):
+                folder = stage/'buildings'
+                if not folder.exists():
+                    folder.mkdir()
+                    raise sources.BudgetExceeded('fixture cursor')
+                reports.save(folder/'manifest.json', {'count': 1})
+                return {'buildings': 1}
+            with patch.object(sources, 'collect', side_effect=collect), patch.object(
+                    sources.shutil, 'disk_usage', return_value=type('Space', (), {'free': 3_000_000_000})()):
+                self.assertEqual(sources.acquire_reviewed(base, config, '2026-11-22')['state'], 'acquisition_checkpointed')
+                self.assertIsNone(sources.acquire_reviewed(base, config, '2026-11-22'))
+                self.assertEqual(sources.acquire_reviewed(base, config, '2026-11-23')['state'], 'publisher_inventory_acquired')
+                self.assertIsNone(sources.acquire_reviewed(base, config, '2026-11-24'))
+                self.assertTrue((base/'sources/1/buildings/manifest.json').is_file())
+
     def test_daily_site_worker_requires_config_and_launches_once(self):
         with TemporaryDirectory() as temporary:
             out = Path(temporary)

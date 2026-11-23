@@ -201,6 +201,8 @@ def geographic_coverage_notices(out, day):
     address_source = read(out/'gis-address-foundation-202606'/'status.json', {})
     observed_addresses = address_source.get('by_municipality_id', {})
     physical = read(out/'physical-site-reconciliation'/'latest-status.json', {})
+    sources = read(out/'physical-site-reconciliation'/'source-coverage'/'latest-status.json', {})
+    searched = {row['municipality_code']: row for row in sources.get('municipalities', [])}
     joined = {row['municipality']: row for row in physical.get('municipalities', [])}
     screened = Counter()
     for row in report.get('city_category', []):
@@ -220,6 +222,14 @@ def geographic_coverage_notices(out, day):
             'downloaded_not_yet_spatially_validated': 'validation needed',
         }
         scope = ', '.join(layer + ' ' + short.get(state, state) for layer, state in layer_states.items())
+        search = searched.get(city['municipality_code'], {})
+        search_summary = ''
+        if search.get('last_catalogue_check'):
+            states = Counter(layer['state'] for layer in search['layers'].values())
+            search_summary = (f" GIS catalog {search['last_catalogue_check']}, "
+                              f"{states['candidate_scope_and_licence_review']} candidate layers, "
+                              f"{states['no_catalogue_match']} without a match, "
+                              f"{states['catalogue_access_or_format_held']} access holds.")
         mapped = city.get('saved_map', {})
         imported = observed_addresses.get(city['municipality_id'])
         address_count = (f"StatCan candidate addresses {imported['addresses']}, with unit {imported['addresses_with_recorded_unit']}. "
@@ -228,7 +238,7 @@ def geographic_coverage_notices(out, day):
         joined_counts = site.get('counts', {})
         links = (f"Site pass {site['state']}, address rows with building candidates "
                  f"{joined_counts.get('address_rows_with_building_candidates', 0)}. " if site else '')
-        reasons = f"{address_count}{links}{scope}. Occupants and suite coverage unverified. Mapped locations {mapped.get('saved_locations', 'unknown')}, recorded units {mapped.get('with_recorded_unit', 'unknown')}, no domain {mapped.get('without_primary_domain', 'unknown')}. Selected {intake.get('selected_candidates', 'unknown')}, screened {screened[city['municipality']]}."
+        reasons = f"{address_count}{links}{search_summary} {scope}. Occupants and suite coverage unverified. Mapped locations {mapped.get('saved_locations', 'unknown')}, recorded units {mapped.get('with_recorded_unit', 'unknown')}, no domain {mapped.get('without_primary_domain', 'unknown')}. Selected {intake.get('selected_candidates', 'unknown')}, screened {screened[city['municipality']]}."
         rows.append({
             'name': city['municipality'], 'city': city['municipality'], 'state': intake.get('stock_state', 'stock receipt missing'),
             'reasons': reasons[:500], 'crmUrl': '',
@@ -260,6 +270,12 @@ def geographic_coverage_notices(out, day):
             metrics['Physical research · ' + city] = row.get('state', 'unknown')
             if 'source_sites_reviewed' in row.get('occupancy_source_review', {}):
                 metrics['First-party site reviews · ' + city] = row['occupancy_source_review']['source_sites_reviewed']
+    if sources:
+        metrics['GIS catalogue receipt date'] = sources['day']
+        metrics['Municipalities checked for missing GIS layers'] = sources['municipalities_ever_checked']
+        metrics['Municipalities checked in last GIS pass'] = sources['municipalities_checked_today']
+        metrics['GIS layers with candidates awaiting review'] = sources['layer_states'].get('candidate_scope_and_licence_review', 0)
+        metrics['GIS layer catalogue access holds'] = sources['layer_states'].get('catalogue_access_or_format_held', 0)
     yield from split_review_notice(day, 'Scheduler', 'geography-coverage', metrics, rows)
 
 
